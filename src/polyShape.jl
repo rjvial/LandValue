@@ -9,11 +9,11 @@ using LandValue, ..poly2D, Devices, Clipper, ArchGDAL, PyCall, PyPlot
 ########################################################################
 
 # Grafica polyshape en 2D.
-function plotPolyshape2D(ps::GeomObject, color::String = "red", alpha::Float64 = 1.0; fig::Union{Nothing,PyPlot.Figure} = nothing, ax = nothing, ax_mat = nothing, line_width::Float64 = 0.5, line_end::Int64 = 3)
+function plotPolyshape2D(ps::GeomObject, color::String="red", alpha::Float64=1.0; fig::Union{Nothing,PyPlot.Figure}=nothing, ax=nothing, ax_mat=nothing, line_width::Float64=0.5, line_end::Int64=3)
 
     if ps isa PointShape
         numSectors = ps.NumPoints
-        point_width = .5
+        point_width = 0.5
         ps = polyShape.shapeBuffer(ps, point_width)
     elseif ps isa LineShape
         numSectors = ps.NumLines
@@ -22,7 +22,8 @@ function plotPolyshape2D(ps::GeomObject, color::String = "red", alpha::Float64 =
         numSectors = ps.NumRegions
     end
 
-    patch = pyimport("matplotlib.patches")
+    patch = PyCall.pyimport("matplotlib.patches")
+    plt = PyCall.pyimport("matplotlib.pyplot")
 
     if ax_mat === nothing
         min_ax = 0
@@ -36,7 +37,7 @@ function plotPolyshape2D(ps::GeomObject, color::String = "red", alpha::Float64 =
         V_i = ps.Vertices[i]
 
         if fig === nothing
-            pygui(true)
+            PyCall.pygui(true)
 
             fig = plt.figure()
             ax = fig.add_subplot(1, 1, 1)
@@ -51,9 +52,9 @@ function plotPolyshape2D(ps::GeomObject, color::String = "red", alpha::Float64 =
         ax.set_xlim(min_ax, max_ax)
         ax.set_ylim(min_ax, max_ax)
         ax.set_aspect("equal")
-        grid("on")
+        ax.grid("on")
 
-        polygon = patch.Polygon(V_i, true, color = color, alpha = alpha)
+        polygon = patch.Polygon(V_i, true, color=color, alpha=alpha)
         ax.add_patch(polygon)
 
     end
@@ -67,32 +68,32 @@ end
 
 
 # Grafica múltiples polyshape 2D en espacio 3D a distintas alturas.
-function plotPolyshape2DVecin3D(vec_ps::Array{polyShape.PolyShape,1}, vec_h, fc::String = "red", a::Float64 = 0.1; fig::Union{Nothing,PyPlot.Figure} = nothing, ax = nothing, ax_mat = nothing, line_width::Float64 = 0.5, line_end::Int64 = 3)
-    fig_=[]
-    ax_=[]
-    ax_mat_=[]
+function plotPolyshape2DVecin3D(vec_ps::Array{polyShape.PolyShape,1}, vec_h, fc::String="red", a::Float64=0.1; fig::Union{Nothing,PyPlot.Figure}=nothing, ax=nothing, ax_mat=nothing, line_width::Float64=0.5, line_end::Int64=3)
+    fig_ = []
+    ax_ = []
+    ax_mat_ = []
     for i in eachindex(vec_h)
         ps_i = vec_ps[i]
         h_i = vec_h[i]
         if i == 1
-            fig_, ax_, ax_mat_ = plotPolyshape2Din3D(ps_i, h_i, fc, a, fig = fig, ax = ax, ax_mat = ax_mat)    
+            fig_, ax_, ax_mat_ = plotPolyshape2Din3D(ps_i, h_i, fc, a, fig=fig, ax=ax, ax_mat=ax_mat)
         end
-        fig_, ax_, ax_mat_ = plotPolyshape2Din3D(ps_i, h_i, fc, a, fig = fig_, ax = ax_, ax_mat = ax_mat_)
+        fig_, ax_, ax_mat_ = plotPolyshape2Din3D(ps_i, h_i, fc, a, fig=fig_, ax=ax_, ax_mat=ax_mat_)
     end
     return fig_, ax_, ax_mat_
 end
 
 
 # Grafica polyshape 2D en espacio 3D a una altura height.
-function plotPolyshape2Din3D(ps::PointShape, height::Float64 = 0.0, fc::String = "blue", a::Float64 = 0.25; fig::Union{Nothing,PyPlot.Figure} = nothing, ax = nothing, ax_mat = nothing, line_width::Float64 = 0.5, filestr = "none")
+function plotPolyshape2Din3D(ps::PointShape, height::Float64=0.0, fc::String="blue", a::Float64=0.25; fig::Union{Nothing,PyPlot.Figure}=nothing, ax=nothing, ax_mat=nothing, line_width::Float64=0.5, filestr="none")
     ps = polyShape.shapeBuffer(ps, line_width)
     fig, ax, ax_mat = plotPolyshape2Din3D(ps, height, fc, a; fig=fig, ax=ax, ax_mat=ax_mat)
 end
-function plotPolyshape2Din3D(ps::LineShape, height::Real = 0.0, fc::String = "blue", a::Float64 = 0.25; fig::Union{Nothing,PyPlot.Figure} = nothing, ax = nothing, ax_mat = nothing, line_width::Float64 = 0.5, line_end::Int64 = 3, filestr = "none")
+function plotPolyshape2Din3D(ps::LineShape, height::Real=0.0, fc::String="blue", a::Float64=0.25; fig::Union{Nothing,PyPlot.Figure}=nothing, ax=nothing, ax_mat=nothing, line_width::Float64=0.5, line_end::Int64=3, filestr="none")
     ps = polyShape.shapeBuffer(ps, line_width, line_end)
     fig, ax, ax_mat = plotPolyshape2Din3D(ps, height, fc, a; fig=fig, ax=ax, ax_mat=ax_mat)
 end
-function plotPolyshape2Din3D(ps::GeomObject, height::Real = 0.0, fc::String = "blue", a::Float64 = 0.25; fig::Union{Nothing,PyPlot.Figure} = nothing, ax = nothing, ax_mat = nothing, filestr = "none")
+function plotPolyshape2Din3D(ps::GeomObject, height::Real=0.0, fc::String="blue", a::Float64=0.25; fig::Union{Nothing,PyPlot.Figure}=nothing, ax=nothing, ax_mat=nothing, filestr="none")
     plt = pyimport("matplotlib.pyplot")
     art3d = pyimport("mpl_toolkits.mplot3d.art3d")
     PyCall.pyimport("mpl_toolkits.mplot3d")
@@ -190,7 +191,7 @@ function plotPolyshape2Din3D(ps::GeomObject, height::Real = 0.0, fc::String = "b
 
                 end
 
-                ax.add_collection3d(art3d.Poly3DCollection(verts, facecolors = fc, linewidths = 0.4, edgecolors = "k", alpha = a))
+                ax.add_collection3d(art3d.Poly3DCollection(verts, facecolors=fc, linewidths=0.4, edgecolors="k", alpha=a))
             end
 
         else
@@ -205,7 +206,7 @@ function plotPolyshape2Din3D(ps::GeomObject, height::Real = 0.0, fc::String = "b
             end
             verts = [verts_]
 
-            ax.add_collection3d(art3d.Poly3DCollection(verts, facecolors = fc, linewidths = 0.4, edgecolors = "k", alpha = a))
+            ax.add_collection3d(art3d.Poly3DCollection(verts, facecolors=fc, linewidths=0.4, edgecolors="k", alpha=a))
 
         end
 
@@ -239,7 +240,7 @@ end
 
 
 # Grafica polyshape 3D en espacio 3D.
-function plotPolyshape3D(ps_volteor::PolyShape, matConexionVertices::Array{Float64,2}, vecVertices::Array{Any,1}, fc::String = "red", a::Float64 = 0.25; fig::Union{Nothing,PyPlot.Figure} = nothing, ax = nothing, ax_mat = nothing, filestr = "none")
+function plotPolyshape3D(ps_volteor::PolyShape, matConexionVertices::Array{Float64,2}, vecVertices::Array{Any,1}, fc::String="red", a::Float64=0.25; fig::Union{Nothing,PyPlot.Figure}=nothing, ax=nothing, ax_mat=nothing, filestr="none")
     plt = pyimport("matplotlib.pyplot")
     art3d = pyimport("mpl_toolkits.mplot3d.art3d")
     pyimport("mpl_toolkits.mplot3d")
@@ -315,7 +316,7 @@ function plotPolyshape3D(ps_volteor::PolyShape, matConexionVertices::Array{Float
 
         end
 
-        ax.add_collection3d(art3d.Poly3DCollection(verts, facecolors = fc, linewidths = 0.06, edgecolors = "k", alpha = a))
+        ax.add_collection3d(art3d.Poly3DCollection(verts, facecolors=fc, linewidths=0.06, edgecolors="k", alpha=a))
     end
 
     ax.set_xlabel("X")
@@ -337,7 +338,7 @@ end
 
 
 
-function plotScatter3d(x,y,z, fig=nothing, ax=nothing, ax_mat=nothing, color="red", marker="o", alpha=.3)
+function plotScatter3d(x, y, z, fig=nothing, ax=nothing, ax_mat=nothing, color="red", marker="o", alpha=0.3)
 
     plt = pyimport("matplotlib.pyplot")
     pyimport("mpl_toolkits.mplot3d")
@@ -347,7 +348,7 @@ function plotScatter3d(x,y,z, fig=nothing, ax=nothing, ax_mat=nothing, color="re
         pygui(true)
 
         fig = plt.figure()
-        ax = fig[:add_subplot](111, projection = "3d")
+        ax = fig[:add_subplot](111, projection="3d")
 
         min_ax_x = minimum(x)
         min_ax_y = minimum(y)
@@ -356,12 +357,12 @@ function plotScatter3d(x,y,z, fig=nothing, ax=nothing, ax_mat=nothing, color="re
         max_ax_y = maximum(y)
         max_ax_z = maximum(z)
     else
-        min_ax_x = ax_mat[1,1]
-        min_ax_y = ax_mat[2,1]
-        min_ax_z = ax_mat[3,1]
-        max_ax_x = ax_mat[1,2]
-        max_ax_y = ax_mat[2,2]
-        max_ax_z = ax_mat[3,2]
+        min_ax_x = ax_mat[1, 1]
+        min_ax_y = ax_mat[2, 1]
+        min_ax_z = ax_mat[3, 1]
+        max_ax_x = ax_mat[1, 2]
+        max_ax_y = ax_mat[2, 2]
+        max_ax_z = ax_mat[3, 2]
         min_ax_x = minimum([min_ax_x minimum(x)])
         min_ax_y = minimum([min_ax_y minimum(y)])
         min_ax_z = minimum([min_ax_z minimum(z)])
@@ -496,7 +497,7 @@ end
 function shapeArea(shape::PosDimGeom)::Float64
     geom = polyShape.shape2geom(shape)
     area = ArchGDAL.geomarea(geom)
-    
+
     return area
 end
 
@@ -570,7 +571,7 @@ function shapeSimplify(shape::PosDimGeom, tol::Float64)::PosDimGeom
     return shape_out
 end
 
-function shapeSimplifyTopology(shape::PosDimGeom, tol::Float64 = 0.05, flagTopo::Bool = true)::PosDimGeom 
+function shapeSimplifyTopology(shape::PosDimGeom, tol::Float64=0.05, flagTopo::Bool=true)::PosDimGeom
     if isa(shape, PolyShape)
         numElementos = shape.NumRegions
     elseif isa(shape, LineShape)
@@ -663,9 +664,9 @@ function shapeBuffer(shape::PosDimGeom, dist, nseg)::PosDimGeom
 end
 function shapeBuffer(shape::PointShape, dist=0.1)::PolyShape
     numElementos = shape.NumPoints
-    VV = Array{Array{Float64,2},1}(undef,numElementos)
+    VV = Array{Array{Float64,2},1}(undef, numElementos)
     for i = 1:numElementos
-        point_i = PointShape(shape.Vertices[i,:]',1)
+        point_i = PointShape(shape.Vertices[i, :]', 1)
         geom = polyShape.shape2geom(point_i)
         poly_ = ArchGDAL.buffer(geom, dist, 3)
         shape_ = polyShape.geom2shape(poly_)
@@ -715,7 +716,7 @@ function shapeDistance(shape1::PosDimGeom, shape2::PosDimGeom)::Float64
     return dist
 end
 function shapeDistance(shape1::PointShape, shape2::PointShape)::Float64
-    dist = sqrt(sum((shape1.Vertices[1,:] .- shape2.Vertices[1,:]).^2))
+    dist = sqrt(sum((shape1.Vertices[1, :] .- shape2.Vertices[1, :]) .^ 2))
     return dist
 end
 
@@ -844,35 +845,35 @@ end
 function polyUnion(ps::PolyShape)::PolyShape
     ps_out = polyShape.polyCopy(ps)
     numRegiones = ps.NumRegions
-    VV = Array{Array{Float64,2},1}(undef,numRegiones)
-    ps_ = polyShape.subShape(ps,1)
+    VV = Array{Array{Float64,2},1}(undef, numRegiones)
+    ps_ = polyShape.subShape(ps, 1)
     largo_salida = 0
     largo_vv = 0
-    for i=1:numRegiones
+    for i = 1:numRegiones
         area_ = polyShape.polyArea(ps_)
         ps_i = polyShape.subShape(ps, i)
         area_i = polyShape.polyArea(ps_i)
         ps_union_i = polyShape.polyUnion(ps_, ps_i)
         if ps_union_i.NumRegions > numRegiones # Mala solucion -> arreglar
-            ps_union_i = PolyShape(ps_union_i.Vertices[1:numRegiones],numRegiones)
+            ps_union_i = PolyShape(ps_union_i.Vertices[1:numRegiones], numRegiones)
         end
         area_union_i = polyShape.polyArea(ps_union_i)
-        if area_union_i - (area_ + area_i) <  5
+        if area_union_i - (area_ + area_i) < 5
             for l = 1:length(ps_union_i.Vertices)
                 VV[l] = ps_union_i.Vertices[l]
             end
             ps_ = polyShape.polyCopy(ps_union_i)
             largo_vv = length(ps_.Vertices)
-            
+
         else
             VV[largo_vv+1] = ps_i.Vertices[1]
-            ps_ = PolyShape(VV[1:largo_vv+1], largo_vv+1)
+            ps_ = PolyShape(VV[1:largo_vv+1], largo_vv + 1)
             largo_vv = length(ps_.Vertices)
         end
         largo_salida = largo_vv
     end
-    ps_out = PolyShape(VV[1:largo_salida],largo_salida)
-return ps_out
+    ps_out = PolyShape(VV[1:largo_salida], largo_salida)
+    return ps_out
 end
 
 
@@ -891,17 +892,17 @@ function polyIntersect(ps_s::PolyShape, ps_c::PolyShape)::PolyShape
     n_c = ps_c.NumRegions
     VV = []
     cont = 0
-    for i=1:n_s
-        poly_s_i = polyShape.polyshape2clipper(polyShape.subShape(ps_s,i))
-        for j=1:n_c            
-            poly_c_j = polyShape.polyshape2clipper(polyShape.subShape(ps_c,j))
+    for i = 1:n_s
+        poly_s_i = polyShape.polyshape2clipper(polyShape.subShape(ps_s, i))
+        for j = 1:n_c
+            poly_c_j = polyShape.polyshape2clipper(polyShape.subShape(ps_c, j))
             poly_ij = Devices.Polygons.clip(Clipper.ClipTypeIntersection, poly_s_i, poly_c_j)
             ps_ij = polyShape.clipper2polyshape(poly_ij)
-            if polyShape.polyArea(ps_ij) >= .01
+            if polyShape.polyArea(ps_ij) >= 0.01
                 n_ij = ps_ij.NumRegions
-                for k=1:n_ij
+                for k = 1:n_ij
                     cont += 1
-                    VV = push!(VV,ps_ij.Vertices[k])
+                    VV = push!(VV, ps_ij.Vertices[k])
                 end
             end
         end
@@ -936,18 +937,18 @@ function polyOrientation(ps::PolyShape)::Union{Int64,Array{Int64,1}}
         s = 0
         numVertices = size(V_i, 1)
         for j = 1:numVertices
-            if j <= numVertices-1
-                x0 = V_i[j,1]
-                x1 = V_i[j+1,1]
-                y0 = V_i[j,2]
-                y1 = V_i[j+1,2]
+            if j <= numVertices - 1
+                x0 = V_i[j, 1]
+                x1 = V_i[j+1, 1]
+                y0 = V_i[j, 2]
+                y1 = V_i[j+1, 2]
             else
-                x0 = V_i[numVertices,1]
-                x1 = V_i[1,1]
-                y0 = V_i[numVertices,2]
-                y1 = V_i[1,2]
+                x0 = V_i[numVertices, 1]
+                x1 = V_i[1, 1]
+                y0 = V_i[numVertices, 2]
+                y1 = V_i[1, 2]
             end
-            s += (x1-x0)*(y1+y0)
+            s += (x1 - x0) * (y1 + y0)
         end
         ccw_vec[i] = s < 0 ? 1 : -1
     end
@@ -974,9 +975,9 @@ function lineAngle(sh::PosDimGeom)
         numLines = sh.NumRegions
         VV = []
         for i = 1:numLines
-            VV = push!(VV, vcat(sh.Vertices[i], sh.Vertices[i][1,:]'))
+            VV = push!(VV, vcat(sh.Vertices[i], sh.Vertices[i][1, :]'))
         end
-        ls = LineShape(VV,numLines)
+        ls = LineShape(VV, numLines)
     else
         ls = sh
     end
@@ -984,15 +985,15 @@ function lineAngle(sh::PosDimGeom)
     for i = 1:numLines
         ls_i = polyShape.subShape(ls, i)
         V_k = []
-        for k = 1:size(ls_i.Vertices[1],1)-1
-            p0 = ls_i.Vertices[1][k,:]
-            p1 = ls_i.Vertices[1][k+1,:]
+        for k = 1:size(ls_i.Vertices[1], 1)-1
+            p0 = ls_i.Vertices[1][k, :]
+            p1 = ls_i.Vertices[1][k+1, :]
             dx = p1[1] - p0[1]
             dy = p1[2] - p0[2]
             if dy >= 0
-                angle_ik = acos( dx / sqrt(dx^2 + dy^2) )
+                angle_ik = acos(dx / sqrt(dx^2 + dy^2))
             else
-                angle_ik = pi + acos( -dx / sqrt(dx^2 + dy^2) )
+                angle_ik = pi + acos(-dx / sqrt(dx^2 + dy^2))
             end
             V_k = push!(V_k, angle_ik)
         end
@@ -1108,7 +1109,7 @@ end
 
 
 
-function subShape(shape::PolyShape, k::Int = 1)::PolyShape
+function subShape(shape::PolyShape, k::Int=1)::PolyShape
     out_shape = PolyShape([shape.Vertices[k]], 1)
     return out_shape
 end
@@ -1117,18 +1118,18 @@ function subShape(shape::PolyShape, v::Array{Int64,1})::PolyShape
     return out_shape
 end
 
-function subShape(shape::LineShape, k::Int = 1)::LineShape
+function subShape(shape::LineShape, k::Int=1)::LineShape
     out_shape = LineShape([shape.Vertices[k]], 1)
     return out_shape
 end
-function subShape(shape::PointShape, k::Int = 1)::PointShape
+function subShape(shape::PointShape, k::Int=1)::PointShape
     out_shape = PointShape([shape.Vertices[k, 1] shape.Vertices[k, 2]], 1)
     return out_shape
 end
 
 
 function shapeVertex(shape::PolyShape, k::Int, v::Int)::PointShape
-    out_shape = PointShape(shape.Vertices[k][v,:]', 1)
+    out_shape = PointShape(shape.Vertices[k][v, :]', 1)
     return out_shape
 end
 function shapeVertex(shape::PolyShape)::PointShape
@@ -1136,29 +1137,29 @@ function shapeVertex(shape::PolyShape)::PointShape
     V = [0 0]
     numVertices = 0
     for i = 1:numRegions
-        numVertices_i = size(shape.Vertices[i],1)
+        numVertices_i = size(shape.Vertices[i], 1)
         numVertices = numVertices + numVertices_i
         V = [V; shape.Vertices[i]]
     end
-    V = V[2:end,:]
+    V = V[2:end, :]
     out_shape = PointShape(V, numVertices)
     return out_shape
 end
-function shapeVertex(shape::LineShape, k::Int = 1, v::Int = 1)::PointShape
-    out_shape = PointShape(shape.Vertices[k][v,:]', 1)
+function shapeVertex(shape::LineShape, k::Int=1, v::Int=1)::PointShape
+    out_shape = PointShape(shape.Vertices[k][v, :]', 1)
     return out_shape
 end
 
 
-function numVertices(shape::PolyShape, k::Int = 1)::Int
+function numVertices(shape::PolyShape, k::Int=1)::Int
     shape_k = PolyShape([shape.Vertices[k]], 1)
-    num = size(shape_k.Vertices[1],1)
+    num = size(shape_k.Vertices[1], 1)
     return num
 end
 
 
 
-function polyBox(pos_x::Real, pos_y::Real, dx::Float64, dy::Float64 = dx, angulo::Float64 = 0., cr = [pos_x; pos_y])::PolyShape
+function polyBox(pos_x::Real, pos_y::Real, dx::Float64, dy::Float64=dx, angulo::Float64=0.0, cr=[pos_x; pos_y])::PolyShape
     V = [pos_x pos_y; pos_x+dx pos_y; pos_x+dx pos_y+dy; pos_x pos_y+dy]
     ps = PolyShape([V], 1)
     ps_out = polyShape.polyRotate(ps, angulo, cr)
@@ -1169,7 +1170,7 @@ end
 function polyRotate(ps::PolyShape, angulo::Float64, cr)::PolyShape
     R = poly2D.rotationMatrix(angulo)
     V = ps.Vertices[1]
-    numVertices = size(V,1)
+    numVertices = size(V, 1)
     V_aux = [vec(R * (V[i, 1:2] - cr) + cr) for i in 1:numVertices]
     V_rot = mapreduce(permutedims, vcat, V_aux)
     ps_rot = PolyShape([V_rot], 1)
@@ -1178,7 +1179,7 @@ end
 
 
 
-function polyArea(ps::PolyShape; sep_flag::Bool = false)::Union{Float64, Array{Float64,1}}
+function polyArea(ps::PolyShape; sep_flag::Bool=false)::Union{Float64,Array{Float64,1}}
     numRegions = ps.NumRegions
     if numRegions >= 1
         vecArea = [poly2D.polyArea(ps.Vertices[i]) for i = 1:numRegions]
@@ -1188,7 +1189,7 @@ function polyArea(ps::PolyShape; sep_flag::Bool = false)::Union{Float64, Array{F
             out = sum(vecArea)
         end
     else
-        out = 0.
+        out = 0.0
     end
 end
 
@@ -1196,7 +1197,7 @@ end
 function setPolyOrientation(ps::PolyShape, orientacion_deseada)::PolyShape
     numRegions = ps.NumRegions
     V = ps.Vertices
-    for i=1:numRegions
+    for i = 1:numRegions
         ps_i = polyShape.subShape(ps, i)
         orientacion_actual = polyShape.polyOrientation(ps_i)
         if orientacion_actual != orientacion_deseada
@@ -1212,7 +1213,7 @@ end
 function polyReverse(ps::PolyShape)::PolyShape
     numRegions = ps.NumRegions
     V = ps.Vertices
-    for i=1:numRegions
+    for i = 1:numRegions
         V_i = V[i]
         V_out_i = polyShape.reversePath(V_i)
         V[i] = V_out_i
@@ -1239,21 +1240,21 @@ function polyDifference_v2(ps1::PolyShape, ps2::PolyShape)::PolyShape
 
     numRegions1 = ps1.NumRegions
     numRegions2 = ps2.NumRegions
-    Vout_vec = Array{Array{Float64,2},1}(undef,numRegions1)
+    Vout_vec = Array{Array{Float64,2},1}(undef, numRegions1)
     for i = 1:numRegions1
-        ps1_i = polyShape.subShape(ps1,i)
+        ps1_i = polyShape.subShape(ps1, i)
         Vout_vec[i] = ps1_i.Vertices[1]
         for j = 1:numRegions2
             V1_i = copy(Vout_vec[i])
-            ps2_j = polyShape.subShape(ps2,j)
+            ps2_j = polyShape.subShape(ps2, j)
             flag_ij = polyShape.shapeContains(ps1_i, ps2_j)
             if flag_ij #ps1_i contiene a ps2_j
                 dist_min, id1_min, id2_min = polyShape.minPolyDistance(ps1_i, ps2_j)
                 V2_j = ps2_j.Vertices[1]
-                V2_j_ = [V2_j[id2_min:-1:1,:]; V2_j[end:-1:id2_min,:]]
-                Vout_vec[i] = [V1_i[1:id1_min,:]; V2_j_; V1_i[id1_min:end,:]]
+                V2_j_ = [V2_j[id2_min:-1:1, :]; V2_j[end:-1:id2_min, :]]
+                Vout_vec[i] = [V1_i[1:id1_min, :]; V2_j_; V1_i[id1_min:end, :]]
             end
-    
+
         end
     end
 
@@ -1266,18 +1267,18 @@ end
 
 
 function minPolyDistance(ps1::PolyShape, ps2::PolyShape)
-    numVertices_1 = polyShape.numVertices(ps1,1)
-    numVertices_2 = polyShape.numVertices(ps2,1)
+    numVertices_1 = polyShape.numVertices(ps1, 1)
+    numVertices_2 = polyShape.numVertices(ps2, 1)
     V1 = ps1.Vertices[1]
     V2 = ps2.Vertices[1]
     dist_min = 100000
     id1_min = 0
     id2_min = 0
-    for i=1:numVertices_1
-        p1_i = V1[i,:] 
-        for j=1:numVertices_2
-            p2_j = V2[j,:]
-            dist_ij = sqrt((p1_i[1]-p2_j[1])^2 + (p1_i[2]-p2_j[2])^2)
+    for i = 1:numVertices_1
+        p1_i = V1[i, :]
+        for j = 1:numVertices_2
+            p2_j = V2[j, :]
+            dist_ij = sqrt((p1_i[1] - p2_j[1])^2 + (p1_i[2] - p2_j[2])^2)
             if dist_ij < dist_min
                 dist_min = dist_ij
                 id1_min = i
@@ -1285,7 +1286,7 @@ function minPolyDistance(ps1::PolyShape, ps2::PolyShape)
             end
         end
     end
-    
+
     return dist_min, id1_min, id2_min
 end
 
@@ -1294,6 +1295,15 @@ function polyCopy(ps::PolyShape)::PolyShape
     ps_out = deepcopy(ps)
     return ps_out
 end
+function polyCopy(ls::LineShape)::LineShape
+    ls_out = deepcopy(ls)
+    return ls_out
+end
+function polyCopy(p::PointShape)::PointShape
+    p_out = deepcopy(p)
+    return p_out
+end
+
 
 function polyUnique(ps_::PolyShape)::PolyShape
     ps = polyCopy(ps_)
@@ -1305,19 +1315,19 @@ function polyUnique(ps_::PolyShape)::PolyShape
         for j = i+1:numRegions
             ps_j = polyShape.subShape(ps, j)
             area_j = polyShape.polyArea(ps_j)
-            if abs(area_i-area_j) < 1
-                ps_dif = polyShape.polyDifference(ps_i,ps_j)
+            if abs(area_i - area_j) < 1
+                ps_dif = polyShape.polyDifference(ps_i, ps_j)
                 area_dif = polyShape.polyArea(ps_dif)
                 if area_dif < 1
-                    V[i] = [0. 0.]
+                    V[i] = [0.0 0.0]
                 end
             end
         end
     end
     V_out = []
     for i = 1:numRegions
-        if size(V[i],1) >= 2
-            V_out = push!(V_out,V[i])
+        if size(V[i], 1) >= 2
+            V_out = push!(V_out, V[i])
         end
     end
     ps_out = PolyShape(V_out, length(V_out))
@@ -1333,15 +1343,15 @@ function polyEliminateWithin(ps_::PolyShape)::PolyShape
         ps_i = polyShape.subShape(ps, i)
         for j in setdiff(1:numRegions, i)
             ps_j = polyShape.subShape(ps, j)
-            if polyShape.shapeContains(ps_i,ps_j)
-                V[j] = [0. 0.]
+            if polyShape.shapeContains(ps_i, ps_j)
+                V[j] = [0.0 0.0]
             end
         end
     end
     V_out = []
     for i = 1:numRegions
-        if size(V[i],1) >= 2
-            V_out = push!(V_out,V[i])
+        if size(V[i], 1) >= 2
+            V_out = push!(V_out, V[i])
         end
     end
     ps_out = PolyShape(V_out, length(V_out))
@@ -1349,11 +1359,11 @@ function polyEliminateWithin(ps_::PolyShape)::PolyShape
 end
 
 
-function pointLineDist(l::LineShape,p::PointShape)::Float64
+function pointLineDist(l::LineShape, p::PointShape)::Float64
     # Obtiene la distacia entre un punto a una línea
     V_line = l.Vertices[1]
     V_point = p.Vertices
-    dist = poly2D.distPointLine(V_point[:], V_line[1,:], V_line[2,:])
+    dist = poly2D.distPointLine(V_point[:], V_line[1, :], V_line[2, :])
     return dist
 end
 
@@ -1362,16 +1372,16 @@ function halfspaceSignOfPointToLine(l::LineShape, p::PointShape)::Int64
     # Obtiene el signo del subespacio donde se encuentra el punto respecto a la línea
     V = l.Vertices[1]
 
-    x0 = V[1,1]
-    y0 = V[1,2]
-    x = p.Vertices[1,1]
-    y = p.Vertices[1,2]
+    x0 = V[1, 1]
+    y0 = V[1, 2]
+    x = p.Vertices[1, 1]
+    y = p.Vertices[1, 2]
 
-    if sqrt( (V[2,1] - V[1,1])^2 + (V[2,2] - V[1,2])^2) < 10^-10
+    if sqrt((V[2, 1] - V[1, 1])^2 + (V[2, 2] - V[1, 2])^2) < 10^-10
         s = 0
-    elseif abs(V[2,1] - V[1,1]) > 10^-12
-        m = (V[2,2] - V[1,2])/(V[2,1] - V[1,1])
-        if y - m*x < y0 - m*x0
+    elseif abs(V[2, 1] - V[1, 1]) > 10^-12
+        m = (V[2, 2] - V[1, 2]) / (V[2, 1] - V[1, 1])
+        if y - m * x < y0 - m * x0
             s = 1
         else
             s = -1
@@ -1391,24 +1401,24 @@ end
 function lineLineDist(l1::LineShape, l2::LineShape)::Float64
     # Distance of line l2 to line l1
     V1 = l1.Vertices[1]
-    q = l2.Vertices[1][1,:]*0.5 + l2.Vertices[1][2,:]*0.5
-    p = PointShape([q[1] q[2]],1)
-    d = poly2D.distPointLine(q, V1[1,:], V1[2,:])
-    s = halfspaceSignOfPointToLine(l1,p)
-    return s*d
+    q = l2.Vertices[1][1, :] * 0.5 + l2.Vertices[1][2, :] * 0.5
+    p = PointShape([q[1] q[2]], 1)
+    d = poly2D.distPointLine(q, V1[1, :], V1[2, :])
+    s = halfspaceSignOfPointToLine(l1, p)
+    return s * d
 end
 
 
 
 function parallelLineAtDist(l::LineShape, d::Real)::LineShape
     V = l.Vertices[1]
-    line = poly2D.createLine(V[1,:], V[2,:])
+    line = poly2D.createLine(V[1, :], V[2, :])
     vec_out = poly2D.parallelLine(line, d)
     x1 = vec_out[1]
     y1 = vec_out[2]
     x2 = vec_out[1] + vec_out[3]
     y2 = vec_out[2] + vec_out[4]
-    l_out = LineShape([[x1 y1; x2 y2]],1)
+    l_out = LineShape([[x1 y1; x2 y2]], 1)
 
     return l_out
 end
@@ -1418,10 +1428,10 @@ end
 function intersectLines(l1::LineShape, l2::LineShape)::PointShape
     V_line1 = l1.Vertices[1]
     V_line2 = l2.Vertices[1]
-    edge1 = [V_line1[1,:]' V_line1[2,:]']
-    edge2 = [V_line2[1,:]' V_line2[2,:]']
+    edge1 = [V_line1[1, :]' V_line1[2, :]']
+    edge2 = [V_line2[1, :]' V_line2[2, :]']
     vec_point = poly2D.intersectEdges(edge1, edge2)
-    p = PointShape(vec_point,1)
+    p = PointShape(vec_point, 1)
     return p
 end
 
@@ -1430,28 +1440,28 @@ function extendLine(l::LineShape, d::Real)::LineShape
     # Extiende ambas puntas del segmento l en una distancia d
     V = l.Vertices[1]
     V_ = copy(V)
-    x1 = V[1,1]
-    y1 = V[1,2]
-    x2 = V[2,1]
-    y2 = V[2,2]
+    x1 = V[1, 1]
+    y1 = V[1, 2]
+    x2 = V[2, 1]
+    y2 = V[2, 2]
 
     if abs(x2 - x1) > 10^-12
         if x2 < x1
             d = -d
         end
 
-        m = (y2 - y1)/(x2 - x1)
-        x1_ = x1 - d/sqrt(m^2+1)
-        y1_ = y1 - m*(x1 - x1_)
-        x2_ = x2 + d/sqrt(m^2+1)
-        y2_ = y2 + m*(x2_ - x2)
+        m = (y2 - y1) / (x2 - x1)
+        x1_ = x1 - d / sqrt(m^2 + 1)
+        y1_ = y1 - m * (x1 - x1_)
+        x2_ = x2 + d / sqrt(m^2 + 1)
+        y2_ = y2 + m * (x2_ - x2)
         V_ = [x1_ y1_; x2_ y2_]
 
     else
         V_ = [x1 y1-d; x2 y2+d]
 
     end
-    l_out = LineShape([V_],1)
+    l_out = LineShape([V_], 1)
     return l_out
 
 end
@@ -1461,11 +1471,11 @@ function findPolyIntersection(ps1::PolyShape, ps2::PolyShape)
     V1 = ps1.Vertices[1]
     V2 = ps2.Vertices[1]
     res = poly2D.intersectPoly2d(V1, V2)
-    edges1 = res[:,1]
-    edges2 = res[:,2]
-    p = PointShape(res[:,3:4],length(edges1))
+    edges1 = res[:, 1]
+    edges2 = res[:, 2]
+    p = PointShape(res[:, 3:4], length(edges1))
     return edges1, edges2, p
-end 
+end
 
 
 function pointDistanceMat(p1::PointShape, p2::PointShape)::Array{Float64,2}
@@ -1474,9 +1484,9 @@ function pointDistanceMat(p1::PointShape, p2::PointShape)::Array{Float64,2}
 end
 
 
-function polyEliminaRepetidos(ps::PolyShape, tol::Float64 = 0.1)::PolyShape
+function polyEliminaRepetidos(ps::PolyShape, tol::Float64=0.1)::PolyShape
     ps_ = polyShape.polyCopy(ps)
-    numVertices_ = size(ps_.Vertices[1],1)
+    numVertices_ = size(ps_.Vertices[1], 1)
     vec_flag_ = fill(1, numVertices_)
     points_ = polyShape.shapeVertex(ps_)
     for i = 1:numVertices_
@@ -1492,8 +1502,8 @@ function polyEliminaRepetidos(ps::PolyShape, tol::Float64 = 0.1)::PolyShape
             vec_flag_[i] = 0
         end
     end
-    V_ = copy(ps_.Vertices[1][vec_flag_ .== 1,:])
-    ps_out = PolyShape([V_],1)
+    V_ = copy(ps_.Vertices[1][vec_flag_.==1, :])
+    ps_out = PolyShape([V_], 1)
 
     return ps_out
 end
@@ -1503,43 +1513,43 @@ function createLine(point1::PointShape, point2::PointShape)::LineShape
     v_1 = point1.Vertices[:]'
     v_2 = point2.Vertices[:]'
     V = [v_1; v_2]
-    l_out = LineShape([V],1)
+    l_out = LineShape([V], 1)
     return l_out
 end
 
 
 
-function polyEliminaColineales(ps::PolyShape, tol::Float64 = 0.001, topoFlag::Bool = false)::PolyShape
+function polyEliminaColineales(ps::PolyShape, tol::Float64=0.001, topoFlag::Bool=false)::PolyShape
     ps_in = polyShape.polyCopy(ps)
     area_in = polyShape.polyArea(ps_in)
     V_in = copy(ps_in.Vertices[1])
-    numVertices_in = size(V_in,1)
+    numVertices_in = size(V_in, 1)
 
-    if numVertices_in >= 4  
-        if topoFlag == false  
+    if numVertices_in >= 4
+        if topoFlag == false
             vec_flag = fill(1, numVertices_in)
             for i = 1:numVertices_in
                 vec_flag_i = copy(vec_flag)
                 vec_flag_i[i] = 0
-                ps_i = PolyShape([V_in[vec_flag_i .== 1,:]],1)
+                ps_i = PolyShape([V_in[vec_flag_i.==1, :]], 1)
                 area_i = polyShape.polyArea(ps_i)
-                dif_area = abs(area_in - area_i)/area_in
+                dif_area = abs(area_in - area_i) / area_in
                 if dif_area < tol
                     vec_flag[i] = 0
                 end
             end
-        
-            V_out = copy(ps_in.Vertices[1])[vec_flag .== 1,:]
-            ps_out = PolyShape([V_out],1)
+
+            V_out = copy(ps_in.Vertices[1])[vec_flag.==1, :]
+            ps_out = PolyShape([V_out], 1)
         else
             vec_flag = fill(1, numVertices_in)
             V_out = copy(V_in)
             for i = 1:numVertices_in
                 vec_flag_i = copy(vec_flag)
                 vec_flag_i[i] = 0
-                ps_i = PolyShape([V_in[vec_flag_i .== 1,:]],1)
+                ps_i = PolyShape([V_in[vec_flag_i.==1, :]], 1)
                 area_i = polyShape.polyArea(ps_i)
-                dif_area = abs(area_in - area_i)/area_in
+                dif_area = abs(area_in - area_i) / area_in
                 if dif_area < tol
                     if i == 1
                         ia = numVertices_in
@@ -1549,33 +1559,33 @@ function polyEliminaColineales(ps::PolyShape, tol::Float64 = 0.001, topoFlag::Bo
                         ip = 1
                     else
                         ia = i - 1
-                        ip = i + 1    
+                        ip = i + 1
                     end
                     V_ia = copy(V_out)
-                    V_ia[i,:] = 0.999*V_out[ia,:] + 0.001*V_out[ip,:]
-                    ps_ia = PolyShape([V_ia],1)
+                    V_ia[i, :] = 0.999 * V_out[ia, :] + 0.001 * V_out[ip, :]
+                    ps_ia = PolyShape([V_ia], 1)
                     area_ia = polyShape.polyArea(ps_ia)
-                    dif_area_ia = abs(area_in - area_ia)/area_in
+                    dif_area_ia = abs(area_in - area_ia) / area_in
                     V_ip = copy(V_out)
-                    V_ip[i,:] = 0.99*V_out[ip,:] + 0.01*V_out[ia,:]
-                    ps_ip = PolyShape([V_ip],1)
+                    V_ip[i, :] = 0.99 * V_out[ip, :] + 0.01 * V_out[ia, :]
+                    ps_ip = PolyShape([V_ip], 1)
                     area_ip = polyShape.polyArea(ps_ip)
-                    dif_area_ip = abs(area_in - area_ip)/area_in
+                    dif_area_ip = abs(area_in - area_ip) / area_in
                     if dif_area_ia <= dif_area_ip
                         V_out = copy(V_ia)
                     else
                         V_out = copy(V_ip)
                     end
                 end
-                ps_out = PolyShape([V_out],1)
+                ps_out = PolyShape([V_out], 1)
 
             end
         end
-    
+
     else
         ps_out = polyShape.polyCopy(ps)
     end
-    
+
     return ps_out
 
 end
@@ -1586,24 +1596,24 @@ function polyEliminaSpikes(ps::PolyShape)::PolyShape
 
     area_ps = polyShape.polyArea(ps)
     V = copy(ps.Vertices[1])
-    numPoints = size(V,1)
+    numPoints = size(V, 1)
 
     V_ = copy(ps.Vertices[1])
 
     for i = 1:numPoints
-        V_i = V_[setdiff(1:numPoints,i),:]
-        area_psi = polyShape.polyArea(PolyShape([V_i],1))
-        
-        if abs(area_ps-area_psi)/area_ps <= 0.001 
+        V_i = V_[setdiff(1:numPoints, i), :]
+        area_psi = polyShape.polyArea(PolyShape([V_i], 1))
+
+        if abs(area_ps - area_psi) / area_ps <= 0.001
             if i == 1
-                V_[1,:] = .99 * V[numPoints,:] + .01 * V_[1,:]
+                V_[1, :] = 0.99 * V[numPoints, :] + 0.01 * V_[1, :]
             else
-                V_[i,:] = .99 * V[i-1,:] + .01 * V_[i,:]
+                V_[i, :] = 0.99 * V[i-1, :] + 0.01 * V_[i, :]
             end
         end
     end
 
-    ps_out = PolyShape([V_],1)
+    ps_out = PolyShape([V_], 1)
 
     return ps_out
 
@@ -1615,30 +1625,30 @@ end
 function polyObtieneCruces(ps::PolyShape)
 
     V = copy(ps.Vertices[1])
-    N = size(V,1)
+    N = size(V, 1)
 
     mat_x = [0 0]
     V_x = [0 0]
-    for i=1:N
-        for j=1:N
-            if (j>=i+2 && j-i<=N-2)
-                if i <= N-1
+    for i = 1:N
+        for j = 1:N
+            if (j >= i + 2 && j - i <= N - 2)
+                if i <= N - 1
                     ki_0 = i
-                    ki_1 = i+1
+                    ki_1 = i + 1
                 else
                     ki_0 = N
                     ki_1 = 1
                 end
-                if j <= N-1
+                if j <= N - 1
                     kj_0 = j
-                    kj_1 = j+1
+                    kj_1 = j + 1
                 else
                     kj_0 = N
                     kj_1 = 1
                 end
-                
-                li = LineShape([V[[ki_0,ki_1],:]],1)
-                lj = LineShape([V[[kj_0,kj_1],:]],1)
+
+                li = LineShape([V[[ki_0, ki_1], :]], 1)
+                lj = LineShape([V[[kj_0, kj_1], :]], 1)
                 x_ij = polyShape.shapeIntersect(li, lj)
                 if typeof(x_ij) == PointShape
                     mat_x = vcat(mat_x, [ki_0 kj_0])
@@ -1648,8 +1658,8 @@ function polyObtieneCruces(ps::PolyShape)
         end
     end
 
-    mat_x = mat_x[2:end,:]
-    V_x = V_x[2:end,:]
+    mat_x = mat_x[2:end, :]
+    V_x = V_x[2:end, :]
 
     return mat_x, V_x
 end
@@ -1659,7 +1669,7 @@ function polyEliminaCrucesComplejos(ps::PolyShape)::PolyShape
 
     cond = true
     V = copy(ps.Vertices[1])
-    N = size(V,1)
+    N = size(V, 1)
 
     ps_ = polyShape.polyCopy(ps)
 
@@ -1669,71 +1679,71 @@ function polyEliminaCrucesComplejos(ps::PolyShape)::PolyShape
     mat_x, V_x = polyShape.polyObtieneCruces(ps_)
 
 
-    num_cruces = size(mat_x,1)
+    num_cruces = size(mat_x, 1)
 
     V_a = copy(ps_.Vertices[1])
     V_b = copy(ps_.Vertices[1])
-    vvv = vcat(1:N,1:N)
+    vvv = vcat(1:N, 1:N)
 
     k = 0
     while cond
         k += 1
         if k <= num_cruces
-            l1_ini = mat_x[k,1]
-            if l1_ini <= N-1
+            l1_ini = mat_x[k, 1]
+            if l1_ini <= N - 1
                 l1_fin = l1_ini + 1
             else
                 l1_fin = 1
             end
-            l2_ini = mat_x[k,2]
-            if l2_ini <= N-1
+            l2_ini = mat_x[k, 2]
+            if l2_ini <= N - 1
                 l2_fin = l2_ini + 1
             else
                 l2_fin = 1
             end
-            
-            dist_l2_l1 = l2_ini-l1_ini > 0 ? l2_ini-l1_ini : N-l1_ini+l2_ini
 
-            set_a = vvv[findall(x -> (x>=l2_ini && x<=l2_ini+N-dist_l2_l1), 1:N*2)][2:end-1]
-            V_a[l1_ini,:] = V_x[1,:]'*0.999 + V[l1_fin,:]'*0.001
-            V_a[l2_fin,:] = V_x[1,:]'*0.999 + V[l2_ini,:]'*0.001
-            V_a[set_a,:] = length(set_a)>1 ? repeat(V_x[1,:]',length(set_a),1) : V_x[1,:]'
+            dist_l2_l1 = l2_ini - l1_ini > 0 ? l2_ini - l1_ini : N - l1_ini + l2_ini
 
-            set_b = vvv[findall(x -> (x>=l1_ini && x<=l1_ini+dist_l2_l1), 1:N*2)][2:end-1]
-            V_b[l1_fin,:] = V_x[1,:]'*0.999 + V[l1_ini,:]'*0.001
-            V_b[l2_ini,:] = V_x[1,:]'*0.999 + V[l2_fin,:]'*0.001
-            V_b[set_b,:] = length(set_b)>1 ? repeat(V_x[1,:]',length(set_b),1) : V_x[1,:]'
+            set_a = vvv[findall(x -> (x >= l2_ini && x <= l2_ini + N - dist_l2_l1), 1:N*2)][2:end-1]
+            V_a[l1_ini, :] = V_x[1, :]' * 0.999 + V[l1_fin, :]' * 0.001
+            V_a[l2_fin, :] = V_x[1, :]' * 0.999 + V[l2_ini, :]' * 0.001
+            V_a[set_a, :] = length(set_a) > 1 ? repeat(V_x[1, :]', length(set_a), 1) : V_x[1, :]'
 
-            areaInteseccion_a = polyShape.polyArea(polyShape.polyIntersect(polyShape.PolyShape([V_a],1), ps))
-            areaInteseccion_b = polyShape.polyArea(polyShape.polyIntersect(polyShape.PolyShape([V_b],1), ps))
+            set_b = vvv[findall(x -> (x >= l1_ini && x <= l1_ini + dist_l2_l1), 1:N*2)][2:end-1]
+            V_b[l1_fin, :] = V_x[1, :]' * 0.999 + V[l1_ini, :]' * 0.001
+            V_b[l2_ini, :] = V_x[1, :]' * 0.999 + V[l2_fin, :]' * 0.001
+            V_b[set_b, :] = length(set_b) > 1 ? repeat(V_x[1, :]', length(set_b), 1) : V_x[1, :]'
+
+            areaInteseccion_a = polyShape.polyArea(polyShape.polyIntersect(polyShape.PolyShape([V_a], 1), ps))
+            areaInteseccion_b = polyShape.polyArea(polyShape.polyIntersect(polyShape.PolyShape([V_b], 1), ps))
 
             if areaInteseccion_a > areaInteseccion_b
                 V_ = copy(V_a)
-                ps_ = polyShape.polyEliminaSpikes(PolyShape([V_],1))
+                ps_ = polyShape.polyEliminaSpikes(PolyShape([V_], 1))
                 cond = false
             else
                 V_ = copy(V_b)
-                ps_ = polyShape.polyEliminaSpikes(PolyShape([V_],1))
+                ps_ = polyShape.polyEliminaSpikes(PolyShape([V_], 1))
                 cond = false
             end
         else
             cond = false
         end
-        ps_ = polyShape.polyEliminaSpikes(PolyShape([V_],1))
+        ps_ = polyShape.polyEliminaSpikes(PolyShape([V_], 1))
     end
 
-    return  ps_
+    return ps_
 
 end
 
 
 function polySimplify(ps::PolyShape)::PolyShape
-    
+
     numRegiones = ps.NumRegions
 
-    VV = Array{Array{Float64,2},1}(undef,numRegiones)
+    VV = Array{Array{Float64,2},1}(undef, numRegiones)
     for i = 1:numRegiones
-        ps_i = polyShape.subShape(ps,i)
+        ps_i = polyShape.subShape(ps, i)
 
         # Elimina spikes
         ps_i = polyShape.polyEliminaSpikes(ps_i)
@@ -1746,21 +1756,21 @@ function polySimplify(ps::PolyShape)::PolyShape
 
     end
 
-    ps_out = PolyShape(VV,numRegiones)
+    ps_out = PolyShape(VV, numRegiones)
 
     return ps_out
 end
 
 
 
-function ajustaCoordenadas(ps::PolyShape)::Tuple{PolyShape, Float64, Float64}
+function ajustaCoordenadas(ps::PolyShape)::Tuple{PolyShape,Float64,Float64}
     dx = 10000000
     dy = 10000000
     numRegions = ps.NumRegions
     for i = 1:numRegions
         V_i = ps.Vertices[i]
-        dx_i = minimum(V_i[:,1])
-        dy_i = minimum(V_i[:,2])
+        dx_i = minimum(V_i[:, 1])
+        dy_i = minimum(V_i[:, 2])
         if dx_i < dx
             dx = dx_i
         end
@@ -1769,8 +1779,8 @@ function ajustaCoordenadas(ps::PolyShape)::Tuple{PolyShape, Float64, Float64}
         end
     end
     for i = 1:numRegions
-        ps.Vertices[i][:,1] = ps.Vertices[i][:,1] .- dx
-        ps.Vertices[i][:,2] = ps.Vertices[i][:,2] .- dy
+        ps.Vertices[i][:, 1] = ps.Vertices[i][:, 1] .- dx
+        ps.Vertices[i][:, 2] = ps.Vertices[i][:, 2] .- dy
     end
     return ps, dx, dy
 end
@@ -1778,8 +1788,8 @@ end
 function ajustaCoordenadas(ps::PolyShape, dx::Float64, dy::Float64)
     numRegions = ps.NumRegions
     for i = 1:numRegions
-        ps.Vertices[i][:,1] = ps.Vertices[i][:,1] .- dx
-        ps.Vertices[i][:,2] = ps.Vertices[i][:,2] .- dy
+        ps.Vertices[i][:, 1] = ps.Vertices[i][:, 1] .- dx
+        ps.Vertices[i][:, 2] = ps.Vertices[i][:, 2] .- dy
     end
     return ps
 end
@@ -1787,8 +1797,8 @@ end
 function ajustaCoordenadas(ls::LineShape, dx::Float64, dy::Float64)
     numLines = ls.NumLines
     for i = 1:numLines
-        ls.Vertices[i][:,1] = ls.Vertices[i][:,1] .- dx
-        ls.Vertices[i][:,2] = ls.Vertices[i][:,2] .- dy
+        ls.Vertices[i][:, 1] = ls.Vertices[i][:, 1] .- dx
+        ls.Vertices[i][:, 2] = ls.Vertices[i][:, 2] .- dy
     end
     return ls
 end
@@ -1801,16 +1811,16 @@ end
 ########################################################################
 
 
-function angleMaxDistRect(pos_x, pos_y, anchoLado, angleSpace, ps, template = 0)
-    
+function angleMaxDistRect(pos_x, pos_y, anchoLado, angleSpace, ps, template=0)
+
 
     if template == 0
         # Inicialización
-        max_dist = 0.
-        angle_max_dist = 0.
+        max_dist = 0.0
+        angle_max_dist = 0.0
 
         # Busca angulo para maximizar distancia
-        box_out = PolyShape([],0)
+        box_out = PolyShape([], 0)
         for angle in angleSpace
             dist, box_out = polyShape.extendRectToIntersection(pos_x, pos_y, anchoLado, angle, ps, "tall")
             if dist > max_dist
@@ -1821,8 +1831,8 @@ function angleMaxDistRect(pos_x, pos_y, anchoLado, angleSpace, ps, template = 0)
 
     elseif template == 1
         # Inicialización
-        max_dist_1 = 0.
-        angle_max_dist = 0.
+        max_dist_1 = 0.0
+        angle_max_dist = 0.0
 
         for angle in angleSpace
             dist_1, box_1 = polyShape.extendRectToIntersection(pos_x, pos_y, anchoLado, angle, ps, "fat")
@@ -1843,20 +1853,20 @@ function angleMaxDistRect(pos_x, pos_y, anchoLado, angleSpace, ps, template = 0)
 end
 
 
-function extendRectToIntersection(pos_x, pos_y, anchoLado, angle, ps, rectType = "tall")
-    
+function extendRectToIntersection(pos_x, pos_y, anchoLado, angle, ps, rectType="tall")
+
     # Inicialización
     dist = 0
-    largoIni = 130.
-    box_out = PolyShape([],0)
+    largoIni = 130.0
+    box_out = PolyShape([], 0)
 
     # Prueba si rectangulo anchLado*1 en pos_x, pos_y con angle se encuentra dentro de ps
     if rectType == "tall"
-        box = polyShape.polyBox(pos_x, pos_y, anchoLado, 1., angle)
-        edge = polyShape.LineShape([box.Vertices[1][[3,4],:] ],1)
+        box = polyShape.polyBox(pos_x, pos_y, anchoLado, 1.0, angle)
+        edge = polyShape.LineShape([box.Vertices[1][[3, 4], :]], 1)
     elseif rectType == "fat"
-        box = polyShape.polyBox(pos_x, pos_y, 1., anchoLado, angle)
-        edge = polyShape.LineShape([box.Vertices[1][[2,3],:] ],1)
+        box = polyShape.polyBox(pos_x, pos_y, 1.0, anchoLado, angle)
+        edge = polyShape.LineShape([box.Vertices[1][[2, 3], :]], 1)
     end
     flag = polyShape.isPolyInPoly(box, ps)
 
@@ -1868,9 +1878,9 @@ function extendRectToIntersection(pos_x, pos_y, anchoLado, angle, ps, rectType =
             box_ext = polyShape.polyBox(pos_x, pos_y, largoIni, anchoLado, angle)
         end
         edges1, edges2, p_inter = polyShape.findPolyIntersection(box_ext, ps)
-        point_1 = polyShape.subShape(p_inter,1)
+        point_1 = polyShape.subShape(p_inter, 1)
         dist_1 = polyShape.pointLineDist(edge, point_1)
-        point_2 = polyShape.subShape(p_inter,2)
+        point_2 = polyShape.subShape(p_inter, 2)
         dist_2 = polyShape.pointLineDist(edge, point_2)
         buf = 1
         if dist_1 < dist_2
@@ -1894,12 +1904,12 @@ end
 
 function replaceShapeVertex(pt::PointShape, id::Int, shape::PosDimGeom)::PosDimGeom
     V = copy(shape.Vertices[1])
-    v_pt = copy(pt.Vertices[1,:])
-    V[id,:] = v_pt'
+    v_pt = copy(pt.Vertices[1, :])
+    V[id, :] = v_pt'
     if typeof(shape) == PolyShape
-        shape_out = PolyShape([V],1)
+        shape_out = PolyShape([V], 1)
     elseif typeof(shape) == LineShape
-        shape_out = LineShape([V],1)
+        shape_out = LineShape([V], 1)
     end
 
     return shape_out
@@ -1908,26 +1918,26 @@ end
 
 function lineVec2polyShape(lineVec::Array{LineShape,1})::PolyShape
     N = length(lineVec)
-    V = fill(0., N, 2)
+    V = fill(0.0, N, 2)
     for i = 1:N
         ix_1 = i
         if i == N
             ix_2 = 1
         else
             ix_2 = i + 1
-        end 
+        end
         l_1 = lineVec[ix_1]
         l_2 = lineVec[ix_2]
         point_x_12 = polyShape.shapeIntersect(l_1, l_2)
-        if size(point_x_12.Vertices[1],1) >= 1
-            V[ix_2,:] = point_x_12.Vertices[1,:]'
+        if size(point_x_12.Vertices[1], 1) >= 1
+            V[ix_2, :] = point_x_12.Vertices[1, :]'
         else
-            V[ix_2,:] = V[ix_1,:]
+            V[ix_2, :] = V[ix_1, :]
         end
-        
+
     end
-    ps_out = PolyShape([V],1)
-    
+    ps_out = PolyShape([V], 1)
+
     return ps_out
 end
 
@@ -1941,9 +1951,9 @@ function polyShape2lineVec(ps::PolyShape)::Array{LineShape,1}
     line_vec = Array{LineShape,1}()
     for i in 1:N
         if i < N
-            l_i = LineShape([[V[i,:]';V[i+1,:]']],1)
+            l_i = LineShape([[V[i, :]'; V[i+1, :]']], 1)
         else
-            l_i = LineShape([[V[i,:]';V[1,:]']],1)
+            l_i = LineShape([[V[i, :]'; V[1, :]']], 1)
         end
         line_vec = push!(line_vec, l_i)
     end
@@ -1954,7 +1964,7 @@ end
 
 
 function polyExpandSegmentVec(ps::PolyShape, distVec::Array{Float64,1}, sVec::Array{Int64,1})::PolyShape
-    
+
     line_vec = polyShape.polyShape2lineVec(ps)
     N = length(line_vec)
 
@@ -1963,15 +1973,15 @@ function polyExpandSegmentVec(ps::PolyShape, distVec::Array{Float64,1}, sVec::Ar
     for i in 1:N
         line_vec_i = line_vec[i]
         V_i = line_vec_i.Vertices[1]
-        line_i_length = sqrt((V_i[1,1]-V_i[2,1])^2 + (V_i[1,2]-V_i[2,2])^2)
-        
+        line_i_length = sqrt((V_i[1, 1] - V_i[2, 1])^2 + (V_i[1, 2] - V_i[2, 2])^2)
+
         if i in sVec
-            pos_i = findfirst( id -> id == i, sVec )
-            l_exp_i = polyShape.extendLine(polyShape.parallelLineAtDist(line_vec_i,distVec[pos_i]), max(30, 4*line_i_length))
+            pos_i = findfirst(id -> id == i, sVec)
+            l_exp_i = polyShape.extendLine(polyShape.parallelLineAtDist(line_vec_i, distVec[pos_i]), max(30, 4 * line_i_length))
         else
-            l_exp_i = polyShape.extendLine(line_vec_i, max(30, 4*line_i_length))
+            l_exp_i = polyShape.extendLine(line_vec_i, max(30, 4 * line_i_length))
         end
-        
+
         line_vec_exp = push!(line_vec_exp, l_exp_i)
     end
 
@@ -1982,7 +1992,7 @@ function polyExpandSegmentVec(ps::PolyShape, distVec::Array{Float64,1}, sVec::Ar
     else
         ps_cheq_ = polyShape.polyCopy(ps_aux)
     end
-    ps_cheq = polyShape.polyExpand(ps_cheq_, 1.)
+    ps_cheq = polyShape.polyExpand(ps_cheq_, 1.0)
 
     # Encuentra los vértices de intersección
     point_vec_x = Array{PointShape,1}()
@@ -2012,13 +2022,13 @@ function polyExpandSegmentVec(ps::PolyShape, distVec::Array{Float64,1}, sVec::Ar
     V_out = fill(0.0, N, 2)
     for i = 1:N
         if i > 1
-            V_out[i,:] = point_vec_x[i-1].Vertices
+            V_out[i, :] = point_vec_x[i-1].Vertices
         else
-            V_out[i,:] = point_vec_x[end].Vertices
+            V_out[i, :] = point_vec_x[end].Vertices
         end
     end
 
-    ps_out = PolyShape([V_out],1)
+    ps_out = PolyShape([V_out], 1)
 
     return ps_out
 end
@@ -2026,17 +2036,17 @@ end
 
 # expande todos los lados en la misma distancia
 function polyEqualExpand(ps::PolyShape, dist::Union{Real,Array{Real,1}})::PolyShape
-    
+
     if dist > 0
-        V = ps.Vertices[1];
-        N = size(V, 1);
+        V = ps.Vertices[1]
+        N = size(V, 1)
         V_ = copy(V)
         line_vec = Array{LineShape,1}()
         for i = 1:N
             if i < N
-                l_i = LineShape([[V_[i,:]';V_[i+1,:]']],1)
+                l_i = LineShape([[V_[i, :]'; V_[i+1, :]']], 1)
             else
-                l_i = LineShape([[V_[i,:]';V_[1,:]']],1)
+                l_i = LineShape([[V_[i, :]'; V_[1, :]']], 1)
             end
             line_vec = push!(line_vec, l_i)
         end
@@ -2045,8 +2055,8 @@ function polyEqualExpand(ps::PolyShape, dist::Union{Real,Array{Real,1}})::PolySh
         for i = 1:N
             line_vec_i = line_vec[i]
             V_i = line_vec_i.Vertices[1]
-            line_i_length = sqrt((V_i[1,1]-V_i[2,1])^2 + (V_i[1,2]-V_i[2,2])^2)
-            l_exp_i = extendLine(parallelLineAtDist(line_vec_i,dist), 4*line_i_length)
+            line_i_length = sqrt((V_i[1, 1] - V_i[2, 1])^2 + (V_i[1, 2] - V_i[2, 2])^2)
+            l_exp_i = extendLine(parallelLineAtDist(line_vec_i, dist), 4 * line_i_length)
             line_vec_exp = push!(line_vec_exp, l_exp_i)
         end
 
@@ -2063,14 +2073,14 @@ function polyEqualExpand(ps::PolyShape, dist::Union{Real,Array{Real,1}})::PolySh
         V_out = fill(0.0, N, 2)
         for i = 1:N
             if i > 1
-                V_out[i,:] = point_vec_x[i-1].Vertices
+                V_out[i, :] = point_vec_x[i-1].Vertices
             else
-                V_out[i,:] = point_vec_x[end].Vertices
+                V_out[i, :] = point_vec_x[end].Vertices
             end
         end
 
-        ps_out = PolyShape([V_out],1)
-    
+        ps_out = PolyShape([V_out], 1)
+
     else
         ps_out = polyShape.polyExpand(ps, dist)
     end
@@ -2090,22 +2100,308 @@ function polyReproject(ps::PolyShape, dx::Float64, dy::Float64, EPSG_in::Int64, 
     else
         target = ArchGDAL.importEPSG(EPSG_out)
     end
-    
+
     for i = 1:ps_.NumRegions
-        x = ps_.Vertices[i][:,1] .+ dx
-        y = ps_.Vertices[i][:,2] .+ dy
-        points = ArchGDAL.createpoint.(x,y)
+        x = ps_.Vertices[i][:, 1] .+ dx
+        y = ps_.Vertices[i][:, 2] .+ dy
+        points = ArchGDAL.createpoint.(x, y)
         points_ = ArchGDAL.createcoordtrans(source, target) do transform
             ArchGDAL.transform!.(points, Ref(transform))
         end
         for j = 1:length(points_)
             point_j = polyShape.geom2shape(points[j])
-            ps_.Vertices[i][j,:] = point_j.Vertices[1,:]
+            ps_.Vertices[i][j, :] = point_j.Vertices[1, :]
         end
     end
     poly = polyShape.shape2geom(ps_)
     return poly
-end 
+end
+
+
+function polyskel(ps::PolyShape)
+    # Non-convex ps = PolyShape([[0 0;100 5;80 15;100 40;100 60;40 55;30 30;20 55;0 55]],1)
+    # Convex ps = PolyShape([[10 10;100 5;110 15;110 40;95 50;60 67;30 67;20 65;0 55]],1)
+    # Convex ps = PolyShape([[0 0;100 0;100 40;0 40]],1)
+
+    function generaBisectrizVertice!(ps_lav, vec_bisectriz, id_vert, mat_vertices, vec_edges_bisectriz)
+        vec_bisectriz_ = copy(vec_bisectriz)
+        vertices = polyShape.shapeVertex(ps_lav)
+        edges1 = polyShape.reverseLine(LineShape([[mat_vertices[2,:]'; mat_vertices[1,:]']],1))
+        edges2 = LineShape([[mat_vertices[1,:]'; mat_vertices[3,:]']],1)
+        bisec_dir = polyShape.bisector_direction(edges1, edges2)
+        vertex = polyShape.subShape(vertices, id_vert)
+        b_line = bisec_dir + vertex
+        vertex_end = polyShape.shapeVertex(b_line, 1, 2)
+        flag = polyShape.shapeContains(ps_lav, vertex_end)
+        if !flag
+            dir = bisec_dir
+            bisec_dir = dir * -1
+            b_line = bisec_dir + vertex
+        end
+        b_line = b_line * 100
+        push!(vec_bisectriz_, b_line) # se agrega nueva bisectriz al final del vector 
+        vec_edges_bisectriz[end][2] = edges1
+        vec_edges_bisectriz[end][3] = edges2
+        vec_bisectriz_ = copy(vec_bisectriz_)
+        return vec_bisectriz_, vec_edges_bisectriz
+    end
+
+    function generaBisectricesPoligono(ps)
+        vertices = polyShape.shapeVertex(ps)
+        numVertices = vertices.NumPoints
+        edges = polyShape.polyShape2lineVec(ps)
+        vec_bisectriz = []
+        vec_edges_bisectriz = []
+        bisec_dir = []
+        for i in 1:numVertices
+            edge_a = polyShape.reverseLine(i > 1 ? edges[i-1] : edges[numVertices])
+            edge_p = edges[i]
+            push!(bisec_dir, polyShape.bisector_direction(edge_a, edge_p))    
+            vertex_i = polyShape.subShape(vertices, i)
+            l_i = bisec_dir[i] + vertex_i
+            vertex_end_i = polyShape.shapeVertex(l_i, 1, 2)
+            flag_i = polyShape.shapeContains(ps, vertex_end_i)
+            if !flag_i
+                dir_i = bisec_dir[i]
+                bisec_dir[i] = dir_i * -1
+                l_i = bisec_dir[i] + vertex_i
+            end
+
+            l_i = l_i * 100
+            push!(vec_bisectriz, l_i)
+            push!(vec_edges_bisectriz, [i, edge_a, edge_p])
+        end
+        return vec_bisectriz, vec_edges_bisectriz
+    end
+
+    function intersectaBisectrices(vec_bisectriz, pos_ps)
+        numBisectrices = length(vec_bisectriz)
+        vec_interseccion = []
+        for i in 1:numBisectrices
+            b_1 = vec_bisectriz[i]
+            p_1 = PointShape(b_1.Vertices[1][1,:]',1)
+            i_a = i > 1 ? i-1 : numBisectrices
+            i_p = i < numBisectrices ? i+1 : 1
+            b_2a = vec_bisectriz[i_a]
+            b_2p = vec_bisectriz[i_p]
+            p_12a = polyShape.intersectLines(b_1, b_2a)
+            p_12p = polyShape.intersectLines(b_1, b_2p)
+            dist_12a = polyShape.shapeDistance(p_1,p_12a)
+            dist_12a = isnan(dist_12a) ? 1000000 : dist_12a
+            dist_12p = polyShape.shapeDistance(p_1,p_12p)
+            dist_12p = isnan(dist_12p) ? 1000000 : dist_12p
+            if min(dist_12a, dist_12p) == dist_12a
+
+                push!(vec_interseccion, [pos_ps[i], p_12a, pos_ps[i_a], pos_ps[i]])
+            else
+                push!(vec_interseccion, [pos_ps[i], p_12p, pos_ps[i], pos_ps[i_p]])
+            end
+            
+        end
+        return vec_interseccion
+    end
+
+    function generaMatDist(vec_interseccion_activos, vec_edges_bisectriz, ps_lav, pos_ps)
+        #Genera matriz de distacia pos_ps
+        numIntersecciones = length(pos_ps)
+        queue_dist = zeros(numIntersecciones, 4)
+        for i in 1:numIntersecciones
+            p_i = vec_interseccion_activos[i][2]
+            edge_i_a = vec_edges_bisectriz[pos_ps[i]][2]
+
+            queue_dist[i, 1] = pos_ps[i]
+            flag_in_i = polyShape.shapeContains(ps_lav, p_i)
+            dist_i_a = flag_in_i ? polyShape.pointLineDist(edge_i_a, p_i) : 1000000
+            queue_dist[i, 2] = dist_i_a
+            queue_dist[i, 3] = vec_interseccion_activos[i][3]
+            queue_dist[i, 4] = vec_interseccion_activos[i][4]
+        end
+        queue_dist = queue_dist[sortperm(queue_dist[:, 2]), :]
+        return queue_dist
+    end
+
+    function polyskel_vec(V_lv, ss_list)
+        num = length(ss_list)
+        vec_lines = []
+        for i = 1:num
+            id_end = Int(ss_list[i][1])
+    
+            id_ini_1 = Int(ss_list[i][2])
+            line_1_i = LineShape([[V_lv[id_ini_1, :]'; V_lv[id_end, :]']],1)
+            push!(vec_lines, line_1_i)
+    
+            id_ini_2 = Int(ss_list[i][3])
+            line_2_i = LineShape([[V_lv[id_ini_2, :]'; V_lv[id_end, :]']],1)
+            push!(vec_lines, line_2_i)
+        end
+        return vec_lines
+    end
+
+    # Inicialización
+    numVertices = size(ps.Vertices[1], 1)
+    lv = hcat(1:numVertices, trues(numVertices, 1))
+    lav = copy(lv)
+    pos_ps = copy(lav[:, 1])
+    V_lv = ps.Vertices[1]
+    ss_list = []
+    cond = true
+    flag_inicio = true
+    ps_lav = polyShape.polyCopy(ps)
+    id_nuevo_vert = 0
+    vec_edges_bisectriz = []
+    ss_row = []
+    vec_bisectriz = []
+    vec_lines = []
+    while cond
+        if flag_inicio
+            flag_inicio = false
+            vec_bisectriz, vec_edges_bisectriz = generaBisectricesPoligono(ps)
+        else
+            id_vert = findall(x -> x == id_nuevo_vert, pos_ps)[1]
+            push!(vec_edges_bisectriz, [id_nuevo_vert, [], []])
+            mat_vertices = V_lv[Int.(ss_row),:]
+            vec_bisectriz, vec_edges_bisectriz = generaBisectrizVertice!(ps_lav, vec_bisectriz, id_vert, mat_vertices, vec_edges_bisectriz)
+        end
+        vec_bisectriz_activos = vec_bisectriz[pos_ps]
+        vec_interseccion_activos = intersectaBisectrices(vec_bisectriz_activos, pos_ps)
+        queue_dist = generaMatDist(vec_interseccion_activos, vec_edges_bisectriz, ps_lav, pos_ps) # Matriz de intersecciones ordenada de menor a mayor distancia
+        
+        row = queue_dist[1, :] # Punto más cercano de intersección que se saca de la matriz de distancias
+        vert_intersec = vec_interseccion_activos[findall(x -> x == Int(row[1]), pos_ps)][1][2].Vertices[:]
+        id_nuevo_vert = size(lv, 1) + 1
+        vertice_inter_1 = row[3]
+        vertice_inter_2 = row[4]
+        ss_row = [id_nuevo_vert; [vertice_inter_1, vertice_inter_2] ]
+        push!(ss_list, ss_row)
+
+        lv = vcat(lv, [id_nuevo_vert true]) # Se incluye nuevo vertice al final del listado de vertices
+        # Se marca vertices asociados a la intersección mas cercana como "No Activos"
+        lv[findall(x -> x in [vertice_inter_1, vertice_inter_2], lv[:, 1]), 2] .= false
+        if min(vertice_inter_1, vertice_inter_2) == vertice_inter_1
+            min_vert, max_vert = vertice_inter_1, vertice_inter_2
+        else
+            min_vert, max_vert = vertice_inter_2, vertice_inter_1
+        end
+        pos_ps[pos_ps[:] .== min_vert] = [id_nuevo_vert]
+        pos_ps = filter(!=(max_vert), pos_ps)
+        
+        V_lv = vcat(V_lv, [vert_intersec[1] vert_intersec[2]]) # Está ordenado de menor a mayor id
+        lav = lv[lv[:, 2].==1, :] # Está ordenado de menor a mayor id
+        V_lav = V_lv[pos_ps,:] # Está ordenado según el polinomio
+        ps_lav = PolyShape([V_lav],1) # Se genera un nuevo polígono con los vertices activos
+
+        if size(lav,1) < 3
+            cond = false
+            aux = setdiff(collect(1:numVertices),sort([[r[2] for r in ss_list]; [r[3] for r in ss_list]]))
+            if length(aux) >= 1
+                id_vert_orig = Int(aux[1])
+                id_vert_1 = Int(ss_list[end][2])
+                id_vert_2 = Int(ss_list[end][3])
+                l_1_2 = LineShape([[V_lv[id_vert_1,:]'; V_lv[id_vert_2,:]']],1)
+                l_0_int = vec_bisectriz[id_vert_orig]
+                p_int = polyShape.intersectLines(l_1_2, l_0_int)
+                V_lv[Int(ss_list[end][1]),:] = p_int.Vertices[1,:] # Está ordenado de menor a mayor id
+                ss_row = [id_nuevo_vert; [id_vert_orig, id_vert_1] ]
+                
+            else
+                id_vert_1 = Int(ss_list[end-1][1])
+                id_vert_2 = Int(ss_list[end][1])
+                p_1 = PointShape(V_lv[id_vert_1,:]',1)
+                p_2 = PointShape(V_lv[id_vert_2,:]',1)
+                id_nuevo_vert = id_nuevo_vert + 1
+                p = p_1 + (p_2 - p_1) * 0.5
+                V_lv = vcat(V_lv, p.Vertices[1,:]') # Está ordenado de menor a mayor id
+                ss_row = [id_nuevo_vert; [id_vert_1, id_vert_2] ]
+            end
+            push!(ss_list, ss_row)
+        end
+        
+        vec_lines = polyskel_vec(V_lv, ss_list)
+        
+        # fig, ax, ax_mat = polyShape.plotPolyshape2D(ps, "green", 0.2)
+        # fig, ax, ax_mat = polyShape.plotPolyshape2D(polyShape.polyExpand(ps, -5), "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+        # fig, ax, ax_mat = polyShape.plotPolyshape2D(polyShape.polyExpand(ps, -10), "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+        # fig, ax, ax_mat = polyShape.plotPolyshape2D(polyShape.polyExpand(ps, -15), "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+        # fig, ax, ax_mat = polyShape.plotPolyshape2D(polyShape.polyExpand(ps, -20), "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+        # fig, ax, ax_mat = polyShape.plotPolyshape2D(polyShape.polyExpand(ps, -21), "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+        # fig, ax, ax_mat = polyShape.plotPolyshape2D(polyShape.polyExpand(ps, -22), "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+        # fig, ax, ax_mat = polyShape.plotPolyshape2D(polyShape.polyExpand(ps, -23), "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+        # fig, ax, ax_mat = polyShape.plotPolyshape2D(polyShape.polyExpand(ps, -24), "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+        # fig, ax, ax_mat = polyShape.plotPolyshape2D(polyShape.polyExpand(ps, -25), "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+        # fig, ax, ax_mat = polyShape.plotPolyshape2D(polyShape.polyExpand(ps, -26), "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+        # fig, ax, ax_mat = polyShape.plotPolyshape2D(polyShape.polyExpand(ps, -27), "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+        # fig, ax, ax_mat = polyShape.plotPolyshape2D(polyShape.polyExpand(ps, -28), "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+        # fig, ax, ax_mat = polyShape.plotPolyshape2D(polyShape.polyExpand(ps, -29), "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+        # fig, ax, ax_mat = polyShape.plotPolyshape2D.(vec_lines, "red", 0.5, line_width = 0.1, fig=fig, ax=ax, ax_mat=ax_mat)  
+
+    end
+
+    return ss_list, vec_lines
+end
+
+
+function reverseLine(ls::LineShape)::LineShape
+    numLines = ls.NumLines
+    V = ls.Vertices
+    V_ = deepcopy(V)
+    for i = 1:numLines
+        V_[i][1, :] = copy(V[i][2, :])
+        V_[i][2, :] = copy(V[i][1, :])
+    end
+    ls_out = LineShape(V_, numLines)
+    return ls_out
+end
+
+
+# Calculate the bisector direction for a vertex
+function bisector_direction(edge1::LineShape, edge2::LineShape)::LineShape
+    V1 = edge1.Vertices[1]
+    V2 = edge2.Vertices[1]
+    p1_start = V1[1, :]
+    p1_end = V1[2, :]
+    p2_start = V2[1, :]
+    p2_end = V2[2, :]
+
+    edgeA_direction = ([p1_end[1] - p1_start[1], p1_end[2] - p1_start[2]])
+    edgeA_direction = edgeA_direction ./ sqrt(edgeA_direction[1]^2 + edgeA_direction[2]^2)
+    edgeB_direction = ([p2_end[1] - p2_start[1], p2_end[2] - p2_start[2]])
+    edgeB_direction = edgeB_direction ./ sqrt(edgeB_direction[1]^2 + edgeB_direction[2]^2)
+
+    dir = edgeA_direction + edgeB_direction
+    dir = dir ./ sqrt(dir[1]^2 + dir[2]^2)
+
+    bisector_dir = LineShape([[0 0; dir[1] dir[2]]], 1)
+
+    return bisector_dir
+end
+
+
+function distanceBetweenPoints(p1::PointShape, p2::PointShape)::Float64
+    V1 = p1.Vertices[1, :]
+    V2 = p2.Vertices[1, :]
+    dist = sqrt(sum((V1 - V2) .^ 2))
+    return dist
+end
+
+# Calculate the angle between two edges 
+function angleBetweenLines(edge1, edge2)
+    V1 = edge1.Vertices[1]
+    V2 = edge2.Vertices[1]
+    p1_start = V1[1, :]
+    p1_end = V1[2, :]
+    p2_start = V2[1, :]
+    p2_end = V2[2, :]
+
+    edgeA_direction = ([p1_end[1] - p1_start[1], p1_end[2] - p1_start[2]])
+    edgeB_direction = ([p2_end[1] - p2_start[1], p2_end[2] - p2_start[2]])
+
+    edgeAB = sum(edgeA_direction .* edgeB_direction)
+    absA = sqrt(edgeA_direction[1]^2 + edgeA_direction[2]^2)
+    absB = sqrt(edgeB_direction[1]^2 + edgeB_direction[2]^2)
+
+    return acos(edgeAB / absA / absB)
+end
+
 
 
 ########################################################################
@@ -2117,12 +2413,13 @@ export extraeInfoPoly, largoLadosPoly, isPolyConvex, isPolyInPoly, plotPolyshape
     polyArea, polyDifference, polyDifference_v2, plotFig, plotScatter3d, polyShape2constraints, polyOrientation, polyUnion, shapeBuffer,
     polyIntersect, polyExpand, plotPolyshape3D,
     polyshape2clipper, clipper2polyshape, shape2geom, geom2shape, astext2polyshape, polyEliminaColineales,
-    astext2lineshape, shapeContains, shapeArea, shapeDifference, shapeIntersect, shapeUnion, shapeHull, shapeSimplify, shapeSimplifyTopology, subShape, 
-    shapeVertex, numVertices, shapeCentroid, partialCentroid, shapeDistance, partialDistance, polyBox, polyRotate, polyReverse, setPolyOrientation, 
-    minPolyDistance, polyCopy, polyUnique, polyEliminateWithin, pointLineDist, intersectLines, findPolyIntersection, pointDistanceMat, polySimplify, 
+    astext2lineshape, shapeContains, shapeArea, shapeDifference, shapeIntersect, shapeUnion, shapeHull, shapeSimplify, shapeSimplifyTopology, subShape,
+    shapeVertex, numVertices, shapeCentroid, partialCentroid, shapeDistance, partialDistance, polyBox, polyRotate, polyReverse, setPolyOrientation,
+    minPolyDistance, polyCopy, polyUnique, polyEliminateWithin, pointLineDist, intersectLines, findPolyIntersection, pointDistanceMat, polySimplify,
     lineLineDist, parallelLineAtDist, lineAngle, halfspaceSignOfPointToLine, extendLine, polyEliminaRepetidos, polyEliminaSpikes, polyEliminaCrucesComplejos,
     polyObtieneCruces, polyEqualExpand, polyExpandSegmentVec, replaceShapeVertex, lineVec2polyShape, polyShape2lineVec,
-    ajustaCoordenadas, angleMaxDistRect, extendRectToIntersection, createLine, polyReproject
+    ajustaCoordenadas, angleMaxDistRect, extendRectToIntersection, createLine, polyReproject, polyskel, bisector_direction, angleBetweenLines,
+    reverseLine, distanceBetweenPoints
 
 end
 

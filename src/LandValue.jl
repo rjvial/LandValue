@@ -19,6 +19,74 @@ module LandValue
         NumPoints::Int64
     end
 
+    function Base.:+(p1::PointShape, p2::PointShape)::PointShape
+        V1 = deepcopy(p1.Vertices)
+        numPoints_1 = p1.NumPoints
+        V2 = deepcopy(p2.Vertices)
+        V = deepcopy(V1)
+        for i = 1:numPoints_1
+            V[i,:] = V1[i,:] + V2[1,:]
+        end
+        p = PointShape(V, numPoints_1)
+        return p
+    end
+    function Base.:+(l1::LineShape, p2::PointShape)::LineShape
+        V1 = deepcopy(l1.Vertices)
+        numLines_1 = l1.NumLines
+        V2 = deepcopy(p2.Vertices)
+        V = deepcopy(V1)
+        for i = 1:numLines_1
+            V[i][1,:] = V[i][1,:] + V2[1,:]
+            V[i][2,:] = V[i][2,:] + V2[1,:]
+        end
+        l = LineShape(V, numLines_1)
+        return l
+    end
+    function Base.:-(l1::LineShape, p2::PointShape)::LineShape
+        V1 = deepcopy(l1.Vertices)
+        numLines_1 = l1.NumLines
+        V2 = deepcopy(p2.Vertices)
+        V = deepcopy(V1)
+        for i = 1:numLines_1
+            V[i][1,:] = V[i][1,:] - V2[1,:]
+            V[i][2,:] = V[i][2,:] - V2[1,:]
+        end
+        l = LineShape(V, numLines_1)
+        return l
+    end
+    function Base.:-(p1::PointShape, p2::PointShape)::PointShape
+        V1 = deepcopy(p1.Vertices)
+        numPoints_1 = p1.NumPoints
+        V2 = deepcopy(p2.Vertices)
+        V = deepcopy(V1)
+        for i = 1:numPoints_1
+            V[i,:] = V[i,:] - V2[1,:]
+        end
+        p = PointShape(V, numPoints_1)
+        return p
+    end
+
+    function Base.:*(l::LineShape, f::Union{Int64,Float64})::LineShape
+        numLines = l.NumLines
+        V = deepcopy(l.Vertices)
+        for i = 1:numLines
+            dvec = [V[i][2,:] - V[i][1,:]] * f
+            V[i][2,:] = V[i][1,:] + dvec[1]
+        end
+        l = LineShape(V, numLines)
+        return l
+    end
+    function Base.:*(p::PointShape, f::Union{Int64,Float64})::PointShape
+        numPoints = p.NumPoints
+        V = deepcopy(p.Vertices)
+        for i = 1:numPoints
+            V[i,:] = V[i,:] * f
+        end
+        p = PointShape(V, numPoints)
+        return p
+    end
+
+
     GeomObject = Union{PolyShape,LineShape,PointShape}
 
     PosDimGeom = Union{PolyShape,LineShape}
