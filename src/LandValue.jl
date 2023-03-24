@@ -1,7 +1,7 @@
 module LandValue
 
-    using JuMP, NOMAD, Cbc, BlackBoxOptim, ArchGDAL,
-            NonconvexBayesian, NonconvexIpopt, NonconvexNLopt, Distributions
+    using JuMP, NOMAD, Cbc, BlackBoxOptim, ArchGDAL#,
+            # NonconvexBayesian, NonconvexIpopt, NonconvexNLopt, Distributions
     
 
     mutable struct PolyShape
@@ -331,8 +331,8 @@ module LandValue
 
     export funcionPrincipal, fo_bbo, fo_nomad, calculaAnguloRotacion, generaSombraEdificio, optiEdificio, displayResults, 
         optim_nomad, optim_bbo, poly2D, polyShape, graphMod, resultConverter, plotBaseEdificio3D, generaVol3D, generaSombraTeor, 
-        generaSupBruta, pg_julia, obtieneCalles, generaPoligonoCorte, queryCabida, generaCotas, create_scr, create_edificio_geojson, 
-        bid_prices, bid_prices_pivot, bid_price_aprendizaje_uniforme, bid_price_dinamico, bid_price_dinamico_weibull, ajustaPrecioReserva
+        generaSupBruta, pg_julia, obtieneCalles, generaPoligonoCorte, queryCabida, generaCotas, create_scr, create_edificio_geojson #, 
+        # bid_prices, bid_prices_pivot, bid_price_aprendizaje_uniforme, bid_price_dinamico, bid_price_dinamico_weibull, ajustaPrecioReserva
 
 
 end
