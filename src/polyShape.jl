@@ -915,15 +915,18 @@ end
 
 # expande todos los lados en la misma distancia
 function polyExpand(ps::PolyShape, dist::Union{Real,Array{Real,1}})::PolyShape
-    poly = polyshape2clipper(ps)
+    poly = polyShape.polyshape2clipper(ps)
     poly_ = Devices.Polygons.offset(poly, dist, j=Clipper.JoinTypeMiter, e=Clipper.EndTypeClosedPolygon)
-    ps_out = clipper2polyshape(poly_)
-    V = ps.Vertices[1]
-    V_out = ps_out.Vertices[1]
-    vec_dist_primer = (V_out[:, 1] .- V[1, 1]) .^ 2 .+ (V_out[:, 2] .- V[1, 2]) .^ 2
-    pos_min = argmin(vec_dist_primer)
-    V_out = [V_out[pos_min:end, :]; V_out[1:pos_min-1, :]]
-    ps_out = PolyShape([V_out], 1)
+    ps_out = polyShape.clipper2polyshape(poly_)
+    num_regions = length(poly_)
+    if num_regions == 1
+        V = ps.Vertices[1]
+        V_out = ps_out.Vertices[1]
+        vec_dist_primer = (V_out[:, 1] .- V[1, 1]) .^ 2 .+ (V_out[:, 2] .- V[1, 2]) .^ 2
+        pos_min = argmin(vec_dist_primer)
+        V_out = [V_out[pos_min:end, :]; V_out[1:pos_min-1, :]]
+        ps_out = PolyShape([V_out], 1)
+    end
     return ps_out
 end
 
@@ -2147,7 +2150,6 @@ function polyskel(ps::PolyShape)
                 bisec_dir[i] = dir_i * -1
                 l_i = bisec_dir[i] + vertex_i
             end
-
             l_i = l_i * 100
             push!(vec_bisectriz, l_i)
             push!(vec_edges_bisectriz, [i, id_edge_a, id_edge_p, edge_a, edge_p])
@@ -2155,23 +2157,15 @@ function polyskel(ps::PolyShape)
         return vec_bisectriz, vec_edges_bisectriz
     end
 
-    function generaBisectrizVertice!(ps_lav, vec_bisectriz, pos_id_vert, vec_edges_bisectriz)
+    function generaBisectrizVertice!(V_lav, vec_bisectriz, pos_id_vert, vec_edges_bisectriz)
         vec_bisectriz_ = copy(vec_bisectriz)
-        vertices = polyShape.shapeVertex(ps_lav)
         id_edge_a = vec_edges_bisectriz[end][2]
         id_edge_p = vec_edges_bisectriz[end][3]
         edge_a = polyShape.reverseLine(vec_edges_bisectriz[id_edge_a][5])
         edge_p = vec_edges_bisectriz[id_edge_p][5]
         bisec_dir = polyShape.bisector_direction(edge_a, edge_p)
-        vertex = polyShape.subShape(vertices, pos_id_vert)
+        vertex = PointShape(V_lav[Int(pos_id_vert),:]',1)
         b_line = bisec_dir + vertex
-        vertex_end = polyShape.shapeVertex(b_line, 1, 2)
-        flag = polyShape.shapeContains(ps_lav, vertex_end)
-        if !flag
-            dir = bisec_dir
-            bisec_dir = dir * -1
-            b_line = bisec_dir + vertex
-        end
         b_line = b_line * 100
         push!(vec_bisectriz_, b_line) # se agrega nueva bisectriz al final del vector 
         vec_edges_bisectriz[end][4] = edge_a
@@ -2197,7 +2191,6 @@ function polyskel(ps::PolyShape)
             dist_12p = polyShape.shapeDistance(p_1,p_12p)
             dist_12p = isnan(dist_12p) ? 1000000 : dist_12p
             if min(dist_12a, dist_12p) == dist_12a
-
                 push!(vec_interseccion, [pos_ps[i], p_12a, pos_ps[i_a], pos_ps[i]])
             else
                 push!(vec_interseccion, [pos_ps[i], p_12p, pos_ps[i], pos_ps[i_p]])
@@ -2207,17 +2200,15 @@ function polyskel(ps::PolyShape)
         return vec_interseccion
     end
 
-    function generaMatDist(vec_interseccion_activos, vec_edges_bisectriz, ps_lav, pos_ps)
+    function generaMatDist(vec_interseccion_activos, vec_edges_bisectriz, pos_ps)
         #Genera matriz de distacia pos_ps
         numIntersecciones = length(pos_ps)
         queue_dist = zeros(numIntersecciones, 4)
         for i in 1:numIntersecciones
             p_i = vec_interseccion_activos[i][2]
             edge_i_a = vec_edges_bisectriz[pos_ps[i]][4]
-
             queue_dist[i, 1] = pos_ps[i]
-            flag_in_i = polyShape.shapeContains(ps_lav, p_i)
-            dist_i_a = flag_in_i ? polyShape.pointLineDist(edge_i_a, p_i) : 1000000
+            dist_i_a = polyShape.pointLineDist(edge_i_a, p_i)
             queue_dist[i, 2] = round(dist_i_a, digits=4)
             queue_dist[i, 3] = vec_interseccion_activos[i][3]
             queue_dist[i, 4] = vec_interseccion_activos[i][4]
@@ -2258,7 +2249,7 @@ function polyskel(ps::PolyShape)
     lav = copy(lv)
     pos_ps = copy(lav[:, 1])
     V_lv = ps.Vertices[1]
-    ps_lav = polyShape.polyCopy(ps)
+    V_lav = copy(V_lv)
     while cond
         if flag_inicio
             vec_bisectriz, vec_edges_bisectriz = generaBisectricesPoligono(ps)
@@ -2268,11 +2259,11 @@ function polyskel(ps::PolyShape)
             id_edge_a = vec_edges_bisectriz[Int(ss_row[2])][2]
             id_edge_p = vec_edges_bisectriz[Int(ss_row[3])][3]
             push!(vec_edges_bisectriz, [id_nuevo_vert, id_edge_a, id_edge_p, [], []])
-            vec_bisectriz, vec_edges_bisectriz = generaBisectrizVertice!(ps_lav, vec_bisectriz, pos_id_vert, vec_edges_bisectriz)
+            vec_bisectriz, vec_edges_bisectriz = generaBisectrizVertice!(V_lav, vec_bisectriz, pos_id_vert, vec_edges_bisectriz)
         end
         vec_bisectriz_activos = vec_bisectriz[pos_ps]
         vec_interseccion_activos = intersectaBisectrices(vec_bisectriz_activos, pos_ps)
-        queue_dist = generaMatDist(vec_interseccion_activos, vec_edges_bisectriz, ps_lav, pos_ps) # Matriz de intersecciones ordenada de menor a mayor distancia
+        queue_dist = generaMatDist(vec_interseccion_activos, vec_edges_bisectriz, pos_ps) # Matriz de intersecciones ordenada de menor a mayor distancia
         
         if size(lav,1) <= 3
             cond = false
@@ -2316,7 +2307,6 @@ function polyskel(ps::PolyShape)
             V_lv = vcat(V_lv, [vert_intersec[1] vert_intersec[2]]) # Está ordenado de menor a mayor id
             lav = lv[lv[:, 2].==1, :] # Está ordenado de menor a mayor id
             V_lav = V_lv[pos_ps,:] # Está ordenado según el polinomio
-            ps_lav = PolyShape([V_lav],1) # Se genera un nuevo polígono con los vertices activos
             ss_row = [id_nuevo_vert; [id_vert_1, id_vert_2] ]
             push!(ss_list, ss_row)    
         end
