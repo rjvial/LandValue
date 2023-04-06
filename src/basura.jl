@@ -1,7 +1,7 @@
 using LandValue
 
 ps = PolyShape([[0 0;50 0;50 50;60 60;100 60;100 90;40 90;0 55]],1)
-#ps = PolyShape([[0 0;30 30;60 0;60 70;30 40;0 70]],1)
+
 ps_ = polyShape.polyExpand(ps,20)
 vev = polyShape.polyShape2lineVec(ps)
 e1 = vev[1]

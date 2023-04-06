@@ -1,4 +1,4 @@
-function create_edificio_geojson(xopt, ps_predio, ps_base, ps_areaEdif, alturaPiso, dx, dy, file_str)
+function create_edificio_geojson(xopt, ps_predio, ps_base, ps_areaEdif, alturaPiso, dx, dy, file_str, gap_porcentual)
     # create_edificio_geojson(xopt, ps_predio, ps_base, ps_areaEdif, alturaPiso, dx, dy, "edificio_test.geojson")
     
     numPisos = Int(xopt[1])
@@ -92,6 +92,8 @@ function create_edificio_geojson(xopt, ps_predio, ps_base, ps_areaEdif, alturaPi
         str_piso_i = replace(str_piso_i, "str_geom_bases__" => str_geom_base)
         str_capa = str_capa * str_piso_i
 
+        # const colors = ['#e36465', '#f2ec77', '#92ba7b']
+
         name_str = "\"Muros Nivel $i\""
         str_capa_i = """
         {
@@ -101,13 +103,22 @@ function create_edificio_geojson(xopt, ps_predio, ps_base, ps_areaEdif, alturaPi
                     "name": $name_str,
                     "height": $height_muros_fin,
                     "base_height": $height_muros_ini,
-                    "color": "#467e52"
+                    "color": "color_str_"
                 },
                 "geometry": str_geom_bases__
             }$str_coma
         """
         str_capa_i = replace(str_capa_i, "str_geom_bases__" => str_geom_base)
         str_capa = str_capa * str_capa_i
+        
+        if gap_porcentual <= 0
+            color_str = "#e36465"
+        elseif gap_porcentual <= .2
+            color_str = "#f2ec77"
+        else
+            color_str = "#92ba7b"
+        end
+        str_capa = replace(str_capa, "color_str_" => color_str)
     end
 
     str_final ="""

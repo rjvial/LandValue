@@ -1,9 +1,7 @@
 using LandValue
 
-conn_LandValue = pg_julia.connection("LandValue", "postgres", "postgres")
+conn_LandValue = pg_julia.connection("landengines", ENV["USER"], ENV["PW"], ENV["HOST"])
 conn = conn_LandValue 
-# conn_CitylotsVitacura = pg_julia.connection("citylots_vitacura", "citylots_rvg", "******", "az1-ts102.a2hosting.com")
-# conn = conn_CitylotsVitacura 
 
 display("Obtiene DatosCabidaArquitectura")
 @time df_arquitectura = pg_julia.query(conn_LandValue, """SELECT * FROM public."tabla_arquitectura_default";""")
@@ -51,10 +49,14 @@ for r in rowSet
     dx = df_resultados[r, "dx"]
     dy = df_resultados[r, "dy"]
     id = df_resultados[r, "id"]
+    id_combi = df_resultados[r, "id_combi"]
+    valor_combi = df_resultados[r, "valor_combi"]
+    gap = df_resultados[r, "gap"]
+    gap_porcentual = df_resultados[r, "gap_porcentual"]
     
-    filestr = "C:/Users/rjvia/.julia/dev/qgis_env/cabidas_geojson/edificio_" * string(id) * "_vitacura.geojson"
+    filestr = "C:/Users/rjvia/OneDrive/_traspasos/qgis_env/cabidas_geojson/edificio_" * string(id) * "_vitacura.geojson"
 
-    create_edificio_geojson(xopt, ps_predio, ps_base, ps_areaEdif, alturaPiso, dx, dy, filestr)
+    create_edificio_geojson(xopt, ps_predio, ps_base, ps_areaEdif, alturaPiso, dx, dy, filestr, gap_porcentual)
 
 end
 

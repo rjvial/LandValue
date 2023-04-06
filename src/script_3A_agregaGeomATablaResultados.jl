@@ -1,8 +1,8 @@
 using LandValue
 
 # Establece las conexiones a las Base de Datos
-conn_mygis_db = pg_julia.connection("mygis_db", "postgres", "postgres")
-conn_LandValue = pg_julia.connection("LandValue", "postgres", "postgres")
+conn_LandValue = pg_julia.connection("landengines", ENV["USER"], ENV["PW"], ENV["HOST"])
+conn_mygis_db = pg_julia.connection("gis_data", ENV["USER"], ENV["PW"], ENV["HOST"])
 
 # Agrega columna geom_combi a tabla_resultados_cabidas
 query_resultados_str = """

@@ -982,7 +982,8 @@ function lineAngle(sh::PosDimGeom)
         end
         ls = LineShape(VV, numLines)
     else
-        ls = sh
+        ls = deepcopy(sh)
+        numLines = ls.NumLines
     end
     vec_angles = Array{Array{Float64,1},1}(undef, numLines)
     for i = 1:numLines
@@ -1166,6 +1167,13 @@ function polyBox(pos_x::Real, pos_y::Real, dx::Float64, dy::Float64=dx, angulo::
     V = [pos_x pos_y; pos_x+dx pos_y; pos_x+dx pos_y+dy; pos_x pos_y+dy]
     ps = PolyShape([V], 1)
     ps_out = polyShape.polyRotate(ps, angulo, cr)
+    return ps_out
+end
+function polyBox(p::PointShape, dx::Float64, dy::Float64=dx, angulo::Float64=0.0)::PolyShape
+    pos_x = p.Vertices[1, 1]
+    pos_y = p.Vertices[1, 2]
+    cr = [pos_x; pos_y]
+    ps_out = polyShape.polyBox(pos_x, pos_y, dx, dy, angulo, cr)
     return ps_out
 end
 
@@ -2397,6 +2405,55 @@ function angleBetweenLines(edge1, edge2)
 end
 
 
+function midPointSegment(edge::LineShape)::PointShape
+    num_lines = edge.NumLines
+    V_out = zeros(num_lines, 2)
+    for i = 1:num_lines
+        V_i = edge.Vertices[i]
+        V_out[i, :] = 0.5 * V_i[1,:] + 0.5 * V_i[2,:]
+    end
+    p_out = PointShape(V_out, num_lines)
+    return p_out
+end
+
+
+function points2Line(p1::PointShape, p2::PointShape)::LineShape
+    V1 = p1.Vertices[:]'
+    V2 = p2.Vertices[:]'
+    l = LineShape([[V1; V2]], 1)
+    return l
+end
+
+
+function points2Poly(p::PointShape...)
+    num_points = length(p)
+    V = [0 0]
+    for i = 1:num_points
+        V_i = p[i].Vertices[:]
+        V = [V; V_i[:]']
+    end
+    V = V[2:end, :]
+    ps = PolyShape([V],1)
+    return ps
+end
+
+function lineLength(l::LineShape)
+    numLines = l.NumLines
+    len = []
+    for i = 1:numLines
+        p1_i = polyShape.shapeVertex(l, i, 1)
+        p2_i = polyShape.shapeVertex(l, i, 2)
+        d_12_i = polyShape.distanceBetweenPoints(p1_i, p2_i)
+        
+        if numLines > 1
+            push!(len, d_12_i)
+        else
+            len = d_12_i
+        end
+    end
+    return len
+end
+
 
 ########################################################################
 ########################################################################
@@ -2413,7 +2470,7 @@ export extraeInfoPoly, largoLadosPoly, isPolyConvex, isPolyInPoly, plotPolyshape
     lineLineDist, parallelLineAtDist, lineAngle, halfspaceSignOfPointToLine, extendLine, polyEliminaRepetidos, polyEliminaSpikes, polyEliminaCrucesComplejos,
     polyObtieneCruces, polyEqualExpand, polyExpandSegmentVec, replaceShapeVertex, lineVec2polyShape, polyShape2lineVec,
     ajustaCoordenadas, angleMaxDistRect, extendRectToIntersection, createLine, polyReproject, polyskel, bisector_direction, angleBetweenLines,
-    reverseLine, distanceBetweenPoints
+    reverseLine, distanceBetweenPoints, midPointSegment, points2Line, points2Poly, lineLength
 
 end
 
