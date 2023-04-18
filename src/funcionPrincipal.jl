@@ -7,7 +7,9 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
     # conn_LandValue = pg_julia.connection("LandValue", "postgres", "postgres")
     # conn_mygis_db = pg_julia.connection("mygis_db", "postgres", "postgres")
 
-    conn_LandValue = pg_julia.connection("landengines", ENV["USER"], ENV["PW"], ENV["HOST"])
+    # conn_LandValue = pg_julia.connection("landengines", ENV["USER"], ENV["PW"], ENV["HOST"])
+    conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER"], ENV["PW"], ENV["HOST"])
+    # conn_mygis_db = pg_julia.connection("gis_data", ENV["USER"], ENV["PW"], ENV["HOST"])
     conn_mygis_db = pg_julia.connection("gis_data", ENV["USER"], ENV["PW"], ENV["HOST"])
 
 
@@ -240,7 +242,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
                 template += 1
             end
 
-            return fopt, template, intento, flagSeguir
+            return fopt, xopt, template, intento, flagSeguir
         end
 
         while flagSeguir
@@ -256,7 +258,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             initSol[1] = floor(dcn.maxPisos[1])
             x_nomad, f_nomad = optim_nomad(obj_nomad, num_penalizaciones, lb, ub, MaxSteps, initSol)
 
-            fopt, template, intento, flagSeguir = chequeaSolucion(x_nomad, f_nomad, fopt, template, intento) 
+            fopt, xopt, template, intento, flagSeguir = chequeaSolucion(x_nomad, f_nomad, fopt, template, intento) 
 
             if template > 2
                 display("Template N° " * string(template) * " es superior al template máximo (= 2). Optimización se dentendrá.")

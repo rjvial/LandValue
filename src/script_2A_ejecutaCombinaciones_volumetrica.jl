@@ -3,11 +3,11 @@ using LandValue
 # run(`C:/Users/rjvia/Documents/LandValue/key_code_user.bat`)
 # run(`C:/Users/rjvia/Documents/LandValue/key_code_pw.bat`)
 
-# conn_LandValue = pg_julia.connection("LandValue", "postgres", "postgres")
-conn_LandValue = pg_julia.connection("landengines", ENV["USER"], ENV["PW"], ENV["HOST"])
+# conn_LandValue = pg_julia.connection("landengines", ENV["USER"], ENV["PW"], ENV["HOST"])
+conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER"], ENV["PW"], ENV["HOST"])
 
 
-let codigo_predial = [151600124100010,151600124100011, 151600124100012, 151600124100013, 151600124100014] #[151600135100018, 151600135100019] #[151600124100009, 151600124100010, 151600124100011, 151600124100012, 151600124100013, 151600124100014, 151600124100015] 
+let codigo_predial = [] #[151600048300017, 151600048300018, 151600048300049] #[151600124100010,151600124100011, 151600124100012, 151600124100013, 151600124100014] #[151600135100018, 151600135100019] #[151600124100009, 151600124100010, 151600124100011, 151600124100012, 151600124100013, 151600124100014, 151600124100015] 
     # Para cómputos sobre la base de datos usar codigo_predial = []
     tipoOptimizacion = "volumetrica"
 
@@ -217,3 +217,6 @@ let codigo_predial = [151600124100010,151600124100011, 151600124100012, 15160012
 end
 
 
+# UPDATE tabla_combinacion_predios
+# SET status = 0 
+# WHERE combi_predios_str = '[151600011100005]';

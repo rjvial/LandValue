@@ -834,6 +834,18 @@ function polyshape2clipper(ps::PolyShape)
 end
 
 
+function polyUnion(vec_ps::Vector{PolyShape})::PolyShape
+    num_ps = length(vec_ps)
+    ps_out =[]
+    for i = 1:num_ps
+        if i == 1
+            ps_out = deepcopy(vec_ps[i])
+        else
+            ps_out = polyShape.polyUnion(ps_out, vec_ps[i])
+        end
+    end
+    return ps_out
+end
 function polyUnion(ps_s::PolyShape, ps_c::PolyShape)::PolyShape
     poly_s = polyshape2clipper(ps_s)
     poly_c = polyshape2clipper(ps_c)

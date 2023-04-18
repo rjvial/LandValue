@@ -97,8 +97,8 @@ function obtieneCalles(ps_predio::PolyShape, ps_buffer_predio::PolyShape, ps_pre
         inter_box_calles_i = polyShape.polyIntersect(vec_box[i], ps_calles_predio)
         push!(vec_semi_calle, polyShape.shapeCentroid(inter_box_calles_i))
     end
-    fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_calles_predio, 0, "green", 0.2)
-    fig, ax, ax_mat = polyShape.plotPolyshape2Din3D.(vec_semi_calle, 0., "red", 0.5, fig=fig, ax=ax, ax_mat=ax_mat)
+    # fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_calles_predio, 0, "green", 0.2)
+    # fig, ax, ax_mat = polyShape.plotPolyshape2Din3D.(vec_semi_calle, 0., "red", 0.5, fig=fig, ax=ax, ax_mat=ax_mat)
 
     # Convierte los vertices de la semi calle en un polyShape
     V_semi_calle = [0 0]
@@ -106,8 +106,8 @@ function obtieneCalles(ps_predio::PolyShape, ps_buffer_predio::PolyShape, ps_pre
         V_semi_calle = [V_semi_calle; vec_semi_calle[i].Vertices[:]']
     end
     ps_semi_calle = PolyShape([V_semi_calle[2:end,:]],1)
-    fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_calles_predio, 0, "green", 0.2)
-    fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_semi_calle, 0., "red", 0.8, fig=fig, ax=ax, ax_mat=ax_mat)    
+    # fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_calles_predio, 0, "green", 0.2)
+    # fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_semi_calle, 0., "red", 0.8, fig=fig, ax=ax, ax_mat=ax_mat)    
 
 
     ps_union = polyShape.polyUnion(ps_predio, ps_semi_calle)
@@ -115,11 +115,11 @@ function obtieneCalles(ps_predio::PolyShape, ps_buffer_predio::PolyShape, ps_pre
     num_niveles = length(vec_niveles)
     vec_altura = [3*i for i=1:14]
     vec_niveles_ = [polyShape.polyDifference(vec_niveles[i], ps_calles_predio) for i = 1:14]
-    fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_predio, 0, "green", 0.2)
-    fig, ax, ax_mat = polyShape.plotPolyshape2DVecin3D(vec_niveles_, vec_altura, "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
-    fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_calles_predio, 0., "black", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
-    fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_semi_calle, 0., "black", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
-    ##################
+    # fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_predio, 0, "green", 0.2)
+    # fig, ax, ax_mat = polyShape.plotPolyshape2DVecin3D(vec_niveles_, vec_altura, "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+    # fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_calles_predio, 0., "black", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+    # fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_semi_calle, 0., "black", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+    # ##################
 
 
     while condSigue
