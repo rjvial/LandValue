@@ -1,11 +1,12 @@
-using LandValue
+using LandValue, Distributed
+
 # run(`C:/Users/rjvia/Documents/LandValue/key_code_host.bat`)
 # run(`C:/Users/rjvia/Documents/LandValue/key_code_user.bat`)
 # run(`C:/Users/rjvia/Documents/LandValue/key_code_pw.bat`)
 
 # conn_LandValue = pg_julia.connection("landengines", ENV["USER"], ENV["PW"], ENV["HOST"])
 conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER"], ENV["PW"], ENV["HOST"])
-
+conn_mygis_db = pg_julia.connection("gis_data", ENV["USER"], ENV["PW"], ENV["HOST"])
 
 let codigo_predial = [] #[151600048300017, 151600048300018, 151600048300049] #[151600124100010,151600124100011, 151600124100012, 151600124100013, 151600124100014] #[151600135100018, 151600135100019] #[151600124100009, 151600124100010, 151600124100011, 151600124100012, 151600124100013, 151600124100014, 151600124100015] 
     # Para cómputos sobre la base de datos usar codigo_predial = []
@@ -102,91 +103,117 @@ let codigo_predial = [] #[151600048300017, 151600048300018, 151600048300049] #[1
         df_combinaciones = filter(row -> row.status == 0, df_combinaciones)
 
         num_combi = size(df_combinaciones, 1)
-        for i = 1:num_combi
 
-            query_kill_connections = """
-                SELECT pg_terminate_backend(pg_stat_activity.pid)
-                FROM pg_stat_activity
-                WHERE pg_stat_activity.datname = 'LandValue' 
-                AND pid <> pg_backend_pid();
-            """
-            df_kill_connections = pg_julia.query(conn_LandValue, query_kill_connections)
+        n_procs = 4
+        addprocs(n_procs; exeflags="--project")
+        @everywhere using LandValue, Distributed
 
-            combi_i_str = df_combinaciones[i, 1]
-            id_i = df_combinaciones[i, 3]
-            display("***************************************************")
-            display("* Ejecutando cabida predio: " * combi_i_str)
-            display("***************************************************")
-            codigo_predial = eval(Meta.parse(combi_i_str))
-
-            try
-
-                # Etapa 2-A: Ejecuta optimización Volumétrica y plotea resultado
-                @time fpe, temp_opt, alturaPiso, xopt = funcionPrincipal(tipoOptimizacion, codigo_predial, i)
-
-                queryStr = """
-                SELECT * FROM tabla_resultados_cabidas WHERE cond_
-                """
-                condStr = "combi_predios " * "= \'" * string(codigo_predial) * "\'"
-                queryStr = replace(queryStr, "cond_" => condStr)
-                df_resultados = pg_julia.query(conn_LandValue, queryStr)
-
-                xopt = eval(Meta.parse(df_resultados[1, "optimo_solucion"]))
-                ps_predio = eval(Meta.parse(df_resultados[1, "ps_predio"]))
-                ps_volTeorico = eval(Meta.parse(df_resultados[1, "ps_vol_teorico"]))
-                matConexionVertices_volTeorico = eval(Meta.parse(df_resultados[1, "mat_conexion_vertices_vol_teorico"]))
-                vecVertices_volTeorico = eval(Meta.parse(df_resultados[1, "vecVertices_volTeorico"]))
-                ps_volConSombra = eval(Meta.parse(df_resultados[1, "ps_volConSombra"]))
-                matConexionVertices_conSombra = eval(Meta.parse(df_resultados[1, "mat_conexion_vertices_con_sombra"]))
-                vecVertices_conSombra = eval(Meta.parse(df_resultados[1, "vec_vertices_con_sombra"]))
-                ps_publico = eval(Meta.parse(df_resultados[1, "ps_publico"]))
-                ps_calles = eval(Meta.parse(df_resultados[1, "ps_calles"]))
-                ps_base = eval(Meta.parse(df_resultados[1, "ps_base"]))
-                ps_baseSeparada = eval(Meta.parse(df_resultados[1, "ps_baseSeparada"]))
-                ps_predios_intra_buffer = eval(Meta.parse(df_resultados[1, "ps_predios_intra_buffer"]))
-                ps_manzanas_intra_buffer = eval(Meta.parse(df_resultados[1, "ps_manzanas_intra_buffer"]))
-                ps_calles_intra_buffer = eval(Meta.parse(df_resultados[1, "ps_calles_intra_buffer"]))
-
-                buffer_dist_ = min(140, 2.7474774194546216 * xopt[1] * alturaPiso)
-                ps_buffer_predio_ = polyShape.shapeBuffer(ps_predio, buffer_dist_, 20)
-                ps_predios_intra_buffer_ = polyShape.polyIntersect(ps_predios_intra_buffer, ps_buffer_predio_)
-                ps_manzanas_intra_buffer_ = polyShape.polyIntersect(ps_manzanas_intra_buffer, ps_buffer_predio_)
-
-
-                fig, ax, ax_mat = polyShape.plotBaseEdificio3D(fpe, xopt, alturaPiso, ps_predio, ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico,
-                    ps_volConSombra, matConexionVertices_conSombra, vecVertices_conSombra, ps_publico, ps_calles, ps_base, ps_baseSeparada)
-
-                fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_predios_intra_buffer_, 0.0, "green", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
-                fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_manzanas_intra_buffer_, 0.0, "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
-                fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_buffer_predio_, 0.0, "gray", 0.15, fig=fig, ax=ax, ax_mat=ax_mat)
-
-                cond_str = "=" * string(id_i)
-                vecColumnNames = ["status", "id"]
-                vecColumnValue = ["1", string(id_i)]
-                pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)
-
-            catch error
-                display("")
-                display("#############################################################################")
-                display("#############################################################################")
-                display("# Se produjo un error, se proseguirá con la siguiente combinación de lotes. #")
-                display("#############################################################################")
-                display("#############################################################################")
-                display("")
-
-                cond_str = "=" * string(id_i)
-                vecColumnNames = ["status", "id"]
-                vecColumnValue = ["19", string(id_i)]
-                pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)
-
+        jobs = RemoteChannel(()->Channel{Any}(num_combi))
+        function make_jobs(n) # Genera un numero n de jobs y los guarda en el channel jobs
+            for j in 1:n
+                combi_i_str = df_combinaciones[j, 1]
+                id_i = df_combinaciones[j, 3]
+                codigo_predial = eval(Meta.parse(combi_i_str))            
+                put!(jobs, [tipoOptimizacion, codigo_predial, j])
             end
-
         end
+        @async make_jobs(num_combi)
+
+        results = RemoteChannel(()->Channel{Any}(num_combi))
+
+        @everywhere function distributed_work(jobs, results) # Saca un job del channel y lo ejecuta, y después guarda el resultado en el channel results
+            while true
+                try
+                    conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER"], ENV["PW"], ENV["HOST"])
+                    job_id = take!(jobs)
+                    tipoOptimizacion = job_id[1]
+                    codigo_predial = job_id[2]
+                    id = job_id[3]
+                    display("***************************************************")
+                    display("* Ejecutando cabida predio: " * string(codigo_predial) * " en el Worker N° " * string(myid()))
+                    display("***************************************************")
+                    fpe, temp_opt, alturaPiso, xopt, vec_datos = funcionPrincipal(tipoOptimizacion, codigo_predial, id)
+                    put!(results, (fpe, temp_opt, alturaPiso, xopt, vec_datos, myid()))
+
+                    cond_str = "=" * string(id)
+                    vecColumnNames = ["status", "id"]
+                    vecColumnValue = ["1", string(id)]
+                    pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)
+                catch error
+                    display("")
+                    display("#############################################################################")
+                    display("#############################################################################")
+                    display("# Se produjo un error, se proseguirá con la siguiente combinación de lotes. #")
+                    display("#############################################################################")
+                    display("#############################################################################")
+                    display("")
+
+                    cond_str = "=" * string(id)
+                    vecColumnNames = ["status", "id"]
+                    vecColumnValue = ["19", string(id)]
+                    pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)
+
+                end
+                # pg_julia.close_db(conn_LandValue)
+            end
+        end
+
+
+        for p in workers() # start tasks on the workers to process requests in parallel
+            #Executes f on worker id asynchronously. Unlike remotecall, it does not store 
+            # the result of computation, nor is there a way to wait for its completion.
+            remote_do(distributed_work, p, jobs, results) # Los parametros jobs, results son pasados a distributed_work()
+        end
+
+            #     res_funcionPrincipal = fetch(f)
+            #     # Etapa 2-A: Ejecuta optimización Volumétrica y plotea resultado
+            #     # @time fpe, temp_opt, alturaPiso, xopt = funcionPrincipal(conn_LandValue, conn_mygis_db, tipoOptimizacion, codigo_predial, i)
+            #     fpe = res_funcionPrincipal[1]
+            #     temp_opt = res_funcionPrincipal[2]
+            #     alturaPiso = res_funcionPrincipal[3]
+            #     xopt = res_funcionPrincipal[4]
+
+            #     queryStr = """
+            #     SELECT * FROM tabla_resultados_cabidas WHERE cond_
+            #     """
+            #     condStr = "combi_predios " * "= \'" * string(codigo_predial) * "\'"
+            #     queryStr = replace(queryStr, "cond_" => condStr)
+            #     df_resultados = pg_julia.query(conn_LandValue, queryStr)
+
+            #     xopt = eval(Meta.parse(df_resultados[1, "optimo_solucion"]))
+            #     ps_predio = eval(Meta.parse(df_resultados[1, "ps_predio"]))
+            #     ps_volTeorico = eval(Meta.parse(df_resultados[1, "ps_vol_teorico"]))
+            #     matConexionVertices_volTeorico = eval(Meta.parse(df_resultados[1, "mat_conexion_vertices_vol_teorico"]))
+            #     vecVertices_volTeorico = eval(Meta.parse(df_resultados[1, "vecVertices_volTeorico"]))
+            #     ps_volConSombra = eval(Meta.parse(df_resultados[1, "ps_volConSombra"]))
+            #     matConexionVertices_conSombra = eval(Meta.parse(df_resultados[1, "mat_conexion_vertices_con_sombra"]))
+            #     vecVertices_conSombra = eval(Meta.parse(df_resultados[1, "vec_vertices_con_sombra"]))
+            #     ps_publico = eval(Meta.parse(df_resultados[1, "ps_publico"]))
+            #     ps_calles = eval(Meta.parse(df_resultados[1, "ps_calles"]))
+            #     ps_base = eval(Meta.parse(df_resultados[1, "ps_base"]))
+            #     ps_baseSeparada = eval(Meta.parse(df_resultados[1, "ps_baseSeparada"]))
+            #     ps_predios_intra_buffer = eval(Meta.parse(df_resultados[1, "ps_predios_intra_buffer"]))
+            #     ps_manzanas_intra_buffer = eval(Meta.parse(df_resultados[1, "ps_manzanas_intra_buffer"]))
+            #     ps_calles_intra_buffer = eval(Meta.parse(df_resultados[1, "ps_calles_intra_buffer"]))
+
+            #     buffer_dist_ = min(140, 2.7474774194546216 * xopt[1] * alturaPiso)
+            #     ps_buffer_predio_ = polyShape.shapeBuffer(ps_predio, buffer_dist_, 20)
+            #     ps_predios_intra_buffer_ = polyShape.polyIntersect(ps_predios_intra_buffer, ps_buffer_predio_)
+            #     ps_manzanas_intra_buffer_ = polyShape.polyIntersect(ps_manzanas_intra_buffer, ps_buffer_predio_)
+
+
+            #     fig, ax, ax_mat = polyShape.plotBaseEdificio3D(fpe, xopt, alturaPiso, ps_predio, ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico,
+            #         ps_volConSombra, matConexionVertices_conSombra, vecVertices_conSombra, ps_publico, ps_calles, ps_base, ps_baseSeparada)
+
+            #     fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_predios_intra_buffer_, 0.0, "green", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+            #     fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_manzanas_intra_buffer_, 0.0, "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+            #     fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_buffer_predio_, 0.0, "gray", 0.15, fig=fig, ax=ax, ax_mat=ax_mat)
+        
 
     else # Cómputos sobre los lotes específicos
         id_ = 0
 
-        fpe, temp_opt, alturaPiso, xopt, vec_datos = funcionPrincipal(tipoOptimizacion, codigo_predial, id_)
+        fpe, temp_opt, alturaPiso, xopt, vec_datos = funcionPrincipal(conn_LandValue, conn_mygis_db, tipoOptimizacion, codigo_predial, id_)
        
         ps_predio = vec_datos[1]
         ps_volTeorico = vec_datos[2]

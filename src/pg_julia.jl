@@ -178,9 +178,12 @@ function df2xlsx(df::DataFrames.DataFrame, outfileStr::String)
 
 end
 
+function close_db(conn)
+    LibPQ.close(conn::LibPQ.Connection)
+end
 
 export connection, query, simpleQuery, appendToTable!, createTable, deleteTable, deleteRows!, insertRow!, modifyRow!, 
-        df2csv, csv2df, df2xlsx
+        df2csv, csv2df, df2xlsx, close_db
 
 
 end
