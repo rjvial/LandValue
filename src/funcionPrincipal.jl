@@ -416,12 +416,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             string(id_)]
         if id_ > 0
 
-            # cond_str = "=" * string(id_)
-            # vecColumnNames = ["status", "id"]
-            # vecColumnValue = ["1", string(id_)]
-            # pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)
-            # sleep(3)
-            pg_julia.insertRow!(conn_LandValue, "tabla_resultados_cabidas", vecColumnNames, vecColumnValue, :id)
+            # pg_julia.insertRow!(conn_LandValue, "tabla_resultados_cabidas", vecColumnNames, vecColumnValue, :id)
         end
 
         alturaPiso = dca.alturaPiso[1]
@@ -436,7 +431,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             matConexionVertices_conSombra, vecVertices_conSombra, ps_publico, ps_calles, ps_base, ps_baseSeparada,
             ps_calles_intra_buffer_, ps_predios_intra_buffer_, ps_manzanas_intra_buffer_, ps_buffer_predio_, dx, dy, ps_areaEdif]
 
-        return fpe, temp_opt, alturaPiso, xopt, vec_datos
+        return fpe, temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id_
 
     elseif tipoOptimizacion == "economica"
 
@@ -570,7 +565,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         end
 
 
-        return dcc, resultados, xopt
+        return dcc, resultados, xopt, vecColumnNames, vecColumnValue, id_
 
     end
 
