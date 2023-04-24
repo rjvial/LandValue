@@ -4,11 +4,21 @@ using LandValue, Distributed
 # run(`C:/Users/rjvia/Documents/LandValue/key_code_user.bat`)
 # run(`C:/Users/rjvia/Documents/LandValue/key_code_pw.bat`)
 
-# conn_LandValue = pg_julia.connection("landengines", ENV["USER"], ENV["PW"], ENV["HOST"])
-conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER"], ENV["PW"], ENV["HOST"])
-conn_mygis_db = pg_julia.connection("gis_data", ENV["USER"], ENV["PW"], ENV["HOST"])
+# conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER"], ENV["PW"], ENV["HOST"])
+# conn_mygis_db = pg_julia.connection("gis_data", ENV["USER"], ENV["PW"], ENV["HOST"])
 
-let codigo_predial = [] #[151600048300017, 151600048300018, 151600048300049] #[151600124100010,151600124100011, 151600124100012, 151600124100013, 151600124100014] #[151600135100018, 151600135100019] #[151600124100009, 151600124100010, 151600124100011, 151600124100012, 151600124100013, 151600124100014, 151600124100015] 
+conn_LandValue = pg_julia.connection("landengines_local", "postgres", "", "localhost")
+conn_mygis_db = pg_julia.connection("gis_data_local", "postgres", "", "localhost")
+
+query_kill_connections = """
+                SELECT pg_terminate_backend(pg_stat_activity.pid)
+                FROM pg_stat_activity
+                WHERE pg_stat_activity.datname = 'landengines_local' 
+                AND pid <> pg_backend_pid();
+            """
+pg_julia.query(conn_LandValue, query_kill_connections)
+
+let codigo_predial = [] #[151600124100010, 151600124100011, 151600124100012, 151600124100013, 151600124100014] #[151600135700004, 151600135700005, 151600135700016, 151600135700017, 151600135700021, 151600135700018, 151600135700019, 151600135700020] #[151600048300017, 151600048300018, 151600048300049] #[151600124100010,151600124100011, 151600124100012, 151600124100013, 151600124100014] #[151600135100018, 151600135100019] #[151600124100009, 151600124100010, 151600124100011, 151600124100012, 151600124100013, 151600124100014, 151600124100015] 
     # Para cómputos sobre la base de datos usar codigo_predial = []
     tipoOptimizacion = "volumetrica"
 
@@ -109,11 +119,11 @@ let codigo_predial = [] #[151600048300017, 151600048300018, 151600048300049] #[1
 
         jobs = RemoteChannel(()->Channel{Any}(num_combi))
         function make_jobs(vec_combi) # Genera un numero n de jobs y los guarda en el channel jobs
-            for j in vec_combi
-                combi_i_str = df_combinaciones[j, 1]
-                id_i = df_combinaciones[j, 3]
-                codigo_predial = eval(Meta.parse(combi_i_str))            
-                put!(jobs, [tipoOptimizacion, codigo_predial, j])
+            for j in eachindex(vec_combi)
+                combi_j_str = df_combinaciones[j, 1]
+                id_j = df_combinaciones[j, 3]
+                codigo_predial = eval(Meta.parse(combi_j_str))
+                put!(jobs, [tipoOptimizacion, codigo_predial, id_j])
             end
         end
         
@@ -121,7 +131,7 @@ let codigo_predial = [] #[151600048300017, 151600048300018, 151600048300049] #[1
         @everywhere function distributed_work(jobs, results) # Saca un job del channel y lo ejecuta, y después guarda el resultado en el channel results
             while true
                 try
-                    conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER"], ENV["PW"], ENV["HOST"])
+                    # conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER"], ENV["PW"], ENV["HOST"])
                     job_id = take!(jobs)
                     tipoOptimizacion = job_id[1]
                     codigo_predial = job_id[2]
@@ -130,7 +140,8 @@ let codigo_predial = [] #[151600048300017, 151600048300018, 151600048300049] #[1
                     display("* Ejecutando cabida predio: " * string(codigo_predial) * " en el Worker N° " * string(myid()))
                     display("***************************************************")
                     fpe, temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id = funcionPrincipal(tipoOptimizacion, codigo_predial, id)
-                    put!(results, (fpe, temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id, myid()))
+                    wkr = myid()
+                    put!(results, (fpe, temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id, wkr))
 
                 catch error
                     display("")
@@ -141,10 +152,10 @@ let codigo_predial = [] #[151600048300017, 151600048300018, 151600048300049] #[1
                     display("#############################################################################")
                     display("")
 
-                    cond_str = "=" * string(id)
-                    vecColumnNames = ["status", "id"]
-                    vecColumnValue = ["19", string(id)]
-                    pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)
+                    # cond_str = "=" * string(id)
+                    # vecColumnNames = ["status", "id"]
+                    # vecColumnValue = ["19", string(id)]
+                    # pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)
 
                 end
             end
@@ -160,6 +171,16 @@ let codigo_predial = [] #[151600048300017, 151600048300018, 151600048300049] #[1
 
         cont = length(vec_combi)
         while cont > 0 # print out results
+
+            query_kill_connections = """
+                    SELECT pg_terminate_backend(pg_stat_activity.pid)
+                    FROM pg_stat_activity
+                    WHERE pg_stat_activity.datname = 'landengines_local' 
+                    AND pid <> pg_backend_pid();
+                """
+            pg_julia.query(conn_LandValue, query_kill_connections)
+
+            
             fpe, temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id, wkr = take!(results)
             pg_julia.insertRow!(conn_LandValue, "tabla_resultados_cabidas", vecColumnNames, vecColumnValue, :id)
 
@@ -180,7 +201,7 @@ let codigo_predial = [] #[151600048300017, 151600048300018, 151600048300049] #[1
     else # Cómputos sobre los lotes específicos
         id_ = 0
 
-        fpe, temp_opt, alturaPiso, xopt, vec_datos = funcionPrincipal(conn_LandValue, conn_mygis_db, tipoOptimizacion, codigo_predial, id_)
+        fpe, temp_opt, alturaPiso, xopt, vec_datos = funcionPrincipal(tipoOptimizacion, codigo_predial, id_)
        
         ps_predio = vec_datos[1]
         ps_volTeorico = vec_datos[2]
@@ -214,3 +235,10 @@ end
 # UPDATE tabla_combinacion_predios
 # SET status = 0 
 # WHERE combi_predios_str = '[151600011100005]';
+
+#pg_dump -h aws-landengines-db.cggiqowut9c4.us-east-1.rds.amazonaws.com -U postgres -d landengines  --table="tabla_resultados_cabidas" | psql -d landengines_dev -h aws-landengines-db.cggiqowut9c4.us-east-1.rds.amazonaws.com -U postgres
+#pg_dump -h aws-landengines-db.cggiqowut9c4.us-east-1.rds.amazonaws.com -U postgres -d landengines_dev -t "tabla_resultados_cabidas" | psql -d landengines_local -h localhost -U postgres
+#pg_dump -h aws-landengines-db.cggiqowut9c4.us-east-1.rds.amazonaws.com -U postgres -d landengines_dev -t "tabla_costosunitarios_default" -t "tabla_flagplot_default" -t "tabla_normativa_default" -t "tabla_normativa_default" | psql -d landengines_local -h localhost -U postgres
+
+#pg_dump -h aws-landengines-db.cggiqowut9c4.us-east-1.rds.amazonaws.com -U postgres -d gis_data -t "anteproyectos_vitacura" -t "areas_verde_vitacura" -t "datos_cbrs_vitacura" -t "datos_manzanas_vitacura_2017" -t "datos_manzanas_vitacura_ampliado_2017" -t "datos_predios_vitacura" -t "datos_roles_vitacura" -t "division_comunal" | psql -d gis_data_local -h localhost -U postgres
+#pg_dump -h aws-landengines-db.cggiqowut9c4.us-east-1.rds.amazonaws.com -U postgres -d gis_data -t "maestro_de_calles" -t "manzanas_1990" -t "permisos_vitacura" -t "poi_vitacura" -t "poi_vitacura_points" -t "prc_vitacura" -t "predios_1990" -t "predios_metropolitana" -t "predios_vitacura_2016" -t "superficie_areas_verdes_santiago" | psql -d gis_data_local -h localhost -U postgres

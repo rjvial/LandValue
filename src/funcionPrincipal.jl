@@ -4,9 +4,12 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
     # PARTE "1": OBTENCIÓN DE PARÁMETROS         #
     ##############################################
 
-    conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER"], ENV["PW"], ENV["HOST"])
-    conn_mygis_db = pg_julia.connection("gis_data", ENV["USER"], ENV["PW"], ENV["HOST"])
+    # conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER"], ENV["PW"], ENV["HOST"])
+    # conn_mygis_db = pg_julia.connection("gis_data", ENV["USER"], ENV["PW"], ENV["HOST"])
 
+    conn_LandValue = pg_julia.connection("landengines_local", "postgres", "", "localhost")
+    conn_mygis_db = pg_julia.connection("gis_data_local", "postgres", "", "localhost")
+    
 
     display("Obtiene DatosCabidaArquitectura")
     @time df_arquitectura = pg_julia.query(conn_LandValue, """SELECT * FROM public."tabla_arquitectura_default";""")

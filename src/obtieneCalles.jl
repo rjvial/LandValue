@@ -66,11 +66,17 @@ function obtieneCalles(ps_predio::PolyShape, ps_buffer_predio::PolyShape, ps_pre
 
     # Obtiene vector de secciones con calle y vector de ángulos de los bordes del predio
     ps_predios_buffer_union = polyShape.polyUnion(ps_predios_buffer)
+    ps_buffer_local_predio = polyShape.shapeBuffer(ps_predio, 60, 0)
+    ps_calle_predio = polyShape.polyDifference(ps_buffer_local_predio, ps_predios_buffer_union)
     vec_edges_predio = polyShape.polyShape2lineVec(ps_predio)
     vecSecConCalle, vec_angle = ladosConCalle(ps_predios_buffer_union, vec_edges_predio, vecSecConCalle)
     
     # Genera polyShape de calles del predio 
     ps_calles_predio = callesPredio(ps_predio, vecSecConCalle, vec_edges_predio, ps_predios_buffer_union)
+
+    fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_calles_predio, "gray", 0.2)
+    fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_predios_buffer, "red", 0.2, fig=fig, ax=ax, ax_mat=ax_mat )
+    fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_predio, "blue", 0.2, fig=fig, ax=ax, ax_mat=ax_mat )
 
     # Obtiene vector de boxes y vector de vertices de la calle que limitan con el predio
     vec_box = []
@@ -97,8 +103,9 @@ function obtieneCalles(ps_predio::PolyShape, ps_buffer_predio::PolyShape, ps_pre
         inter_box_calles_i = polyShape.polyIntersect(vec_box[i], ps_calles_predio)
         push!(vec_semi_calle, polyShape.shapeCentroid(inter_box_calles_i))
     end
-    # fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_calles_predio, 0, "green", 0.2)
-    # fig, ax, ax_mat = polyShape.plotPolyshape2Din3D.(vec_semi_calle, 0., "red", 0.5, fig=fig, ax=ax, ax_mat=ax_mat)
+    fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_predio, 0, "red", 0.2)
+    fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_calles_predio, 0, "green", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+    fig, ax, ax_mat = polyShape.plotPolyshape2Din3D.(vec_semi_calle, 0., "red", 0.5, fig=fig, ax=ax, ax_mat=ax_mat)
 
     # Convierte los vertices de la semi calle en un polyShape
     V_semi_calle = [0 0]
