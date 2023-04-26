@@ -2,7 +2,7 @@
 
 julia_version = "1.8.5"
 manifest_format = "2.0"
-project_hash = "66a41d99cb3365036ddc4df35416b330854200f9"
+project_hash = "4f4af6b9b1a06c740de97abf4d26bce6bbcb35a4"
 
 [[deps.AMD]]
 deps = ["Libdl", "LinearAlgebra", "SparseArrays", "Test"]
@@ -1314,6 +1314,12 @@ version = "400.902.5+1"
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
 version = "1.2.0"
 
+[[deps.Nonconvex]]
+deps = ["NonconvexCore", "NonconvexUtils", "Pkg", "Reexport"]
+git-tree-sha1 = "e8a69355e538863435a5c0e8da15a1ee807122d2"
+uuid = "01bcebdf-4d21-426d-b5c4-6132c1619978"
+version = "2.1.2"
+
 [[deps.NonconvexBayesian]]
 deps = ["AbstractGPs", "ChainRulesCore", "IntervalArithmetic", "LinearAlgebra", "NonconvexCore", "NonconvexIpopt", "Parameters", "Reexport", "Sobol"]
 git-tree-sha1 = "dcbd8f9f6291d81839814913bfc78109936dce4d"
@@ -1337,6 +1343,12 @@ deps = ["LinearAlgebra", "NLopt", "NonconvexCore", "Parameters", "Reexport", "Sp
 git-tree-sha1 = "3628535f2758d6bc157dda4043da114520233941"
 uuid = "b43a31b8-ff9b-442d-8e31-c163daa8ab75"
 version = "0.1.5"
+
+[[deps.NonconvexNOMAD]]
+deps = ["NOMAD", "NonconvexCore", "Parameters", "Reexport", "Zygote"]
+git-tree-sha1 = "5a9d28fc309eb3dd53facebaf8e6b11342eda1a2"
+uuid = "2385ff6c-83fd-4e6c-afbd-4e7983621e3f"
+version = "0.1.0"
 
 [[deps.NonconvexUtils]]
 deps = ["AbstractDifferentiation", "ChainRulesCore", "ForwardDiff", "IterativeSolvers", "LinearAlgebra", "LinearMaps", "MacroTools", "NonconvexCore", "SparseArrays", "SparseDiffTools", "Symbolics", "Zygote"]

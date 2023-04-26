@@ -322,12 +322,12 @@ module LandValue
     include("generaCotas.jl")
     include("create_scr.jl")
     include("create_edificio_geojson.jl")
-    include("bid_prices.jl")
-    include("bid_prices_pivot.jl")
-    include("bid_price_aprendizaje_uniforme.jl")
-    include("bid_price_dinamico_weibull.jl")
-    include("bid_price_dinamico.jl")
-    include("ajustaPrecioReserva.jl")
+    # include("bid_prices.jl")
+    # include("bid_prices_pivot.jl")
+    # include("bid_price_aprendizaje_uniforme.jl")
+    # include("bid_price_dinamico_weibull.jl")
+    # include("bid_price_dinamico.jl")
+    # include("ajustaPrecioReserva.jl")
 
     export funcionPrincipal, fo_bbo, fo_nomad, calculaAnguloRotacion, generaSombraEdificio, optiEdificio, displayResults, 
         optim_nomad, optim_bbo, poly2D, polyShape, graphMod, resultConverter, plotBaseEdificio3D, generaVol3D, generaSombraTeor, 

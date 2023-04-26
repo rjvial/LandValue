@@ -4,8 +4,8 @@ function optim_bbo(fo_bbo, lb, ub)
     sr = [(lb[i], ub[i]) for i in eachindex(lb)] # Search Region    
     fopt = 10000
     xopt = []
-    maxSteps = 2*13500
-    for i=1:10
+    maxSteps = 20000
+    for i=1:20
         result = BlackBoxOptim.bboptimize(fo_bbo; SearchRange = sr, NumDimensions = length(lb),
                     Method = :adaptive_de_rand_1_bin_radiuslimited, MaxSteps = maxSteps,
                     TraceMode = :silent) 
@@ -16,16 +16,16 @@ function optim_bbo(fo_bbo, lb, ub)
         end
     end
 
-    # Optimización sobre mejor sector encontrado en etapa anterior  
-    sr = [(xopt[i]-0.05*abs(xopt[i]), xopt[i]+0.05*abs(xopt[i])) for i=1:length(lb)] # Search Region
-    sr[end] = (lb[end], lb[end])
-    sr = [(lb[i], ub[i]) for i in eachindex(lb)]
-    maxSteps = 30000
-    result = BlackBoxOptim.bboptimize(fo_bbo; SearchRange = sr, NumDimensions = length(lb),
-            Method = :adaptive_de_rand_1_bin_radiuslimited, MaxSteps = maxSteps,
-            TraceMode = :silent) 
-    fopt = BlackBoxOptim.best_fitness(result)
-    xopt = BlackBoxOptim.best_candidate(result)
+    # # Optimización sobre mejor sector encontrado en etapa anterior  
+    # sr = [(xopt[i]-0.05*abs(xopt[i]), xopt[i]+0.05*abs(xopt[i])) for i=1:length(lb)] # Search Region
+    # sr[end] = (lb[end], lb[end])
+    # sr = [(lb[i], ub[i]) for i in eachindex(lb)]
+    # maxSteps = 30000
+    # result = BlackBoxOptim.bboptimize(fo_bbo; SearchRange = sr, NumDimensions = length(lb),
+    #         Method = :adaptive_de_rand_1_bin_radiuslimited, MaxSteps = maxSteps,
+    #         TraceMode = :silent) 
+    # fopt = BlackBoxOptim.best_fitness(result)
+    # xopt = BlackBoxOptim.best_candidate(result)
 
     return xopt, fopt
 
