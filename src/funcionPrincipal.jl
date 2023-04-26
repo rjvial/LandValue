@@ -129,19 +129,36 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         V_areaEdif = ps_areaEdif.Vertices[1]
         sup_areaEdif = polyShape.polyArea(ps_areaEdif)
 
+        vec_psVolteor = [polyShape.polyExpand(ps_bruto, -i) for i = 0:.5:50]
+        vec_altVolteor = collect(0:.5:50) .* rasante
+        vec_psVolteor = [polyShape.polyIntersect(vec_psVolteor[i], ps_areaEdif) for i in eachindex(vec_psVolteor)]
+        flag_niveles_bruto = [!isempty(vec_psVolteor[i].Vertices)  for i in eachindex(vec_psVolteor)]
+        flag_niveles_bruto[vec_altVolteor .> dcn.alturaMax + rasante] .= false
+        vec_psVolteor = vec_psVolteor[flag_niveles_bruto .== 1]
+        vec_altVolteor = vec_altVolteor[flag_niveles_bruto .== 1]
+
+        # fig, ax, ax_mat = polyShape.plotPolyshape2DVecin3D(vec_psVolteor, vec_altVolteor, "red", 0.2)
 
         # Calcula el volumen y sombra teórica 
         display("Calcula el volumen teórico")
-        @time matConexionVertices_volTeorico, vecVertices_volTeorico, ps_volTeorico = generaVol3D(ps_predio, ps_bruto, rasante, dcn, dcp)
+        @time matConexionVertices_volTeorico, vecVertices_volTeorico, ps_volTeorico = generaVol3D(vec_psVolteor, vec_altVolteor)
         V_volTeorico = ps_volTeorico.Vertices[1]
         vecAlturas_volTeorico = sort(unique(V_volTeorico[:, end]))
+        # fig, ax, ax_mat = polyShape.plotPolyshape3D(ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico)
 
         display("Calcula sombra del Volumen Teórico")
         @time ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s = generaSombraTeor(ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico, ps_publico, ps_calles)
         rasante_sombra = Float64(dcn.rasanteSombra)
 
         display("Calcula el volumen sin restricciones")
-        @time matConexionVertices_conSombra, vecVertices_conSombra, ps_volConSombra = generaVol3D(ps_predio, ps_bruto, rasante_sombra, dcn, dcp)
+        vec_psVolConSombra = [polyShape.polyExpand(ps_bruto, -i) for i = 0:.5:50]
+        vec_altVolConSombra = collect(0:.5:50) .* rasante_sombra
+        vec_psVolConSombra = [polyShape.polyIntersect(vec_psVolConSombra[i], ps_areaEdif) for i in eachindex(vec_psVolConSombra)]
+        flag_niveles_bruto = [!isempty(vec_psVolConSombra[i].Vertices) for i in eachindex(vec_psVolConSombra)]
+        flag_niveles_bruto[vec_altVolConSombra .> dcn.alturaMax + rasante_sombra] .= false
+        vec_psVolConSombra = vec_psVolConSombra[flag_niveles_bruto .== 1]
+        vec_altVolConSombra = vec_altVolConSombra[flag_niveles_bruto .== 1]
+        @time matConexionVertices_conSombra, vecVertices_conSombra, ps_volConSombra = generaVol3D(vec_psVolConSombra, vec_altVolConSombra)
         V_volConSombra = ps_volConSombra.Vertices[1]
         vecAlturas_conSombra = sort(unique(V_volConSombra[:, end]))
 
@@ -245,10 +262,10 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
 
         while flagSeguir
 
-            lb, ub = generaCotas(template, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
+            lb, ub, lb_bbo, ub_bbo = generaCotas(template, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
 
             display("Template N° " * string(template) * " - Intento N° " * string(intento) * ": Inicio de Optimización BBO. Genera solución inicial.")
-            x_bbo, f_bbo = optim_bbo(obj_bbo, lb, ub)
+            x_bbo, f_bbo = optim_bbo(obj_bbo, lb_bbo, ub_bbo)
 
             display("Template N° " * string(template) * " - Intento N° " * string(intento) * ": Inicio de Optimización NOMAD")
             MaxSteps = 8000

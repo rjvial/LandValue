@@ -2429,6 +2429,18 @@ function midPointSegment(edge::LineShape)::PointShape
 end
 
 
+function alphaPointSegment(edge::LineShape, α)::PointShape
+    num_lines = edge.NumLines
+    V_out = zeros(num_lines, 2)
+    for i = 1:num_lines
+        V_i = edge.Vertices[i]
+        V_out[i, :] = (1-α) * V_i[1,:] + α * V_i[2,:]
+    end
+    p_out = PointShape(V_out, num_lines)
+    return p_out
+end
+
+
 function points2Line(p1::PointShape, p2::PointShape)::LineShape
     V1 = p1.Vertices[:]'
     V2 = p2.Vertices[:]'
@@ -2482,7 +2494,7 @@ export extraeInfoPoly, largoLadosPoly, isPolyConvex, isPolyInPoly, plotPolyshape
     lineLineDist, parallelLineAtDist, lineAngle, halfspaceSignOfPointToLine, extendLine, polyEliminaRepetidos, polyEliminaSpikes, polyEliminaCrucesComplejos,
     polyObtieneCruces, polyEqualExpand, polyExpandSegmentVec, replaceShapeVertex, lineVec2polyShape, polyShape2lineVec,
     ajustaCoordenadas, angleMaxDistRect, extendRectToIntersection, createLine, polyReproject, polyskel, bisector_direction, angleBetweenLines,
-    reverseLine, distanceBetweenPoints, midPointSegment, points2Line, points2Poly, lineLength
+    reverseLine, distanceBetweenPoints, midPointSegment, alphaPointSegment, points2Line, points2Poly, lineLength
 
 end
 

@@ -15,6 +15,8 @@ function generaCotas(template, minPisos, maxPisos, V_areaEdif, sepNaves, maxDiag
             max_ancho = anchoMax
             lb = [min_pisos, min_theta, xmin, ymin, min_ancho, min_largo]
             ub = [max_pisos, max_theta, xmax, ymax, max_ancho, max_largo]
+            lb_bbo = [min_pisos, min_theta, xmin, ymin, min_ancho, min_largo]
+            ub_bbo = [max_pisos, max_theta, xmax, ymax, 6, max_largo]
     
         elseif template == 1
             min_pisos = min(minPisos, maxPisos - 1)
@@ -35,6 +37,8 @@ function generaCotas(template, minPisos, maxPisos, V_areaEdif, sepNaves, maxDiag
             max_ancho = anchoMax
             lb = [min_pisos, min_theta, xmin, ymin, min_alfa, min_largo1, min_largo2, min_ancho]
             ub = [max_pisos, max_theta, xmax, ymax, max_alfa, max_largo1, max_largo2, max_ancho]
+            lb_bbo = [min_pisos, min_theta, xmin, ymin, min_alfa, min_largo1, min_largo2, min_ancho]
+            ub_bbo = [max_pisos, max_theta, xmax, ymax, max_alfa, max_largo1, max_largo2, 6]
     
         elseif template == 2
             min_pisos = min(minPisos, maxPisos - 1)
@@ -59,6 +63,8 @@ function generaCotas(template, minPisos, maxPisos, V_areaEdif, sepNaves, maxDiag
             max_ancho = anchoMax
             lb = [min_pisos, min_theta, xmin, ymin, min_phi1, min_phi2, min_largo0, min_largo1, min_largo2, min_ancho]
             ub = [max_pisos, max_theta, xmax, ymax, max_phi1, max_phi2, max_largo0, max_largo1, max_largo2, max_ancho]
+            lb_bbo = [min_pisos, min_theta, xmin, ymin, min_phi1, min_phi2, min_largo0, min_largo1, min_largo2, min_ancho]
+            ub_bbo = [max_pisos, max_theta, xmax, ymax, max_phi1, max_phi2, max_largo0, max_largo1, max_largo2, 6]
     
         elseif template == 3
             min_pisos = min(minPisos, maxPisos - 1)
@@ -81,6 +87,8 @@ function generaCotas(template, minPisos, maxPisos, V_areaEdif, sepNaves, maxDiag
             max_ancho = anchoMax
             lb = [min_pisos, min_theta, xmin, ymin, min_unidades, min_largo, min_var, min_sep, min_ancho]
             ub = [max_pisos, max_theta, xmax, ymax, max_unidades, max_largo, max_var, max_sep, max_ancho]
+            lb_bbo = [min_pisos, min_theta, xmin, ymin, min_unidades, min_largo, min_var, min_sep, min_ancho]
+            ub_bbo = [max_pisos, max_theta, xmax, ymax, max_unidades, max_largo, max_var, max_sep, 6]
     
         elseif template == 4
             min_pisos = min(minPisos, maxPisos - 1)
@@ -101,6 +109,8 @@ function generaCotas(template, minPisos, maxPisos, V_areaEdif, sepNaves, maxDiag
             max_ancho = anchoMax
             lb = [min_pisos, min_theta, xmin, ymin, min_alfa, min_largo1, min_largo2, min_ancho]
             ub = [max_pisos, max_theta, xmax, ymax, max_alfa, max_largo1, max_largo2, max_ancho]
+            lb_bbo = [min_pisos, min_theta, xmin, ymin, min_alfa, min_largo1, min_largo2, min_ancho]
+            ub_bbo = [max_pisos, max_theta, xmax, ymax, max_alfa, max_largo1, max_largo2, 6]
     
         elseif template == 5
             min_pisos = min(minPisos, maxPisos - 1)
@@ -127,7 +137,10 @@ function generaCotas(template, minPisos, maxPisos, V_areaEdif, sepNaves, maxDiag
             max_ancho = anchoMax
             lb = [min_pisos, min_theta, xmin, ymin, min_largo, min_largo1_, min_largo1, min_largo2_, min_largo2, min_ancho]
             ub = [max_pisos, max_theta, xmax, ymax, max_largo, max_largo1_, max_largo1, max_largo2_, max_largo2, max_ancho]
+            lb_bbo = [min_pisos, min_theta, xmin, ymin, min_largo, min_largo1_, min_largo1, min_largo2_, min_largo2, min_ancho]
+            ub_bbo = [max_pisos, max_theta, xmax, ymax, max_largo, max_largo1_, max_largo1, max_largo2_, max_largo2, 6]
+
         end
 
-        return lb, ub
+        return lb, ub, lb_bbo, ub_bbo
     end

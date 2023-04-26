@@ -1,71 +1,12 @@
-function generaVol3D(ps_predio::PolyShape, ps_bruto::PolyShape, rasante::Float64, dcn::DatosCabidaNormativa, dcp::DatosCabidaPredio)
-
-    numLadosPredio = size(ps_predio.Vertices[1], 1);
-    conjuntoLados = collect(1:numLadosPredio)
-    conjuntoLadosCalle = dcp.ladosConCalle;
-    numCalles = length(conjuntoLadosCalle)
-    conjuntoLadosVecinos = setdiff(conjuntoLados, conjuntoLadosCalle);
-    alturaMax = dcn.alturaMax
-    sepVecinos = dcn.distanciamiento
-    antejardin = dcn.antejardin
-    anchoEspacioPublico = dcp.anchoEspacioPublico
+function generaVol3D(vec_psVolteor, vec_altVolteor)
 
 
-    # Genera vector de separaciones entre el comienzo de la rasante (separacion predial o eje esp. público) 
-    # y la línea de edificación
-    vecSeparacion = zeros(numLadosPredio)
-    for i in conjuntoLadosVecinos
-        vecSeparacion[i] = sepVecinos[1]
-    end
-    numCalles = length(conjuntoLadosCalle)
-    for i= 1:numCalles
-        vecSeparacion[conjuntoLadosCalle[i]] = anchoEspacioPublico[i]/2 + antejardin[1]
-    end
-    conjSepDist = collect(1:.1:alturaMax[1]/rasante)
-    numSepDistintas = length(conjSepDist)
 
-    
     # Genera Volumen Teórico a partir de múltiples cortes a distintas alturas 
-    function volumenPorCortes(numSepDistintas::Int64, vecSeparacion::Vector{Float64}, conjSepDist::Vector{Float64}, ps_bruto::PolyShape, conjuntoLados::Vector{Int64}, rasante::Float64)
-        vec_psVolteor = Array{PolyShape, 1}(undef, numSepDistintas)
-        vec_altVolteor = zeros(numSepDistintas,1)
-        id = 1
-        pos_area_chica = numSepDistintas
-        flag_area_chica = false
-        for j = 1:numSepDistintas # Para cada una de las separaciones distintas 
-            if flag_area_chica == false
-                vecDelta_j = max.(0,vecSeparacion .- conjSepDist[j])
-                ps_corte = polyShape.polyCopy(ps_bruto)
-                ps_corte = polyShape.polyExpandSegmentVec(ps_corte, -vecDelta_j, collect(conjuntoLados))
-                ps_corte = polyShape.polyExpand(ps_corte, -conjSepDist[j])
-                ps_corte = polyShape.polyEliminaColineales(ps_corte)
-                if polyShape.polyArea(ps_corte) <= 4 && pos_area_chica == numSepDistintas
-                    pos_area_chica = j
-                    flag_area_chica = true
-                end
-                if ps_corte.NumRegions >= 1
-                    vec_psVolteor[id] = ps_corte
-                    vec_altVolteor[id] = conjSepDist[j]*rasante
-                    id += 1
-                end
-            end
-
-        end
-        vec_psVolteor = vec_psVolteor[1:pos_area_chica-1]
-        vec_psVolteor = [vec_psVolteor[1]; vec_psVolteor]
-
-        vec_altVolteor = vec_altVolteor[1:pos_area_chica-1]
-        vec_altVolteor = [0.; vec_altVolteor]
-    
-        return vec_psVolteor, vec_altVolteor
-    end
-
-    display("Calcula volumenPorCortes")
-    @time vec_psVolteor, vec_altVolteor = volumenPorCortes(numSepDistintas, vecSeparacion, conjSepDist, ps_bruto, conjuntoLados, rasante)
 
 
     # Determina las alturas en las cuales hay cambios
-    vec_psVolteor_ = copy(vec_psVolteor)
+    vec_psVolteor_ = deepcopy(vec_psVolteor)
     vec_altVolteor_ = copy(vec_altVolteor)
     flagAlt = zeros(length(vec_altVolteor),1)
     flagAlt[1] = 1
