@@ -1,13 +1,11 @@
 function optim_nomad(fo_nomad, num_penalizaciones, lb, ub, MaxSteps, initSol)
 
-
-   
     num_inputs = length(lb); # Number of inputs of the blackbox. Is required to be > 0
     num_outputs = num_penalizaciones + 1; # Number of outputs of the blackbox. Is required to be > 0
-    output_types = vcat(["OBJ"], ["EB" for i in 1:num_penalizaciones]); # "OBJ" objective value to be minimized, "PB" progressive barrier constraint, "EB" extreme barrier constraint
+    output_types = vcat(["OBJ"], ["PB" for i in 1:num_penalizaciones]); # "OBJ" objective value to be minimized, "PB" progressive barrier constraint, "EB" extreme barrier constraint
     input_types = vcat(["I"], ["R" for i in 1:num_inputs-1]); # A vector containing String objects that define the types of inputs to be given to eval_bb (the order is important). "R" Real/Continuous, "B" Binary,"I" Integer
     #granularity = [0. for i in 1:num_inputs]; # 0 for real variables, 1 for integer and binary ones.
-    #min_mesh_size = [0.0001 for i in 1:num_inputs];
+    #min_mesh_size = [0.1 for i in 1:num_inputs];
     lower_bound = lb;
     upper_bound = ub;
     initial_mesh_size = vcat([1.], [0.1 for i in 1:num_inputs-1])
