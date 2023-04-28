@@ -34,6 +34,7 @@ function obtieneCalles(ps_predio::PolyShape, ps_buffer_predio::PolyShape, ps_pre
     vec_box = [polyShape.polyBox(vec_mid_edge[i], 1., 20., vec_angle[i]) for i in eachindex(vec_mid_edge)]
 
     vec_media_calle = []
+    vec_toda_calle = []
     vecAnchoCalle = []
     for i in eachindex(vec_box)
         largo_edge_i = polyShape.lineLength(vec_edges_predio_con_calle[i])
@@ -43,14 +44,18 @@ function obtieneCalles(ps_predio::PolyShape, ps_buffer_predio::PolyShape, ps_pre
         vec_cetroids_i = [polyShape.shapeCentroid(polyShape.polyIntersect(vec_box_prev_i[j], ps_calle_predio)) for j in eachindex(vec_box_prev_i)]
         vec_dist_i = [polyShape.distanceBetweenPoints(vec_cetroids_i[j], vec_points_i[j]) for j in eachindex(vec_cetroids_i)]
         mean_dist_i = sum(vec_dist_i) / length(vec_dist_i)
-        vecAnchoCalle = push!(vecAnchoCalle, mean_dist_i)
+        vecAnchoCalle = push!(vecAnchoCalle, mean_dist_i * 2)
         vec_box_i = polyShape.polyBox(polyShape.shapeVertex(vec_edges_predio_con_calle[i],1,2), largo_edge_i+10, mean_dist_i, vec_angle[i])
+        vec_box_doble_i = polyShape.polyBox(polyShape.shapeVertex(vec_edges_predio_con_calle[i],1,2), largo_edge_i+10, mean_dist_i * 2, vec_angle[i])
         vec_media_calle = push!(vec_media_calle, vec_box_i)
+        vec_toda_calle = push!(vec_toda_calle, vec_box_doble_i)
     end
     ps_media_calle = polyShape.polyUnion([vec_media_calle[i] for i in eachindex(vec_media_calle)])
     ps_media_calle = polyShape.polyDifference(ps_media_calle, ps_predio)
+    ps_toda_calle = polyShape.polyUnion([vec_toda_calle[i] for i in eachindex(vec_toda_calle)])
+    ps_toda_calle = polyShape.polyDifference(ps_toda_calle, ps_predios_buffer_union)
     ps_bruto = polyShape.polyExpand(polyShape.polyUnion(ps_predio, ps_media_calle), 0.1)
-    ps_publico = polyShape.polyExpand(polyShape.polyUnion(ps_predio, ps_media_calle), 0.1)
+    ps_publico = polyShape.polyExpand(polyShape.polyUnion(ps_predio, ps_toda_calle), 0.1)
 
     # fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_predio, "blue", 0.2)
     # fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_calles, "gray", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)

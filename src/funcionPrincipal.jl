@@ -112,22 +112,23 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
 
         # Calcula matriz V_areaEdif asociada a los vértices del area de edificación
         display("Establece el área de edificación")
-        V_areaEdif = copy(V_predio)
-        numLadosPredio = size(V_areaEdif, 1)
-        conjuntoLados = 1:numLadosPredio
-        conjuntoLadosCalle = dcp.ladosConCalle
-        conjuntoLadosVecinos = setdiff(conjuntoLados, conjuntoLadosCalle)
-        sepVecinos = dcn.distanciamiento
-        rasante = dcn.rasante
-        antejardin = dcn.antejardin
-        vecDist = fill(1.0, numLadosPredio)
-        vecDist[conjuntoLadosCalle] .= -antejardin[1]
-        vecDist[conjuntoLadosVecinos] .= -sepVecinos[1]
-        ps_areaEdif = PolyShape([V_predio], 1)
-        ps_areaEdif = polyShape.polyExpandSegmentVec(ps_areaEdif, vecDist, collect(conjuntoLados))
-        ps_areaEdif = polyShape.polySimplify(polyShape.polySimplify(ps_areaEdif))
+        
+        vec_edges_predio = polyShape.polyShape2lineVec(ps_predio)
+        numLadosPredio = length(vec_edges_predio)
+        vecSecTodos = collect(1:numLadosPredio)
+        vecSecSinCalle = setdiff(vecSecTodos, vecSecConCalle)
+
+        antejardin = dcn.antejardin[1]
+        sepVecinos = dcn.distanciamiento[1]
+
+        ve = vecSecTodos
+        vd = Float64.(ve)
+        vd .= -antejardin
+        vd[vecSecSinCalle] .= -sepVecinos
+        ps_areaEdif =  polyShape.polyExpandSegmentVec(ps_predio, vd, ve)
         V_areaEdif = ps_areaEdif.Vertices[1]
         sup_areaEdif = polyShape.polyArea(ps_areaEdif)
+        rasante = dcn.rasante
 
         vec_psVolteor = [polyShape.polyExpand(ps_bruto, -i) for i = 0:.5:50]
         vec_altVolteor = collect(0:.5:50) .* rasante
