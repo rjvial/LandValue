@@ -1998,8 +1998,19 @@ function polyExpandSegmentVec(ps::PolyShape, vec_dist::Array{Float64,1}, vec_edg
                     edge_ji = vec_edges_j[i]
                     dist_kji = polyShape.distanceBetweenLines(edge_k, edge_ji)
                     flag_kji = polyShape.isLineLineParallel(edge_k, edge_ji)
-                    if flag_kji && abs(dist_kji - abs(dist_j)) <= 0.01
-                        vec_ps = push!(vec_ps, polyShape.extendLine(edge_ji, 3.0))
+                    edge_ji_ext = polyShape.extendLine(edge_ji, 3.0)
+                    if length(vec_ps) < 1
+                        flag_intersect = true
+                    else
+                        point_inter = polyShape.shapeIntersect(edge_ji_ext, vec_ps[end])
+                        if typeof(point_inter) == PointShape
+                            flag_intersect = true
+                        else
+                            flag_intersect = false
+                        end
+                    end
+                    if flag_intersect && flag_kji && abs(dist_kji - abs(dist_j)) <= 0.01
+                        vec_ps = push!(vec_ps, edge_ji_ext)
                         break
                     end
                 end

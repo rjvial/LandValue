@@ -1,10 +1,5 @@
 function generaVol3D(vec_psVolteor, vec_altVolteor)
 
-
-
-    # Genera Volumen Teórico a partir de múltiples cortes a distintas alturas 
-
-
     # Determina las alturas en las cuales hay cambios
     vec_psVolteor_ = deepcopy(vec_psVolteor)
     vec_altVolteor_ = copy(vec_altVolteor)

@@ -17,7 +17,7 @@ function obtieneCalles(ps_predio::PolyShape, ps_buffer_predio::PolyShape, ps_pre
 
     # Obtiene vector de secciones con calle y vector de ángulos de los bordes del predio
     ps_predios_buffer_union = polyShape.polyUnion(ps_predios_buffer)
-    ps_buffer_local_predio = polyShape.shapeBuffer(ps_predio, 60, 0)
+    ps_buffer_local_predio = polyShape.shapeBuffer(ps_predio, 30, 0)
     ps_calle_predio = polyShape.polyDifference(ps_buffer_local_predio, ps_predios_buffer_union)
     vec_edges_predio = polyShape.polyShape2lineVec(ps_predio)
     ps_calle_predio_ = polyShape.shapeBuffer(ps_calle_predio, 2, 0)

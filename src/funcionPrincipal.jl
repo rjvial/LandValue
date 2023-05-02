@@ -121,22 +121,20 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         antejardin = dcn.antejardin[1]
         sepVecinos = dcn.distanciamiento[1]
 
-        ve = vecSecTodos
-        vd = Float64.(ve)
-        vd .= -antejardin
-        vd[vecSecSinCalle] .= -sepVecinos
-        ps_areaEdif =  polyShape.polyExpandSegmentVec(ps_predio, vd, ve)
+        vec_edges = vecSecTodos
+        vec_dist = Float64.(vec_edges)
+        vec_dist .= -antejardin
+        vec_dist[vecSecSinCalle] .= -sepVecinos
+        ps_areaEdif =  polyShape.polyExpandSegmentVec(ps_predio, vec_dist, vec_edges)
         V_areaEdif = ps_areaEdif.Vertices[1]
         sup_areaEdif = polyShape.polyArea(ps_areaEdif)
         rasante = dcn.rasante
 
-        vec_psVolteor = [polyShape.polyExpand(ps_bruto, -i) for i = 0:.5:50]
         vec_altVolteor = collect(0:.5:50) .* rasante
+        vec_altVolteor = vec_altVolteor[vec_altVolteor .< dcn.alturaMax]
+        push!(vec_altVolteor, dcn.alturaMax)
+        vec_psVolteor = [polyShape.polyExpand(ps_bruto, -i/rasante) for i in vec_altVolteor]
         vec_psVolteor = [polyShape.polyIntersect(vec_psVolteor[i], ps_areaEdif) for i in eachindex(vec_psVolteor)]
-        flag_niveles_bruto = [!isempty(vec_psVolteor[i].Vertices)  for i in eachindex(vec_psVolteor)]
-        flag_niveles_bruto[vec_altVolteor .> dcn.alturaMax + rasante] .= false
-        vec_psVolteor = vec_psVolteor[flag_niveles_bruto .== 1]
-        vec_altVolteor = vec_altVolteor[flag_niveles_bruto .== 1]
 
         # fig, ax, ax_mat = polyShape.plotPolyshape2DVecin3D(vec_psVolteor, vec_altVolteor, "red", 0.2)
 
@@ -149,23 +147,23 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
 
         display("Calcula sombra del Volumen Teórico")
         @time ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s = generaSombraTeor(ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico, ps_publico, ps_calles)
-        rasante_sombra = Float64(dcn.rasanteSombra)
-
-        display("Calcula el volumen sin restricciones")
-        vec_psVolConSombra = [polyShape.polyExpand(ps_bruto, -i) for i = 0:.5:50]
-        vec_altVolConSombra = collect(0:.5:50) .* rasante_sombra
-        vec_psVolConSombra = [polyShape.polyIntersect(vec_psVolConSombra[i], ps_areaEdif) for i in eachindex(vec_psVolConSombra)]
-        flag_niveles_bruto = [!isempty(vec_psVolConSombra[i].Vertices) for i in eachindex(vec_psVolConSombra)]
-        flag_niveles_bruto[vec_altVolConSombra .> dcn.alturaMax + rasante_sombra] .= false
-        vec_psVolConSombra = vec_psVolConSombra[flag_niveles_bruto .== 1]
-        vec_altVolConSombra = vec_altVolConSombra[flag_niveles_bruto .== 1]
-        @time matConexionVertices_conSombra, vecVertices_conSombra, ps_volConSombra = generaVol3D(vec_psVolConSombra, vec_altVolConSombra)
-        V_volConSombra = ps_volConSombra.Vertices[1]
-        vecAlturas_conSombra = sort(unique(V_volConSombra[:, end]))
 
         areaSombra_p = polyShape.polyArea(ps_sombraVolTeorico_p)
         areaSombra_o = polyShape.polyArea(ps_sombraVolTeorico_o)
         areaSombra_s = polyShape.polyArea(ps_sombraVolTeorico_s)
+
+
+        display("Calcula el volumen sin restricciones")
+        rasante_sombra = Float64(dcn.rasanteSombra)
+        vec_altVolConSombra = collect(0:.5:50) .* rasante_sombra
+        vec_altVolConSombra = vec_altVolConSombra[vec_altVolConSombra .< dcn.alturaMax]
+        push!(vec_altVolConSombra, dcn.alturaMax)
+        vec_psVolConSombra = [polyShape.polyExpand(ps_bruto, -i/rasante_sombra) for i in vec_altVolConSombra]
+        vec_psVolConSombra = [polyShape.polyIntersect(vec_psVolConSombra[i], ps_areaEdif) for i in eachindex(vec_psVolConSombra)]
+
+        @time matConexionVertices_conSombra, vecVertices_conSombra, ps_volConSombra = generaVol3D(vec_psVolConSombra, vec_altVolConSombra)
+        V_volConSombra = ps_volConSombra.Vertices[1]
+        vecAlturas_conSombra = sort(unique(V_volConSombra[:, end]))
 
 
         sepNaves = dca.anchoMin - 3
@@ -198,7 +196,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         fopt = 10000.0
         xopt = []
         flagSeguir = true
-        template = 0 # [0:I, 1:L, 2:C, 3:lll, 4:V, 5:H]
+        template = 6 # [0:I, 1:L, 2:C, 3:lll, 4:V, 5:H]
         intento = 1
         maxIntentos = 1
         temp_opt = template
@@ -276,7 +274,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
 
             fopt, xopt, template, intento, flagSeguir = chequeaSolucion(x_nomad, f_nomad, fopt, template, intento)
 
-            if template > 2
+            if template > 7
                 display("Template N° " * string(template) * " es superior al template máximo (= 2). Optimización se dentendrá.")
                 flagSeguir = false
             end
