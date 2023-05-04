@@ -174,7 +174,8 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         flag_penalizacion_coefOcup = true
         flag_penalizacion_constructibilidad = true
         flag_conSombra = true
-        num_penalizaciones = flag_penalizacion_residual + flag_penalizacion_coefOcup + flag_penalizacion_constructibilidad + flag_conSombra
+        flag_divergenciaAncho = true
+        num_penalizaciones = flag_penalizacion_residual + flag_penalizacion_coefOcup + flag_penalizacion_constructibilidad + flag_conSombra + flag_divergenciaAncho
 
 
         min_pisos_bbo = min(4, dcn.maxPisos[1] - 1)
@@ -182,7 +183,8 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         obj_bbo = x -> fo_bbo(x, template, sepNaves, dca, V_volConSombra, vecAlturas_conSombra, vecVertices_conSombra, matConexionVertices_conSombra, maxOcupación)
 
         porcTerraza = 0.15 / 1.075
-        obj_nomad = x -> fo_nomad(x, template, sepNaves, dca, porcTerraza, flag_conSombra, flag_penalizacion_residual, flag_penalizacion_coefOcup, flag_penalizacion_constructibilidad,
+        obj_nomad = x -> fo_nomad(x, template, sepNaves, dca, porcTerraza, flag_conSombra, flag_penalizacion_residual, flag_penalizacion_coefOcup, 
+            flag_penalizacion_constructibilidad, flag_divergenciaAncho,
             V_volConSombra, vecAlturas_conSombra, vecVertices_conSombra, matConexionVertices_conSombra,
             V_volTeorico, vecAlturas_volTeorico, vecVertices_volTeorico, matConexionVertices_volTeorico,
             maxOcupación, maxSupConstruida, areaSombra_p, areaSombra_o, areaSombra_s, ps_publico, ps_calles)
@@ -197,11 +199,16 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         xopt = []
         flagSeguir = true
         template = 6 # [0:I, 1:L, 2:C, 3:lll, 4:V, 5:H]
-        intento = 1
-        maxIntentos = 1
         temp_opt = template
 
-        function chequeaSolucion(x, f, fopt, template, intento)
+        # plan_optimizacion = [template, lb_bbo, ub_bbo, lb_nomad, ub_nomad]
+        lb_bbo, ub_bbo = generaCotas(6, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
+        plan_optimizacion = [[6, lb_bbo, ub_bbo]]
+        lb_bbo, ub_bbo = generaCotas(6, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, 6)
+        push!(plan_optimizacion, [6, lb_bbo, ub_bbo])
+
+        # Chequea si se encontró la solución óptima o es necesario seguir optimizando
+        function chequeaSolucion(x, f, fopt, template)
             alt = min(x[1] * dca.alturaPiso, maximum(vecAlturas_conSombra))
             areaBasal, ps_base, ps_baseSeparada = resultConverter(x, template, sepNaves)
             numPisos = Int(round(alt / dca.alturaPiso))
@@ -234,51 +241,48 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
                     temp_opt = template
                     fopt = f
                     xopt = x
-                    display("Template N° " * string(template) * " - Intento N° " * string(intento) * ": Se obtuvo una solución mejor.")
+                    display("Template N° " * string(template) * ": Se obtuvo una solución mejor.")
                 else
-                    display("Template N° " * string(template) * " - Intento N° " * string(intento) * ": No se obtuvo una solución mejor.")
+                    display("Template N° " * string(template) * ": No se obtuvo una solución mejor.")
                 end
 
                 optiTol = 0.0015
-                if (holgura_constructibilidad <= optiTol) || (holgura_ocupacion <= optiTol && numPisos == dcn.maxPisos[1])
-                    display("Template N° " * string(template) * " - Intento N° " * string(intento) * ": Solución óptima encontrada. ")
+                if (holgura_constructibilidad <= optiTol) || (holgura_ocupacion <= optiTol && numPisos == dcn.maxPisos[1])  || (holgura_ocupacion <= optiTol && holgura_sombra <= optiTol && numPisos >= dcn.maxPisos[1] - 1)
+                    display("Template N° " * string(template) * ": Solución óptima encontrada. ")
                     flagSeguir = false
-                elseif intento == maxIntentos
-                    display("Template N° " * string(template) * " - Intento N° " * string(intento) * ": No se encontró una solución óptima. Se procederá con el Template N° " * string(template + 1))
-                    template += 1
-                    intento = 1
                 else
-                    display("Template N° " * string(template) * " - Intento N° " * string(intento) * ": No se encontró una solución óptima. Se realizará un nuevo intento.")
-                    intento += 1
+                    display("Template N° " * string(template) * ": No se encontró una solución óptima.")
                 end
             else
-                display("Template N° " * string(template) * " - Intento N° " * string(intento) * ": Solución Infactible. ")
-                template += 1
+                display("Template N° " * string(template) * ": Solución Infactible. ")
             end
 
-            return fopt, xopt, template, intento, flagSeguir
+            return fopt, xopt, template, flagSeguir
         end
 
-        while flagSeguir
+        for r in eachindex(plan_optimizacion)
+            template = plan_optimizacion[r][1]
+            lb_bbo = plan_optimizacion[r][2]
+            ub_bbo = plan_optimizacion[r][3]
 
-            lb, ub, lb_bbo, ub_bbo = generaCotas(template, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
-
-            display("Template N° " * string(template) * " - Intento N° " * string(intento) * ": Inicio de Optimización BBO. Genera solución inicial.")
+            display("Template N° " * string(template) * ": Inicio de Optimización BBO. Genera solución inicial.")
             x_bbo, f_bbo = optim_bbo(obj_bbo, lb_bbo, ub_bbo)
 
-            display("Template N° " * string(template) * " - Intento N° " * string(intento) * ": Inicio de Optimización NOMAD")
+            display("Template N° " * string(template) * ": Inicio de Optimización NOMAD")
             MaxSteps = 8000
+            lb = copy(lb_bbo)
+            ub = copy(ub_bbo)
+            ub[end-2] = dca.anchoMax
+            ub[end-1] = dca.anchoMax
+            ub[end] = dca.anchoMax
             initSol = max.(min.(copy(x_bbo), ub), lb)
             initSol[1] = floor(dcn.maxPisos[1])
             x_nomad, f_nomad = optim_nomad(obj_nomad, num_penalizaciones, lb, ub, MaxSteps, initSol)
+            fopt, xopt, template, flagSeguir = chequeaSolucion(x_nomad, f_nomad, fopt, template)
 
-            fopt, xopt, template, intento, flagSeguir = chequeaSolucion(x_nomad, f_nomad, fopt, template, intento)
-
-            if template > 7
-                display("Template N° " * string(template) * " es superior al template máximo (= 2). Optimización se dentendrá.")
-                flagSeguir = false
+            if flagSeguir == false
+                break
             end
-
         end
 
         alt = min(xopt[1] * dca.alturaPiso[1], maximum(vecAlturas_conSombra))

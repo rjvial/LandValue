@@ -1,4 +1,5 @@
-function fo_nomad(x, template, sepNaves, dca, porcTerraza, flag_conSombra, flag_penalizacion_residual, flag_penalizacion_coefOcup, flag_penalizacion_constructibilidad,
+function fo_nomad(x, template, sepNaves, dca, porcTerraza, flag_conSombra, flag_penalizacion_residual, flag_penalizacion_coefOcup, 
+    flag_penalizacion_constructibilidad, flag_divergenciaAncho,
     V_volConSombra, vecAlturas_conSombra, vecVertices_conSombra, matConexionVertices_conSombra, 
     V_volTeorico, vecAlturas_volTeorico, vecVertices_volTeorico, matConexionVertices_volTeorico,
     maxOcupación, maxSupConstruida, areaSombra_p, areaSombra_o, areaSombra_s, ps_publico, ps_calles)
@@ -42,6 +43,12 @@ function fo_nomad(x, template, sepNaves, dca, porcTerraza, flag_conSombra, flag_
         penalizacionSombra_o = max(0.0, areaSombraEdif_o - areaSombra_o)
         penalizacionSombra_s = max(0.0, areaSombraEdif_s - areaSombra_s)
         constraints = push!(constraints, penalizacionSombra_p + penalizacionSombra_o + penalizacionSombra_s)
+    end
+    if flag_divergenciaAncho
+        ancho_max = maximum(x[end-2:end])
+        ancho_min = minimum(x[end-2:end])
+        penalizacionAncho = max(0.0, ancho_max/ancho_min - 1.5)
+        constraints = push!(constraints, penalizacionAncho)
     end
 
     # Integración Función Objetivo con Restricciones
