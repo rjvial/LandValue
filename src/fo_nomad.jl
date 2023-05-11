@@ -47,7 +47,7 @@ function fo_nomad(x, template, sepNaves, dca, porcTerraza, flag_conSombra, flag_
     if flag_divergenciaAncho
         ancho_max = maximum(x[end-2:end])
         ancho_min = minimum(x[end-2:end])
-        penalizacionAncho = max(0.0, ancho_max/ancho_min - 1.5)
+        penalizacionAncho = max(0.0, ancho_max/ancho_min - 2.0)
         constraints = push!(constraints, penalizacionAncho)
     end
 

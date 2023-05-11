@@ -9,9 +9,9 @@ function bid_prices_pivot(valorMercado_lotes, valorInmobiliario_combis, C, mu_pr
 
         utilEsp = sum(
                         (valorInmobiliario_combis[k] - sum(C[k,i] * x[i] for i in 1:numLotes)) * 
-                        prod(C[k,i] == 1 ? (i == p ? prob_vec_pre[i] : prob_vec_post[i]) : 1 - (i == p ? prob_vec_pre[i] : prob_vec_post[i]) for i in 1:numLotes) 
-                        
-                        for k in 1:numCombis)
+                        prod(C[k,i] == 1 ? 
+                            (i == p ? prob_vec_pre[i] : prob_vec_post[i]) : 
+                            1 - (i == p ? prob_vec_pre[i] : prob_vec_post[i]) for i in 1:numLotes) for k in 1:numCombis)
 
         return -utilEsp
     end

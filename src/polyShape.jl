@@ -502,9 +502,26 @@ function shapeArea(shape::PosDimGeom)::Float64
 end
 
 function shapeContains(shape1::PosDimGeom, shape2::GeomObject)::Bool
-    geom1 = shape2geom(shape1)
-    geom2 = shape2geom(shape2)
-    flag_out = ArchGDAL.contains(geom1, geom2)
+    numRegions1 = shape1.NumRegions
+    if typeof(shape2) == LineShape
+        numRegions2 = shape2.NumLines
+    elseif typeof(shape2) == PointShape
+        numRegions2 = shape2.NumPoints
+    else
+        numRegions2 = shape2.NumRegions
+    end
+    flag_out = false
+    for i1 = 1:numRegions1
+        geom1 = shape2geom(polyShape.subShape(shape1,i1))
+        for i2 = 1:numRegions2
+            geom2 = shape2geom(polyShape.subShape(shape2,i2))
+            flag_12 = ArchGDAL.contains(geom1, geom2)
+            if flag_12
+                flag_out = true
+            end
+        end
+    end
+    
     return flag_out
 end
 

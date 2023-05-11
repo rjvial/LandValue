@@ -8,7 +8,7 @@ function optim_nomad(fo_nomad, num_penalizaciones, lb, ub, MaxSteps, initSol)
     #min_mesh_size = [0.1 for i in 1:num_inputs];
     lower_bound = lb;
     upper_bound = ub;
-    initial_mesh_size = vcat([1.], [0.1 for i in 1:num_inputs-1])
+    #initial_mesh_size = vcat([1.], [0.1 for i in 1:num_inputs-1])
     p = NOMAD.NomadProblem(num_inputs, num_outputs, output_types, fo_nomad; 
                     input_types = input_types, 
                     #granularity = granularity,
