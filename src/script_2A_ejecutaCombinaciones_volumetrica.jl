@@ -4,39 +4,40 @@ using LandValue, Distributed
 # run(`C:/Users/rjvia/Documents/LandValue/key_code_user.bat`)
 # run(`C:/Users/rjvia/Documents/LandValue/key_code_pw.bat`)
 
-# conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER"], ENV["PW"], ENV["HOST"])
-# conn_mygis_db = pg_julia.connection("gis_data", ENV["USER"], ENV["PW"], ENV["HOST"])
 
-conn_LandValue = pg_julia.connection("landengines_local", "postgres", "", "localhost")
-conn_mygis_db = pg_julia.connection("gis_data_local", "postgres", "", "localhost")
-
-query_kill_connections = """
-                SELECT pg_terminate_backend(pg_stat_activity.pid)
-                FROM pg_stat_activity
-                WHERE pg_stat_activity.datname = 'landengines_local' 
-                AND pid <> pg_backend_pid();
-            """
-pg_julia.query(conn_LandValue, query_kill_connections)
-
-#[]
-#[151600124100010, 151600124100011, 151600124100012, 151600124100013, 151600124100014]
-#[151600135700004, 151600135700005, 151600135700016, 151600135700017, 151600135700021, 151600135700018, 151600135700019, 151600135700020] 
-#[151600048300017, 151600048300018, 151600048300049] 
-#[151600135100018, 151600135100019] 
-#[151600124100009, 151600124100010, 151600124100011, 151600124100012, 151600124100013, 151600124100014, 151600124100015]
-#[151600048300019, 151600048300004, 151600048300020, 151600048300021]
-#[151600048300004, 151600048300020, 151600048300021, 151600048300042, 151600048300043, 151600048300044]
-#[151600124100011, 151600124100012, 151600124100013, 151600124100014, 151600124100015]
-#[151600116900007, 151600116900008, 151600116900009, 151600116900013, 151600116900014, 151600116900098, 151600116900099, 151600116900100, 151600116900101]
-#[151600116900013, 151600116900014, 151600116900015, 151600116900099, 151600116900100, 151600116900101, 151600116900102, 151600116900103]
-#[151600116900013, 151600116900038, 151600116900102, 151600116900103, 151600116900036, 151600116900037]
-#[151600140900013, 151600140900014, 151600140900015, 151600140900017, 151600140900018, 151600140900019, 151600140900020, 151600140900021, 151600140900023, 151600140900024]
-#[151600187100049, 151600187100050, 151600187100048, 151600187100013, 151600187100014, 151600187100051, 151600187100052, 151600187100053, 151600187100015, 151600187100016, 151600187100054, 151600187100055]
-#[151600135700009, 151600135700003, 151600135700004, 151600135700005, 151600135700016, 151600135700017, 151600135700018, 151600135700019, 151600135700020]
-
-let codigo_predial = [151600135700009, 151600135700003, 151600135700004, 151600135700005, 151600135700016, 151600135700017, 151600135700018, 151600135700019, 151600135700020]
+let codigo_predial = [] #[151600135700009, 151600135700003, 151600135700004, 151600135700005, 151600135700016, 151600135700017, 151600135700018, 151600135700019, 151600135700020]
     # Para cómputos sobre la base de datos usar codigo_predial = []
     tipoOptimizacion = "volumetrica"
+
+    # conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER"], ENV["PW"], ENV["HOST"])
+    # conn_mygis_db = pg_julia.connection("gis_data", ENV["USER"], ENV["PW"], ENV["HOST"])
+
+    conn_LandValue = pg_julia.connection("landengines_local", "postgres", "", "localhost")
+    conn_mygis_db = pg_julia.connection("gis_data_local", "postgres", "", "localhost")
+
+    query_kill_connections = """
+                    SELECT pg_terminate_backend(pg_stat_activity.pid)
+                    FROM pg_stat_activity
+                    WHERE pg_stat_activity.datname = 'landengines_local' 
+                    AND pid <> pg_backend_pid();
+                """
+    pg_julia.query(conn_LandValue, query_kill_connections)
+
+    #[]
+    #[151600124100010, 151600124100011, 151600124100012, 151600124100013, 151600124100014]
+    #[151600135700004, 151600135700005, 151600135700016, 151600135700017, 151600135700021, 151600135700018, 151600135700019, 151600135700020] 
+    #[151600048300017, 151600048300018, 151600048300049] 
+    #[151600135100018, 151600135100019] 
+    #[151600124100009, 151600124100010, 151600124100011, 151600124100012, 151600124100013, 151600124100014, 151600124100015]
+    #[151600048300019, 151600048300004, 151600048300020, 151600048300021]
+    #[151600048300004, 151600048300020, 151600048300021, 151600048300042, 151600048300043, 151600048300044]
+    #[151600124100011, 151600124100012, 151600124100013, 151600124100014, 151600124100015]
+    #[151600116900007, 151600116900008, 151600116900009, 151600116900013, 151600116900014, 151600116900098, 151600116900099, 151600116900100, 151600116900101]
+    #[151600116900013, 151600116900014, 151600116900015, 151600116900099, 151600116900100, 151600116900101, 151600116900102, 151600116900103]
+    #[151600116900013, 151600116900038, 151600116900102, 151600116900103, 151600116900036, 151600116900037]
+    #[151600140900013, 151600140900014, 151600140900015, 151600140900017, 151600140900018, 151600140900019, 151600140900020, 151600140900021, 151600140900023, 151600140900024]
+    #[151600187100049, 151600187100050, 151600187100048, 151600187100013, 151600187100014, 151600187100051, 151600187100052, 151600187100053, 151600187100015, 151600187100016, 151600187100054, 151600187100055]
+    #[151600135700009, 151600135700003, 151600135700004, 151600135700005, 151600135700016, 151600135700017, 151600135700018, 151600135700019, 151600135700020]
 
     if isempty(codigo_predial) # Cómputos sobre la base de datos
 
@@ -121,7 +122,7 @@ let codigo_predial = [151600135700009, 151600135700003, 151600135700004, 1516001
             pg_julia.query(conn_LandValue, query_str)
         end
 
-        num_workers = 1 #8
+        num_workers = 8
         addprocs(num_workers; exeflags="--project")
         @everywhere using LandValue, Distributed
 
@@ -146,15 +147,16 @@ let codigo_predial = [151600135700009, 151600135700003, 151600135700004, 1516001
         results = RemoteChannel(()->Channel{Any}(num_combi))
         @everywhere function distributed_work(jobs, results) # Saca un job del channel y lo ejecuta, y después guarda el resultado en el channel results
             while true
+                job_id = take!(jobs)
+                tipoOptimizacion = job_id[1]
+                codigo_predial = job_id[2]
+                id = job_id[3]
+                display("***************************************************")
+                display("* Ejecutando cabida predio: " * string(codigo_predial) * " en el Worker N° " * string(myid()))
+                display("***************************************************")
+                
                 try
-                    # conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER"], ENV["PW"], ENV["HOST"])
-                    job_id = take!(jobs)
-                    tipoOptimizacion = job_id[1]
-                    codigo_predial = job_id[2]
-                    id = job_id[3]
-                    display("***************************************************")
-                    display("* Ejecutando cabida predio: " * string(codigo_predial) * " en el Worker N° " * string(myid()))
-                    display("***************************************************")
+                    
                     fpe, temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id = funcionPrincipal(tipoOptimizacion, codigo_predial, id)
                     wkr = myid()
                     put!(results, (fpe, temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id, wkr))
@@ -167,11 +169,15 @@ let codigo_predial = [151600135700009, 151600135700003, 151600135700004, 1516001
                     display("#############################################################################")
                     display("#############################################################################")
                     display("")
-
-                    # cond_str = "=" * string(id)
-                    # vecColumnNames = ["status", "id"]
-                    # vecColumnValue = ["19", string(id)]
-                    # pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)
+                    display(id)
+                    display("")
+                    
+                    # conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER"], ENV["PW"], ENV["HOST"])
+                    conn_LandValue = pg_julia.connection("landengines_local", "postgres", "", "localhost")
+                    cond_str = "=" * string(id)
+                    vecColumnNames = ["status", "id"]
+                    vecColumnValue = ["19", string(id)]
+                    pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)
 
                 end
             end
