@@ -2,7 +2,7 @@
 
 julia_version = "1.9.0"
 manifest_format = "2.0"
-project_hash = "02ed7cfeb2b05669427e3eb565f136553fcf795c"
+project_hash = "bd88955fcaa9faee2b010409c8aaa69d326cd7d3"
 
 [[deps.AMD]]
 deps = ["Libdl", "LinearAlgebra", "SparseArrays", "Test"]
@@ -1533,14 +1533,6 @@ version = "0.40.1+0"
 deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Serialization", "TOML", "Tar", "UUIDs", "p7zip_jll"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 version = "1.9.0"
-
-[[deps.PkgCleanup]]
-deps = ["Pkg", "REPL", "TOML"]
-git-tree-sha1 = "e5f5d34ddcbb598a3d6a8df3c61c5f684bd15188"
-repo-rev = "main"
-repo-url = "https://github.com/giordano/PkgCleanup.jl"
-uuid = "f3e62ec7-7fcc-4179-afc0-708a8694e5db"
-version = "0.1.0"
 
 [[deps.PlotThemes]]
 deps = ["PlotUtils", "Statistics"]
