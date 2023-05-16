@@ -4,22 +4,20 @@ FROM julia:latest
 # Set the working directory for the Julia code
 # WORKDIR /app
 
-# Install the Julia packages
-RUN julia -e 'using Pkg;' 
-# \
-#              Pkg.add(url="https://github.com/PainterQubits/Devices.jl.git"); \
-#              Pkg.add(url="https://github.com/rjvial/LandValue.git")'
-
 # Copy the rest of your code into the container
-COPY /src/ /app/src/
-COPY script.jl /script.jl
+COPY secrets.env /app/src/
+#COPY /src/script*.* /app/src/
 
 
-# List the copied files in the container
-RUN ls -la /app
+# Install the Julia packages
+RUN julia -e 'using Pkg; Pkg.add("DotEnv");' # \
+            #  Pkg.add(url="https://github.com/PainterQubits/Devices.jl.git"); \
+            #  Pkg.add(url="https://github.com/rjvial/LandValue.git")'
+
 
 # Set the entry point for the container
-CMD ["julia", "/script.jl"]
+#CMD ["julia", "/app/src/script_2A_ejecutaCombinaciones_volumetrica.jl"]
+CMD ["julia", "/app/src/basura.jl"]
 
 
 # Use the official Julia Docker image as the base

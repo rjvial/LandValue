@@ -1,4 +1,4 @@
-using LandValue, Distributed
+using LandValue, Distributed, DotEnv 
 
 # run(`C:/Users/rjvia/Documents/Land_engines_code/Julia/key_code_host.bat`)
 # run(`C:/Users/rjvia/Documents/Land_engines_code/Julia/key_code_user.bat`)
@@ -28,8 +28,12 @@ let codigo_predial = [] #[151600135700009, 151600135700003, 151600135700004, 151
     # conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER"], ENV["PW"], ENV["HOST"])
     # conn_mygis_db = pg_julia.connection("gis_data", ENV["USER"], ENV["PW"], ENV["HOST"])
 
-    conn_LandValue = pg_julia.connection("landengines_local", "postgres", "", "localhost")
-    conn_mygis_db = pg_julia.connection("gis_data_local", "postgres", "", "localhost")
+    DotEnv.load("secrets.env")
+    conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"])
+    conn_mygis_db = pg_julia.connection("gis_data", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"])
+
+    # conn_LandValue = pg_julia.connection("landengines_local", "postgres", "", "localhost")
+    # conn_mygis_db = pg_julia.connection("gis_data_local", "postgres", "", "localhost")
 
     query_kill_connections = """
                     SELECT pg_terminate_backend(pg_stat_activity.pid)
