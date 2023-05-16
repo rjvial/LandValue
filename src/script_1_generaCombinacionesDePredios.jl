@@ -1,10 +1,10 @@
 using LandValue, DataFrames
 
-# conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER"], ENV["PW"], ENV["HOST"])
-# conn_gis_data = pg_julia.connection("gis_data", ENV["USER"], ENV["PW"], ENV["HOST"])
+conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER"], ENV["PW"], ENV["HOST"])
+conn_gis_data = pg_julia.connection("gis_data", ENV["USER"], ENV["PW"], ENV["HOST"])
 
-conn_LandValue = pg_julia.connection("landengines_local", "postgres", "", "localhost")
-conn_gis_data = pg_julia.connection("gis_data_local", "postgres", "", "localhost")
+# conn_LandValue = pg_julia.connection("landengines_local", "postgres", "", "localhost")
+# conn_gis_data = pg_julia.connection("gis_data_local", "postgres", "", "localhost")
 
 function obtieneDelta(codigo_predial)
     codPredialStr = replace(replace(string(codigo_predial), "[" => "("), "]" => ")")
