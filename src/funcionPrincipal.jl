@@ -7,8 +7,13 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
     # conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER"], ENV["PW"], ENV["HOST"])
     # conn_mygis_db = pg_julia.connection("gis_data", ENV["USER"], ENV["PW"], ENV["HOST"])
 
-    conn_LandValue = pg_julia.connection("landengines_local", "postgres", "", "localhost")
-    conn_mygis_db = pg_julia.connection("gis_data_local", "postgres", "", "localhost")
+    #DotEnv.load("secrets.env") #Caso Local
+    DotEnv.load("secrets.env") #Caso Docker
+    conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"])
+    conn_mygis_db = pg_julia.connection("gis_data", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"])
+    
+    # conn_LandValue = pg_julia.connection("landengines_local", "postgres", "", "localhost")
+    # conn_mygis_db = pg_julia.connection("gis_data_local", "postgres", "", "localhost")
     
 
     display("Obtiene DatosCabidaArquitectura")
