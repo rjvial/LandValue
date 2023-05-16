@@ -28,8 +28,8 @@ let codigo_predial = [] #[151600135700009, 151600135700003, 151600135700004, 151
     # conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER"], ENV["PW"], ENV["HOST"])
     # conn_mygis_db = pg_julia.connection("gis_data", ENV["USER"], ENV["PW"], ENV["HOST"])
 
-    DotEnv.load("secrets.env") #Caso Local
-    # DotEnv.load("secrets.env") #Caso Docker
+    #DotEnv.load("secrets.env") #Caso Local
+    DotEnv.load("secrets.env") #Caso Docker
     conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"])
     conn_mygis_db = pg_julia.connection("gis_data", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"])
 
