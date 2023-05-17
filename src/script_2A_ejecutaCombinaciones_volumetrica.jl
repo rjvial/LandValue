@@ -177,9 +177,11 @@ let codigo_predial = [] #[151600135700009, 151600135700003, 151600135700004, 151
                     display("")
                     display(id)
                     display("")
-                    
+
+                    conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"])
                     # conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER"], ENV["PW"], ENV["HOST"])
-                    conn_LandValue = pg_julia.connection("landengines_local", "postgres", "", "localhost")
+                    # conn_LandValue = pg_julia.connection("landengines_local", "postgres", "", "localhost")
+                
                     cond_str = "=" * string(id)
                     vecColumnNames = ["status", "id"]
                     vecColumnValue = ["19", string(id)]

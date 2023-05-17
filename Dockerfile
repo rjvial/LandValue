@@ -8,7 +8,7 @@ COPY /src/script*.* /app/src/
 
 
 # Install the Julia packages
-RUN julia -e 'using Pkg; \
+RUN julia -e 'using Pkg; Pkg.add("DotEnv"); \
              Pkg.add(url="https://github.com/PainterQubits/Devices.jl.git"); \
              Pkg.add(url="https://github.com/rjvial/LandValue.git")'
 
