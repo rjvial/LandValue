@@ -1,4 +1,4 @@
-using LandValue, Distributed 
+using LandValue, Distributed, DotEnv 
 
 # run(`C:/Users/rjvia/Documents/Land_engines_code/Julia/key_code_host.bat`)
 # run(`C:/Users/rjvia/Documents/Land_engines_code/Julia/key_code_user.bat`)
