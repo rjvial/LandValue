@@ -1,19 +1,13 @@
-function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1},Int64}, id_)
+function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1},Int64}, id_, datos_LandValue, datos_mygis_db)
 
     ##############################################
     # PARTE "1": OBTENCIÓN DE PARÁMETROS         #
     ##############################################
 
-    # conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER"], ENV["PW"], ENV["HOST"])
-    # conn_mygis_db = pg_julia.connection("gis_data", ENV["USER"], ENV["PW"], ENV["HOST"])
-
     #DotEnv.load("secrets.env") #Caso Local
     DotEnv.load("secrets.env") #Caso Docker
-    conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"])
-    conn_mygis_db = pg_julia.connection("gis_data", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"])
-    
-    # conn_LandValue = pg_julia.connection("landengines_local", "postgres", "", "localhost")
-    # conn_mygis_db = pg_julia.connection("gis_data_local", "postgres", "", "localhost")
+    conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
+    conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
     
 
     display("Obtiene DatosCabidaArquitectura")
