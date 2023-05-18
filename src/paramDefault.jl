@@ -1,15 +1,5 @@
 using LandValue, JLD2
 
-fpe = FlagPlotEdif3D(true,  # predio
-                     true,  # volTeor
-                     true,  # restSombra
-                     true,  # edif
-                     true,  # sombraVolTeor_p
-                     true,  # sombraVolTeor_o
-                     true,  # sombraVolTeor_s
-                     true,  # sombraEdif_p
-                     true,  # sombraEdif_o
-                     true)  # sombraEdif_s
 
 
 dcn = datosCabidaNormativa(5, # SEPMIN (m): max(4, separación mínima deslindes) OGUC 2.6.3

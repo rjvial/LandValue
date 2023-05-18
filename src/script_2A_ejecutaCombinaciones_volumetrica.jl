@@ -164,9 +164,9 @@ let codigo_predial = [] #[151600042700004, 151600042700005, 151600042700017] #[1
                 
                 try
                     
-                    fpe, temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id = funcionPrincipal(tipoOptimizacion, codigo_predial, id, datos_LandValue, datos_mygis_db)
+                    temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id = funcionPrincipal(tipoOptimizacion, codigo_predial, id, datos_LandValue, datos_mygis_db)
                     wkr = myid()
-                    put!(results, (fpe, temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id, wkr))
+                    put!(results, (temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id, wkr))
 
                 catch error
                     display("")
@@ -210,7 +210,7 @@ let codigo_predial = [] #[151600042700004, 151600042700005, 151600042700017] #[1
             pg_julia.query(conn_LandValue, query_kill_connections)
 
             
-            fpe, temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id, wkr = take!(results)
+            temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id, wkr = take!(results)
             pg_julia.insertRow!(conn_LandValue, "tabla_resultados_cabidas", vecColumnNames, vecColumnValue, :id)
 
             cond_str = "=" * string(id)
@@ -230,7 +230,7 @@ let codigo_predial = [] #[151600042700004, 151600042700005, 151600042700017] #[1
     else # Cómputos sobre los lotes específicos
         id_ = 0
 
-        fpe, temp_opt, alturaPiso, xopt, vec_datos = funcionPrincipal(tipoOptimizacion, codigo_predial, id_, datos_LandValue, datos_mygis_db)
+        temp_opt, alturaPiso, xopt, vec_datos = funcionPrincipal(tipoOptimizacion, codigo_predial, id_, datos_LandValue, datos_mygis_db)
        
         ps_predio = vec_datos[1]
         ps_volTeorico = vec_datos[2]
@@ -251,12 +251,6 @@ let codigo_predial = [] #[151600042700004, 151600042700005, 151600042700017] #[1
         dy = vec_datos[17]
         ps_areaEdif = vec_datos[18]
 
-        fig, ax, ax_mat = plotBaseEdificio3D(fpe, xopt, alturaPiso, ps_predio, ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico,
-            ps_volConSombra, matConexionVertices_conSombra, vecVertices_conSombra, ps_publico, ps_calles, ps_base, ps_baseSeparada)
-
-        fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_predios_intra_buffer, 0.0, "green", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
-        fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_manzanas_intra_buffer, 0.0, "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
-        fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_buffer_predio, 0.0, "gray", 0.15, fig=fig, ax=ax, ax_mat=ax_mat)
     end
 end
 

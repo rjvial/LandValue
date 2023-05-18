@@ -91,20 +91,6 @@ module LandValue
 
     PosDimGeom = Union{PolyShape,LineShape}
 
-    mutable struct FlagPlotEdif3D
-        predio::Bool
-        volTeorico::Bool
-        volConSombra::Bool
-        edif::Bool
-        sombraVolTeorico_p::Bool
-        sombraVolTeorico_o::Bool
-        sombraVolTeorico_s::Bool
-        sombraEdif_p::Bool
-        sombraEdif_o::Bool
-        sombraEdif_s::Bool
-        FlagPlotEdif3D() = new()
-    end
-
 
     mutable struct DatosCabidaPredio
         x::Array{Float64,1}
@@ -295,7 +281,7 @@ module LandValue
     export DatosCabidaPredio, DatosCabidaNormativa, DatosCabidaArquitectura, DatosCabidaComercial, DatosCabidaUnit,
             DatosCabidaRentabilidad, SalidaArquitectonica, SalidaIndicadores, SalidaMonetaria,
             SalidaTerreno, SalidaOptimizacion, SalidaNormativa, GeomObject, PosDimGeom, PolyShape, LineShape, PointShape, 
-            FlagPlotEdif3D, ResultadoCabida
+            ResultadoCabida
 
 
     include("funcionPrincipal.jl")
@@ -305,7 +291,6 @@ module LandValue
     include("generaSombraEdificio.jl")
     include("optiEdificio.jl")
     include("displayResults.jl")
-    include("plotBaseEdificio3D.jl")
     include("poly2D.jl")
     include("polyShape.jl")
     include("graphMod.jl")
@@ -324,7 +309,7 @@ module LandValue
     include("create_edificio_geojson.jl")
 
     export funcionPrincipal, fo_bbo, fo_nomad, calculaAnguloRotacion, generaSombraEdificio, optiEdificio, displayResults, 
-        optim_nomad, optim_bbo, poly2D, polyShape, graphMod, resultConverter, plotBaseEdificio3D, generaVol3D, generaSombraTeor, 
+        optim_nomad, optim_bbo, poly2D, polyShape, graphMod, resultConverter, generaVol3D, generaSombraTeor, 
         generaSupBruta, pg_julia, obtieneCalles, generaPoligonoCorte, queryCabida, generaCotas, create_scr, create_edificio_geojson
 
 

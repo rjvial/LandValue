@@ -66,7 +66,6 @@ function obtienePrediosAltura(conn_gis_data, comunaStr, dx, dy)
     ps_predios_altura = polyShape.astext2polyshape(df_predios_altura.predios_str)
     ps_predios_altura = polyShape.ajustaCoordenadas(ps_predios_altura, dx, dy)
     ps_predios_altura = polyShape.setPolyOrientation(ps_predios_altura, 1)
-    fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_predios_altura, "red", 0.2)
 	return fig, ax, ax_mat
 end
 
@@ -120,7 +119,6 @@ function obtieneManzanasAltura(conn_gis_data, comunaStr, dx, dy, fig, ax, ax_mat
     ps_manzanas_altura = polyShape.astext2polyshape(df_manzanas_altura.manzanas_str)
     ps_manzanas_altura = polyShape.ajustaCoordenadas(ps_manzanas_altura, dx, dy)
     ps_manzanas_altura = polyShape.setPolyOrientation(ps_manzanas_altura, 1)
-    fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_manzanas_altura, "blue", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
 
 	num_manzanas_altura = size(df_manzanas_altura, 1)
 
@@ -171,7 +169,6 @@ function generaCombinaciones(num_manzanas_altura, nombre_tabla_combinacion_predi
             flag_area_vec = (vec_area .> area_lote_lb) .* (vec_area .< area_lote_ub)
             VV_predios_manzana = VV_predios_manzana[flag_area_vec.==1]
             ps_predios_manzana = PolyShape(VV_predios_manzana, length(VV_predios_manzana))
-            #fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_predios_manzana, "black", 0.5, fig=fig, ax=ax, ax_mat=ax_mat)
 
             # Obtiene grafo que representa predios de la manzana
             vec_codigo_predial = string.(df_predios_manzana.codigo_predial[flag_area_vec[:].==1])
@@ -292,7 +289,6 @@ function generaCombinacionesFinales(df_predios_combi, df_predios, ps_predios, no
         vec_id = vec_id[flag_area_vec]
         vec_codigo_predial = vec_codigo_predial[flag_area_vec]
         vec_area = vec_area[flag_area_vec]
-        #fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_predios_manzana, "black", 0.5, fig=fig, ax=ax, ax_mat=ax_mat)
 
         # Obtiene grafo que representa predios de la manzana
         vec_id_str = string.(vec_id)
@@ -458,6 +454,3 @@ generaCombinacionesFinales(df_predios_combi, df_predios, ps_predios, nombre_tabl
 # df_combi = pg_julia.query(conn_LandValue, query_combi_str)
 # df_predios_i = filter(r -> r.manzana_id in [10], df_combi)
 # vec_ps_combi_i = eval.(Meta.parse.(df_predios_i.ps_combi))
-# for i in eachindex(vec_ps_combi_i)
-#     fig, ax, ax_mat = polyShape.plotPolyshape2D(vec_ps_combi_i[i], "green", 0.2)
-# end

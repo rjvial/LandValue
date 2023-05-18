@@ -57,10 +57,6 @@ function obtieneCalles(ps_predio::PolyShape, ps_buffer_predio::PolyShape, ps_pre
     ps_bruto = polyShape.polyExpand(polyShape.polyUnion(ps_predio, ps_media_calle), 0.1)
     ps_publico = polyShape.polyExpand(polyShape.polyUnion(ps_predio, ps_toda_calle), 0.1)
 
-    # fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_predio, "blue", 0.2)
-    # fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_calles, "gray", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
-    # fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_media_calle, "green", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
-    # fig, ax, ax_mat = polyShape.plotPolyshape2D.(vec_niveles, "red", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
 
 
     return ps_calles, ps_publico, ps_bruto, vecAnchoCalle, vecSecConCalle

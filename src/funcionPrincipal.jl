@@ -26,13 +26,6 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         setproperty!(dcu, field_s, value_)
     end
 
-    display("Obtiene FlagPlotEdif3D")
-    @time df_flagplot = pg_julia.query(conn_LandValue, """SELECT * FROM public."tabla_flagplot_default";""")
-    fpe = FlagPlotEdif3D()
-    for field_s in fieldnames(FlagPlotEdif3D)
-        value_ = df_flagplot[:, field_s][1]
-        setproperty!(fpe, field_s, value_)
-    end
 
 
     codPredialStr = replace(replace(string(codigo_predial), "[" => "("), "]" => ")")
@@ -136,14 +129,12 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         vec_psVolteor = [polyShape.polyExpand(ps_bruto, -i/rasante) for i in vec_altVolteor]
         vec_psVolteor = [polyShape.polyIntersect(vec_psVolteor[i], ps_areaEdif) for i in eachindex(vec_psVolteor)]
 
-        # fig, ax, ax_mat = polyShape.plotPolyshape2DVecin3D(vec_psVolteor, vec_altVolteor, "red", 0.2)
 
         # Calcula el volumen y sombra teórica 
         display("Calcula el volumen teórico")
         @time matConexionVertices_volTeorico, vecVertices_volTeorico, ps_volTeorico = generaVol3D(vec_psVolteor, vec_altVolteor)
         V_volTeorico = ps_volTeorico.Vertices[1]
         vecAlturas_volTeorico = sort(unique(V_volTeorico[:, end]))
-        # fig, ax, ax_mat = polyShape.plotPolyshape3D(ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico)
 
         display("Calcula sombra del Volumen Teórico")
         @time ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s = generaSombraTeor(ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico, ps_publico, ps_calles)
@@ -160,11 +151,9 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         push!(vec_altVolConSombra, dcn.alturaMax)
         vec_psVolConSombra = [polyShape.polyExpand(ps_bruto, -i/rasante_sombra) for i in vec_altVolConSombra]
         vec_psVolConSombra = [polyShape.polyIntersect(vec_psVolConSombra[i], ps_areaEdif) for i in eachindex(vec_psVolConSombra)]
-        # fig, ax, ax_mat = polyShape.plotPolyshape2DVecin3D(vec_psVolConSombra, vec_altVolConSombra, "gray", 0.2)
         @time matConexionVertices_conSombra, vecVertices_conSombra, ps_volConSombra = generaVol3D(vec_psVolConSombra, vec_altVolConSombra)
         V_volConSombra = ps_volConSombra.Vertices[1]
         vecAlturas_conSombra = sort(unique(V_volConSombra[:, end]))
-        # fig, ax, ax_mat = polyShape.plotPolyshape3D(ps_volConSombra, matConexionVertices_conSombra, vecVertices_conSombra)
 
         sepNaves = dca.anchoMin - 3
 
@@ -482,7 +471,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             matConexionVertices_conSombra, vecVertices_conSombra, ps_publico, ps_calles, ps_base, ps_baseSeparada,
             ps_calles_intra_buffer_, ps_predios_intra_buffer_, ps_manzanas_intra_buffer_, ps_buffer_predio_, dx, dy, ps_areaEdif]
 
-        return fpe, temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id_
+        return temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id_
 
     elseif tipoOptimizacion == "economica"
 
