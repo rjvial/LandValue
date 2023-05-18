@@ -1,6 +1,6 @@
 module LandValue
 
-    using JuMP, NOMAD, Cbc, BlackBoxOptim, ArchGDAL#,
+    using JuMP, NOMAD, Cbc, BlackBoxOptim, ArchGDAL, DotEnv #,
             # NonconvexBayesian, NonconvexIpopt, NonconvexNLopt, Distributions
     
 

@@ -1,8 +1,8 @@
-using LandValue, Distributed
+using LandValue, Distributed, DotEnv 
 
-# run(`C:/Users/rjvia/Documents/LandValue/key_code_host.bat`)
-# run(`C:/Users/rjvia/Documents/LandValue/key_code_user.bat`)
-# run(`C:/Users/rjvia/Documents/LandValue/key_code_pw.bat`)
+# run(`C:/Users/rjvia/Documents/Land_engines_code/Julia/key_code_host.bat`)
+# run(`C:/Users/rjvia/Documents/Land_engines_code/Julia/key_code_user.bat`)
+# run(`C:/Users/rjvia/Documents/Land_engines_code/Julia/key_code_pw.bat`)
 
     #[]
     #[151600124100010, 151600124100011, 151600124100012, 151600124100013, 151600124100014]
@@ -20,16 +20,20 @@ using LandValue, Distributed
     #[151600187100049, 151600187100050, 151600187100048, 151600187100013, 151600187100014, 151600187100051, 151600187100052, 151600187100053, 151600187100015, 151600187100016, 151600187100054, 151600187100055]
     #[151600135700009, 151600135700003, 151600135700004, 151600135700005, 151600135700016, 151600135700017, 151600135700018, 151600135700019, 151600135700020]
 
-
-let codigo_predial = [] #[151600135700009, 151600135700003, 151600135700004, 151600135700005, 151600135700016, 151600135700017, 151600135700018, 151600135700019, 151600135700020]
+let codigo_predial = [] #[151600042700004, 151600042700005, 151600042700017] #[151600042700004, 151600042700005, 151600042700017]
     # Para cómputos sobre la base de datos usar codigo_predial = []
+
+    DotEnv.load("secrets.env") #Caso Docker
+    datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
+    datos_mygis_db = ["gis_data", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
+    # datos_LandValue = ["landengines_local", "postgres", "", "localhost"]
+    # datos_mygis_db = ["gis_data_local", "postgres", "", "localhost"]
+
     tipoOptimizacion = "volumetrica"
 
-    # conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER"], ENV["PW"], ENV["HOST"])
-    # conn_mygis_db = pg_julia.connection("gis_data", ENV["USER"], ENV["PW"], ENV["HOST"])
-
-    conn_LandValue = pg_julia.connection("landengines_local", "postgres", "", "localhost")
-    conn_mygis_db = pg_julia.connection("gis_data_local", "postgres", "", "localhost")
+    
+    conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
+    conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
 
     query_kill_connections = """
                     SELECT pg_terminate_backend(pg_stat_activity.pid)
@@ -123,7 +127,7 @@ let codigo_predial = [] #[151600135700009, 151600135700003, 151600135700004, 151
             pg_julia.query(conn_LandValue, query_str)
         end
 
-        num_workers = 8
+        num_workers = 1 #8
         addprocs(num_workers; exeflags="--project")
         @everywhere using LandValue, Distributed
 
@@ -141,7 +145,7 @@ let codigo_predial = [] #[151600135700009, 151600135700003, 151600135700004, 151
                 combi_j_str = df_combinaciones[j, 1]
                 id_j = df_combinaciones[j, 3]
                 codigo_predial = eval(Meta.parse(combi_j_str))
-                put!(jobs, [tipoOptimizacion, codigo_predial, id_j])
+                put!(jobs, [tipoOptimizacion, codigo_predial, id_j, datos_LandValue, datos_mygis_db])
             end
         end
         
@@ -152,13 +156,15 @@ let codigo_predial = [] #[151600135700009, 151600135700003, 151600135700004, 151
                 tipoOptimizacion = job_id[1]
                 codigo_predial = job_id[2]
                 id = job_id[3]
+                datos_LandValue = job_id[4]
+                datos_mygis_db = job_id[5]
                 display("***************************************************")
                 display("* Ejecutando cabida predio: " * string(codigo_predial) * " en el Worker N° " * string(myid()))
                 display("***************************************************")
                 
                 try
                     
-                    fpe, temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id = funcionPrincipal(tipoOptimizacion, codigo_predial, id)
+                    fpe, temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id = funcionPrincipal(tipoOptimizacion, codigo_predial, id, datos_LandValue, datos_mygis_db)
                     wkr = myid()
                     put!(results, (fpe, temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id, wkr))
 
@@ -172,9 +178,9 @@ let codigo_predial = [] #[151600135700009, 151600135700003, 151600135700004, 151
                     display("")
                     display(id)
                     display("")
-                    
-                    # conn_LandValue = pg_julia.connection("landengines_dev", ENV["USER"], ENV["PW"], ENV["HOST"])
-                    conn_LandValue = pg_julia.connection("landengines_local", "postgres", "", "localhost")
+
+                    conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
+                
                     cond_str = "=" * string(id)
                     vecColumnNames = ["status", "id"]
                     vecColumnValue = ["19", string(id)]
@@ -224,7 +230,7 @@ let codigo_predial = [] #[151600135700009, 151600135700003, 151600135700004, 151
     else # Cómputos sobre los lotes específicos
         id_ = 0
 
-        fpe, temp_opt, alturaPiso, xopt, vec_datos = funcionPrincipal(tipoOptimizacion, codigo_predial, id_)
+        fpe, temp_opt, alturaPiso, xopt, vec_datos = funcionPrincipal(tipoOptimizacion, codigo_predial, id_, datos_LandValue, datos_mygis_db)
        
         ps_predio = vec_datos[1]
         ps_volTeorico = vec_datos[2]

@@ -2,7 +2,7 @@
 
 julia_version = "1.9.0"
 manifest_format = "2.0"
-project_hash = "bd88955fcaa9faee2b010409c8aaa69d326cd7d3"
+project_hash = "3770c0894b78220a213608a394e547ef7201a17e"
 
 [[deps.AMD]]
 deps = ["Libdl", "LinearAlgebra", "SparseArrays", "Test"]
@@ -495,6 +495,11 @@ deps = ["CompositeTypes", "IntervalSets", "LinearAlgebra", "Random", "StaticArra
 git-tree-sha1 = "988e2db482abeb69efc76ae8b6eba2e93805ee70"
 uuid = "5b8099bc-c8ec-5219-889f-1d9e522a28bf"
 version = "0.5.15"
+
+[[deps.DotEnv]]
+git-tree-sha1 = "d48ae0052378d697f8caf0855c4df2c54a97e580"
+uuid = "4dc1fcf4-5e3b-5448-94ab-0c38ec0385c1"
+version = "0.3.1"
 
 [[deps.Downloads]]
 deps = ["ArgTools", "FileWatching", "LibCURL", "NetworkOptions"]
