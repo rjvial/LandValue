@@ -83,7 +83,6 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
     # Obtiene predios contenidos en el buffer del predio y ajusta coordenadas
     display("Obtiene predios contenidos en el buffer del predio y ajusta coordenadas")
     @time ps_predios_buffer = queryCabida.query_predios_buffer(conn_mygis_db, "vitacura", codPredialStr, buffer_dist, dx, dy)
-    display(ps_predios_buffer)
 
     # Obtiene manzanas contenidas en el buffer del predio
     display("Obtiene manzanas contenidas en el buffer del predio")
