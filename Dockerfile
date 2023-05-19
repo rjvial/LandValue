@@ -4,7 +4,7 @@ FROM julia:latest
 
 # Copy the rest of your code into the container
 COPY secrets.env /
-COPY /src/script*.* /app/src/
+COPY /src/script*.* /src/
 
 
 # Install the Julia packages
@@ -15,7 +15,7 @@ RUN julia -e 'using Pkg; Pkg.instantiate(); Pkg.add("DotEnv"); \
 
 
 # Set the entry point for the container
-CMD ["julia", "/app/src/script_2A_ejecutaCombinaciones_volumetrica.jl"]
+CMD ["julia", "/src/script_2A_ejecutaCombinaciones_volumetrica.jl"]
 
 
 # Use the official Julia Docker image as the base
