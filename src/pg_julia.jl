@@ -45,13 +45,17 @@ function query(conn::LibPQ.Connection, queryStr::String)
     #queryStr = """
     #            DELETE FROM public."tablaCabidaNormativa" WHERE "id_Normativa">1;
     #            """
-    result = execute(conn, queryStr; throw_error = true)
-    if length(result) >= 1
-        df = myDataFrame(result)
-        if !isempty(df)
-            return df
+    try
+        result = execute(conn, queryStr; throw_error = false)
+        if length(result) >= 1
+            df = myDataFrame(result)
+            if !isempty(df)
+                return df
+            end
+        else
+            return []
         end
-    else
+    catch
         return []
     end
 end

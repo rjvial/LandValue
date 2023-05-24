@@ -35,13 +35,6 @@ let codigo_predial = [] #[151600042700004, 151600042700005, 151600042700017] #[1
     conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
     conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
 
-    query_kill_connections = """
-                    SELECT pg_terminate_backend(pg_stat_activity.pid)
-                    FROM pg_stat_activity
-                    WHERE pg_stat_activity.datname = 'landengines_local' 
-                    AND pid <> pg_backend_pid();
-                """
-    pg_julia.query(conn_LandValue, query_kill_connections)
 
 
     if isempty(codigo_predial) # Cómputos sobre la base de datos
@@ -127,7 +120,7 @@ let codigo_predial = [] #[151600042700004, 151600042700005, 151600042700017] #[1
             pg_julia.query(conn_LandValue, query_str)
         end
 
-        num_workers = 1 #8
+        num_workers = 8 #30 #
         addprocs(num_workers; exeflags="--project")
         @everywhere using LandValue, Distributed
 
@@ -179,7 +172,6 @@ let codigo_predial = [] #[151600042700004, 151600042700005, 151600042700017] #[1
                     display(id)
                     display("")
 
-                    conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
                 
                     cond_str = "=" * string(id)
                     vecColumnNames = ["status", "id"]
@@ -200,14 +192,6 @@ let codigo_predial = [] #[151600042700004, 151600042700005, 151600042700017] #[1
 
         cont = length(vec_combi)
         while cont > 0 # print out results
-
-            query_kill_connections = """
-                    SELECT pg_terminate_backend(pg_stat_activity.pid)
-                    FROM pg_stat_activity
-                    WHERE pg_stat_activity.datname = 'landengines_local' 
-                    AND pid <> pg_backend_pid();
-                """
-            pg_julia.query(conn_LandValue, query_kill_connections)
 
             
             temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id, wkr = take!(results)

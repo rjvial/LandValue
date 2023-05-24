@@ -7,7 +7,22 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
     #DotEnv.load("secrets.env") #Caso Local
     DotEnv.load("secrets.env") #Caso Docker
     conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
+    db_LandValue_str = datos_LandValue[1]
+    query_LandValue_pid = """
+                SELECT max(pid)
+                FROM pg_stat_activity
+                WHERE application_name = 'LibPQ.jl' AND datname = \'$db_LandValue_str\'
+            """
+    pid_landValue = pg_julia.query(conn_LandValue, query_LandValue_pid)[1, :max]
+
     conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
+    db_mygis_str = datos_mygis_db[1]
+    query_mygis_pid = """
+                SELECT max(pid)
+                FROM pg_stat_activity
+                WHERE application_name = 'LibPQ.jl' AND datname = \'$db_mygis_str\'
+            """
+    pid_mygis = pg_julia.query(conn_LandValue, query_mygis_pid)[1, :max]
     
 
     display("Obtiene DatosCabidaArquitectura")
@@ -182,9 +197,6 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         flagSeguir = true
         temp_opt = 0
 
-        # plan_optimizacion: [template, lb_bbo, ub_bbo]
-        # lb_bbo, ub_bbo = generaCotas(8, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
-        # plan_optimizacion = [[8, lb_bbo, ub_bbo]]
         lb_bbo, ub_bbo = generaCotas(9, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
         plan_optimizacion = [[9, lb_bbo, ub_bbo]]
         lb_bbo, ub_bbo = generaCotas(1, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
@@ -470,6 +482,13 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             matConexionVertices_conSombra, vecVertices_conSombra, ps_publico, ps_calles, ps_base, ps_baseSeparada,
             ps_calles_intra_buffer_, ps_predios_intra_buffer_, ps_manzanas_intra_buffer_, ps_buffer_predio_, dx, dy, ps_areaEdif]
 
+        
+        pg_julia.close_db(conn_LandValue)
+        pg_julia.close_db(conn_mygis_db)
+
+        sleep(5)
+
+        
         return temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id_
 
     elseif tipoOptimizacion == "economica"
@@ -607,5 +626,6 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         return dcc, resultados, xopt, vecColumnNames, vecColumnValue, id_
 
     end
+
 
 end

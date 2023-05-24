@@ -66,10 +66,10 @@ function obtienePrediosAltura(conn_gis_data, comunaStr, dx, dy)
     ps_predios_altura = polyShape.astext2polyshape(df_predios_altura.predios_str)
     ps_predios_altura = polyShape.ajustaCoordenadas(ps_predios_altura, dx, dy)
     ps_predios_altura = polyShape.setPolyOrientation(ps_predios_altura, 1)
-	return fig, ax, ax_mat
+	return ps_predios_altura
 end
 
-function obtieneManzanasAltura(conn_gis_data, comunaStr, dx, dy, fig, ax, ax_mat)
+function obtieneManzanasAltura(conn_gis_data, comunaStr, dx, dy)
     #--------------------------------------------------------------------------------------------------------
     # Obtiene las manzanas que contienen predios aptos para edificación en altura 
     display("Obtiene las manzanas que contienen predios aptos para edificación en altura")
@@ -122,7 +122,7 @@ function obtieneManzanasAltura(conn_gis_data, comunaStr, dx, dy, fig, ax, ax_mat
 
 	num_manzanas_altura = size(df_manzanas_altura, 1)
 
-	return fig, ax, ax_mat, num_manzanas_altura
+	return num_manzanas_altura
 end
 
 function generaCombinaciones(num_manzanas_altura, nombre_tabla_combinacion_predios, conn_LandValue, area_lote_lb, area_lote_ub, area_predio_lb, area_predio_ub, num_lote_max, largo_compartido_min)
@@ -334,7 +334,7 @@ function generaCombinacionesFinales(df_predios_combi, df_predios, ps_predios, no
 
                 if ps_i.NumRegions == 1 #Si la unión genera un sólo polígono --> predios están conectados
                     area_i = polyShape.polyArea(ps_i)
-                    vec_codigo_predial_i = unique(concatenate_vectors(vec_codigo_predial[combi_i])[1])
+                    vec_codigo_predial_i = sort(unique(concatenate_vectors(vec_codigo_predial[combi_i])[1]))
                     if i==1
                         push!(vec_combi_manzana, vec_codigo_predial_i)
                         flag_repetido = false
@@ -378,8 +378,8 @@ comunaStr = "vitacura"
 codigo_predial = [151600041300008]
 dx, dy = obtieneDelta(codigo_predial)
 
-fig, ax, ax_mat = obtienePrediosAltura(conn_gis_data, comunaStr, dx, dy)
-fig, ax, ax_mat, num_manzanas_altura = obtieneManzanasAltura(conn_gis_data, comunaStr, dx, dy, fig, ax, ax_mat)
+ps_predios_altura = obtienePrediosAltura(conn_gis_data, comunaStr, dx, dy)
+num_manzanas_altura = obtieneManzanasAltura(conn_gis_data, comunaStr, dx, dy)
 
 query_predios_str = """SELECT codigo_predial, ST_AsText(ST_Transform(geom_predios,5361)) as geom
                     FROM datos_predios_vitacura                                                          
