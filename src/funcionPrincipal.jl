@@ -486,7 +486,21 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         pg_julia.close_db(conn_LandValue)
         pg_julia.close_db(conn_mygis_db)
 
-        sleep(5)
+        query_kill_connections = """
+                    SELECT pg_terminate_backend($pid_landValue)
+                    FROM pg_stat_activity
+                    WHERE pg_stat_activity.datname = \'$db_LandValue_str\'
+                """
+        pg_julia.query(conn_LandValue, query_kill_connections)
+
+        query_kill_connections = """
+                    SELECT pg_terminate_backend($pid_mygis)
+                    FROM pg_stat_activity
+                    WHERE pg_stat_activity.datname = \'$db_mygis_str\'
+                """
+        pg_julia.query(conn_mygis_db, query_kill_connections)
+
+        sleep(3)
 
         
         return temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id_
