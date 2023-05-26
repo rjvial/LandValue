@@ -20,38 +20,38 @@ function fc(x::AbstractVector, p_inmob, p_lb, p_ub, T)
             prob_t = (x[t] - x[t-1]) / (ub - x[t-1])
             util_t = util_t * prob_t
         end
-        desc = t == 1 ? 1 : 0.9^((t-1)/(T-1))
+        desc = t == 1 ? 1 : 1.0^((t-1)/(T-1))
         utilEsp = utilEsp + util_t * desc
     end
     return -utilEsp
 end
 
-function fs(x::AbstractVector, p_inmob, p_lb, p_ub, T)
-    # Sin Aprendizaje
-    lb = p_lb
-    ub = p_ub    
-    utilEsp = 0
-    for t = 1:T
-        prob_t = (x[t] - lb) / (ub - lb)
-        util_t = (p_inmob - x[t])
-        if t >= 2
-            for k = 1:t-1
-                prob_k = (p_inmob - x[k]) / (ub - lb)
-                util_t = util_t * prob_k
-            end
-        end
-        util_t = util_t * prob_t
-        utilEsp = utilEsp + util_t
-    end
-    return -utilEsp
-end
+# function fs(x::AbstractVector, p_inmob, p_lb, p_ub, T)
+#     # Sin Aprendizaje
+#     lb = p_lb
+#     ub = p_ub    
+#     utilEsp = 0
+#     for t = 1:T
+#         prob_t = (x[t] - lb) / (ub - lb)
+#         util_t = (p_inmob - x[t])
+#         if t >= 2
+#             for k = 1:t-1
+#                 prob_k = (p_inmob - x[k]) / (ub - lb)
+#                 util_t = util_t * prob_k
+#             end
+#         end
+#         util_t = util_t * prob_t
+#         utilEsp = utilEsp + util_t
+#     end
+#     return -utilEsp
+# end
 
 g(x::AbstractVector) = -x[1]
 
-T = 30 # numero de ofertas que se puede hacer
-p_lb = 90; prob_lb =  0
-p_inmob = 200; prob_inmob = 0.9
-p_ub = 200 / prob_inmob
+T = 3 # numero de ofertas que se puede hacer
+p_lb = 35000; prob_lb =  0
+p_inmob = 45000; prob_inmob = 0.9
+p_ub = p_inmob / prob_inmob
 x_lb = vec(p_lb .* ones(T,1))
 x_ub = vec(p_ub .* ones(T,1))
 
@@ -62,13 +62,13 @@ options = BayesOptOptions(
 )
 
 
-ms = NonconvexBayesian.Model()
-set_objective!(ms, x -> fs(x, p_inmob, p_lb, p_ub, T))
-addvar!(ms, x_lb, x_ub)
-add_ineq_constraint!(ms, x -> g(x))
-rs = optimize(ms, alg, x_lb, options = options);
-fopt_s = -rs.minimum
-xopt_s = rs.minimizer
+# ms = NonconvexBayesian.Model()
+# set_objective!(ms, x -> fs(x, p_inmob, p_lb, p_ub, T))
+# addvar!(ms, x_lb, x_ub)
+# add_ineq_constraint!(ms, x -> g(x))
+# rs = optimize(ms, alg, x_lb, options = options);
+# fopt_s = -rs.minimum
+# xopt_s = rs.minimizer
 
 
 mc = NonconvexBayesian.Model()
@@ -79,4 +79,3 @@ rc = optimize(mc, alg, x_lb, options = options);
 fopt_c = -rc.minimum
 xopt_c = rc.minimizer
 
-plot([xopt_s, xopt_c], label=["xopt_s" "xopt_c"], linewidth=3)

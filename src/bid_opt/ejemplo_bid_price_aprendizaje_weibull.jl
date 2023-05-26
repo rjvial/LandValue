@@ -1,4 +1,4 @@
-using NonconvexBayesian, NonconvexIpopt, NonconvexNLopt, Distributions, Plots, Interpolations
+using NonconvexBayesian, NonconvexIpopt, NonconvexNLopt, Distributions
 # Este caso asume multiples etapas de ofertas
 
 # function fs(x::AbstractVector, δ, p_lb, p_ub, prob_lb, prob_ub, T)
@@ -72,13 +72,11 @@ function fc(x::AbstractVector, δ, p_lb, p_ub, prob_lb, prob_ub, T)
 end
 
 
-function g(x::AbstractVector, T)
-    return [x[t]-x[t+1] for t=1:T-1]
-end
+g(x::AbstractVector, T) = -x[1]
 
 
-δ = 90.
-p_ub = 200.
+δ = 35000.
+p_ub = 45000.
 p_lb = δ + (p_ub - δ) * .1
 
 prob_lb = .10
@@ -93,7 +91,7 @@ options = BayesOptOptions(
 )
 
 
-T = 9 # numero de ofertas que se puede hacer
+T = 3 # numero de ofertas que se puede hacer
 mc = NonconvexBayesian.Model()
 pos = [1/(T-1)*(i-1) for i=1:T]
 x_lb = [δ for t=1:T]
@@ -105,8 +103,3 @@ add_ineq_constraint!(mc, x -> g(x, T))
 rc = optimize(mc, alg, initSol , options = options);
 fopt_c = -rc.minimum
 xopt_c = rc.minimizer
-pos_c = [1/(T-1)*(i-1) for i=1:T]
-interp_linear = linear_interpolation(pos_c, xopt_c)
-
-
-plot(xopt_c, label="xopt_c", linewidth=3)
