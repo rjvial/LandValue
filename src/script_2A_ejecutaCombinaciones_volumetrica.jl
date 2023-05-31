@@ -23,15 +23,14 @@ using LandValue, Distributed, DotEnv
 let codigo_predial = [] #[151600042700004, 151600042700005, 151600042700017] #[151600042700004, 151600042700005, 151600042700017]
     # Para cómputos sobre la base de datos usar codigo_predial = []
 
+    tipoOptimizacion = "volumetrica"
+
     DotEnv.load("secrets.env") #Caso Docker
     datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
     datos_mygis_db = ["gis_data", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
     # datos_LandValue = ["landengines_local", "postgres", "", "localhost"]
     # datos_mygis_db = ["gis_data_local", "postgres", "", "localhost"]
 
-    tipoOptimizacion = "volumetrica"
-
-    
     conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
     conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
 
@@ -120,7 +119,7 @@ let codigo_predial = [] #[151600042700004, 151600042700005, 151600042700017] #[1
             pg_julia.query(conn_LandValue, query_str)
         end
 
-        num_workers = 30 #8 #
+        num_workers = 60 #30 #
         addprocs(num_workers; exeflags="--project")
         @everywhere using LandValue, Distributed
 
@@ -176,8 +175,24 @@ let codigo_predial = [] #[151600042700004, 151600042700005, 151600042700017] #[1
                     cond_str = "=" * string(id)
                     vecColumnNames = ["status", "id"]
                     vecColumnValue = ["19", string(id)]
+                    
+                    datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]                 
+                    conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
+                    db_LandValue_str = datos_LandValue[1]
+                    query_LandValue_pid = """
+                                SELECT max(pid)
+                                FROM pg_stat_activity
+                                WHERE application_name = 'LibPQ.jl' AND datname = \'$db_LandValue_str\'
+                            """
+                    pid_landValue = pg_julia.query(conn_LandValue, query_LandValue_pid)[1, :max]
                     pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)
-
+                    pg_julia.close_db(conn_LandValue)
+                    query_kill_connections = """
+                                SELECT pg_terminate_backend($pid_landValue)
+                                FROM pg_stat_activity
+                                WHERE pg_stat_activity.datname = \'$db_LandValue_str\'
+                            """
+                    pg_julia.query(conn_LandValue, query_kill_connections)
                 end
             end
         end
