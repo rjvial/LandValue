@@ -2,7 +2,7 @@ using LandValue, NonconvexBayesian, NonconvexIpopt, NonconvexNLopt, Distribution
 
 
 function ajustaPrecioReserva(valorMercado_lotes::Float64, valorInmobiliario::Float64, prob_ventaValorMercado::Float64, prob_ventaValorInmobiliario::Float64)
-    #Esta función ajusta los parámetros mu y sigma de una distribución LogNormal del precio de reserva r de manera que:
+    #Esta función ajusta los parámetros α y λ de una distribución Weibull del precio de reserva r de manera que:
     # prob(r < valorMercado) = prob_ventaValorMercado y prob(r < valorInmobiliario) = prob_ventaValorInmobiliario
 
     prob_lb = prob_ventaValorMercado
