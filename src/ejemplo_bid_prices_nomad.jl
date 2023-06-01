@@ -1,4 +1,4 @@
-using LandValue, NonconvexBayesian, NonconvexIpopt, NonconvexNLopt, Distributions
+using LandValue, NOMAD
 
 
 function ajustaPrecioReserva(valorMercado_lotes::Float64, valorInmobiliario::Float64, prob_ventaValorMercado::Float64, prob_ventaValorInmobiliario::Float64)
@@ -29,9 +29,25 @@ function ajustaPrecioReserva(valorMercado_lotes::Vector{Float64}, valorInmobilia
     return α_vec, λ_vec
 end
 
+function g(x::AbstractVector, α_vec, λ_vec, valorMercado_lotes, C, minProb) #Restricción para asegurar una probabilidad mínima de éxito
+    numCombis, numLotes = size(C)
+    δ_vec = valorMercado_lotes .* 0.9
 
+    prob_vec = [x[k] - δ_vec[k] < 0 ? 0 : 1 - exp(-((x[k] - δ_vec[k]) / λ_vec[k])^α_vec[k]) for k = 1:numLotes]
 
-function f(x::AbstractVector, α_vec, λ_vec, valorMercado_lotes, valorInmobiliario_combis, C) 
+    # calculate the sum of the product of probabilities for each combination
+    probCombis = sum(
+        # calculate the product of probabilities for a single combination
+        prod(C[k,i] == 1 ? prob_vec[i] : 1 - prob_vec[i] for i=1:numLotes)
+        
+        # loop over all combinations
+        for k=1:numCombis
+    )
+
+    return minProb - probCombis
+end
+
+function f(x, α_vec, λ_vec, valorMercado_lotes, valorInmobiliario_combis, C, minProb) 
     numCombis, numLotes = size(C)
     δ_vec = valorMercado_lotes .* 0.9
 
@@ -46,29 +62,18 @@ function f(x::AbstractVector, α_vec, λ_vec, valorMercado_lotes, valorInmobilia
         for k=1:numCombis
     )
 
-    return -utilEsp
+    constraints = []
+    constraints = push!(constraints, g(x, α_vec, λ_vec, valorMercado_lotes, C, minProb))
+
+    # Integración Función Objetivo con Restricciones
+    bb_outputs = [-utilEsp; constraints]
+    success = true
+    count_eval = true
+
+    return (success, count_eval, bb_outputs)
 end
 
-# function g(x::AbstractVector, α_vec, λ_vec, valorMercado_lotes, C, minProb) #Restricción para asegurar una probabilidad mínima de éxito
-#     numCombis, numLotes = size(C)
-#     δ_vec = valorMercado_lotes .* 0.9
 
-#     prob_vec = [x[k] - δ_vec[k] < 0 ? 0 : 1 - exp(-((x[k] - δ_vec[k]) / λ_vec[k])^α_vec[k]) for k = 1:numLotes]
-
-#     # calculate the sum of the product of probabilities for each combination
-#     probCombis = sum(
-#         # calculate the product of probabilities for a single combination
-#         prod(C[k,i] == 1 ? prob_vec[i] : 1 - prob_vec[i] for i=1:numLotes)
-        
-#         # loop over all combinations
-#         for k=1:numCombis
-#     )
-
-#     return minProb - probCombis
-# end
-function g(x::AbstractVector) 
-    -x[1]
-end
 
 # Ad = [0 0 0 1 1;
 #       0 0 1 1 0;
@@ -80,7 +85,7 @@ Ad = [0 1 0;
       1 0 1;
       0 1 0]
 
-minProb = 0.1
+minProb = 0.9
 
 graphMod.graphPlot(Ad)
          
@@ -90,7 +95,7 @@ valorMercado_lotes = vec(ones(numLotes,1) .* 38888.)
 C = graphMod.node_combis(Ad, flag_mat = true) #matriz de Combinaciones de lotes
 
 prob_compraValorMercado = .1
-prob_compraValorInmobiliario = .9
+prob_compraValorInmobiliario = .95
 
 valorPropietario_combis = sum(C, dims=2) .* (1.02.^(sum(C, dims=2))*45000.) #valor de los combis para los Propietarios
 valorPropietario_combis[ sum(C, dims=2) .== 1 ] .= (38888. + 45000.) / 2
@@ -104,24 +109,26 @@ valorInmobiliario_combis = vec(valorInmobiliario_combis)
 lb_lotes = valorMercado_lotes
 ub_lotes = 3 .* valorMercado_lotes
 
+obj_nomad = x -> f(x, α_vec, λ_vec, valorMercado_lotes, valorInmobiliario_combis, C, minProb)
 
-m = NonconvexBayesian.Model()
-# set_objective!(m, x -> f(x, mu, sigma, C))
-set_objective!(m, x -> f(x, α_vec, λ_vec, valorMercado_lotes, valorInmobiliario_combis, C))
-addvar!(m, lb_lotes, ub_lotes)
-# add_ineq_constraint!(m, x -> g(x, α_vec, λ_vec, valorMercado_lotes, C, minProb))
-add_ineq_constraint!(m, x -> g(x))
+num_inputs = length(lb_lotes); # Number of inputs of the blackbox. Is required to be > 0
+num_outputs = 1 + 1; # Number of outputs of the blackbox. Is required to be > 0
+output_types = vcat(["OBJ"], ["PB" for i in 1:1]); # "OBJ" objective value to be minimized, "PB" progressive barrier constraint, "EB" extreme barrier constraint
+input_types = vcat(["R" for i in 1:num_inputs]); # A vector containing String objects that define the types of inputs to be given to eval_bb (the order is important). "R" Real/Continuous, "B" Binary,"I" Integer
 
-alg = BayesOptAlg(IpoptAlg())
-options = BayesOptOptions(
-    sub_options = IpoptOptions(print_level = 0), maxiter = 10, ctol = 1e-4,
-    ninit = 2, initialize = true, postoptimize = false, fit_prior = true,)
-r = optimize(m, alg, lb_lotes, options = options);
-fopt = -r.minimum
-xopt = r.minimizer
+p = NOMAD.NomadProblem(num_inputs, num_outputs, output_types, obj_nomad; 
+                input_types = input_types, 
+                lower_bound = lb_lotes, 
+                upper_bound = ub_lotes)
 
-numCombis, numLotes = size(C)
-#prob_lotes = [xopt[i] - δ < 0 ? 0 : 1 - exp(-((xopt[i] - δ) / λ)^α) for i = 1:numLotes]
 
-# Compute the probability of each combination
-#prob_combis = [prod( C[k,i] == 1 ? prob_lotes[i] : 1 - prob_lotes[i] for i in 1:numLotes ) for k in 1:numCombis]
+p.options.display_degree = 0 #0;
+#p.options.max_bb_eval = MaxSteps; # Fix some options
+
+# solve problem starting from the point
+initSol = lb_lotes
+
+result = NOMAD.solve(p, initSol);
+
+fopt = result.bbo_best_feas[1]
+xopt = result.x_best_feas
