@@ -21,19 +21,18 @@ function ajustaPrecioReserva(valorMercado_lotes::Vector{Float64}, valorInmobilia
     α_vec = zeros(numLotes,1)
     λ_vec = zeros(numLotes,1)
     for k = 1:numLotes
-        flag = C[:,k]
-        valorInmobiliario_vec = valorInmobiliario_combis[ flag .== 1] ./ sum(C[flag .== 1,:], dims=2)
+        valorInmobiliario_vec = valorInmobiliario_combis[ C[:,k] .== 1] ./ sum(C[C[:,k] .== 1,:], dims=2)
         valorInmobiliario = sum(valorInmobiliario_vec) / length(valorInmobiliario_vec)
         α_vec[k], λ_vec[k] = ajustaPrecioReserva(valorMercado_lotes[k], valorInmobiliario, prob_ventaValorMercado, prob_ventaValorInmobiliario)
     end
     return α_vec, λ_vec
 end
 
-function g(x::AbstractVector, α_vec, λ_vec, valorMercado_lotes, C, minProb) #Restricción para asegurar una probabilidad mínima de éxito
+function prob_compra(x::AbstractVector, α_vec, λ_vec, valorMercado_lotes, C, minProb) #Restricción para asegurar una probabilidad mínima de éxito
     numCombis, numLotes = size(C)
     δ_vec = valorMercado_lotes .* 0.9
 
-    prob_vec = [x[k] - δ_vec[k] < 0 ? 0 : 1 - exp(-((x[k] - δ_vec[k]) / λ_vec[k])^α_vec[k]) for k = 1:numLotes]
+    prob_vec = [x[i] - δ_vec[i] < 0 ? 0 : 1 - exp(-((x[i] - δ_vec[i]) / λ_vec[i])^α_vec[i]) for i = 1:numLotes]
 
     # calculate the sum of the product of probabilities for each combination
     probCombis = sum(
@@ -41,13 +40,13 @@ function g(x::AbstractVector, α_vec, λ_vec, valorMercado_lotes, C, minProb) #R
         prod(C[k,i] == 1 ? prob_vec[i] : 1 - prob_vec[i] for i=1:numLotes)
         
         # loop over all combinations
-        for k=1:numCombis
+        for k = 1:numCombis
     )
 
-    return minProb - probCombis
+    return probCombis
 end
 
-function f(x, α_vec, λ_vec, valorMercado_lotes, valorInmobiliario_combis, C, minProb) 
+function util_esp(x, α_vec, λ_vec, valorMercado_lotes, valorInmobiliario_combis, C) 
     numCombis, numLotes = size(C)
     δ_vec = valorMercado_lotes .* 0.9
 
@@ -59,11 +58,18 @@ function f(x, α_vec, λ_vec, valorMercado_lotes, valorInmobiliario_combis, C, m
         prod([C[k,i] == 1 ? prob_vec[i] : 1 - prob_vec[i] for i=1:numLotes])
         
         # loop over all combinations
-        for k=1:numCombis
+        for k = 1:numCombis
     )
 
+    return utilEsp
+end
+
+function f(x, α_vec, λ_vec, valorMercado_lotes, valorInmobiliario_combis, C, minProb) 
+    
+    utilEsp = util_esp(x, α_vec, λ_vec, valorMercado_lotes, valorInmobiliario_combis, C)
+
     constraints = []
-    constraints = push!(constraints, g(x, α_vec, λ_vec, valorMercado_lotes, C, minProb))
+    constraints = push!(constraints, 10000*(minProb - prob_compra(x, α_vec, λ_vec, valorMercado_lotes, C, minProb)))
 
     # Integración Función Objetivo con Restricciones
     bb_outputs = [-utilEsp; constraints]
@@ -74,37 +80,32 @@ function f(x, α_vec, λ_vec, valorMercado_lotes, valorInmobiliario_combis, C, m
 end
 
 
+Ad = [0 1 0 1 1;
+      1 0 1 1 0;
+      0 1 0 0 0;
+      1 1 0 0 1;
+      1 0 0 1 0]
 
-# Ad = [0 0 0 1 1;
-#       0 0 1 1 0;
-#       0 1 0 1 0;
-#       1 1 1 0 1;
-#       1 0 0 1 0]
-
-Ad = [0 1 0;
-      1 0 1;
-      0 1 0]
-
-minProb = 0.9
-
+# Ad = [0 1 0;
+#       1 0 1;
+#       0 1 0]
 graphMod.graphPlot(Ad)
-         
+
 numLotes = size(Ad,2)
-valorMercado_lotes = vec(ones(numLotes,1) .* 38888.)
+
+minProb = 0.0
+valorMercado_lote = 38888.; prob_compraValorMercado = .1
+valorInmobiliario_lote = 45000.; prob_compraValorInmobiliario = .5
+
+valorMercado_lotes = vec(ones(numLotes,1) .* valorMercado_lote)
 
 C = graphMod.node_combis(Ad, flag_mat = true) #matriz de Combinaciones de lotes
 
-prob_compraValorMercado = .1
-prob_compraValorInmobiliario = .95
-
-valorPropietario_combis = sum(C, dims=2) .* (1.02.^(sum(C, dims=2))*45000.) #valor de los combis para los Propietarios
-valorPropietario_combis[ sum(C, dims=2) .== 1 ] .= (38888. + 45000.) / 2
-valorPropietario_combis = vec(valorPropietario_combis)
-α_vec, λ_vec = ajustaPrecioReserva(valorMercado_lotes, valorPropietario_combis, C, prob_compraValorMercado, prob_compraValorInmobiliario)
-
-valorInmobiliario_combis = sum(C, dims=2) .* (1.02.^(sum(C, dims=2))*45000.) #valor de los combis para el Inmobiliario
-valorInmobiliario_combis[ sum(C, dims=2) .== 1 ] .= 38888.
+valorInmobiliario_combis = sum(C, dims=2) .* valorInmobiliario_lote #valor de los combis para el Inmobiliario
+valorInmobiliario_combis[ sum(C, dims=2) .== 1 ] .= valorMercado_lote
 valorInmobiliario_combis = vec(valorInmobiliario_combis)
+α_vec, λ_vec = ajustaPrecioReserva(valorMercado_lotes, valorInmobiliario_combis, C, prob_compraValorMercado, prob_compraValorInmobiliario)
+
 
 lb_lotes = valorMercado_lotes
 ub_lotes = 3 .* valorMercado_lotes
@@ -122,7 +123,7 @@ p = NOMAD.NomadProblem(num_inputs, num_outputs, output_types, obj_nomad;
                 upper_bound = ub_lotes)
 
 
-p.options.display_degree = 0 #0;
+p.options.display_degree = 0 
 #p.options.max_bb_eval = MaxSteps; # Fix some options
 
 # solve problem starting from the point
@@ -130,5 +131,11 @@ initSol = lb_lotes
 
 result = NOMAD.solve(p, initSol);
 
-fopt = result.bbo_best_feas[1]
 xopt = result.x_best_feas
+fopt = util_esp(xopt, α_vec, λ_vec, valorMercado_lotes, valorInmobiliario_combis, C)
+prob_opt = prob_compra(xopt, α_vec, λ_vec, valorMercado_lotes, C, minProb)
+
+display(xopt)
+display(" ")
+display("fopt: " * string(fopt))
+display("Prob Compra: " * string(prob_opt))
