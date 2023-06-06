@@ -1,10 +1,10 @@
 using Images, ImageBinarization
 
 
-for k = 1:878
+for k = 1:4219
 
-    infileStr = "C:\\Users\\rjvia\\.julia\\dev\\qgis_env\\aux_files\\imagenes_cabidas\\____cabida_vitacura_" * string(k) * ".png"
-    outfileStr = "C:\\Users\\rjvia\\.julia\\dev\\qgis_env\\aux_files\\imagenes_cabidas\\cabida_vitacura_" * string(k) * ".png"
+    infileStr = "C:\\Users\\rjvia\\Documents\\Land_engines_code\\Julia\\imagenes_cabidas\\____cabida_vitacura_" * string(k) * ".png"
+    outfileStr = "C:\\Users\\rjvia\\Documents\\Land_engines_code\\Julia\\imagenes_cabidas\\cabida_vitacura_" * string(k) * ".png"
     
     display(infileStr)
 
