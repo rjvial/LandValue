@@ -2002,35 +2002,32 @@ function polyShape2lineVec(ps::PolyShape)::Array{LineShape,1}
 end
 
 
-function polyExpandSegmentVec(ps::PolyShape, vec_dist::Array{Float64,1}, vec_edges::Array{Int64,1})::PolyShape
-    vec_ls = polyShape.polyShape2lineVec(ps)
+function polyExpandSegmentVec(ps::PolyShape, vec_dist::Array{Float64,1})::PolyShape
+    vec_ls_orig = polyShape.polyShape2lineVec(ps) #lineas polyShape original
     vec_ps = []
-    for k in eachindex(vec_ls)
-        edge_k = vec_ls[k]
-        for j in eachindex(vec_dist)
-            if k in vec_edges[j]
-                dist_j = vec_dist[j]
-                vec_edges_j = polyShape.polyShape2lineVec(polyShape.polyExpand(ps, dist_j))
-                for i in eachindex(vec_edges_j)
-                    edge_ji = vec_edges_j[i]
-                    dist_kji = polyShape.distanceBetweenLines(edge_k, edge_ji)
-                    flag_kji = polyShape.isLineLineParallel(edge_k, edge_ji)
-                    edge_ji_ext = polyShape.extendLine(edge_ji, 3.0)
-                    if length(vec_ps) < 1
-                        flag_intersect = true
-                    else
-                        point_inter = polyShape.shapeIntersect(edge_ji_ext, vec_ps[end])
-                        if typeof(point_inter) == PointShape
-                            flag_intersect = true
-                        else
-                            flag_intersect = false
-                        end
-                    end
-                    if flag_intersect && flag_kji && abs(dist_kji - abs(dist_j)) <= 0.01
-                        vec_ps = push!(vec_ps, edge_ji_ext)
-                        break
-                    end
+    for k in eachindex(vec_ls_orig) #para todas las lineas originales
+        ls_k = vec_ls_orig[k]
+        dist_k = vec_dist[k]
+        vec_ls_dist_k = polyShape.polyShape2lineVec(polyShape.polyExpand(ps, dist_k))
+        vec_flag_k = [polyShape.isLineLineParallel(ls_k, vec_ls_dist_k[i]) for i in eachindex(vec_ls_dist_k)]
+        vec_dist_k = [polyShape.shapeDistance(ls_k, vec_ls_dist_k[i]) for i in eachindex(vec_ls_dist_k)]
+        if sum(vec_flag_k) >= 1
+            posrel = argmin(vec_dist_k[vec_flag_k .== 1])
+            ls_ki = vec_ls_dist_k[vec_flag_k .== 1][posrel]
+            ls_ki_ext = polyShape.extendLine(ls_ki, 12.0)
+            dist_ki = polyShape.distanceBetweenLines(ls_k, ls_ki)
+            if length(vec_ps) < 1
+                flag_intersect = true
+            else
+                point_inter = polyShape.shapeIntersect(ls_ki_ext, vec_ps[end])
+                if typeof(point_inter) == PointShape
+                    flag_intersect = true
+                else
+                    flag_intersect = false
                 end
+            end
+            if flag_intersect && abs(dist_ki - abs(dist_k)) <= 0.01
+                vec_ps = push!(vec_ps, ls_ki_ext)
             end
         end
     end
@@ -2039,61 +2036,6 @@ function polyExpandSegmentVec(ps::PolyShape, vec_dist::Array{Float64,1}, vec_edg
     return ps_out 
 end
 
-
-# expande todos los lados en la misma distancia
-function polyEqualExpand(ps::PolyShape, dist::Union{Real,Array{Real,1}})::PolyShape
-
-    if dist > 0
-        V = ps.Vertices[1]
-        N = size(V, 1)
-        V_ = copy(V)
-        line_vec = Array{LineShape,1}()
-        for i = 1:N
-            if i < N
-                l_i = LineShape([[V_[i, :]'; V_[i+1, :]']], 1)
-            else
-                l_i = LineShape([[V_[i, :]'; V_[1, :]']], 1)
-            end
-            line_vec = push!(line_vec, l_i)
-        end
-
-        line_vec_exp = Array{LineShape,1}()
-        for i = 1:N
-            line_vec_i = line_vec[i]
-            V_i = line_vec_i.Vertices[1]
-            line_i_length = sqrt((V_i[1, 1] - V_i[2, 1])^2 + (V_i[1, 2] - V_i[2, 2])^2)
-            l_exp_i = extendLine(parallelLineAtDist(line_vec_i, dist), 4 * line_i_length)
-            line_vec_exp = push!(line_vec_exp, l_exp_i)
-        end
-
-        point_vec_x = Array{PointShape,1}()
-        for i = 1:N
-            if i < N
-                point_x_i = shapeIntersect(line_vec_exp[i], line_vec_exp[i+1])
-            else
-                point_x_i = shapeIntersect(line_vec_exp[i], line_vec_exp[1])
-            end
-            point_vec_x = push!(point_vec_x, point_x_i)
-        end
-
-        V_out = fill(0.0, N, 2)
-        for i = 1:N
-            if i > 1
-                V_out[i, :] = point_vec_x[i-1].Vertices
-            else
-                V_out[i, :] = point_vec_x[end].Vertices
-            end
-        end
-
-        ps_out = PolyShape([V_out], 1)
-
-    else
-        ps_out = polyShape.polyExpand(ps, dist)
-    end
-
-    return ps_out
-
-end
 
 
 function polyReproject(ps::PolyShape, dx::Float64, dy::Float64, EPSG_in::Int64, EPSG_out::Int64)
@@ -2265,8 +2207,12 @@ end
 
 
 function distanceBetweenLines(l1::LineShape, l2::LineShape)
-    p1 = polyShape.midPointSegment(l1)
-    dist = pointLineDist(l2, p1)
+    if polyShape.isLineLineParallel(l1, l2)
+        p1 = polyShape.midPointSegment(l1)
+        dist = pointLineDist(l2, p1)
+    else
+        dist = 10000
+    end
     return dist
 end
 
@@ -2284,7 +2230,7 @@ export extraeInfoPoly, largoLadosPoly, isPolyConvex, isPolyInPoly, plotPolyshape
     shapeVertex, numVertices, shapeCentroid, partialCentroid, shapeDistance, partialDistance, polyBox, polyRotate, polyReverse, setPolyOrientation,
     minPolyDistance, polyCopy, polyUnique, polyEliminateWithin, pointLineDist, intersectLines, findPolyIntersection, pointDistanceMat, polySimplify,
     lineLineDist, parallelLineAtDist, lineAngle, halfspaceSignOfPointToLine, extendLine, polyEliminaRepetidos, polyEliminaSpikes, polyEliminaCrucesComplejos,
-    polyObtieneCruces, polyEqualExpand, polyExpandSegmentVec, replaceShapeVertex, lineVec2polyShape, polyShape2lineVec,
+    polyObtieneCruces, polyExpandSegmentVec, replaceShapeVertex, lineVec2polyShape, polyShape2lineVec,
     ajustaCoordenadas, angleMaxDistRect, extendRectToIntersection, createLine, polyReproject, bisector_direction, angleBetweenLines,
     reverseLine, distanceBetweenPoints, midPointSegment, alphaPointSegment, points2Line, points2Poly, lineLength, isLineLineParallel, distanceBetweenLines
 
