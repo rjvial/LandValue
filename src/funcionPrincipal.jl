@@ -132,7 +132,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         vec_dist = Float64.(vec_edges)
         vec_dist .= -antejardin
         vec_dist[vecSecSinCalle] .= -sepVecinos
-        ps_areaEdif =  polyShape.polyExpandSegmentVec(ps_predio, vec_dist, vec_edges)
+        ps_areaEdif =  polyShape.polyExpandSegmentVec(ps_predio, vec_dist)
         V_areaEdif = ps_areaEdif.Vertices[1]
         sup_areaEdif = polyShape.polyArea(ps_areaEdif)
         rasante = dcn.rasante

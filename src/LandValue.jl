@@ -299,7 +299,6 @@ module LandValue
     include("resultConverter.jl")
     include("generaVol3D.jl")
     include("generaSombraTeor.jl")
-    include("generaSupBruta.jl")
     include("pg_julia.jl")
     include("queryCabida.jl")
     include("obtieneCalles.jl")
@@ -310,7 +309,7 @@ module LandValue
 
     export funcionPrincipal, fo_bbo, fo_nomad, calculaAnguloRotacion, generaSombraEdificio, optiEdificio, displayResults, 
         optim_nomad, optim_bbo, poly2D, polyShape, graphMod, resultConverter, generaVol3D, generaSombraTeor, 
-        generaSupBruta, pg_julia, obtieneCalles, generaPoligonoCorte, queryCabida, generaCotas, create_scr, create_edificio_geojson
+        pg_julia, obtieneCalles, generaPoligonoCorte, queryCabida, generaCotas, create_scr, create_edificio_geojson
 
 
 end
