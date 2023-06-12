@@ -252,6 +252,18 @@ end
 function generaCombinacionesFinales(df_predios_combi, df_predios, ps_predios, nombre_tabla_combinacion_predios, conn_LandValue, area_lote_lb, area_lote_ub, area_predio_lb, area_predio_ub, num_lote_max, largo_compartido_min)
     
     #--------------------------------------------------------------------------------------------------------
+    # Genera tabla de manazana
+    query_str = """ 
+    CREATE TABLE IF NOT EXISTS public.tabla_combinacion_manzanas
+    (
+        "manzana_id" int,
+        "predios_manzana_str" text,
+        "mat_adj" text
+        )
+    """
+	pg_julia.query(conn_LandValue, query_str)
+
+
     # Genera tabla con las combinaciones de predios por manazana
     query_str = """ 
     CREATE TABLE IF NOT EXISTS public.tabla_combinacion_predios_str
@@ -280,7 +292,8 @@ function generaCombinacionesFinales(df_predios_combi, df_predios, ps_predios, no
         # Obtiene los predios disponibles en una manzana específica
         display("Obtiene los predios disponibles en una manzana específica")
         vec_ps_predios_manzana = eval.(Meta.parse.(df_predios_combi_manzana[:, "ps_combi"]))
-        vec_codigo_predial = df_predios_combi_manzana[:, "combi_predios_str"]
+        vec_predios_manzana = df_predios_combi_manzana[:, "combi_predios_str"]
+        vec_codigo_predial = deepcopy(vec_predios_manzana)
         vec_codigo_predial = eval.(Meta.parse.(replace.(vec_codigo_predial, "\"" => "")))
         vec_area = polyShape.polyArea.(vec_ps_predios_manzana)
         vec_id = rownumber.(eachrow(df_predios_combi_manzana))
@@ -323,6 +336,12 @@ function generaCombinacionesFinales(df_predios_combi, df_predios, ps_predios, no
                 adj_mat = 1
                 combi_predios = [[1]]
             end
+
+            # vec_predios_manzana_str = join([replace(replace(replace(str, "[\"" => "["),"\"]" => "],"), "\", \"" => ", ") for str in vec_predios_manzana])
+            # vecColumnNames = ["manzana_id", "predios_manzana_str", "mat_adj"]
+            # vecColumnValue = [num_manzana, vec_predios_manzana_str, string(adj_mat)]
+            # pg_julia.insertRow!(conn_LandValue, "tabla_combinacion_manzanas", vecColumnNames, vecColumnValue, :manzana_id)
+
 
             length_combi_predios = length(combi_predios)
             display(length_combi_predios)
@@ -395,11 +414,11 @@ nombre_tabla_combinacion_predios = "tabla_predios_chicos"
 # filtros
 # ########################################################
 area_lote_lb = 100
-area_lote_ub = 400 #3000
-area_predio_lb = 400 #1200; 
+area_lote_ub = 400 
+area_predio_lb = 400 
 area_predio_ub = 4000
-num_lote_max = 2 #15
-largo_compartido_min = 20 #20
+num_lote_max = 2 
+largo_compartido_min = 20
 ########################################################
 df_tabla_chicos = generaCombinaciones(num_manzanas_altura, nombre_tabla_combinacion_predios, conn_LandValue, area_lote_lb, area_lote_ub, area_predio_lb, area_predio_ub, num_lote_max, largo_compartido_min)
 
@@ -409,25 +428,25 @@ nombre_tabla_combinacion_predios = "tabla_predios_grandes"
 # filtros
 # ########################################################
 area_lote_lb = 400
-area_lote_ub = 3000 #3000
-area_predio_lb = 400 #1200; 
+area_lote_ub = 3000
+area_predio_lb = 400
 area_predio_ub = 3000
-num_lote_max = 1 #15
-largo_compartido_min = 20 #20
+num_lote_max = 1
+largo_compartido_min = 20
 ########################################################
 df_tabla_grandes = generaCombinaciones(num_manzanas_altura, nombre_tabla_combinacion_predios, conn_LandValue, area_lote_lb, area_lote_ub, area_predio_lb, area_predio_ub, num_lote_max, largo_compartido_min)
 
 
 nombre_tabla_combinacion_predios = "tabla_predios_chicos"
-query_tabla_combinacion_str = """SELECT *                                                                                               
-               FROM public.tabla_combinacion_predios_str                                                          
+query_tabla_combinacion_str = """SELECT *
+               FROM public.tabla_combinacion_predios_str
                    """
 query_tabla_combinacion_str = replace(query_tabla_combinacion_str, "tabla_combinacion_predios_str" => nombre_tabla_combinacion_predios)
 df_tabla_chicos = pg_julia.query(conn_LandValue, query_tabla_combinacion_str)
 
 nombre_tabla_combinacion_predios = "tabla_predios_grandes"
-query_tabla_combinacion_str = """SELECT *                                                                                               
-               FROM public.tabla_combinacion_predios_str                                                          
+query_tabla_combinacion_str = """SELECT *
+               FROM public.tabla_combinacion_predios_str
                    """
 query_tabla_combinacion_str = replace(query_tabla_combinacion_str, "tabla_combinacion_predios_str" => nombre_tabla_combinacion_predios)
 df_tabla_grandes = pg_julia.query(conn_LandValue, query_tabla_combinacion_str)
@@ -441,12 +460,18 @@ nombre_tabla_combinacion_predios = "tabla_combinacion_predios"
 #########################################################
 area_lote_lb = 400
 area_lote_ub = 3000
-area_predio_lb = 1200; 
+area_predio_lb = 1200
 area_predio_ub = 4000
 num_lote_max = 12
 largo_compartido_min = 18
 #########################################################
 generaCombinacionesFinales(df_predios_combi, df_predios, ps_predios, nombre_tabla_combinacion_predios, conn_LandValue, area_lote_lb, area_lote_ub, area_predio_lb, area_predio_ub, num_lote_max, largo_compartido_min)
+
+
+query_borra_tablas_aux_str = """DROP TABLE tabla_predios_chicos, tabla_predios_grandes"""
+pg_julia.query(conn_LandValue, query_borra_tablas_aux_str)
+
+
 
 # query_combi_str = """SELECT *
 #                            FROM tabla_combinacion_predios

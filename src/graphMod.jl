@@ -122,6 +122,36 @@ function simpleGraph(A::Matrix{Int64})
 end
 
 
+function getDisconnectedSubgraphs(A::Matrix{Int64})
+    g = GraphPlot.SimpleGraph(A)
+    list_subgraphs = connected_components(g)
+    return list_subgraphs
+end
+
+function getDisconnectedSubgraphs_v2(C::Matrix{Int64})
+    function CtoA!(A, C, k)
+        A_ = copy(A)
+        num_lotes = size(C, 2)
+        vec = collect(1:num_lotes)
+        set = C[k,:] .* vec
+        set = set[set .>= 1]
+        for i in set
+            for j in setdiff(set, i)
+                A_[i,j] = 1
+            end
+        end
+        return A_
+    end
+    num_combis, num_lotes = size(C)
+    A = zeros(Int, num_lotes, num_lotes)
+
+    for k = 1:num_combis
+        A = CtoA!(A, C, k)
+    end
+    vec = graphMod.getDisconnectedSubgraphs(A)
+    return vec
+end
+
 function getAdjacencyMat(g::MetaGraphs.MetaGraph{Int64, Int64})
     A_aux = adjacency_matrix(g)
     filas, columnas = size(A_aux)
@@ -301,8 +331,8 @@ function eliminateNodeAdjMat(A::Matrix{Int64}, k::Int64)
 end
 
 
-export dfs, node_combis, simpleGraph, getAdjacencyMat, graphPlot, setProp!, getProp, getVertices,
-        getEdges, nodeSubgraph, edgeSubgraph, numVertices, numEdges, filterVertices, filterEdges, neighbors,
-        adjMatSubNode, combiMatForNode, eliminateNodeAdjMat
+export dfs, node_combis, simpleGraph, getDisconnectedSubgraphs, getDisconnectedSubgraphs_v2, getAdjacencyMat, 
+        graphPlot, setProp!, getProp, getVertices, getEdges, nodeSubgraph, edgeSubgraph, numVertices, 
+        numEdges, filterVertices, filterEdges, neighbors, adjMatSubNode, combiMatForNode, eliminateNodeAdjMat
 
 end

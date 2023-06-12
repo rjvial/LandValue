@@ -1,31 +1,5 @@
-using NonconvexBayesian, NonconvexIpopt, NonconvexNLopt, Distributions
+using LandValue, NOMAD
 # Este caso asume multiples etapas de ofertas
-
-# function fs(x::AbstractVector, δ, p_lb, p_ub, prob_lb, prob_ub, T)
-#     # Sin Aprendizaje
-#     α = log( log(1 - prob_lb) / log(1 - prob_ub) ) / log( (p_lb - δ) / (p_ub - δ) )
-#     λ = (p_ub - δ) / exp( log(log(1/(1 - prob_ub))) / α )
-#     utilEsp = 0
-#     for t = 1:T
-        
-#         if t == 1            
-#             prob = x[1] - δ < 0 ? 0 : 1 - exp(-((x[1] - δ) / λ)^α)
-#             util_t = (p_ub - x[1]) * prob
-#         else
-#             util_t = (p_ub - x[t])
-#             for k = 1:t-1
-#                 prob_k = x[k] - δ < 0 ? 0 : 1 - exp(-((x[k] - δ) / λ)^α)
-#                 util_t = util_t * (1 - prob_k)
-#             end
-#             prob_t = x[t] - δ < 0 ? 0 : 1 - exp(-((x[t] - δ) / λ)^α)
-#             util_t = util_t * prob_t
-#         end
-#         utilEsp = utilEsp + util_t
-
-#     end
-#     return -utilEsp
-# end
-
 
 function fc(x::AbstractVector, δ, p_lb, p_ub, prob_lb, prob_ub, T)
     # Con Aprendizaje
@@ -68,11 +42,17 @@ function fc(x::AbstractVector, δ, p_lb, p_ub, prob_lb, prob_ub, T)
         utilEsp = utilEsp + util_t
 
     end
-    return -utilEsp
+
+    constraints = []
+    constraints = push!(constraints, -x[1])
+
+    # Integración Función Objetivo con Restricciones
+    bb_outputs = [-utilEsp; constraints]
+    success = true
+    count_eval = true
+
+    return (success, count_eval, bb_outputs)
 end
-
-
-g(x::AbstractVector, T) = -x[1]
 
 
 δ = 35000.
@@ -84,22 +64,31 @@ prob_ub = .90
 
 
 
-alg = BayesOptAlg(IpoptAlg())
-options = BayesOptOptions(
-    sub_options = IpoptOptions(print_level = 0), maxiter = 10, ctol = 1e-4,
-    ninit = 2, initialize = true, postoptimize = false, fit_prior = true,
-)
-
-
 T = 10 # numero de ofertas que se puede hacer
-mc = NonconvexBayesian.Model()
 pos = [1/(T-1)*(i-1) for i=1:T]
 x_lb = [δ for t=1:T]
 x_ub = [p_ub for t=1:T]
 initSol = x_lb
-set_objective!(mc, x -> fc(x, δ, p_lb, p_ub, prob_lb, prob_ub, T))
-addvar!(mc, x_lb, x_ub)
-add_ineq_constraint!(mc, x -> g(x, T))
-rc = optimize(mc, alg, initSol , options = options);
-fopt_c = -rc.minimum
-xopt_c = rc.minimizer
+
+
+obj_nomad = x -> fc(x, δ, p_lb, p_ub, prob_lb, prob_ub, T)
+
+num_inputs = length(x_lb); # Number of inputs of the blackbox. Is required to be > 0
+num_outputs = 1 + 1; # Number of outputs of the blackbox. Is required to be > 0
+output_types = vcat(["OBJ"], ["PB" for i in 1:1]); # "OBJ" objective value to be minimized, "PB" progressive barrier constraint, "EB" extreme barrier constraint
+input_types = vcat(["R" for i in 1:num_inputs]); # A vector containing String objects that define the types of inputs to be given to eval_bb (the order is important). "R" Real/Continuous, "B" Binary,"I" Integer
+
+p = NOMAD.NomadProblem(num_inputs, num_outputs, output_types, obj_nomad; 
+                input_types = input_types, 
+                lower_bound = x_lb, 
+                upper_bound = x_ub)
+
+
+p.options.display_degree = 0 
+#p.options.max_bb_eval = MaxSteps; # Fix some options
+
+# solve problem starting from the point
+
+result = NOMAD.solve(p, initSol);
+
+xopt = result.x_best_feas
