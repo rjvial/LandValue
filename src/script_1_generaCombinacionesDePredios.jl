@@ -398,36 +398,36 @@ largo_compartido_min = 20
 df_tabla_chicos = generaCombinaciones(conjunto_manzanas, nombre_tabla_combinacion_predios, conn_LandValue, area_lote_lb, area_lote_ub, area_predio_lb, area_predio_ub, num_lote_max, largo_compartido_min)
 
 
-# nombre_tabla_combinacion_predios = "tabla_predios_grandes"
-# # ########################################################
-# # filtros
-# # ########################################################
-# area_lote_lb = 400
-# area_lote_ub = 3000
-# area_predio_lb = 400
-# area_predio_ub = 3000
-# num_lote_max = 1
-# largo_compartido_min = 20
+nombre_tabla_combinacion_predios = "tabla_predios_grandes"
 # ########################################################
-# df_tabla_grandes = generaCombinaciones(conjunto_manzanas, nombre_tabla_combinacion_predios, conn_LandValue, area_lote_lb, area_lote_ub, area_predio_lb, area_predio_ub, num_lote_max, largo_compartido_min)
+# filtros
+# ########################################################
+area_lote_lb = 400
+area_lote_ub = 3000
+area_predio_lb = 400
+area_predio_ub = 3000
+num_lote_max = 1
+largo_compartido_min = 20
+########################################################
+df_tabla_grandes = generaCombinaciones(conjunto_manzanas, nombre_tabla_combinacion_predios, conn_LandValue, area_lote_lb, area_lote_ub, area_predio_lb, area_predio_ub, num_lote_max, largo_compartido_min)
 
-# df_predios_combi = vcat(df_tabla_grandes, df_tabla_chicos)
+df_predios_combi = vcat(df_tabla_grandes, df_tabla_chicos)
 
 
-# nombre_tabla_combinacion_predios = "tabla_combinacion_predios"
-# #########################################################
-# # filtros
-# #########################################################
-# area_lote_lb = 400
-# area_lote_ub = 3000
-# area_predio_lb = 1200
-# area_predio_ub = 4000
-# num_lote_max = 12
-# largo_compartido_min = 18
-# #########################################################
-# generaCombinacionesFinales(df_predios_combi, df_predios, nombre_tabla_combinacion_predios, conn_LandValue, area_lote_lb, area_lote_ub, area_predio_lb, area_predio_ub, num_lote_max, largo_compartido_min)
+nombre_tabla_combinacion_predios = "tabla_combinacion_predios"
+#########################################################
+# filtros
+#########################################################
+area_lote_lb = 400
+area_lote_ub = 3000
+area_predio_lb = 1200
+area_predio_ub = 4000
+num_lote_max = 12
+largo_compartido_min = 18
+#########################################################
+generaCombinacionesFinales(df_predios_combi, df_predios, nombre_tabla_combinacion_predios, conn_LandValue, area_lote_lb, area_lote_ub, area_predio_lb, area_predio_ub, num_lote_max, largo_compartido_min)
 
-# query_borra_tablas_aux_str = """DROP TABLE tabla_predios_chicos, tabla_predios_grandes"""
-# pg_julia.query(conn_LandValue, query_borra_tablas_aux_str)
+query_borra_tablas_aux_str = """DROP TABLE tabla_predios_chicos, tabla_predios_grandes"""
+pg_julia.query(conn_LandValue, query_borra_tablas_aux_str)
 
 
