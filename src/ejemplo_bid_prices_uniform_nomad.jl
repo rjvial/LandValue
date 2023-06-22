@@ -82,13 +82,13 @@ minProb = 0.0
 #       0 1 0 0 ;
 #       0 0 0 0 ]
 
-Ad = [0 1 1 0 0 0 1;
+Ad = [0 1 1 0 0 0 0;
       1 0 1 0 0 0 0;
-      1 1 0 1 0 0 1;
-      0 0 1 0 1 0 0;
-      0 0 0 1 0 1 1;
-      0 0 0 0 1 0 1;
-      1 0 1 0 1 1 0]
+      1 1 0 0 0 0 0;
+      0 0 0 0 0 0 0;
+      0 0 0 0 0 0 0;
+      0 0 0 0 0 0 1;
+      0 0 0 0 0 1 0]
 graphMod.graphPlot(Ad)
 C = graphMod.node_combis(Ad, flag_mat = true) #matriz de Combinaciones de lotes
 # C = [1 1 1 0 0 0 0;

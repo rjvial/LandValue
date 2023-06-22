@@ -40,7 +40,7 @@ end
 
 
 function node_combis(g::MetaGraphs.MetaGraph{Int64, Int64}; flag_mat::Bool = false)
-    # Esta función calcula todas las combinaciones de nodos que están conectados 
+    # Esta función calcula todas las combinaciones de nodos de un grafo g que están conectados 
     function node_combis_(u, v, cPath, sCombis, vis, g)
         cPath_ = copy(cPath)
         sCombis_ = copy(sCombis)
