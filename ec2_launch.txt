@@ -1,0 +1,43 @@
+######
+# 01 # Launch EC2 with spot-options.json & mapping-options.json (in Powershell)
+######
+cd C:\Users\rjvia
+aws ec2 run-instances --image-id ami-0889a44b331db0194 --count 1 --instance-type c6a.8xlarge --security-group-ids sg-01791c00da527aad7 --subnet-id subnet-02dfe0cdc6db91616 --region us-east-1 --key-name landengines_kp --instance-market-options file://spot-options.json --block-device-mappings file://mapping-options.json
+
+######
+# 02 # Connect to EC2 (in Powershell, in the aws console get ssh info)
+######
+ssh -i "landengines_kp.pem" ec2-user@ec2-54-208-201-158.compute-1.amazonaws.com
+mkdir src
+
+######
+# 03 # Install Docker in EC2 (in EC2)
+######
+sudo yum update
+sudo yum search docker
+sudo yum install docker
+sudo usermod -a -G docker ec2-user
+sudo systemctl enable docker.service
+sudo systemctl start docker.service
+
+######
+# 04 # Install files for Docker to run (in Powershell where Dockerfile and secrets are located)
+######
+cd C:\Users\rjvia\Documents\Land_engines_code\Julia\LandValue
+scp -i ~/landengines_kp.pem Dockerfile ec2-user@ec2-XX-XXX-XXX-XX.compute-1.amazonaws.com:/home/ec2-user
+scp -i ~/landengines_kp.pem secrets.env ec2-user@ec2-XX-XXX-XXX-XX.compute-1.amazonaws.com:/home/ec2-user
+cd src 
+scp -i ~/landengines_kp.pem script_2A_ejecutaCombinaciones_volumetrica.jl ec2-user@ec2-XX-XXX-XXX-XX.compute-1.amazonaws.com:/home/ec2-user/src
+### Warning: Before running docker, you have to link EC2 with RDS in the AWS console ### 
+
+######
+# 06 # Build and Run Bocker (in EC2)
+######
+### Install remote access from vscode ###
+docker build --no-cache -t landengines_docker_1 .
+docker run -it landengines_docker_1
+
+######
+# 07 # Terminate Instance (in Powershell)
+######
+aws ec2 terminate-instances --instance-ids i-0af9a5c8969b8f4fc
