@@ -40,6 +40,7 @@ function obtienePrediosAltura(conn_gis_data, nombre_datos_predios_vitacura, comu
         # Obtiene los predios disponibles con potencial de altura
         query_predios_altura_str = """
         	CREATE TABLE __predios_altura AS
+            
         	WITH predios_altura AS (SELECT codigo_predial, num_roles, zona, num_pisos_total, altura_max_total, ST_Transform(geom_predios,5361) as geom
         			FROM datos_predios_vitacura__ 
         			WHERE num_pisos_total >= 4 AND num_roles = 1 AND sup_construccion < sup_terreno_edif AND codigo_predial not in (SELECT anteproyectos_vitacura.codigo_predial 
@@ -51,6 +52,7 @@ function obtienePrediosAltura(conn_gis_data, nombre_datos_predios_vitacura, comu
         			FROM division_comunal JOIN poi_vitacura_points on st_contains(ST_Transform(division_comunal.geom,5361), ST_Transform(poi_vitacura_points.geom,5361))
         			WHERE poi_vitacura_points.osm_subtype NOT IN ('swimming_pool', 'commercial') AND poi_vitacura_points.osm_type <> 'shop' AND division_comunal.nom_com = 'Vitacura'),
         		predios_inmobiliarias AS (select geom_predios as geom, codigo_predial from datos_predios_vitacura__ where UPPER(propietario) LIKE any(array['%INMOB%', '%CONSTR%', '%HOTEL%', '%S.A%', '%EMBAJADA%']))
+
         	SELECT predios_altura.geom as geom, ST_AsText(predios_altura.geom) as predios_str, predios_altura.codigo_predial
         	FROM predios_altura 
         	WHERE 	predios_altura.codigo_predial not in (SELECT predios_inter_poi.codigo_predial as codigo_predial FROM predios_inter_poi) and 
@@ -363,7 +365,7 @@ function generaCombinacionesFinales(df_predios_combi, df_predios, nombre_tabla_c
 
 end
 
-nombre_datos_predios_vitacura = "datos_predios_vitacura"
+nombre_datos_predios_vitacura = "datos_predios_vitacura_old"
 comunaStr = "vitacura"
 codigo_predial = [151600041700009]
 dx, dy = obtieneDelta(codigo_predial, conn_gis_data)
