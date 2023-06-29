@@ -77,45 +77,15 @@ end
 minProb = 0.0
 
 # Ingresar matriz C de combinaciones
-# Ad = [0 0 0 0 ;
-#       0 0 1 0 ;
-#       0 1 0 0 ;
-#       0 0 0 0 ]
-
 Ad = [0 1 1 0 0 0 0;
       1 0 1 0 0 0 0;
-      1 1 0 0 0 0 0;
-      0 0 0 0 0 0 0;
-      0 0 0 0 0 0 0;
-      0 0 0 0 0 0 1;
-      0 0 0 0 0 1 0]
+      1 1 0 1 0 0 0;
+      0 0 1 0 1 1 0;
+      0 0 0 1 0 0 1;
+      0 0 0 1 0 0 1;
+      0 0 0 0 1 1 0]
 graphMod.graphPlot(Ad)
 C = graphMod.node_combis(Ad, flag_mat = true) #matriz de Combinaciones de lotes
-# C = [1 1 1 0 0 0 0;
-#      0 0 0 1 0 0 0;
-#      0 0 0 0 1 1 1]
-# C =   [ 1  1  1  0  0;
-#         1  1  0  1  1;
-#         1  1  0  1  0;
-#         1  1  0  0  0;
-#         1  1  1  1  0;
-#         1  0  0  1  1;
-#         1  0  0  1  0;
-#         1  1  1  1  1;
-#         1  0  0  0  1;
-#         1  0  0  0  0;
-#         1  1  0  0  1;
-#         0  1  1  0  0;
-#         0  1  0  1  1;
-#         0  1  0  1  0;
-#         0  1  0  0  0;
-#         1  1  1  0  1;
-#         0  1  1  1  1;
-#         0  1  1  1  0;
-#         0  0  1  0  0;
-#         0  0  0  1  1;
-#         0  0  0  1  0;
-#         0  0  0  0  1]
 
 
 vec_sg = graphMod.getDisconnectedSubgraphs_v2(C)
@@ -126,7 +96,7 @@ prob_compraValorMercado = .1
 numLotes = size(C, 2)
 valorMercado_lote = 38888.
 valorMercado_lotes = vec(ones(numLotes,1) .* valorMercado_lote)
-# valorMercado_lotes = [38888., 38888., 38888., 38888., 38888.]
+
 
 # Ingresar vector valorInmobiliario_combis
 prob_compraValorInmobiliario = .9
@@ -134,17 +104,13 @@ valorInmobiliario_lote = 50000.
 valorInmobiliario_combis = sum(C, dims=2) .* valorInmobiliario_lote #valor de los combis para el Inmobiliario
 valorInmobiliario_combis[ sum(C, dims=2) .<= 1 ] .= valorMercado_lote
 valorInmobiliario_combis = vec(valorInmobiliario_combis)
-# valorInmobiliario_combis = [135000.0, 180000.0, 135000.0, 90000.0, 180000.0, 135000.0, 90000.0, 225000.0, 
-# 90000.0, 38888.0, 135000.0, 90000.0, 135000.0, 90000.0, 38888.0, 180000.0, 180000.0, 135000.0, 38888.0,
-# 90000.0, 38888.0, 38888.0]
+
 
 # Ingresar superficie_lotes
 superficie_lotes = [700. for i = 1:numLotes]
-# superficie_lotes = [700., 700.,  700.,  700.,  700.]
 
 
-# solve problem starting from the point
-x0 = valorMercado_lotes
+x0 = valorMercado_lotes # Solución inicial
 xopt = copy(x0)
 util_vec = zeros(num_sg,1)
 inv_vec = zeros(num_sg,1)

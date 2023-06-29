@@ -37,7 +37,7 @@ function obtienePrediosAltura(conn_gis_data, nombre_datos_predios_vitacura, comu
 
     if isempty(df_check_predios_altura) # En caso que no exista la tabla __predios_altura
 
-        # Obtiene los predios disponibles con potencial de altura
+        # Obtiene los predios disponibles con potencial de altura         INMOB%', '%CONSTR%', '%HOTEL%', '%S.A%', '%EMBAJADA
         query_predios_altura_str = """
         	CREATE TABLE __predios_altura AS
             
@@ -197,13 +197,15 @@ function generaCombinaciones(conjunto_manzanas, nombre_tabla_combinacion_predios
                     combi_predios = [[1]]
                 end
 
+                combi_predios = combi_predios[length.(combi_predios) .<= num_lote_max]
                 length_combi_predios = length(combi_predios)
                 display(length_combi_predios)
 
                 vec_area_combi = zeros(length_combi_predios, 1)
                 for i = 1:length_combi_predios
                     combi_i = combi_predios[i]
-                    ps_i = polyShape.polyUnion(polyShape.subShape(ps_predios_manzana, combi_i))
+                    #ps_i = polyShape.polyUnion(polyShape.subShape(ps_predios_manzana, combi_i))
+                    ps_i = polyShape.polyExpand(polyShape.polyExpand(polyShape.subShape(ps_predios_manzana, combi_i),0.02),-0.02)
 
                     if ps_i.NumRegions == 1 #Si la unión genera un sólo polígono --> predios están conectados
                         area_i = polyShape.polyArea(ps_i)
@@ -264,7 +266,7 @@ function generaCombinacionesFinales(df_predios_combi, df_predios, nombre_tabla_c
 
     conjunto_manzanas = sort(unique(df_predios_combi[:,"manzana_id"]))
 
-    for num_manzana in conjunto_manzanas
+    for num_manzana in conjunto_manzanas   # Manzana N°: 2738
         display("##################################")
         display("# Manzana N°: " * string(num_manzana))
         display("##################################")
@@ -290,6 +292,7 @@ function generaCombinacionesFinales(df_predios_combi, df_predios, nombre_tabla_c
         vec_id_str = string.(vec_id)
         num_lotes = length(vec_id_str)
         print(vec_id_str)
+        combi_predios = []
         if sum(flag_area_vec) >= 2
             # Obtiene matriz de adyacencia a partir de la magnitud del largo compartido
             length_mat = zeros(num_lotes, num_lotes)
@@ -324,6 +327,7 @@ function generaCombinacionesFinales(df_predios_combi, df_predios, nombre_tabla_c
         for i = 1:length_combi_predios
             combi_i = combi_predios[i]
             ps_i = polyShape.polyUnion(vec_ps_predios_manzana[combi_i])
+            ps_i = polyShape.polyExpand(polyShape.polyExpand(ps_i,0.02),-0.02)
 
             if ps_i.NumRegions == 1 #Si la unión genera un sólo polígono --> predios están conectados
                 area_i = polyShape.polyArea(ps_i)
@@ -365,7 +369,7 @@ function generaCombinacionesFinales(df_predios_combi, df_predios, nombre_tabla_c
 
 end
 
-nombre_datos_predios_vitacura = "datos_predios_vitacura_old"
+nombre_datos_predios_vitacura = "datos_predios_vitacura"
 comunaStr = "vitacura"
 codigo_predial = [151600041700009]
 dx, dy = obtieneDelta(codigo_predial, conn_gis_data)
@@ -420,7 +424,7 @@ nombre_tabla_combinacion_predios = "tabla_combinacion_predios"
 #########################################################
 # filtros
 #########################################################
-area_lote_lb = 400
+area_lote_lb = 450 #400
 area_lote_ub = 3000
 area_predio_lb = 1200
 area_predio_ub = 4000
