@@ -58,7 +58,7 @@ module queryCabida
         df_ = pg_julia.query(conn, query_str)
         ps_buffer_predio = polyShape.astext2polyshape(df_.buffer_str)
         ps_buffer_predio = polyShape.ajustaCoordenadas(ps_buffer_predio, dx, dy)
-        ps_buffer_predio = setPolyOrientation(ps_buffer_predio,1)
+        ps_buffer_predio = polyShape.setPolyOrientation(ps_buffer_predio,1)
 
         return ps_buffer_predio
     end
@@ -83,10 +83,10 @@ module queryCabida
         query_str = replace(query_str, "prediosStr_" => "datos_predios_" * lowercase(comunaStr))
         df_ = pg_julia.query(conn, query_str)
         ps_predios_buffer = polyShape.astext2polyshape(df_.predios_str)
-        ps_predios_buffer = ajustaCoordenadas(ps_predios_buffer, dx, dy)
+        ps_predios_buffer = polyShape.ajustaCoordenadas(ps_predios_buffer, dx, dy)
         ps_predios_buffer = polyShape.polyUnique(ps_predios_buffer)
         ps_predios_buffer = polyShape.polyEliminateWithin(ps_predios_buffer)
-        ps_predios_buffer = setPolyOrientation(ps_predios_buffer,1)
+        ps_predios_buffer = polyShape.setPolyOrientation(ps_predios_buffer,1)
 
         return ps_predios_buffer
     end
@@ -97,7 +97,7 @@ module queryCabida
         WITH buffer_predio AS (select ST_Union(ST_Buffer(ST_Transform(geom_predios,5361), bufferDistStr_)) as geom
                     from datos_predios_comunaStr_
                     where codigo_predial IN codPredialStr_),
-                    predios_comuna AS (select ST_Transform(prediosStr_.geom_predios,5361) as geom, ST_AsText(ST_Transform(prediosStr_.geom_predios,5361)) as predios_str
+             predios_comuna AS (select ST_Transform(prediosStr_.geom_predios,5361) as geom, ST_AsText(ST_Transform(prediosStr_.geom_predios,5361)) as predios_str
                     from prediosStr_)
         select  ST_AsText(st_intersection(predios_comuna.geom, buffer_predio.geom)) as predios_str
         from predios_comuna join buffer_predio on st_intersects(predios_comuna.geom, buffer_predio.geom)
@@ -110,10 +110,10 @@ module queryCabida
         query_str = replace(query_str, "prediosStr_" => "datos_predios_" * lowercase(comunaStr))
         df_ = pg_julia.query(conn, query_str)
         ps_predios_intra_buffer = polyShape.astext2polyshape(df_.predios_str)
-        ps_predios_intra_buffer = ajustaCoordenadas(ps_predios_intra_buffer, dx, dy)
+        ps_predios_intra_buffer = polyShape.ajustaCoordenadas(ps_predios_intra_buffer, dx, dy)
         ps_predios_intra_buffer = polyShape.polyUnique(ps_predios_intra_buffer)
         ps_predios_intra_buffer = polyShape.polyEliminateWithin(ps_predios_intra_buffer)
-        ps_predios_intra_buffer = setPolyOrientation(ps_predios_intra_buffer,1)
+        ps_predios_intra_buffer = polyShape.setPolyOrientation(ps_predios_intra_buffer,1)
 
         return ps_predios_intra_buffer
     end
@@ -137,8 +137,8 @@ module queryCabida
         query_str = replace(query_str, "comunaStr_" => comunaStr)
         df_ = pg_julia.query(conn, query_str)
         ps_manzanas_buffer = polyShape.astext2polyshape(df_.buffer_manzana_str)
-        ps_manzanas_buffer = ajustaCoordenadas(ps_manzanas_buffer, dx, dy)
-        ps_manzanas_buffer = setPolyOrientation(ps_manzanas_buffer,1)
+        ps_manzanas_buffer = polyShape.ajustaCoordenadas(ps_manzanas_buffer, dx, dy)
+        ps_manzanas_buffer = polyShape.setPolyOrientation(ps_manzanas_buffer,1)
         
         return ps_manzanas_buffer
     end
@@ -162,8 +162,8 @@ module queryCabida
         query_str = replace(query_str, "comunaStr_" => comunaStr)
         df_ = pg_julia.query(conn, query_str)
         ps_manzanas_intra_buffer = polyShape.astext2polyshape(df_.buffer_manzana_str)
-        ps_manzanas_intra_buffer = ajustaCoordenadas(ps_manzanas_intra_buffer, dx, dy)
-        ps_manzanas_intra_buffer = setPolyOrientation(ps_manzanas_intra_buffer,1)
+        ps_manzanas_intra_buffer = polyShape.ajustaCoordenadas(ps_manzanas_intra_buffer, dx, dy)
+        ps_manzanas_intra_buffer = polyShape.setPolyOrientation(ps_manzanas_intra_buffer,1)
         
         return ps_manzanas_intra_buffer
     end
