@@ -69,9 +69,8 @@ module queryCabida
         WITH buffer_predio AS (select ST_Union(ST_Buffer(ST_Transform(geom_predios,5361), bufferDistStr_)) as geom
                     from datos_predios_comunaStr_
                     where codigo_predial IN codPredialStr_),
-                predios_comuna AS (select ST_Transform(predios_metropolitana.geom,5361) as geom, ST_AsText(ST_Transform(predios_metropolitana.geom,5361)) as predios_str
-                    from predios_metropolitana
-                    where comuna = 'comunaStrUpper_'
+                predios_comuna AS (select ST_Transform(prediosStr_.geom_predios,5361) as geom, ST_AsText(ST_Transform(prediosStr_.geom_predios,5361)) as predios_str
+                    from prediosStr_
                 )
         select predios_comuna.predios_str
         from predios_comuna join buffer_predio on st_intersects(predios_comuna.geom, buffer_predio.geom)
@@ -81,6 +80,7 @@ module queryCabida
         query_str = replace(query_str, "comunaStr_" => comunaStr)
         query_str = replace(query_str, "comunaStrUpper_" => uppercase(comunaStr))
         query_str = replace(query_str, "codPredialStr_" => codPredialStr)
+        query_str = replace(query_str, "prediosStr_" => "datos_predios_" * lowercase(comunaStr))
         df_ = pg_julia.query(conn, query_str)
         ps_predios_buffer = polyShape.astext2polyshape(df_.predios_str)
         ps_predios_buffer = ajustaCoordenadas(ps_predios_buffer, dx, dy)
@@ -97,9 +97,8 @@ module queryCabida
         WITH buffer_predio AS (select ST_Union(ST_Buffer(ST_Transform(geom_predios,5361), bufferDistStr_)) as geom
                     from datos_predios_comunaStr_
                     where codigo_predial IN codPredialStr_),
-                predios_comuna AS (select ST_Transform(predios_metropolitana.geom,5361) as geom, ST_AsText(ST_Transform(predios_metropolitana.geom,5361)) as predios_str
-                    from predios_metropolitana
-                    where comuna = 'comunaStrUpper_')
+                    predios_comuna AS (select ST_Transform(prediosStr_.geom_predios,5361) as geom, ST_AsText(ST_Transform(prediosStr_.geom_predios,5361)) as predios_str
+                    from prediosStr_)
         select  ST_AsText(st_intersection(predios_comuna.geom, buffer_predio.geom)) as predios_str
         from predios_comuna join buffer_predio on st_intersects(predios_comuna.geom, buffer_predio.geom)
         """
@@ -108,6 +107,7 @@ module queryCabida
         query_str = replace(query_str, "comunaStr_" => comunaStr)
         query_str = replace(query_str, "comunaStrUpper_" => uppercase(comunaStr))
         query_str = replace(query_str, "codPredialStr_" => codPredialStr)
+        query_str = replace(query_str, "prediosStr_" => "datos_predios_" * lowercase(comunaStr))
         df_ = pg_julia.query(conn, query_str)
         ps_predios_intra_buffer = polyShape.astext2polyshape(df_.predios_str)
         ps_predios_intra_buffer = ajustaCoordenadas(ps_predios_intra_buffer, dx, dy)
