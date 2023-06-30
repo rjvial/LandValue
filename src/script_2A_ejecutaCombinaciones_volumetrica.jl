@@ -20,7 +20,7 @@ using LandValue, Distributed, DotEnv
     #[151600187100049, 151600187100050, 151600187100048, 151600187100013, 151600187100014, 151600187100051, 151600187100052, 151600187100053, 151600187100015, 151600187100016, 151600187100054, 151600187100055]
     #[151600135700009, 151600135700003, 151600135700004, 151600135700005, 151600135700016, 151600135700017, 151600135700018, 151600135700019, 151600135700020]
 
-let codigo_predial = [] #[151600042700004, 151600042700005, 151600042700017]
+let codigo_predial = [151600189900001, 151600189900002, 151600189900003, 151600189900004, 151600189900005, 151600189900006, 151600189900013, 151600189900014, 151600189900015, 151600189900019, 151600189900020, 151600189900021]
     # Para cómputos sobre la base de datos usar codigo_predial = []
 
     tipoOptimizacion = "volumetrica"
@@ -118,7 +118,7 @@ let codigo_predial = [] #[151600042700004, 151600042700005, 151600042700017]
             pg_julia.query(conn_LandValue, query_str)
         end
 
-        num_workers = 8 #60 #
+        num_workers = 60 #
         addprocs(num_workers; exeflags="--project")
         @everywhere using LandValue, Distributed
 
@@ -265,3 +265,5 @@ end
 
 #pg_dump -h aws-landengines-db.cggiqowut9c4.us-east-1.rds.amazonaws.com -U postgres -d gis_data -t "anteproyectos_vitacura" -t "areas_verde_vitacura" -t "datos_cbrs_vitacura" -t "datos_manzanas_vitacura_2017" -t "datos_manzanas_vitacura_ampliado_2017" -t "datos_predios_vitacura" -t "datos_roles_vitacura" -t "division_comunal" | psql -d gis_data_local -h localhost -U postgres
 #pg_dump -h aws-landengines-db.cggiqowut9c4.us-east-1.rds.amazonaws.com -U postgres -d gis_data -t "maestro_de_calles" -t "manzanas_1990" -t "permisos_vitacura" -t "poi_vitacura" -t "poi_vitacura_points" -t "prc_vitacura" -t "predios_1990" -t "predios_metropolitana" -t "predios_vitacura_2016" -t "superficie_areas_verdes_santiago" | psql -d gis_data_local -h localhost -U postgres
+
+#pg_dump -h localhost -U postgres -d landengines_local -t "tabla_combinacion_predios"  | psql -d landengines_dev -h aws-landengines-db.cggiqowut9c4.us-east-1.rds.amazonaws.com -U postgres
