@@ -97,7 +97,7 @@ module queryCabida
         WITH buffer_predio AS (select ST_Union(ST_Buffer(ST_Transform(geom_predios,5361), bufferDistStr_)) as geom
                     from datos_predios_comunaStr_
                     where codigo_predial IN codPredialStr_),
-             predios_comuna AS (select ST_Transform(prediosStr_.geom_predios,5361) as geom, ST_AsText(ST_Transform(prediosStr_.geom_predios,5361)) as predios_str
+             predios_comuna AS (select ST_Buffer(ST_Transform(prediosStr_.geom_predios,5361),0) as geom, ST_AsText(ST_Transform(prediosStr_.geom_predios,5361)) as predios_str
                     from prediosStr_)
         select  ST_AsText(st_intersection(predios_comuna.geom, buffer_predio.geom)) as predios_str
         from predios_comuna join buffer_predio on st_intersects(predios_comuna.geom, buffer_predio.geom)
