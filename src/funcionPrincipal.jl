@@ -67,6 +67,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
     ps_predio_db = polyShape.setPolyOrientation(ps_predio_db, 1)
     ps_predio_db, dx, dy = polyShape.ajustaCoordenadas(ps_predio_db)
     ps_predio_db = polyShape.polyUnion(ps_predio_db)
+    ps_predio_db = polyShape.polyExpand(polyShape.polyExpand(ps_predio_db,0.02),-0.02)
     simplify_value = 1.0 #1. #.1
     ps_predio = polyShape.shapeSimplify(ps_predio_db, simplify_value)
     ps_predio = polyShape.polyEliminaColineales(ps_predio)
