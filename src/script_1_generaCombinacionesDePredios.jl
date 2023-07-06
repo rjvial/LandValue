@@ -424,7 +424,7 @@ nombre_tabla_combinacion_predios = "tabla_combinacion_predios"
 #########################################################
 # filtros
 #########################################################
-area_lote_lb = 450 #400
+area_lote_lb = 400
 area_lote_ub = 3000
 area_predio_lb = 1200
 area_predio_ub = 4000
