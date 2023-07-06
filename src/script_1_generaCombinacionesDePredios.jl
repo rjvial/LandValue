@@ -204,8 +204,8 @@ function generaCombinaciones(conjunto_manzanas, nombre_tabla_combinacion_predios
                 vec_area_combi = zeros(length_combi_predios, 1)
                 for i = 1:length_combi_predios
                     combi_i = combi_predios[i]
-                    #ps_i = polyShape.polyUnion(polyShape.subShape(ps_predios_manzana, combi_i))
-                    ps_i = polyShape.polyExpand(polyShape.polyExpand(polyShape.subShape(ps_predios_manzana, combi_i),0.02),-0.02)
+                    ps_i = polyShape.polyUnion(polyShape.subShape(ps_predios_manzana, combi_i))
+                    # ps_i = polyShape.polyExpand(polyShape.polyExpand(polyShape.subShape(ps_predios_manzana, combi_i),0.02),-0.02)
 
                     if ps_i.NumRegions == 1 #Si la unión genera un sólo polígono --> predios están conectados
                         area_i = polyShape.polyArea(ps_i)
