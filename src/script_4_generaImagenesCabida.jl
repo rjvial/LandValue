@@ -8,7 +8,7 @@ conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], dat
 query_resultados_str = """
 SELECT *
 FROM public.tabla_resultados_cabidas
-WHERE id > 4000 AND id <= 5000; 
+WHERE id > 0 AND id <= 5000; 
 """
 df_resultados = pg_julia.query(conn_LandValue, query_resultados_str)
 
