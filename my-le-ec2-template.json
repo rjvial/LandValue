@@ -1,0 +1,25 @@
+{
+  "ImageId": "ami-0889a44b331db0194",
+  "InstanceType": "m5.16xlarge",
+  "MinCount": 1,
+  "MaxCount": 1,
+  "SecurityGroupIds": ["sg-01791c00da527aad7"],
+  "SubnetId": "subnet-02dfe0cdc6db91616",
+  "KeyName": "landengines_kp",
+  "InstanceMarketOptions": {
+    "MarketType": "spot",
+    "SpotOptions": {
+      "SpotInstanceType": "persistent",
+      "InstanceInterruptionBehavior": "stop",
+      "MaxPrice": "2.5"
+    }
+  },
+  "BlockDeviceMappings": [
+    {
+      "DeviceName": "/dev/xvda",
+      "Ebs": {
+        "VolumeSize": 30
+      }
+    }
+  ]
+}

@@ -2,18 +2,21 @@
 # 01 # Launch EC2 with spot-options.json & mapping-options.json (in Powershell)
 ######
 cd C:\Users\rjvia
-aws ec2 run-instances --image-id ami-0889a44b331db0194 --count 1 --instance-type c6a.16xlarge --security-group-ids sg-01791c00da527aad7 --subnet-id subnet-02dfe0cdc6db91616 --region us-east-1 --key-name landengines_kp --instance-market-options file://spot-options.json --block-device-mappings file://mapping-options.json
-aws ec2 run-instances --image-id ami-0889a44b331db0194 --count 1 --instance-type m5.16xlarge --security-group-ids sg-01791c00da527aad7 --subnet-id subnet-02dfe0cdc6db91616 --region us-east-1 --key-name landengines_kp --instance-market-options file://spot-options.json --block-device-mappings file://mapping-options.json
+aws ec2 run-instances --cli-input-json file://my-le-ec2-template.json
+#NO# aws ec2 run-instances --image-id ami-0889a44b331db0194 --count 1 --instance-type c6a.16xlarge --security-group-ids sg-01791c00da527aad7 --subnet-id subnet-02dfe0cdc6db91616 --region us-east-1 --key-name landengines_kp --instance-market-options file://spot-options.json --block-device-mappings file://mapping-options.json
+#NO# aws ec2 run-instances --image-id ami-0889a44b331db0194 --count 1 --instance-type m5.16xlarge --security-group-ids sg-01791c00da527aad7 --subnet-id subnet-02dfe0cdc6db91616 --region us-east-1 --key-name landengines_kp --instance-market-options file://spot-options.json --block-device-mappings file://mapping-options.json
+
+
 ######
 # 02 # Connect to EC2 (in Powershell, in the aws console get ssh info)
 ######
 ssh -i "landengines_kp.pem" ec2-user@ec2-XX-XXX-XXX-XX.compute-1.amazonaws.com
-ssh -i "landengines_kp.pem" ec2-user@ec2-18-207-153-109.compute-1.amazonaws.com
-mkdir src
+
 
 ######
 # 03 # Install Docker in EC2 (in EC2)
 ######
+mkdir src
 sudo yum update
 sudo yum search docker
 sudo yum install docker
