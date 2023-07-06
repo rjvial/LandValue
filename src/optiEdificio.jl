@@ -145,7 +145,7 @@ function optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, alturaEdif, ps_base, superfi
         sum(numDeptosTipo) <= maxDeptos
 
     # Restricciones de Asignacion de Tipos de Deptos
-        numDeptosTipoPorPiso .* numPisosMaxVol .== numDeptosTipo
+        numDeptosTipoPorPiso .* (numPisosMaxVol - 1) .== numDeptosTipo
 
     # Restricciones de Estacionamientos
         estacionamientosVendibles >= sum(dcc.estacionamientosPorViv .* numDeptosTipo)  

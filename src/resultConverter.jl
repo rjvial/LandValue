@@ -151,7 +151,7 @@ function resultConverter(x::Array{Float64,1}, template::Int64, sepNaves::Float64
         ps_base = polyShape.polyUnion(ps_base, ps2)
         ps_baseSeparada = PolyShape([ps0.Vertices[1], ps1.Vertices[1], ps2.Vertices[1]], 3)
 
-    elseif template == 7 #Y
+    elseif template == 7 #S
         pos_x0 = x[3]
         pos_y0 = x[4]
         phi1 = x[5]
@@ -170,8 +170,8 @@ function resultConverter(x::Array{Float64,1}, template::Int64, sepNaves::Float64
         ps1_ = polyShape.polyBox(pos_x0, pos_y0 + largo0, anchoLado1, largo1, phi1 - pi/2, cr_phi1)
         ps1 = polyShape.polyRotate(ps1_, theta, cr_theta)
         
-        cr_phi2  = [pos_x0 + anchoLado2; pos_y0 + largo0 - anchoLado2];        
-        ps2_ = polyShape.polyBox(pos_x0 + anchoLado0, pos_y0 + largo0 - anchoLado2, anchoLado2, largo2, phi2 + pi/2, cr_phi2)
+        cr_phi2  = [pos_x0 + anchoLado0; pos_y0];        
+        ps2_ = polyShape.polyBox(pos_x0 + anchoLado0, pos_y0, anchoLado2, largo2, phi2 + pi/2, cr_phi2)
         ps2 = polyShape.polyRotate(ps2_, theta, cr_theta)
 
         ps_base = polyShape.polyUnion(ps0, ps1)
