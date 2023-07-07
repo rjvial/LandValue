@@ -65,12 +65,10 @@ function generaCotas(template, minPisos, maxPisos, V_areaEdif, sepNaves, maxDiag
         ub = [max_pisos, max_theta, xmax, ymax, max_alfa, max_largo1, max_largo2, max_ancho]
 
     elseif template == 5 #H
-        min_pisos = min(minPisos, maxPisos - 1); max_pisos = dcn.maxPisos
+        min_pisos = min(minPisos, maxPisos - 1); max_pisos = maxPisos
         min_theta = -pi; max_theta = pi
         xmin = minimum(V_areaEdif[:, 1]); xmax = maximum(V_areaEdif[:, 1])
         ymin = minimum(V_areaEdif[:, 2]); ymax = maximum(V_areaEdif[:, 2])
-        largos, angulosExt, angulosInt, largosDiag = polyShape.extraeInfoPoly(ps_areaEdif)
-        maxDiagonal = maximum(largosDiag)
         min_largo = sepNaves; max_largo = maxDiagonal
         min_largo1_ = sepNaves; max_largo1_ = maxDiagonal
         min_largo1 = sepNaves; max_largo1 = maxDiagonal
