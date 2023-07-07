@@ -166,7 +166,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         vecAlturas_conSombra = sort(unique(V_volConSombra[:, end]))
         # fig, ax, ax_mat = polyShape.plotPolyshape3D(ps_volConSombra, matConexionVertices_conSombra, vecVertices_conSombra)
 
-        sepNaves = 12 #dca.anchoMin - 0
+        sepNaves = 12. #dca.anchoMin - 0
 
         maxSupConstruida = superficieTerreno * dcn.coefConstructibilidad * (1 + 0.3 * dcp.fusionTerrenos)
         maxOcupación = dcn.coefOcupacion * superficieTerreno
