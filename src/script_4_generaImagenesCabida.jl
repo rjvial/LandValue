@@ -48,7 +48,7 @@ pg_julia.query(conn_LandValue, query_dir_image_str)
 
 
 for r in rowSet
-    display("Generando Imagen de Cabida N° = " * string(df_resultados[r, "id"]))
+    display("Generando Imagen de Cabida N° = " * string(r))
     display("")
 
     codigo_predial = eval(Meta.parse(df_resultados[r, "combi_predios"]))
@@ -67,7 +67,7 @@ for r in rowSet
     ps_predios_intra_buffer = eval(Meta.parse(df_resultados[r, "ps_predios_intra_buffer"]))
     ps_manzanas_intra_buffer = eval(Meta.parse(df_resultados[r, "ps_manzanas_intra_buffer"]))
     ps_calles_intra_buffer = eval(Meta.parse(df_resultados[r, "ps_calles_intra_buffer"]))
-    id = df_resultados[r, "id"]
+    id = r
 
     filestr = "C:\\Users\\rjvia\\Documents\\Land_engines_code\\Julia\\imagenes_cabidas\\____cabida_vitacura_" * string(id) * ".png"
 
