@@ -6,9 +6,11 @@ conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], dat
 
 
 query_resultados_str = """
-SELECT *
+SELECT combi_predios, optimo_solucion, ps_predio, ps_vol_teorico, mat_conexion_vertices_vol_teorico,
+"vecVertices_volTeorico", "ps_volConSombra", mat_conexion_vertices_con_sombra, vec_vertices_con_sombra,
+ps_publico, ps_calles, ps_base, "ps_baseSeparada", ps_predios_intra_buffer, ps_manzanas_intra_buffer,
+ps_calles_intra_buffer, id
 FROM public.tabla_resultados_cabidas
-WHERE id > 0 AND id <= 5000; 
 """
 df_resultados = pg_julia.query(conn_LandValue, query_resultados_str)
 
@@ -50,7 +52,7 @@ pg_julia.query(conn_LandValue, query_dir_image_str)
 for r in rowSet
     display("Generando Imagen de Cabida N° = " * string(df_resultados[r, "id"]))
     display("")
-
+    
     codigo_predial = eval(Meta.parse(df_resultados[r, "combi_predios"]))
     xopt = eval(Meta.parse(df_resultados[r, "optimo_solucion"]))
     ps_predio = eval(Meta.parse(df_resultados[r, "ps_predio"]))
@@ -86,9 +88,9 @@ for r in rowSet
 
     close("all")
 
-    # aux_str = "C:/Users/rjvia/Documents/Land_engines_code/Julia/imagenes_cabidas/cabida_vitacura_" * string(r) * ".png"
-    # executeStr = "UPDATE tabla_resultados_cabidas SET dir_image_file = \'" * aux_str * "\' WHERE combi_predios = \'" * df_resultados[r, "combi_predios"] * "\'"
-    # pg_julia.query(conn_LandValue, executeStr)
+    aux_str = "C:/Users/rjvia/Documents/Land_engines_code/Julia/imagenes_cabidas/cabida_vitacura_" * string(df_resultados[r, "id"]) * ".png"
+    executeStr = "UPDATE tabla_resultados_cabidas SET dir_image_file = \'" * aux_str * "\', id = " * string(df_resultados[r, "id"]) * " WHERE combi_predios = \'" * df_resultados[r, "combi_predios"] * "\'"
+    pg_julia.query(conn_LandValue, executeStr)
 
 
 end

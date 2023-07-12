@@ -1,10 +1,18 @@
-using LandValue
+using LandValue, DotEnv 
 
-conn_LandValue = pg_julia.connection("LandValue", "postgres", "postgres")
+DotEnv.load("secrets.env") #Caso Docker
+# datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
+datos_mygis_db = ["gis_data", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
+datos_LandValue = ["landengines_local", "postgres", "", "localhost"]
+# datos_mygis_db = ["gis_data_local", "postgres", "", "localhost"]
+
+conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
+conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
+
 
 let codigo_predial = [] #[151600135100018, 151600135100019] #[151600124100009, 151600124100010, 151600124100011, 151600124100012, 151600124100013, 151600124100014, 151600124100015] 
     # Para cómputos sobre la base de datos usar codigo_predial = []
-    tipoOptimizacion = "economica"
+    tipoOptimizacion = "provisoria" #"economica"
 
     if isempty(codigo_predial)
 
@@ -100,17 +108,17 @@ let codigo_predial = [] #[151600135100018, 151600135100019] #[151600124100009, 1
         num_combi = size(df_combinaciones,1)
         for i = 1:num_combi
             combi_i_str = df_combinaciones[i,1]
-            id_i = df_combinaciones[i,3]
+            id_i = df_combinaciones[i,"id"]
             display("***************************************************")
             display("* Ejecutando cabida predio: " * combi_i_str)
             display("***************************************************")
             codigo_predial = eval(Meta.parse(combi_i_str))
         
-            try
+            # try
                         
                 # Etapa 2-B: Ejecuta optimización Económica y presenta resumen de resultados 
                 
-                @time dcc, resultados = funcionPrincipal(tipoOptimizacion, codigo_predial, i);
+                @time dcc, resultados = funcionPrincipal(tipoOptimizacion, codigo_predial, id_i, datos_LandValue, datos_mygis_db);
         
                 displayResults(resultados, dcc)
                 println(" ")
@@ -122,26 +130,26 @@ let codigo_predial = [] #[151600135100018, 151600135100019] #[151600124100009, 1
                 vecColumnValue = ["2", string(id_i)]
                 pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)    
         
-            catch error
-                display("")
-                display("#############################################################################")
-                display("#############################################################################")
-                display("# Se produjo un error, se proseguirá con la siguiente combinación de lotes. #")
-                display("#############################################################################")
-                display("#############################################################################")
-                display("")
+            # catch error
+            #     display("")
+            #     display("#############################################################################")
+            #     display("#############################################################################")
+            #     display("# Se produjo un error, se proseguirá con la siguiente combinación de lotes. #")
+            #     display("#############################################################################")
+            #     display("#############################################################################")
+            #     display("")
         
-                cond_str = "=" * string(id_i)
-                vecColumnNames = ["status", "id"]
-                vecColumnValue = ["29", string(id_i)]
-                pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)    
+            #     cond_str = "=" * string(id_i)
+            #     vecColumnNames = ["status", "id"]
+            #     vecColumnValue = ["29", string(id_i)]
+            #     pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)    
         
-            end
+            # end
         end
     else
         id_ = 0
 
-        dcc, resultados, xopt = funcionPrincipal(tipoOptimizacion, codigo_predial, id_)
+        dcc, resultados, xopt = funcionPrincipal(tipoOptimizacion, codigo_predial, id_, datos_LandValue, datos_mygis_db)
 
         displayResults(resultados, dcc)
 
