@@ -103,9 +103,9 @@ let codigo_predial = [] #[151600135100018, 151600135100019] #[151600124100009, 1
             pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames_, vecColumnValue_, "id", cond_str)    
 
            
-            display("")
+            display("#######################################################################################")
             display(" Se agrego a la tabla_resultados_cabidas el resultado predio_id N° " *string(id) * " ejecutado por el worker N° " * string(wkr))
-            display("")
+            display("#######################################################################################")
 
             sleep(1)
 

@@ -7,8 +7,22 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
     #DotEnv.load("secrets.env") #Caso Local
     DotEnv.load("secrets.env") #Caso Docker
     conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
-    conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
+    db_LandValue_str = datos_LandValue[1]
+    query_LandValue_pid = """
+                SELECT max(pid)
+                FROM pg_stat_activity
+                WHERE application_name = 'LibPQ.jl' AND datname = \'$db_LandValue_str\'
+            """
+    pid_landValue = pg_julia.query(conn_LandValue, query_LandValue_pid)[1, :max]
     
+    conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
+    db_mygis_str = datos_mygis_db[1]
+    query_mygis_pid = """
+                SELECT max(pid)
+                FROM pg_stat_activity
+                WHERE application_name = 'LibPQ.jl' AND datname = \'$db_mygis_str\'
+            """
+    pid_mygis = pg_julia.query(conn_mygis_db, query_mygis_pid)[1, :max]
 
     display("Obtiene DatosCabidaArquitectura")
     @time df_arquitectura = pg_julia.query(conn_LandValue, """SELECT * FROM public."tabla_arquitectura_default";""")
@@ -609,22 +623,22 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             resultados.salidaIndicadores.rentabilidadTotalNeta,
             resultados.salidaIndicadores.incidenciaTerreno]
 
-        pg_julia.close_db(conn_LandValue)
-        pg_julia.close_db(conn_mygis_db)
+        # pg_julia.close_db(conn_LandValue)
+        # pg_julia.close_db(conn_mygis_db)
 
-        query_kill_connections = """
-                    SELECT pg_terminate_backend($pid_landValue)
-                    FROM pg_stat_activity
-                    WHERE pg_stat_activity.datname = \'$db_LandValue_str\'
-                """
-        pg_julia.query(conn_LandValue, query_kill_connections)
+        # query_kill_connections = """
+        #             SELECT pg_terminate_backend($pid_landValue)
+        #             FROM pg_stat_activity
+        #             WHERE pg_stat_activity.datname = \'$db_LandValue_str\'
+        #         """
+        # pg_julia.query(conn_LandValue, query_kill_connections)
 
-        query_kill_connections = """
-                    SELECT pg_terminate_backend($pid_mygis)
-                    FROM pg_stat_activity
-                    WHERE pg_stat_activity.datname = \'$db_mygis_str\'
-                """
-        pg_julia.query(conn_mygis_db, query_kill_connections)
+        # query_kill_connections = """
+        #             SELECT pg_terminate_backend($pid_mygis)
+        #             FROM pg_stat_activity
+        #             WHERE pg_stat_activity.datname = \'$db_mygis_str\'
+        #         """
+        # pg_julia.query(conn_mygis_db, query_kill_connections)
 
         sleep(3)
         
