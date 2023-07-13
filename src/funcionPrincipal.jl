@@ -466,10 +466,6 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             dx,
             dy,
             string(id_)]
-        if id_ > 0
-
-            # pg_julia.insertRow!(conn_LandValue, "tabla_resultados_cabidas", vecColumnNames, vecColumnValue, :id)
-        end
 
         alturaPiso = dca.alturaPiso[1]
 
@@ -612,18 +608,6 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             resultados.salidaIndicadores.rentabilidadTotalBruta,
             resultados.salidaIndicadores.rentabilidadTotalNeta,
             resultados.salidaIndicadores.incidenciaTerreno]
-
-        if id_ > 0
-
-            cond_str = "=" * string(id_)
-            vecColumnNames_ = ["status", "id"]
-            vecColumnValue_ = ["1", string(id_)]
-            pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames_, vecColumnValue_, "id", cond_str)
-
-            pg_julia.modifyRow!(conn_LandValue, "tabla_resultados_cabidas", vecColumnNames, vecColumnValue, "combi_predios", "= \'" * string(codigo_predial) * "\'")
-
-        end
-
 
         return dcc, resultados, xopt, vecColumnNames, vecColumnValue, id_
 
