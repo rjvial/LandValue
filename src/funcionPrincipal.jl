@@ -14,7 +14,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
                 WHERE application_name = 'LibPQ.jl' AND datname = \'$db_LandValue_str\'
             """
     pid_landValue = pg_julia.query(conn_LandValue, query_LandValue_pid)[1, :max]
-    
+
     conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
     db_mygis_str = datos_mygis_db[1]
     query_mygis_pid = """
@@ -126,7 +126,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
 
         # Calcula matriz V_areaEdif asociada a los vértices del area de edificación
         display("Establece el área de edificación")
-        
+
         vec_edges_predio = polyShape.polyShape2lineVec(ps_predio)
         numLadosPredio = length(vec_edges_predio)
         vecSecTodos = collect(1:numLadosPredio)
@@ -139,15 +139,15 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         vec_dist = Float64.(vec_edges)
         vec_dist .= -antejardin
         vec_dist[vecSecSinCalle] .= -sepVecinos
-        ps_areaEdif =  polyShape.polyExpandSegmentVec(ps_predio, vec_dist)
+        ps_areaEdif = polyShape.polyExpandSegmentVec(ps_predio, vec_dist)
         V_areaEdif = ps_areaEdif.Vertices[1]
         sup_areaEdif = polyShape.polyArea(ps_areaEdif)
         rasante = dcn.rasante
 
-        vec_altVolteor = collect(0:.5:50) .* rasante
-        vec_altVolteor = vec_altVolteor[vec_altVolteor .< dcn.alturaMax]
+        vec_altVolteor = collect(0:0.5:50) .* rasante
+        vec_altVolteor = vec_altVolteor[vec_altVolteor.<dcn.alturaMax]
         push!(vec_altVolteor, dcn.alturaMax)
-        vec_psVolteor = [polyShape.polyExpand(ps_bruto, -i/rasante) for i in vec_altVolteor]
+        vec_psVolteor = [polyShape.polyExpand(ps_bruto, -i / rasante) for i in vec_altVolteor]
         vec_psVolteor = [polyShape.polyIntersect(vec_psVolteor[i], ps_areaEdif) for i in eachindex(vec_psVolteor)]
 
         # fig, ax, ax_mat = polyShape.plotPolyshape2DVecin3D(vec_psVolteor, vec_altVolteor, "red", 0.2)
@@ -169,10 +169,10 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
 
         display("Calcula el volumen sin restricciones")
         rasante_sombra = Float64(dcn.rasanteSombra)
-        vec_altVolConSombra = collect(0:.5:50) .* rasante_sombra
-        vec_altVolConSombra = vec_altVolConSombra[vec_altVolConSombra .< dcn.alturaMax]
+        vec_altVolConSombra = collect(0:0.5:50) .* rasante_sombra
+        vec_altVolConSombra = vec_altVolConSombra[vec_altVolConSombra.<dcn.alturaMax]
         push!(vec_altVolConSombra, dcn.alturaMax)
-        vec_psVolConSombra = [polyShape.polyExpand(ps_bruto, -i/rasante_sombra) for i in vec_altVolConSombra]
+        vec_psVolConSombra = [polyShape.polyExpand(ps_bruto, -i / rasante_sombra) for i in vec_altVolConSombra]
         vec_psVolConSombra = [polyShape.polyIntersect(vec_psVolConSombra[i], ps_areaEdif) for i in eachindex(vec_psVolConSombra)]
         # fig, ax, ax_mat = polyShape.plotPolyshape2DVecin3D(vec_psVolConSombra, vec_altVolConSombra, "gray", 0.2)
         @time matConexionVertices_conSombra, vecVertices_conSombra, ps_volConSombra = generaVol3D(vec_psVolConSombra, vec_altVolConSombra)
@@ -180,7 +180,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         vecAlturas_conSombra = sort(unique(V_volConSombra[:, end]))
         # fig, ax, ax_mat = polyShape.plotPolyshape3D(ps_volConSombra, matConexionVertices_conSombra, vecVertices_conSombra)
 
-        sepNaves = 12. #dca.anchoMin - 0
+        sepNaves = 12.0 #dca.anchoMin - 0
 
         maxSupConstruida = superficieTerreno * dcn.coefConstructibilidad * (1 + 0.3 * dcp.fusionTerrenos)
         maxOcupación = dcn.coefOcupacion * superficieTerreno
@@ -191,7 +191,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         obj_bbo = x -> fo_bbo(x, template, sepNaves, dca, V_volConSombra, vecAlturas_conSombra, vecVertices_conSombra, matConexionVertices_conSombra, maxOcupación)
 
         porcTerraza = 0.15 / 1.075
-        obj_nomad = x -> fo_nomad(x, template, sepNaves, dca, porcTerraza, flag_conSombra, flag_penalizacion_residual, flag_penalizacion_coefOcup, 
+        obj_nomad = x -> fo_nomad(x, template, sepNaves, dca, porcTerraza, flag_conSombra, flag_penalizacion_residual, flag_penalizacion_coefOcup,
             flag_penalizacion_constructibilidad, flag_divergenciaAncho,
             V_volConSombra, vecAlturas_conSombra, vecVertices_conSombra, matConexionVertices_conSombra,
             V_volTeorico, vecAlturas_volTeorico, vecVertices_volTeorico, matConexionVertices_volTeorico,
@@ -228,7 +228,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
 
         #                    0    1    2    3      4    5    6         7    8              9
         vec_template_str = ["I", "L", "C", "lll", "V", "H", "C-flex", "S", "C-superFlex", "Cuña"]
-        
+
         # Chequea si se encontró la solución óptima o es necesario seguir optimizando
         function chequeaSolucion(x, f, fopt, template)
             alt = min(x[1] * dca.alturaPiso, maximum(vecAlturas_conSombra))
@@ -252,10 +252,10 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             holgura_sombra = minimum([deltaSombra_p, deltaSombra_o, deltaSombra_s])
             flagSeguir = true
 
-            
+
             if f < 99990
 
-                display("Template Tipo " * vec_template_str[template + 1] * "  - f: " * string(f) * "  - constructibilidad: " * string(constructibilidad))
+                display("Template Tipo " * vec_template_str[template+1] * "  - f: " * string(f) * "  - constructibilidad: " * string(constructibilidad))
                 display("Holgura Constructibilidad: " * string(holgura_constructibilidad))
                 display("Holgura Ocupación: " * string(holgura_ocupacion))
                 display("Holgura Superficie: " * string(holgura_superficie))
@@ -264,20 +264,20 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
                     temp_opt = template
                     fopt = f
                     xopt = x
-                    display("Template Tipo " * vec_template_str[template + 1] * ": Se obtuvo una solución mejor.")
+                    display("Template Tipo " * vec_template_str[template+1] * ": Se obtuvo una solución mejor.")
                 else
-                    display("Template Tipo " * vec_template_str[template + 1] * ": No se obtuvo una solución mejor.")
+                    display("Template Tipo " * vec_template_str[template+1] * ": No se obtuvo una solución mejor.")
                 end
 
                 optiTol = 0.0015
-                if (holgura_constructibilidad <= optiTol) || (holgura_ocupacion <= optiTol && numPisos == dcn.maxPisos[1])  || (holgura_ocupacion <= optiTol && holgura_sombra <= optiTol && numPisos >= dcn.maxPisos[1] - 1)
-                    display("Template Tipo " * vec_template_str[template + 1] * ": Solución óptima encontrada. ")
+                if (holgura_constructibilidad <= optiTol) || (holgura_ocupacion <= optiTol && numPisos == dcn.maxPisos[1]) || (holgura_ocupacion <= optiTol && holgura_sombra <= optiTol && numPisos >= dcn.maxPisos[1] - 1)
+                    display("Template Tipo " * vec_template_str[template+1] * ": Solución óptima encontrada. ")
                     flagSeguir = false
                 else
-                    display("Template Tipo " * vec_template_str[template + 1] * ": No se encontró una solución óptima.")
+                    display("Template Tipo " * vec_template_str[template+1] * ": No se encontró una solución óptima.")
                 end
             else
-                display("Template Tipo " * vec_template_str[template + 1] * ": Solución Infactible. ")
+                display("Template Tipo " * vec_template_str[template+1] * ": Solución Infactible. ")
                 flagSeguir = "infactible"
             end
 
@@ -294,25 +294,25 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             flag_divergenciaAncho = template in [7, 8]
             num_penalizaciones = flag_penalizacion_residual + flag_penalizacion_coefOcup + flag_penalizacion_constructibilidad + flag_conSombra + flag_divergenciaAncho
 
-            display("Template Tipo " * vec_template_str[template + 1] * ": Inicio de Optimización BBO. Genera solución inicial.")
+            display("Template Tipo " * vec_template_str[template+1] * ": Inicio de Optimización BBO. Genera solución inicial.")
             x_bbo, f_bbo = optim_bbo(obj_bbo, lb_bbo, ub_bbo)
             fopt, xopt, template, flagSeguir, holgura_constructibilidad = chequeaSolucion(x_bbo, f_bbo, fopt, template)
 
-            if holgura_constructibilidad <= .5 || template in [7, 8]
-                display("Template Tipo " * vec_template_str[template + 1] * ": Inicio de Optimización NOMAD")
+            if holgura_constructibilidad <= 0.5 || template in [7, 8]
+                display("Template Tipo " * vec_template_str[template+1] * ": Inicio de Optimización NOMAD")
                 MaxSteps = 8000
                 lb, ub = generaCotas(template, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
                 initSol = max.(min.(copy(x_bbo), ub), lb)
                 initSol[1] = floor(dcn.maxPisos[1])
                 x_nomad, f_nomad = optim_nomad(obj_nomad, num_penalizaciones, lb, ub, MaxSteps, initSol)
                 fopt, xopt, template, flagSeguir, holgura_constructibilidad = chequeaSolucion(x_nomad, f_nomad, fopt, template)
-    
+
                 if r == length(plan_optimizacion) && flagSeguir == "infactible"
                     template = 1
                     lb_bbo, ub_bbo = generaCotas(template, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, 6)
-                    display("Template Tipo " * vec_template_str[template + 1] * ": Inicio de Optimización BBO. Genera solución inicial.")
+                    display("Template Tipo " * vec_template_str[template+1] * ": Inicio de Optimización BBO. Genera solución inicial.")
                     x_bbo, f_bbo = optim_bbo(obj_bbo, lb_bbo, ub_bbo)
-                    display("Template Tipo " * vec_template_str[template + 1] * ": Inicio de Optimización NOMAD")
+                    display("Template Tipo " * vec_template_str[template+1] * ": Inicio de Optimización NOMAD")
                     MaxSteps = 8000
                     lb, ub = generaCotas(template, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
                     initSol = max.(min.(copy(x_bbo), ub), lb)
@@ -324,7 +324,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
                 if flagSeguir == false
                     break
                 end
-    
+
             end
         end
 
@@ -493,6 +493,25 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             matConexionVertices_conSombra, vecVertices_conSombra, ps_publico, ps_calles, ps_base, ps_baseSeparada,
             ps_calles_intra_buffer_, ps_predios_intra_buffer_, ps_manzanas_intra_buffer_, ps_buffer_predio_, dx, dy, ps_areaEdif]
 
+        pg_julia.close_db(conn_LandValue)
+        pg_julia.close_db(conn_mygis_db)
+
+        query_kill_connections = """
+                    SELECT pg_terminate_backend($pid_landValue)
+                    FROM pg_stat_activity
+                    WHERE pg_stat_activity.datname = \'$db_LandValue_str\'
+                """
+        pg_julia.query(conn_LandValue, query_kill_connections)
+
+        query_kill_connections = """
+                    SELECT pg_terminate_backend($pid_mygis)
+                    FROM pg_stat_activity
+                    WHERE pg_stat_activity.datname = \'$db_mygis_str\'
+                """
+        pg_julia.query(conn_mygis_db, query_kill_connections)
+
+        sleep(3)
+
         return fpe, temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id_
 
     else
@@ -511,7 +530,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             """
             @time df_comercial = pg_julia.query(conn_LandValue, query_str)
         end
-        
+
 
         dcc = DatosCabidaComercial()
         for field_s in fieldnames(DatosCabidaComercial)
@@ -641,7 +660,10 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         # pg_julia.query(conn_mygis_db, query_kill_connections)
 
         sleep(3)
-        
+
+        display("pasó por sin errores por funcionPrincipal")
+
+
         return dcc, resultados, xopt, vecColumnNames, vecColumnValue, id_
 
     end
