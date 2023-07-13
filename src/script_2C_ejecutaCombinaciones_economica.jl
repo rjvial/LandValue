@@ -93,18 +93,8 @@ let codigo_predial = [] #[151600135100018, 151600135100019] #[151600124100009, 1
 
         cont = length(vec_combi)
         while cont > 0 # print out results
-
-            query_kill_connections = """
-                    SELECT pg_terminate_backend(pg_stat_activity.pid)
-                    FROM pg_stat_activity
-                    WHERE pg_stat_activity.datname = 'landengines_local' 
-                    AND pid <> pg_backend_pid();
-                """
-            pg_julia.query(conn_LandValue, query_kill_connections)
-
-            
+ 
             dcc, resultados, xopt, vecColumnNames, vecColumnValue, id, wkr = take!(results)
-
             pg_julia.modifyRow!(conn_LandValue, "tabla_resultados_cabidas", vecColumnNames, vecColumnValue, "combi_predios", "= \'" * string(codigo_predial) * "\'")
 
             cond_str = "=" * string(id)
