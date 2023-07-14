@@ -2,14 +2,14 @@ using LandValue, Distributed, DotEnv
 
 
 
-let codigo_predial = [] #[151600135100018, 151600135100019] #[151600124100009, 151600124100010, 151600124100011, 151600124100012, 151600124100013, 151600124100014, 151600124100015] 
+let codigo_predial = [] #[151600340500126, 151600340500127, 151600340500128] #[151600135100018, 151600135100019] #[151600124100009, 151600124100010, 151600124100011, 151600124100012, 151600124100013, 151600124100014, 151600124100015] 
     # Para cómputos sobre la base de datos usar codigo_predial = []
     tipoOptimizacion = "provisoria" #"economica"
 
     DotEnv.load("secrets.env") #Caso Docker
-    # datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
+    datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
     datos_mygis_db = ["gis_data", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
-    datos_LandValue = ["landengines_local", "postgres", "", "localhost"]
+    # datos_LandValue = ["landengines_local", "postgres", "", "localhost"]
     # datos_mygis_db = ["gis_data_local", "postgres", "", "localhost"]
 
     conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
@@ -18,7 +18,7 @@ let codigo_predial = [] #[151600135100018, 151600135100019] #[151600124100009, 1
 
     if isempty(codigo_predial)
 
-        num_workers = 1
+        num_workers = 8
         addprocs(num_workers; exeflags="--project")
         @everywhere using LandValue, Distributed
 
@@ -26,9 +26,9 @@ let codigo_predial = [] #[151600135100018, 151600135100019] #[151600124100009, 1
         select combi_predios_str, status, id from tabla_combinacion_predios order by id asc
         """
         df_combinaciones = pg_julia.query(conn_LandValue, query_combinaciones_str)
-        df_combinaciones = filter(row -> row.status <= 1, df_combinaciones)
+        df_combinaciones = filter(row -> row.status == 1, df_combinaciones)
 
-        vec_combi = df_combinaciones[:, "id"][1:4]
+        vec_combi = df_combinaciones[:, "id"]
         num_combi = length(vec_combi)
 
         jobs = RemoteChannel(() -> Channel{Any}(num_combi))
@@ -55,33 +55,46 @@ let codigo_predial = [] #[151600135100018, 151600135100019] #[151600124100009, 1
                 display("* Ejecutando optimización económica combinación: " * string(codigo_predial) * " en el Worker N° " * string(myid()))
                 display("***************************************************")
 
-                # try
+                try
 
-                dcc, resultados, xopt, vecColumnNames, vecColumnValue, id = funcionPrincipal(tipoOptimizacion, codigo_predial, id, datos_LandValue, datos_mygis_db)
+                dcc, resultados, xopt, vecColumnNames, vecColumnValue, id, codigo_predial = funcionPrincipal(tipoOptimizacion, codigo_predial, id, datos_LandValue, datos_mygis_db)
                 wkr = myid()
+                put!(results, (dcc, resultados, xopt, vecColumnNames, vecColumnValue, id, codigo_predial, wkr))
 
-                put!(results, (dcc, resultados, xopt, vecColumnNames, vecColumnValue, id, wkr))
+                catch error
+                    display("")
+                    display("#############################################################################")
+                    display("#############################################################################")
+                    display("# Se produjo un error, se proseguirá con la siguiente combinación de lotes. #")
+                    display("#############################################################################")
+                    display("#############################################################################")
+                    display("")
+                    display(id)
+                    display("")
 
 
-                # catch error
-                #     display("")
-                #     display("#############################################################################")
-                #     display("#############################################################################")
-                #     display("# Se produjo un error, se proseguirá con la siguiente combinación de lotes. #")
-                #     display("#############################################################################")
-                #     display("#############################################################################")
-                #     display("")
-                #     display(id)
-                #     display("")
+                    cond_str = "=" * string(id)
+                    vecColumnNames = ["status", "id"]
+                    vecColumnValue = ["29", string(id)]
 
-                #     conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
-
-                #     cond_str = "=" * string(id)
-                #     vecColumnNames = ["status", "id"]
-                #     vecColumnValue = ["29", string(id)]
-                #     pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)
-
-                # end
+                    datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]                 
+                    conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
+                    db_LandValue_str = datos_LandValue[1]
+                    query_LandValue_pid = """
+                                SELECT max(pid)
+                                FROM pg_stat_activity
+                                WHERE application_name = 'LibPQ.jl' AND datname = \'$db_LandValue_str\'
+                            """
+                    pid_landValue = pg_julia.query(conn_LandValue, query_LandValue_pid)[1, :max]
+                    pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)
+                    pg_julia.close_db(conn_LandValue)
+                    query_kill_connections = """
+                                SELECT pg_terminate_backend($pid_landValue)
+                                FROM pg_stat_activity
+                                WHERE pg_stat_activity.datname = \'$db_LandValue_str\'
+                            """
+                    pg_julia.query(conn_LandValue, query_kill_connections)
+                end
             end
         end
 
@@ -96,7 +109,8 @@ let codigo_predial = [] #[151600135100018, 151600135100019] #[151600124100009, 1
         cont = length(vec_combi)
         while cont > 0 # print out results
 
-            dcc, resultados, xopt, vecColumnNames, vecColumnValue, id, wkr = take!(results)
+            
+            dcc, resultados, xopt, vecColumnNames, vecColumnValue, id, codigo_predial, wkr = take!(results)
             pg_julia.modifyRow!(conn_LandValue, "tabla_resultados_cabidas", vecColumnNames, vecColumnValue, "combi_predios", "= \'" * string(codigo_predial) * "\'")
 
             cond_str = "=" * string(id)
@@ -105,21 +119,18 @@ let codigo_predial = [] #[151600135100018, 151600135100019] #[151600124100009, 1
             pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames_, vecColumnValue_, "id", cond_str)
 
 
-            display("#######################################################################################")
+            display("")
             display(" Se agrego a la tabla_resultados_cabidas el resultado predio_id N° " * string(id) * " ejecutado por el worker N° " * string(wkr))
-            display("#######################################################################################")
+            display("")
 
             sleep(1)
-
-            cont -= 1
         end
-
 
 
     else
         id_ = 0
 
-        dcc, resultados, xopt = funcionPrincipal(tipoOptimizacion, codigo_predial, id_, datos_LandValue, datos_mygis_db)
+        dcc, resultados, xopt, vecColumnNames, vecColumnValue, id_ = funcionPrincipal(tipoOptimizacion, codigo_predial, id_, datos_LandValue, datos_mygis_db)
 
         displayResults(resultados, dcc)
 

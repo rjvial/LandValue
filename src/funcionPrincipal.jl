@@ -22,7 +22,8 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
                 FROM pg_stat_activity
                 WHERE application_name = 'LibPQ.jl' AND datname = \'$db_mygis_str\'
             """
-    pid_mygis = pg_julia.query(conn_mygis_db, query_mygis_pid)[1, :max]
+    pid_mygis = pg_julia.query(conn_LandValue, query_mygis_pid)[1, :max]
+
 
     display("Obtiene DatosCabidaArquitectura")
     @time df_arquitectura = pg_julia.query(conn_LandValue, """SELECT * FROM public."tabla_arquitectura_default";""")
@@ -150,14 +151,12 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         vec_psVolteor = [polyShape.polyExpand(ps_bruto, -i / rasante) for i in vec_altVolteor]
         vec_psVolteor = [polyShape.polyIntersect(vec_psVolteor[i], ps_areaEdif) for i in eachindex(vec_psVolteor)]
 
-        # fig, ax, ax_mat = polyShape.plotPolyshape2DVecin3D(vec_psVolteor, vec_altVolteor, "red", 0.2)
 
         # Calcula el volumen y sombra teórica 
         display("Calcula el volumen teórico")
         @time matConexionVertices_volTeorico, vecVertices_volTeorico, ps_volTeorico = generaVol3D(vec_psVolteor, vec_altVolteor)
         V_volTeorico = ps_volTeorico.Vertices[1]
         vecAlturas_volTeorico = sort(unique(V_volTeorico[:, end]))
-        # fig, ax, ax_mat = polyShape.plotPolyshape3D(ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico)
 
         display("Calcula sombra del Volumen Teórico")
         @time ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s = generaSombraTeor(ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico, ps_publico, ps_calles)
@@ -174,11 +173,9 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         push!(vec_altVolConSombra, dcn.alturaMax)
         vec_psVolConSombra = [polyShape.polyExpand(ps_bruto, -i / rasante_sombra) for i in vec_altVolConSombra]
         vec_psVolConSombra = [polyShape.polyIntersect(vec_psVolConSombra[i], ps_areaEdif) for i in eachindex(vec_psVolConSombra)]
-        # fig, ax, ax_mat = polyShape.plotPolyshape2DVecin3D(vec_psVolConSombra, vec_altVolConSombra, "gray", 0.2)
         @time matConexionVertices_conSombra, vecVertices_conSombra, ps_volConSombra = generaVol3D(vec_psVolConSombra, vec_altVolConSombra)
         V_volConSombra = ps_volConSombra.Vertices[1]
         vecAlturas_conSombra = sort(unique(V_volConSombra[:, end]))
-        # fig, ax, ax_mat = polyShape.plotPolyshape3D(ps_volConSombra, matConexionVertices_conSombra, vecVertices_conSombra)
 
         sepNaves = 12.0 #dca.anchoMin - 0
 
@@ -211,14 +208,14 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         # plan_optimizacion: [template, lb_bbo, ub_bbo]
         lb_bbo, ub_bbo = generaCotas(0, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
         plan_optimizacion = [[0, lb_bbo, ub_bbo]]
-        lb_bbo, ub_bbo = generaCotas(1, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
-        push!(plan_optimizacion, [1, lb_bbo, ub_bbo])
-        lb_bbo, ub_bbo = generaCotas(2, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
-        push!(plan_optimizacion, [2, lb_bbo, ub_bbo])
-        lb_bbo, ub_bbo = generaCotas(3, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, 6)
-        push!(plan_optimizacion, [3, lb_bbo, ub_bbo])
-        lb_bbo, ub_bbo = generaCotas(7, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, 6)
-        push!(plan_optimizacion, [7, lb_bbo, ub_bbo])
+        # lb_bbo, ub_bbo = generaCotas(1, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
+        # push!(plan_optimizacion, [1, lb_bbo, ub_bbo])
+        # lb_bbo, ub_bbo = generaCotas(2, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
+        # push!(plan_optimizacion, [2, lb_bbo, ub_bbo])
+        # lb_bbo, ub_bbo = generaCotas(3, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, 6)
+        # push!(plan_optimizacion, [3, lb_bbo, ub_bbo])
+        # lb_bbo, ub_bbo = generaCotas(7, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, 6)
+        # push!(plan_optimizacion, [7, lb_bbo, ub_bbo])
 
         flag_penalizacion_residual = true
         flag_penalizacion_coefOcup = true
@@ -493,24 +490,12 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             matConexionVertices_conSombra, vecVertices_conSombra, ps_publico, ps_calles, ps_base, ps_baseSeparada,
             ps_calles_intra_buffer_, ps_predios_intra_buffer_, ps_manzanas_intra_buffer_, ps_buffer_predio_, dx, dy, ps_areaEdif]
 
+
         pg_julia.close_db(conn_LandValue)
         pg_julia.close_db(conn_mygis_db)
 
-        query_kill_connections = """
-                    SELECT pg_terminate_backend($pid_landValue)
-                    FROM pg_stat_activity
-                    WHERE pg_stat_activity.datname = \'$db_LandValue_str\'
-                """
-        pg_julia.query(conn_LandValue, query_kill_connections)
-
-        query_kill_connections = """
-                    SELECT pg_terminate_backend($pid_mygis)
-                    FROM pg_stat_activity
-                    WHERE pg_stat_activity.datname = \'$db_mygis_str\'
-                """
-        pg_julia.query(conn_mygis_db, query_kill_connections)
-
         sleep(3)
+
 
         return fpe, temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id_
 
@@ -642,29 +627,12 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             resultados.salidaIndicadores.rentabilidadTotalNeta,
             resultados.salidaIndicadores.incidenciaTerreno]
 
-        # pg_julia.close_db(conn_LandValue)
-        # pg_julia.close_db(conn_mygis_db)
-
-        # query_kill_connections = """
-        #             SELECT pg_terminate_backend($pid_landValue)
-        #             FROM pg_stat_activity
-        #             WHERE pg_stat_activity.datname = \'$db_LandValue_str\'
-        #         """
-        # pg_julia.query(conn_LandValue, query_kill_connections)
-
-        # query_kill_connections = """
-        #             SELECT pg_terminate_backend($pid_mygis)
-        #             FROM pg_stat_activity
-        #             WHERE pg_stat_activity.datname = \'$db_mygis_str\'
-        #         """
-        # pg_julia.query(conn_mygis_db, query_kill_connections)
+        pg_julia.close_db(conn_LandValue)
+        pg_julia.close_db(conn_mygis_db)
 
         sleep(3)
 
-        display("pasó por sin errores por funcionPrincipal")
-
-
-        return dcc, resultados, xopt, vecColumnNames, vecColumnValue, id_
+        return dcc, resultados, xopt, vecColumnNames, vecColumnValue, id_, codigo_predial
 
     end
 

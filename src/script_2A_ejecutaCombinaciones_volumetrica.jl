@@ -5,26 +5,35 @@ using LandValue, Distributed, DotEnv
 # run(`C:/Users/rjvia/Documents/Land_engines_code/Julia/key_code_pw.bat`)
 
     #[]
+    #[151600124100010, 151600124100011, 151600124100012, 151600124100013, 151600124100014]
+    #[151600135700004, 151600135700005, 151600135700016, 151600135700017, 151600135700021, 151600135700018, 151600135700019, 151600135700020] 
+    #[151600048300017, 151600048300018, 151600048300049] 
+    #[151600135100018, 151600135100019] 
+    #[151600124100009, 151600124100010, 151600124100011, 151600124100012, 151600124100013, 151600124100014, 151600124100015]
+    #[151600048300019, 151600048300004, 151600048300020, 151600048300021]
+    #[151600048300004, 151600048300020, 151600048300021, 151600048300042, 151600048300043, 151600048300044]
+    #[151600124100011, 151600124100012, 151600124100013, 151600124100014, 151600124100015]
+    #[151600116900007, 151600116900008, 151600116900009, 151600116900013, 151600116900014, 151600116900098, 151600116900099, 151600116900100, 151600116900101]
+    #[151600116900013, 151600116900014, 151600116900015, 151600116900099, 151600116900100, 151600116900101, 151600116900102, 151600116900103]
+    #[151600116900013, 151600116900038, 151600116900102, 151600116900103, 151600116900036, 151600116900037]
+    #[151600140900013, 151600140900014, 151600140900015, 151600140900017, 151600140900018, 151600140900019, 151600140900020, 151600140900021, 151600140900023, 151600140900024]
+    #[151600187100049, 151600187100050, 151600187100048, 151600187100013, 151600187100014, 151600187100051, 151600187100052, 151600187100053, 151600187100015, 151600187100016, 151600187100054, 151600187100055]
+    #[151600135700009, 151600135700003, 151600135700004, 151600135700005, 151600135700016, 151600135700017, 151600135700018, 151600135700019, 151600135700020]
 
-    #[151600187100021, 151600187100022, 151600187100040, 151600187100041, 151600187100042]
-    #[151600103100004, 151600103100005, 151600103100006, 151600103100018]
-    #[151600103100002, 151600103100003, 151600103100004, 151600103100018]
-    #[151600103100004, 151600103100018]
-    #[151600189900001, 151600189900002, 151600189900003, 151600189900005, 151600189900006, 151600189900007, 151600189900018, 151600189900019, 151600189900020, 151600189900021, 151600189900022]
-    #[151600140900011, 151600140900012, 151600140900013, 151600140900018, 151600140900019, 151600140900020, 151600140900021, 151600140900022]
-let codigo_predial = [] #[151600340500126, 151600340500128, 151600340500129, 151600340500130, 151600340500131, 151600340500132]
+    let codigo_predial = [] #[151600340500126, 151600340500128, 151600340500129, 151600340500130, 151600340500131, 151600340500132]
     # Para cómputos sobre la base de datos usar codigo_predial = []
 
     tipoOptimizacion = "volumetrica"
 
     DotEnv.load("secrets.env") #Caso Docker
-    # datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
+    datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
     datos_mygis_db = ["gis_data", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
-    datos_LandValue = ["landengines_local", "postgres", "", "localhost"]
+    # datos_LandValue = ["landengines_local", "postgres", "", "localhost"]
     # datos_mygis_db = ["gis_data_local", "postgres", "", "localhost"]
 
     conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
     conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
+
 
 
     if isempty(codigo_predial) # Cómputos sobre la base de datos
@@ -103,8 +112,7 @@ let codigo_predial = [] #[151600340500126, 151600340500128, 151600340500129, 151
                 "ps_calles_intra_buffer" text,
                 "dx" double precision,
                 "dy" double precision,
-                id bigint NOT NULL,
-                CONSTRAINT tabla_resultados_cabidas_pkey PRIMARY KEY (id)
+                id bigint NOT NULL
             )
             """
             pg_julia.query(conn_LandValue, query_str)
@@ -162,6 +170,7 @@ let codigo_predial = [] #[151600340500126, 151600340500128, 151600340500129, 151
                     display(id)
                     display("")
 
+
                     cond_str = "=" * string(id)
                     vecColumnNames = ["status", "id"]
                     vecColumnValue = ["19", string(id)]
@@ -183,7 +192,6 @@ let codigo_predial = [] #[151600340500126, 151600340500128, 151600340500129, 151
                                 WHERE pg_stat_activity.datname = \'$db_LandValue_str\'
                             """
                     pg_julia.query(conn_LandValue, query_kill_connections)
-
                 end
             end
         end
@@ -199,6 +207,7 @@ let codigo_predial = [] #[151600340500126, 151600340500128, 151600340500129, 151
         cont = length(vec_combi)
         while cont > 0 # print out results
 
+            
             temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id, wkr = take!(results)
             pg_julia.insertRow!(conn_LandValue, "tabla_resultados_cabidas", vecColumnNames, vecColumnValue, :id)
 
