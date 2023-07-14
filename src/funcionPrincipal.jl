@@ -509,15 +509,23 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         
         return temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id_
 
-    elseif tipoOptimizacion == "economica"
-
+    else
         display("Obtiene DatosCabidaComercial")
-        query_str = """
-        SELECT * FROM tabla_cabida_comercial
-        WHERE codigo_predial = \'codigo_predial_\'
-        """
-        query_str = replace(query_str, "codigo_predial_" => string(codigo_predial))
-        @time df_comercial = pg_julia.query(conn_LandValue, query_str)
+
+        if tipoOptimizacion == "economica"
+            query_str = """
+            SELECT * FROM tabla_cabida_comercial
+            WHERE codigo_predial = \'codigo_predial_\'
+            """
+            query_str = replace(query_str, "codigo_predial_" => string(codigo_predial))
+            @time df_comercial = pg_julia.query(conn_LandValue, query_str)
+        elseif tipoOptimizacion == "provisoria"
+            query_str = """
+            SELECT * FROM tabla_tipo_deptos
+            """
+            @time df_comercial = pg_julia.query(conn_LandValue, query_str)
+        end
+
 
         dcc = DatosCabidaComercial()
         for field_s in fieldnames(DatosCabidaComercial)
@@ -629,19 +637,12 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             resultados.salidaIndicadores.rentabilidadTotalNeta,
             resultados.salidaIndicadores.incidenciaTerreno]
 
-        if id_ > 0
+        pg_julia.close_db(conn_LandValue)
+        pg_julia.close_db(conn_mygis_db)
 
-            cond_str = "=" * string(id_)
-            vecColumnNames = ["status", "id"]
-            vecColumnValue = ["1", string(id_)]
-            pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)
+        sleep(1)
 
-            pg_julia.modifyRow!(conn_LandValue, "tabla_resultados_cabidas", vecColumnNames, vecColumnValue, "combi_predios", "= \'" * string(codigo_predial) * "\'")
-
-        end
-
-
-        return dcc, resultados, xopt, vecColumnNames, vecColumnValue, id_
+        return dcc, resultados, xopt, vecColumnNames, vecColumnValue, id_, codigo_predial
 
     end
 
