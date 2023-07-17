@@ -6,6 +6,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
 
     #DotEnv.load("secrets.env") #Caso Local
     DotEnv.load("secrets.env") #Caso Docker
+    
     conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
     db_LandValue_str = datos_LandValue[1]
     query_LandValue_pid = """

@@ -18,21 +18,28 @@ let codigo_predial = [] #[151600340500126, 151600340500127, 151600340500128] #[1
 
     if isempty(codigo_predial)
 
-        num_workers = 60 #8
+        num_workers = 8 #60 #
         addprocs(num_workers; exeflags="--project")
         @everywhere using LandValue, Distributed
 
         query_combinaciones_str = """
-        select combi_predios_str, status, id from tabla_combinacion_predios order by id asc
+        select combi_predios_str, status, id from tabla_combinacion_predios 
+        where status = 1
+        order by id asc
         """
         df_combinaciones = pg_julia.query(conn_LandValue, query_combinaciones_str)
-        df_combinaciones = filter(row -> row.status == 1, df_combinaciones)
 
         vec_combi = df_combinaciones[:, "id"]
         num_combi = length(vec_combi)
 
+        # Canal de información para contener los trabajos a realizar
         jobs = RemoteChannel(() -> Channel{Any}(num_combi))
-        function make_jobs(vec_combi) # Genera un numero n de jobs y los guarda en el channel jobs
+
+        # Canal de información para contener los resultados de los trabajos realizados
+        results = RemoteChannel(() -> Channel{Any}(num_combi))
+
+        # Función que genera un numero n de jobs y los guarda en el channel jobs
+        function make_jobs(vec_combi) 
             for j in eachindex(vec_combi)
                 combi_j_str = df_combinaciones[j, "combi_predios_str"]
                 id_j = df_combinaciones[j, "id"]
@@ -41,9 +48,8 @@ let codigo_predial = [] #[151600340500126, 151600340500127, 151600340500128] #[1
             end
         end
 
-
-        results = RemoteChannel(() -> Channel{Any}(num_combi))
-        @everywhere function distributed_work(jobs, results) # Saca un job del channel y lo ejecuta, y después guarda el resultado en el channel results
+        # Función que saca un job del canal de trabajos, lo ejecuta, y después guarda el resultado en el canal de resultados
+        @everywhere function distributed_work(jobs, results) 
             while true
                 job_id = take!(jobs)
                 tipoOptimizacion = job_id[1]
@@ -57,8 +63,24 @@ let codigo_predial = [] #[151600340500126, 151600340500127, 151600340500128] #[1
 
                 try
 
+                conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
+
                 dcc, resultados, xopt, vecColumnNames, vecColumnValue, id, codigo_predial = funcionPrincipal(tipoOptimizacion, codigo_predial, id, datos_LandValue, datos_mygis_db)
+                pg_julia.modifyRow!(conn_LandValue, "tabla_resultados_cabidas", vecColumnNames, vecColumnValue, "combi_predios", "= \'" * string(codigo_predial) * "\'")
+
+                cond_str = "=" * string(id)
+                vecColumnNames_ = ["status", "id"]
+                vecColumnValue_ = tipoOptimizacion == "economica" ? ["3", string(id)] : ["2", string(id)]
+                pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames_, vecColumnValue_, "id", cond_str)
+
+                pg_julia.close_db(conn_LandValue)
+                
                 wkr = myid()
+                display("")
+                display(" Se agrego a la tabla_resultados_cabidas el resultado predio_id N° " * string(id) * " ejecutado por el worker N° " * string(wkr))
+                display("")
+
+                
                 put!(results, (dcc, resultados, xopt, vecColumnNames, vecColumnValue, id, codigo_predial, wkr))
 
                 catch error
@@ -98,32 +120,23 @@ let codigo_predial = [] #[151600340500126, 151600340500127, 151600340500128] #[1
             end
         end
 
+        # Se generan los trabajos asociados a cada combinación de vec_combi
         @async make_jobs(vec_combi)
 
-        for p in workers() # start tasks on the workers to process requests in parallel
-            #Executes f on worker id asynchronously. Unlike remotecall, it does not store 
-            # the result of computation, nor is there a way to wait for its completion.
+        # Se asigna cada trabajo a un worker
+        for p in workers() 
+            #Executes distributed_work on worker p asynchronously
             remote_do(distributed_work, p, jobs, results) # Los parametros jobs, results son pasados a distributed_work()
+            display(" Se asignó un nuevo trabajo a un worker")
         end
 
-        for k in eachindex(vec_combi)
+        # for k in eachindex(vec_combi)
 
             
-            dcc, resultados, xopt, vecColumnNames, vecColumnValue, id, codigo_predial, wkr = take!(results)
-            pg_julia.modifyRow!(conn_LandValue, "tabla_resultados_cabidas", vecColumnNames, vecColumnValue, "combi_predios", "= \'" * string(codigo_predial) * "\'")
-
-            cond_str = "=" * string(id)
-            vecColumnNames_ = ["status", "id"]
-            vecColumnValue_ = tipoOptimizacion == "economica" ? ["3", string(id)] : ["2", string(id)]
-            pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames_, vecColumnValue_, "id", cond_str)
-
-
-            display("")
-            display(" Se agrego a la tabla_resultados_cabidas el resultado predio_id N° " * string(id) * " ejecutado por el worker N° " * string(wkr))
-            display("")
-
-            sleep(1)
-        end
+        #     dcc, resultados, xopt, vecColumnNames, vecColumnValue, id, codigo_predial, wkr = take!(results)
+            
+        #     sleep(1)
+        # end
 
 
     else
