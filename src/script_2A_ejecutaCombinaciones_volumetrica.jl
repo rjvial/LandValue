@@ -118,7 +118,7 @@ let codigo_predial = []
             pg_julia.query(conn_LandValue, query_str)
         end
 
-        num_workers = 60 #
+        num_workers = 2 #60 #
         addprocs(num_workers; exeflags="--project")
         @everywhere using LandValue, Distributed
 
@@ -153,46 +153,46 @@ let codigo_predial = []
                 display("* Ejecutando cabida predio: " * string(codigo_predial) * " en el Worker N° " * string(myid()))
                 display("***************************************************")
                 
-                try
+                # try
                     
                     temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id = funcionPrincipal(tipoOptimizacion, codigo_predial, id, datos_LandValue, datos_mygis_db)
                     wkr = myid()
                     put!(results, (temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id, wkr))
 
-                catch error
-                    display("")
-                    display("#############################################################################")
-                    display("#############################################################################")
-                    display("# Se produjo un error, se proseguirá con la siguiente combinación de lotes. #")
-                    display("#############################################################################")
-                    display("#############################################################################")
-                    display("")
-                    display(id)
-                    display("")
+                # catch error
+                #     display("")
+                #     display("#############################################################################")
+                #     display("#############################################################################")
+                #     display("# Se produjo un error, se proseguirá con la siguiente combinación de lotes. #")
+                #     display("#############################################################################")
+                #     display("#############################################################################")
+                #     display("")
+                #     display(id)
+                #     display("")
 
                 
-                    cond_str = "=" * string(id)
-                    vecColumnNames = ["status", "id"]
-                    vecColumnValue = ["19", string(id)]
+                #     cond_str = "=" * string(id)
+                #     vecColumnNames = ["status", "id"]
+                #     vecColumnValue = ["19", string(id)]
                     
-                    datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]                 
-                    conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
-                    db_LandValue_str = datos_LandValue[1]
-                    query_LandValue_pid = """
-                                SELECT max(pid)
-                                FROM pg_stat_activity
-                                WHERE application_name = 'LibPQ.jl' AND datname = \'$db_LandValue_str\'
-                            """
-                    pid_landValue = pg_julia.query(conn_LandValue, query_LandValue_pid)[1, :max]
-                    pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)
-                    pg_julia.close_db(conn_LandValue)
-                    query_kill_connections = """
-                                SELECT pg_terminate_backend($pid_landValue)
-                                FROM pg_stat_activity
-                                WHERE pg_stat_activity.datname = \'$db_LandValue_str\'
-                            """
-                    pg_julia.query(conn_LandValue, query_kill_connections)
-                end
+                #     datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]                 
+                #     conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
+                #     db_LandValue_str = datos_LandValue[1]
+                #     query_LandValue_pid = """
+                #                 SELECT max(pid)
+                #                 FROM pg_stat_activity
+                #                 WHERE application_name = 'LibPQ.jl' AND datname = \'$db_LandValue_str\'
+                #             """
+                #     pid_landValue = pg_julia.query(conn_LandValue, query_LandValue_pid)[1, :max]
+                #     pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)
+                #     pg_julia.close_db(conn_LandValue)
+                #     query_kill_connections = """
+                #                 SELECT pg_terminate_backend($pid_landValue)
+                #                 FROM pg_stat_activity
+                #                 WHERE pg_stat_activity.datname = \'$db_LandValue_str\'
+                #             """
+                #     pg_julia.query(conn_LandValue, query_kill_connections)
+                # end
             end
         end
 

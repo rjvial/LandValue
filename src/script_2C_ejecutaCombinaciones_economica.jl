@@ -18,7 +18,7 @@ let codigo_predial = [] #[151600340500126, 151600340500127, 151600340500128] #[1
 
     if isempty(codigo_predial)
 
-        num_workers = 8 #60 #
+        num_workers = 1 #60 #
         addprocs(num_workers; exeflags="--project")
         @everywhere using LandValue, Distributed
 
