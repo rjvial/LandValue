@@ -15,137 +15,124 @@ let codigo_predial = [] #[151600340500126, 151600340500127, 151600340500128] #[1
     conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
     conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
 
+    num_workers = 4 #60 #
+    addprocs(num_workers; exeflags="--project")
+    @everywhere using LandValue, Distributed
 
-    if isempty(codigo_predial)
+    query_combinaciones_str = """
+    select combi_predios_str, status, id from tabla_combinacion_predios 
+    where status = 1
+    order by id asc
+    """
+    df_combinaciones = pg_julia.query(conn_LandValue, query_combinaciones_str)
 
-        num_workers = 1 #60 #
-        addprocs(num_workers; exeflags="--project")
-        @everywhere using LandValue, Distributed
+    vec_combi = df_combinaciones[:, "id"]
+    num_combi = length(vec_combi)
 
-        query_combinaciones_str = """
-        select combi_predios_str, status, id from tabla_combinacion_predios 
-        where status = 1
-        order by id asc
-        """
-        df_combinaciones = pg_julia.query(conn_LandValue, query_combinaciones_str)
+    # Canal de información para contener los trabajos a realizar
+    jobs = RemoteChannel(() -> Channel{Any}(num_combi))
 
-        vec_combi = df_combinaciones[:, "id"]
-        num_combi = length(vec_combi)
+    # Canal de información para contener los resultados de los trabajos realizados
+    results = RemoteChannel(() -> Channel{Any}(num_combi))
 
-        # Canal de información para contener los trabajos a realizar
-        jobs = RemoteChannel(() -> Channel{Any}(num_combi))
-
-        # Canal de información para contener los resultados de los trabajos realizados
-        results = RemoteChannel(() -> Channel{Any}(num_combi))
-
-        # Función que genera un numero n de jobs y los guarda en el channel jobs
-        function make_jobs(vec_combi) 
-            for j in eachindex(vec_combi)
-                combi_j_str = df_combinaciones[j, "combi_predios_str"]
-                id_j = df_combinaciones[j, "id"]
-                codigo_predial = eval(Meta.parse(combi_j_str))
-                put!(jobs, [tipoOptimizacion, codigo_predial, id_j, datos_LandValue, datos_mygis_db])
-            end
+    # Función que genera un numero n de jobs y los guarda en el channel jobs
+    function make_jobs(vec_combi) 
+        for j in eachindex(vec_combi)
+            combi_j_str = df_combinaciones[j, "combi_predios_str"]
+            id_j = df_combinaciones[j, "id"]
+            codigo_predial = eval(Meta.parse(combi_j_str))
+            put!(jobs, [tipoOptimizacion, codigo_predial, id_j, datos_LandValue, datos_mygis_db])
         end
+    end
 
-        # Función que saca un job del canal de trabajos, lo ejecuta, y después guarda el resultado en el canal de resultados
-        @everywhere function distributed_work(jobs, results) 
-            while true
-                job_id = take!(jobs)
-                tipoOptimizacion = job_id[1]
-                codigo_predial = job_id[2]
-                id = job_id[3]
-                datos_LandValue = job_id[4]
-                datos_mygis_db = job_id[5]
-                display("***************************************************")
-                display("* Ejecutando optimización económica combinación: " * string(codigo_predial) * " en el Worker N° " * string(myid()))
-                display("***************************************************")
+    # Función que saca un job del canal de trabajos, lo ejecuta, y después guarda el resultado en el canal de resultados
+    @everywhere function distributed_work(jobs, results) 
+        while true
+            job_id = take!(jobs)
+            tipoOptimizacion = job_id[1]
+            codigo_predial = job_id[2]
+            id = job_id[3]
+            datos_LandValue = job_id[4]
+            datos_mygis_db = job_id[5]
+            display("***************************************************")
+            display("* Ejecutando optimización económica combinación: " * string(codigo_predial) * " en el Worker N° " * string(myid()))
+            display("***************************************************")
 
-                try
+            try
+
+                dcc, resultados, xopt, vecColumnNames, vecColumnValue, id, codigo_predial = funcionPrincipal(tipoOptimizacion, codigo_predial, id, datos_LandValue, datos_mygis_db)
+                wkr = myid()
+                put!(results, (dcc, resultados, xopt, vecColumnNames, vecColumnValue, id, codigo_predial, wkr))
 
                 conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
 
-                dcc, resultados, xopt, vecColumnNames, vecColumnValue, id, codigo_predial = funcionPrincipal(tipoOptimizacion, codigo_predial, id, datos_LandValue, datos_mygis_db)
                 pg_julia.modifyRow!(conn_LandValue, "tabla_resultados_cabidas", vecColumnNames, vecColumnValue, "combi_predios", "= \'" * string(codigo_predial) * "\'")
-
+                sleep(1)
                 cond_str = "=" * string(id)
                 vecColumnNames_ = ["status", "id"]
                 vecColumnValue_ = tipoOptimizacion == "economica" ? ["3", string(id)] : ["2", string(id)]
                 pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames_, vecColumnValue_, "id", cond_str)
-
+                sleep(1)
                 pg_julia.close_db(conn_LandValue)
-                
-                wkr = myid()
+            
                 display("")
                 display(" Se agrego a la tabla_resultados_cabidas el resultado predio_id N° " * string(id) * " ejecutado por el worker N° " * string(wkr))
                 display("")
 
-                
-                put!(results, (dcc, resultados, xopt, vecColumnNames, vecColumnValue, id, codigo_predial, wkr))
-
-                catch error
-                    display("")
-                    display("#############################################################################")
-                    display("#############################################################################")
-                    display("# Se produjo un error, se proseguirá con la siguiente combinación de lotes. #")
-                    display("#############################################################################")
-                    display("#############################################################################")
-                    display("")
-                    display(id)
-                    display("")
+            catch error
+                display("")
+                display("#############################################################################")
+                display("#############################################################################")
+                display("# Se produjo un error, se proseguirá con la siguiente combinación de lotes. #")
+                display("#############################################################################")
+                display("#############################################################################")
+                display("")
+                display(id)
+                display("")
 
 
-                    cond_str = "=" * string(id)
-                    vecColumnNames = ["status", "id"]
-                    vecColumnValue = ["29", string(id)]
+                cond_str = "=" * string(id)
+                vecColumnNames = ["status", "id"]
+                vecColumnValue = ["29", string(id)]
 
-                    datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]                 
-                    conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
-                    db_LandValue_str = datos_LandValue[1]
-                    query_LandValue_pid = """
-                                SELECT max(pid)
-                                FROM pg_stat_activity
-                                WHERE application_name = 'LibPQ.jl' AND datname = \'$db_LandValue_str\'
-                            """
-                    pid_landValue = pg_julia.query(conn_LandValue, query_LandValue_pid)[1, :max]
-                    pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)
-                    pg_julia.close_db(conn_LandValue)
-                    query_kill_connections = """
-                                SELECT pg_terminate_backend($pid_landValue)
-                                FROM pg_stat_activity
-                                WHERE pg_stat_activity.datname = \'$db_LandValue_str\'
-                            """
-                    pg_julia.query(conn_LandValue, query_kill_connections)
-                end
+                datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]                 
+                conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
+
+                pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)
+                pg_julia.close_db(conn_LandValue)
             end
         end
+    end
 
-        # Se generan los trabajos asociados a cada combinación de vec_combi
-        @async make_jobs(vec_combi)
+    # Se generan los trabajos asociados a cada combinación de vec_combi
+    @async make_jobs(vec_combi)
 
-        # Se asigna cada trabajo a un worker
-        for p in workers() 
-            #Executes distributed_work on worker p asynchronously
-            remote_do(distributed_work, p, jobs, results) # Los parametros jobs, results son pasados a distributed_work()
-            display(" Se asignó un nuevo trabajo a un worker")
-        end
+    # Se asigna cada trabajo a un worker
+    for p in workers() 
+        remote_do(distributed_work, p, jobs, results) # Los parametros jobs, results son pasados a distributed_work()
+    end
 
-        # for k in eachindex(vec_combi)
+    cont = length(vec_combi)
+    while cont > 0 # print out results
 
-            
-        #     dcc, resultados, xopt, vecColumnNames, vecColumnValue, id, codigo_predial, wkr = take!(results)
-            
-        #     sleep(1)
-        # end
+        dcc, resultados, xopt, vecColumnNames, vecColumnValue, id, codigo_predial, wkr = take!(results)
+        # pg_julia.modifyRow!(conn_LandValue, "tabla_resultados_cabidas", vecColumnNames, vecColumnValue, "combi_predios", "= \'" * string(codigo_predial) * "\'")
 
+        # display("########## PASO POR ACA ")
+        # sleep(1)
 
-    else
-        id_ = 0
+        # cond_str = "=" * string(id)
+        # vecColumnNames_ = ["status", "id"]
+        # vecColumnValue_ = ["1", string(id)]
+        # pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames_, vecColumnValue_, "id", cond_str)
+       
+        # display("")
+        # display(" Se agrego a la tabla_resultados_cabidas el resultado predio_id N° " *string(id) * " ejecutado por el worker N° " * string(wkr))
+        # display("")
 
-        dcc, resultados, xopt, vecColumnNames, vecColumnValue, id_ = funcionPrincipal(tipoOptimizacion, codigo_predial, id_, datos_LandValue, datos_mygis_db)
+        sleep(1)
 
-        displayResults(resultados, dcc)
-
+        cont -= 1
     end
 
 end

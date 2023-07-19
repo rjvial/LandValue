@@ -137,7 +137,8 @@ function insertRow!(conn::LibPQ.Connection, tableNameStr::String, vecColumnNames
     columnValueStr = join((string("\'", x, "\'") for x in vecColumnValue), ", ")
     executeStr = "INSERT INTO public.\"$tableNameStr\" (" * columnNameStr * ") VALUES (" * columnValueStr * ");"
     pg_julia.query(conn, executeStr)
-    df_out = pg_julia.query(conn, """SELECT * FROM public."$tableNameStr";""")
+    # df_out = pg_julia.query(conn, """SELECT * FROM public."$tableNameStr";""")
+    df_out = []
     return df_out
 end
 
@@ -150,7 +151,8 @@ function modifyRow!(conn::LibPQ.Connection, tableNameStr::String, vecColumnNames
     columnStr = join((string("\"", x, "\"", "=", y) for (x, y) in zip(vecColumnNames, vecColumnValue)), ", ")
     executeStr = "UPDATE public.\"$tableNameStr\" SET " * columnStr * " WHERE \"$columnNameCondStr\" $modifyCondStr;"
     pg_julia.query(conn, executeStr)
-    df_out = pg_julia.query(conn, """SELECT * FROM public."$tableNameStr";""")
+    #df_out = pg_julia.query(conn, """SELECT * FROM public."$tableNameStr";""")
+    df_out = []
     return df_out
 end
 
