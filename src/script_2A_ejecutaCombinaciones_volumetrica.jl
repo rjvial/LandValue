@@ -209,3 +209,4 @@ end
 #pg_dump -h aws-landengines-db.cggiqowut9c4.us-east-1.rds.amazonaws.com -U postgres -d gis_data -t "anteproyectos_vitacura" -t "datos_predios_vitacura" -t "datos_roles_vitacura" -t "permisos_vitacura" | psql -d gis_data_local -h localhost -U postgres
 
 #pg_dump -h aws-landengines-db.cggiqowut9c4.us-east-1.rds.amazonaws.com -U postgres -d landengines  -t "tabla_resultados_cabidas" -t "tabla_combinacion_predios" | psql -d landengines_dev -h aws-landengines-db.cggiqowut9c4.us-east-1.rds.amazonaws.com -U postgres
+#pg_dump -h aws-landengines-db.cggiqowut9c4.us-east-1.rds.amazonaws.com -U postgres -d landengines_dev  -t "tabla_resultados_cabidas" -t "tabla_combinacion_predios" | psql -d landengines -h aws-landengines-db.cggiqowut9c4.us-east-1.rds.amazonaws.com -U postgres
