@@ -1,12 +1,9 @@
 using LandValue, Distributed, DotEnv 
+# Corrige los id de la tabla_resultados_cabidas de modo que coincidan con los de la tabla_combinacion_predios
 
 DotEnv.load("secrets.env") #Caso Docker
 datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
-datos_mygis_db = ["gis_data", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
-
-
 conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
-conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
 
 query_combinaciones_str = """
 select combi_predios_str, id from tabla_combinacion_predios
