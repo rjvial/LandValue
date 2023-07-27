@@ -2,9 +2,9 @@ using LandValue, Distributed, DotEnv
 
 
 
-let codigo_predial = [] #[151600340500126, 151600340500127, 151600340500128] #[151600135100018, 151600135100019] #[151600124100009, 151600124100010, 151600124100011, 151600124100012, 151600124100013, 151600124100014, 151600124100015] 
+let codigo_predial = [] 
     # Para cómputos sobre la base de datos usar codigo_predial = []
-    tipoOptimizacion = "provisoria" #"economica"
+    tipoOptimizacion = "economica" #"provisoria" #
 
     DotEnv.load("secrets.env") #Caso Docker
     datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
@@ -15,13 +15,14 @@ let codigo_predial = [] #[151600340500126, 151600340500127, 151600340500128] #[1
     conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
     conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
 
-    num_workers = 60 #4 #
+    num_workers = 4 #60 #
     addprocs(num_workers; exeflags="--project")
     @everywhere using LandValue, Distributed
 
+    status_str = tipoOptimizacion == "economica" ? 2 : 1
     query_combinaciones_str = """
     select combi_predios_str, status, id from tabla_combinacion_predios 
-    where status = 1
+    where status = $status_str
     order by id asc
     """
     df_combinaciones = pg_julia.query(conn_LandValue, query_combinaciones_str)
@@ -93,7 +94,8 @@ let codigo_predial = [] #[151600340500126, 151600340500127, 151600340500128] #[1
 
                 cond_str = "=" * string(id)
                 vecColumnNames = ["status", "id"]
-                vecColumnValue = ["29", string(id)]
+                status_str = tipoOptimizacion == "economica" ? 39 : 29
+                vecColumnValue = [string(status_str), string(id)]
 
                 datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]                 
                 conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
@@ -142,7 +144,6 @@ end
 # set norma_min_estacionamientos_vendibles = 0,
 #     norma_min_estacionamientos_visita = 0,
 #     norma_min_estacionamientos_discapacitados = 0,
-#     cabida_temp_opt = 0,
 #     cabida_tipo_deptos = 0,
 #     cabida_num_deptos = 0,
 #     cabida_ocupacion = 0,
@@ -177,5 +178,5 @@ end
 #     indicador_incidencia_terreno = 0
 
 # update tabla_combinacion_predios
-# set status = 1
-# where status = 2
+# set status = 2
+# where status = 3

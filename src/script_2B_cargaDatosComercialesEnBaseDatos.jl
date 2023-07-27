@@ -1,8 +1,15 @@
-using LandValue, DataFrames
+using LandValue, DataFrames, DotEnv 
 
-conn_LandValue = pg_julia.connection("LandValue", "postgres", "postgres")
+DotEnv.load("secrets.env") #Caso Docker
+datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
+# datos_LandValue = ["landengines_local", "postgres", "", "localhost"]
 
-infileStr = "C:\\Users\\rjvia\\.julia\\dev\\qgis_env\\aux_files\\Salida_RF_Log.csv"
+conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
+
+
+
+# infileStr = "C:\\Users\\rjvia\\.julia\\dev\\qgis_env\\aux_files\\Salida_RF_Log.csv"
+infileStr = "C:\\Users\\rjvia\\Documents\\Land_engines_code\\Julia\\Salida_RF_Log.csv"
 df = pg_julia.csv2df(infileStr)
 
 df_sub = df[:, [:N_Edificio, :tipoUnidad, :supDeptoUtil, :supInterior, :supTerraza, :estacionamientosPorViv, :bodegasPorViv, 
