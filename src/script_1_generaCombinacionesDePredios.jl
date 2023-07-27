@@ -24,9 +24,6 @@ function obtieneDelta(codigo_predial, conn_gis_data)
 end
 
 function obtienePrediosAltura(conn_gis_data, nombre_datos_predios_vitacura, comunaStr, dx, dy)
-
-    #--------------------------------------------------------------------------------------------------------
-    # Obtiene los predios pertenecientes a las zonas de edificación en altura 
     display("Obtiene los predios pertenecientes a las zonas de edificación en altura")
 
     query_check_predios_altura_str = """
@@ -76,8 +73,6 @@ function obtienePrediosAltura(conn_gis_data, nombre_datos_predios_vitacura, comu
 end
 
 function obtieneManzanasAltura(conn_gis_data, nombre_datos_predios_vitacura, comunaStr, dx, dy)
-    #--------------------------------------------------------------------------------------------------------
-    # Obtiene las manzanas que contienen predios aptos para edificación en altura 
     display("Obtiene las manzanas que contienen predios aptos para edificación en altura")
 
     query_check_manzanas_altura_str = """
@@ -289,18 +284,17 @@ function generaCombinacionesFinales(df_predios_combi, df_predios, nombre_tabla_c
 
         # Obtiene combinaciones factibles de predios en la manzana
         display("Obtiene combinaciones factibles de predios en la manzana")
-        vec_id_str = string.(vec_id)
-        num_lotes = length(vec_id_str)
-        print(vec_id_str)
+        num_lotes = length(vec_id)
+        print(string.(vec_id))
         combi_predios = []
         if sum(flag_area_vec) >= 2
             # Obtiene matriz de adyacencia a partir de la magnitud del largo compartido
             length_mat = zeros(num_lotes, num_lotes)
             adj_mat = zeros(Int, num_lotes, num_lotes)
-            for i = 1:num_lotes-1
+            for i = 1 : num_lotes - 1
                 p_i = vec_ps_predios_manzana[i]
                 p_i_ = polyShape.polyExpand(p_i, 0.1)
-                for j = i+1:num_lotes
+                for j = i + 1 : num_lotes
                     p_j = vec_ps_predios_manzana[j]
                     p_j_ = polyShape.polyExpand(p_j, 0.1)
                     p_ij = polyShape.polyIntersect(p_i_, p_j_)
@@ -314,8 +308,8 @@ function generaCombinacionesFinales(df_predios_combi, df_predios, nombre_tabla_c
             adj_mat = adj_mat .+ adj_mat'
 
             # Calcula todas las combinaciones de nodos que están conectados
-            combi_predios = graphMod.node_combis(adj_mat)
-        elseif sum(flag_area_vec) >= 1
+            combi_predios = graphMod.node_combis(adj_mat, path_len = num_lote_max)
+        elseif sum(flag_area_vec) == 1
             adj_mat = 1
             combi_predios = [[1]]
         end
@@ -327,7 +321,6 @@ function generaCombinacionesFinales(df_predios_combi, df_predios, nombre_tabla_c
         for i = 1:length_combi_predios
             combi_i = combi_predios[i]
             ps_i = polyShape.polyUnion(vec_ps_predios_manzana[combi_i])
-            ps_i = polyShape.polyExpand(polyShape.polyExpand(ps_i,0.02),-0.02)
 
             if ps_i.NumRegions == 1 #Si la unión genera un sólo polígono --> predios están conectados
                 area_i = polyShape.polyArea(ps_i)
@@ -369,6 +362,19 @@ function generaCombinacionesFinales(df_predios_combi, df_predios, nombre_tabla_c
 
 end
 
+############################################
+# Inicio Código 
+############################################
+
+
+# Limpieza de tablas auxiliares (en caso que existan)
+query_borra_tablas_aux_str = """DROP TABLE IF EXISTS tabla_combinacion_predios, tabla_predios_chicos, tabla_predios_grandes"""
+pg_julia.query(conn_LandValue, query_borra_tablas_aux_str)
+query_borra_tablas_aux_str = """DROP TABLE IF EXISTS __predios_altura, __manzanas_altura"""
+pg_julia.query(conn_gis_data, query_borra_tablas_aux_str)
+
+
+
 nombre_datos_predios_vitacura = "datos_predios_vitacura"
 comunaStr = "vitacura"
 codigo_predial = [151600041700009]
@@ -388,32 +394,33 @@ ps_predios = polyShape.setPolyOrientation(ps_predios, 1)
 
 #### 2877
 #### 2730 = 23 (1516002173000XX)
+#### 2820
 
 
 nombre_tabla_combinacion_predios = "tabla_predios_chicos"
 # ########################################################
-# filtros
+# Filtro Predios Chicos (predios que se deben combinar en pares)
 # ########################################################
 area_lote_lb = 100
-area_lote_ub = 400 
-area_predio_lb = 400 
+area_lote_ub = 400
+area_predio_lb = 400
 area_predio_ub = 4000
-num_lote_max = 2 
-largo_compartido_min = 20
+num_lote_max = 2
+largo_compartido_min = 18 #20
 ########################################################
 df_tabla_chicos = generaCombinaciones(conjunto_manzanas, nombre_tabla_combinacion_predios, conn_LandValue, area_lote_lb, area_lote_ub, area_predio_lb, area_predio_ub, num_lote_max, largo_compartido_min)
 
 
 nombre_tabla_combinacion_predios = "tabla_predios_grandes"
 # ########################################################
-# filtros
+# Filtro Predios Grandes (predios que se pueden incluir por sí solos)
 # ########################################################
 area_lote_lb = 400
 area_lote_ub = 3000
 area_predio_lb = 400
 area_predio_ub = 3000
 num_lote_max = 1
-largo_compartido_min = 20
+largo_compartido_min = 18 #20
 ########################################################
 df_tabla_grandes = generaCombinaciones(conjunto_manzanas, nombre_tabla_combinacion_predios, conn_LandValue, area_lote_lb, area_lote_ub, area_predio_lb, area_predio_ub, num_lote_max, largo_compartido_min)
 
@@ -422,13 +429,13 @@ df_predios_combi = vcat(df_tabla_grandes, df_tabla_chicos)
 
 nombre_tabla_combinacion_predios = "tabla_combinacion_predios"
 #########################################################
-# filtros
+# Filtro Final (combina predios chicos (en pares) con predios grandes)
 #########################################################
 area_lote_lb = 400
 area_lote_ub = 3000
 area_predio_lb = 1200
 area_predio_ub = 4000
-num_lote_max = 12
+num_lote_max = 11 #12
 largo_compartido_min = 18
 #########################################################
 generaCombinacionesFinales(df_predios_combi, df_predios, nombre_tabla_combinacion_predios, conn_LandValue, area_lote_lb, area_lote_ub, area_predio_lb, area_predio_ub, num_lote_max, largo_compartido_min)

@@ -39,30 +39,51 @@ function dfs(A::Matrix{Int64}, u::Int64, v::Int64)
 end
 
 
-function node_combis(g::MetaGraphs.MetaGraph{Int64, Int64}; flag_mat::Bool = false)
+function node_combis(g::MetaGraphs.MetaGraph{Int64, Int64}; flag_mat::Bool = false, path_len::Int = 100)
     # Esta función calcula todas las combinaciones de nodos que están conectados 
-    function node_combis_(u, v, cPath, sCombis, vis, g)
+
+    function node_combis_(u, v, cPath, sCombis, vis, g, path_len)
+        # Function to find all combinations of nodes between two given nodes in a graph
+        # Make copies of the input arguments to avoid modifying the original arrays
         cPath_ = copy(cPath)
         sCombis_ = copy(sCombis)
         vis_ = copy(vis)
+        
+        # If the current node 'u' has not been visited
         if vis_[u] == false
+            # Mark the current node 'u' as visited and add it to the current path
             vis_[u] = true
             push!(cPath_, u)
+            
+            # If the current node 'u' is equal to the target node 'v'
             if u == v
+                # Extract a combination of nodes from the current path
                 cPath_aux = sort(cPath_)[2:end-1] .- 1
+                
+                # If the combination is not already in the list of combinations, add it
                 if !(cPath_aux in sCombis_)
                     push!(sCombis_, cPath_aux)
                 end
+            elseif length(cPath_) >= path_len
+                cPath_aux = sort(cPath_)[2:end] .- 1
+                if !(cPath_aux in sCombis_)
+                    push!(sCombis_, cPath_aux)
+                end                
             else
+                # Explore all neighbors of the current node 'u' recursively
                 for next in neighbors(g, u)
-                    cPath_, sCombis_, vis_ = node_combis_(next, v, cPath_, sCombis_, vis_, g)
+                    cPath_, sCombis_, vis_ = node_combis_(next, v, cPath_, sCombis_, vis_, g, path_len)
                 end
             end
+            
+            # Mark the current node 'u' as unvisited and remove it from the current path
             vis_[u] = false
             cPath__ = copy(cPath_)
             pop!(cPath__)
             cPath_ = copy(cPath__)
         end
+        
+        # Return the updated current path, combinations, and visited status arrays
         return cPath_, sCombis_, vis_
     end    
 
@@ -75,29 +96,38 @@ function node_combis(g::MetaGraphs.MetaGraph{Int64, Int64}; flag_mat::Bool = fal
     vis = zeros(Bool, Graphs.nv(g_ext))
     cPath = []
     sCombis = []
-    _, simpleCombi, _ = node_combis_(start_node, end_node, cPath, sCombis, vis, g_ext)
+    _, simpleCombi, _ = node_combis_(start_node, end_node, cPath, sCombis, vis, g_ext, path_len)
 
+    # If 'flag_mat' is true, convert 'simpleCombi' to a matrix format
     if flag_mat
+        # Get the number of combinations and number of nodes in the original graph 'g'
         num_combi = length(simpleCombi)
         num_nodos = graphMod.numVertices(g)
+        
+        # Create an empty matrix 'mat_combis' with dimensions 'num_combi' x 'num_nodos'
         mat_combis = zeros(Int, num_combi, num_nodos)
-        for i = 1:num_combi 
+        
+        # Fill the matrix 'mat_combis' based on the combinations in 'simpleCombi'
+        for i = 1:num_combi
             id_non_zero = simpleCombi[i]
             mat_combis[i, id_non_zero] .= 1
         end
+        
+        # Make 'simpleCombi' refer to the matrix format 'mat_combis'
         simpleCombi = copy(mat_combis)
     end
 
     return simpleCombi
 end
-function node_combis(A::Matrix{Int64}; flag_mat::Bool = false)
+function node_combis(A::Matrix{Int64}; flag_mat::Bool = false, path_len::Int = 100)
     g = graphMod.simpleGraph(A)
-    simpleCombi = graphMod.node_combis(g, flag_mat = flag_mat)
+    simpleCombi = graphMod.node_combis(g, flag_mat = flag_mat, path_len = path_len)
     return simpleCombi
 end
 
 
 function extendAdjMat(A::Matrix{Int64})
+    # Agrega nodo de entrada y de salida
     filas, columnas = size(A)
     A_ext = zeros(Int64, filas+2, columnas+2)
     for i = 1:filas
