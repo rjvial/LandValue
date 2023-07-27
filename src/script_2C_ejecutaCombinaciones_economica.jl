@@ -15,7 +15,7 @@ let codigo_predial = []
     conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
     conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
 
-    num_workers = 4 #60 #
+    num_workers = 60 #4 #
     addprocs(num_workers; exeflags="--project")
     @everywhere using LandValue, Distributed
 
