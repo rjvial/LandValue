@@ -4,12 +4,13 @@ M = 100000
 
 # Ad = [0 1 1 0 0 0 0;
 #       1 0 1 0 0 0 0;
-#       1 1 0 0 0 0 0;
-#       0 0 0 0 1 1 0;
+#       1 1 0 1 0 0 0;
+#       0 0 1 0 1 1 0;
 #       0 0 0 1 0 0 1;
 #       0 0 0 1 0 0 1;
 #       0 0 0 0 1 1 0]
 # C = graphMod.node_combis(Ad, flag_mat = true)
+# graphMod.graphPlot(Ad)
 
 # C = [ 1  1  1  1  1;
 # 1  1  1  1  0;
@@ -28,12 +29,23 @@ M = 100000
 # 0  0  1  1  0;
 # 0  0  0  1  1]
 
-C = [1 1 0;
-     0 1 1;
-     1 0 1;
-     1 1 1]
+C = [1 1 0 0 0;
+     0 1 1 0 0;
+     0 0 1 1 0;
+     0 0 0 1 1;
+     1 1 1 0 0;
+     0 1 1 1 0;
+     0 0 1 1 1;
+     1 1 1 1 0;
+     0 1 1 1 1;
+     1 1 1 1 1]
 
-# C = [1 1 0 0; 0 1 1 0; 0 1 0 1; 1 1 1 0; 1 1 0 1; 0 1 1 1]
+# C = [1 1 0;
+#      0 1 1;
+#      1 0 1;
+#      1 1 1]
+
+# C = [1 1 0 0; 0 1 1 0; 0 1 0 1; 1 1 1 0; 1 1 0 1; 0 1 1 1] #El problema con este es que no tiene 0s en la columna 2
 # C = [1 1 0 0; 0 1 1 0; 1 0 0 1; 1 1 0 1; 1 1 1 0; 1 1 1 1]
 
 numCombi, numLotes = size(C) 
@@ -51,9 +63,7 @@ set_optimizer_attribute(m, "logLevel", 0)
 
 @constraints(m, begin
     C * x .>= 1
-    [k = 1:numLotes, j in idCombi[C[:,k] .== 0]], sum(C[j,:] .* x) + M*(1 - z[k,j]) >= sum(x)
-    # [k = 1:numLotes, j in idCombi[C[:,k] .== 0]], sum(x) >= z[k,j]
-    # [k = 1:numLotes, j in idCombi[C[:,k] .== 0]],  sum(C[j,:] .* x) <= M*z[k,j]
+    [k = 1:numLotes, j in idCombi[C[:,k] .== 0]], sum(C[j,:] .* x) + M*(x[k] + (1 - z[k,j])) >= sum(x)
     [k = 1:numLotes], sum(z[k, idCombi[C[:,k] .== 0]]) >= 1  
 end)
 
