@@ -322,11 +322,12 @@ module LandValue
     include("create_scr.jl")
     include("create_edificio_geojson.jl")
     include("optimal_pricing.jl")
+    include("optimal_lot_selection.jl")
 
     export funcionPrincipal, fo_bbo, fo_nomad, calculaAnguloRotacion, generaSombraEdificio, optiEdificio, displayResults, 
         optim_nomad, optim_bbo, poly2D, polyShape, graphMod, resultConverter, plotBaseEdificio3D, generaVol3D, generaSombraTeor, 
         pg_julia, obtieneCalles, generaPoligonoCorte, queryCabida, generaCotas, create_scr, create_edificio_geojson,
-        optimal_pricing
+        optimal_pricing, optimal_lot_selection
 
 
 end

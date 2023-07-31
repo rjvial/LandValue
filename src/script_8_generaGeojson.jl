@@ -1,6 +1,6 @@
 using LandValue, DotEnv
 
-DotEnv.load("secrets.env") #Caso Docker
+DotEnv.load("secrets.env")
 datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
 
 conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
@@ -15,13 +15,25 @@ for field_s in fieldnames(DatosCabidaArquitectura)
 end
 alturaPiso = dca.alturaPiso
 
-query_resultados_str = """
-select id from tabla_resultados_cabidas ORDER BY id ASC;
-"""
-df_id = pg_julia.query(conn_LandValue, query_resultados_str)
+# query_resultados_str = """
+# select id from tabla_resultados_cabidas ORDER BY id ASC;
+# """
+# df_id = pg_julia.query(conn_LandValue, query_resultados_str)
 
-numRows, numCols = size(df_id)
-rowSet = df_id[:,"id"]
+# numRows, numCols = size(df_id)
+# rowSet = df_id[:,"id"]
+
+display("Obtiene listado de las combinaciones que con max gap para cada localidad")
+query_max_gap = """
+    SELECT id_combi_list, MAX(gap) AS max_gap, 
+    (SELECT id AS id_max_gap FROM tabla_resultados_cabidas t2 WHERE t2.id_combi_list = t1.id_combi_list AND t2.gap = MAX(t1.gap))
+    FROM tabla_resultados_cabidas t1
+    GROUP BY id_combi_list
+    ORDER BY id_combi_list
+"""
+df_max_gap = pg_julia.query(conn_LandValue, query_max_gap)
+rowSet = df_max_gap[:, "id_max_gap"]
+
 
 
 for r in rowSet
