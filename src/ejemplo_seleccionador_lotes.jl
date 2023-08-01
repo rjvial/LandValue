@@ -1,15 +1,15 @@
-using LandValue, JuMP, Cbc
+using LandValue, JuMP, Cbc, SCIP
 
 M = 100000
 
-# Ad = [0 1 1 0 0 0 0;
-#       1 0 1 0 0 0 0;
-#       1 1 0 1 0 0 0;
-#       0 0 1 0 1 1 0;
-#       0 0 0 1 0 0 1;
-#       0 0 0 1 0 0 1;
-#       0 0 0 0 1 1 0]
-# C = graphMod.node_combis(Ad, flag_mat = true)
+Ad = [0 1 1 0 0 0 0;
+      1 0 1 0 0 0 0;
+      1 1 0 1 0 0 0;
+      0 0 1 0 1 1 0;
+      0 0 0 1 0 0 1;
+      0 0 0 1 0 0 1;
+      0 0 0 0 1 1 0]
+C = graphMod.node_combis(Ad, flag_mat = true)
 # graphMod.graphPlot(Ad)
 
 # C = [ 1  1  1  1  1;
@@ -50,9 +50,11 @@ M = 100000
 numCombi, numLotes = size(C) 
 
 idCombi = collect(1:numCombi)
-m = JuMP.Model(Cbc.Optimizer)
-JuMP.set_optimizer_attribute(m, "ratioGap", 0.001)
-set_optimizer_attribute(m, "logLevel", 0)
+# m = JuMP.Model(Cbc.Optimizer)
+m = JuMP.Model(SCIP.Optimizer)
+# JuMP.set_optimizer_attribute(m, "ratioGap", 0.001)
+# set_optimizer_attribute(m, "logLevel", 0)
+# set_attribute(m, "display/verblevel", 0)
 
 largo_Ck = [length(idCombi[C[:,k] .== 0]) for k=1:numLotes]
 

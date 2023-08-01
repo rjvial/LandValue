@@ -1,7 +1,22 @@
-using Images, ImageBinarization
+using LandValue, Images, ImageBinarization, DotEnv
+
+DotEnv.load("secrets.env") #Caso Docker
+# datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
+datos_LandValue = ["landengines_local", "postgres", "", "localhost"]
+
+conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
 
 
-for k = 1:4304
+query_resultados_str = """
+SELECT id
+FROM public.tabla_resultados_cabidas
+"""
+df_resultados = pg_julia.query(conn_LandValue, query_resultados_str)
+
+rowSet = sort(df_resultados[:,"id"])
+
+
+for k in rowSet
 
     infileStr = "C:\\Users\\rjvia\\Documents\\Land_engines_code\\Julia\\imagenes_cabidas\\____cabida_vitacura_" * string(k) * ".png"
     outfileStr = "C:\\Users\\rjvia\\Documents\\Land_engines_code\\Julia\\imagenes_cabidas\\cabida_vitacura_" * string(k) * ".png"

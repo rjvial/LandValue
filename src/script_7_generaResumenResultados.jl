@@ -1,4 +1,4 @@
-using LandValue, DotEnv
+using LandValue, DotEnv, CSV
 
 # Establece las conexiones a las Base de Datos
 # conn_LandValue = pg_julia.connection("landengines", ENV["USER"], ENV["PW"], ENV["HOST"])
@@ -181,3 +181,99 @@ query_sup_terreno_pos_str = """
 """
 sup_terreno_pos = pg_julia.query(conn_LandValue, query_sup_terreno_pos_str)[:,1][1]
 display("Superficie Terreno Positivas: " * string(sup_terreno_pos))
+
+
+
+
+query_ = """
+    SELECT ST_AsGeoJSON(subq.*) AS geojson
+    FROM (
+    SELECT ST_Centroid(geom_combi),
+        combi_predios,
+        norma_max_num_deptos,
+        norma_max_ocupacion,
+        norma_max_constructibilidad,
+        norma_max_pisos,
+        norma_max_altura,
+        norma_min_estacionamientos_vendibles,
+        norma_min_estacionamientos_visita,
+        norma_min_estacionamientos_discapacitados,
+        cabida_temp_opt,
+        cabida_tipo_deptos,
+        cabida_num_deptos,
+        cabida_ocupacion,
+        cabida_constructibilidad,
+        cabida_num_pisos,
+        cabida_altura,
+        cabida_superficie_interior,
+        cabida_superficie_terraza,
+        cabida_superficie_comun,
+        cabida_superficie_edificada_snt,
+        cabida_superficie_por_piso,
+        cabida_estacionamientos_vendibles,
+        cabida_estacionamientos_visita,
+        cabida_num_estacionamientos,
+        cabida_num_bicicleteros,
+        cabida_num_bodegas,
+        terreno_superficie,
+        terreno_superficie_bruta,
+        "terreno_largoFrenteCalle",
+        terreno_costo,
+        terreno_costo_unit,
+        terreno_costo_corredor,
+        terreno_costo_demolicion,
+        terreno_otros,
+        terreno_costo_total,
+        terreno_costo_unit_total,
+        holgura_ocupacion,
+        holgura_constructibilidad,
+        holgura_densidad,
+        indicador_ingresos_ventas,
+        indicador_costo_total,
+        indicador_margen_antes_impuesto,
+        indicador_impuesto_renta,
+        indicador_utilidad_despues_impuesto,
+        indicador_rentabilidad_total_bruta,
+        indicador_rentabilidad_total_neta,
+        indicador_incidencia_terreno,
+        optimo_solucion,
+        id,
+        dir_image_file,
+        id_combi_list,
+        valor_combi,
+        gap,
+        gap_porcentual
+
+    FROM tabla_resultados_cabidas
+        WHERE id IN $list_max_gap
+    ) AS subq
+"""
+
+df_resultados_cabidas = pg_julia.query(conn_LandValue, query_)
+
+numfilas = size(df_resultados_cabidas,1)
+json_str = """
+{
+    "type": "FeatureCollection",
+    "crs": {
+        "type": "name",
+        "properties": {
+            "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+        }
+    },
+    "features": [
+"""
+for i in 1:numfilas
+    if i == numfilas
+        row_str_i = df_resultados_cabidas[i,"geojson"] * "]}"
+    else
+        row_str_i = df_resultados_cabidas[i,"geojson"] * ","
+    end
+    json_str = json_str * row_str_i
+end
+
+
+open("C:\\Users\\rjvia\\Documents\\Land_engines_code\\Julia\\resultados_cabidas.json", "w") do file
+    write(file, json_str)
+end
+
