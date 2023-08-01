@@ -31,25 +31,25 @@ numRows_combi, numCols_combi = size(df_combi)
 
 # Completa columna id_combi_list
 for r = 1:numRows_combi
-  id_combi_str = string(df_combi[r, "id_combi_list"])
+    id_combi_str = string(df_combi[r, "id_combi_list"])
 
-  combi_list_r = df_combi[r, "combi_list"]
-  vec_combi_list = eval(Meta.parse(replace(replace(replace(replace(string(combi_list_r), "{" => "["), "}" => "]")))))
+    combi_list_r = df_combi[r, "combi_list"]
+    vec_combi_list = eval(Meta.parse(replace(replace(replace(replace(string(combi_list_r), "{" => "["), "}" => "]")))))
 
 
-  for k in eachindex(vec_combi_list)
-    predios_ik_str = string(vec_combi_list[k])
-    query_predios_str = """
-            UPDATE tabla_resultados_cabidas SET id_combi_list = id_combi_str_
-            WHERE combi_predios = \'predios_ik_str_\'
-            """
-    query_predios_str = replace(query_predios_str, "id_combi_str_" => id_combi_str)
-    query_predios_str = replace(query_predios_str, "predios_ik_str_" => predios_ik_str)
-    df_predios = pg_julia.query(conn_LandValue, query_predios_str)
+    for k in eachindex(vec_combi_list)
+        predios_ik_str = string(vec_combi_list[k])
+        query_predios_str = """
+                UPDATE tabla_resultados_cabidas SET id_combi_list = id_combi_str_
+                WHERE combi_predios = \'predios_ik_str_\'
+                """
+        query_predios_str = replace(query_predios_str, "id_combi_str_" => id_combi_str)
+        query_predios_str = replace(query_predios_str, "predios_ik_str_" => predios_ik_str)
+        df_predios = pg_julia.query(conn_LandValue, query_predios_str)
 
-  end
+    end
 
-  display(string(r) * "  " * combi_list_r)
+    display(string(r) * "  " * combi_list_r)
 
 end
 

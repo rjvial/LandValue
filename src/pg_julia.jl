@@ -57,7 +57,7 @@ function query(conn::LibPQ.Connection, queryStr::String)
 end
 
 function myDataFrame(result)
-    df = DataFrame(result)
+    df = DataFrames.DataFrame(result)
     columnsAsSymbol = propertynames(df)
     typeList = [Int64, Float64]
     for c in columnsAsSymbol
