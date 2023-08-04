@@ -1,51 +1,61 @@
-using LandValue, Distributed, DotEnv 
+using LandValue, Distributed, DotEnv
+
+# [151600243300012, 151600243300021, 151600243300022, 151600243300023, 151600243300015, 151600243300014, 151600243300013]
+# [151600243500008, 151600243500009, 151600243500010, 151600243500011, 151600243500012]
+# [151600187100034, 151600187100035, 151600187100036, 151600187100037, 151600187100038, 151600187100039]
+# [151600046100004, 151600046100012, 151600046100011, 151600046100010, 151600046100009, 151600046100008]
+# [151600044500028, 151600044500029, 151600044500030]
+# [151600052500029, 151600052500030, 151600052500031]
+# [151600055100011, 151600055100010]
 
 
-    let codigo_predial = [151600340500126, 151600340500128, 151600340500129, 151600340500130, 151600340500131, 151600340500132] #[151600340500126, 151600340500128, 151600340500129, 151600340500130, 151600340500131, 151600340500132]
-    # Para cómputos sobre la base de datos usar codigo_predial = []
+codigo_predial = [151600055100011, 151600055100010]
 
-    tipoOptimizacion = "volumetrica"
+# Para cómputos sobre la base de datos usar codigo_predial = []
 
-    DotEnv.load("secrets.env") #Caso Docker
-    datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
-    datos_mygis_db = ["gis_data", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
-    # datos_LandValue = ["landengines_local", "postgres", "", "localhost"]
-    # datos_mygis_db = ["gis_data_local", "postgres", "", "localhost"]
+tipoOptimizacion = "volumetrica"
 
-    conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
-    conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
+DotEnv.load("secrets.env") #Caso Docker
+datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
+datos_mygis_db = ["gis_data", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
+# datos_LandValue = ["landengines_local", "postgres", "", "localhost"]
+# datos_mygis_db = ["gis_data_local", "postgres", "", "localhost"]
 
-    id_ = 0
+conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
+conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
 
-    fpe, temp_opt, alturaPiso, xopt, vec_datos = funcionPrincipal(tipoOptimizacion, codigo_predial, id_, datos_LandValue, datos_mygis_db)
-   
-    ps_predio = vec_datos[1]
-    ps_volTeorico = vec_datos[2]
-    matConexionVertices_volTeorico = vec_datos[3]
-    vecVertices_volTeorico = vec_datos[4]
-    ps_volConSombra = vec_datos[5]
-    matConexionVertices_conSombra = vec_datos[6]
-    vecVertices_conSombra = vec_datos[7]
-    ps_publico = vec_datos[8] 
-    ps_calles = vec_datos[9]
-    ps_base = vec_datos[10]
-    ps_baseSeparada = vec_datos[11]
-    ps_calles_intra_buffer = vec_datos[12]
-    ps_predios_intra_buffer = vec_datos[13]
-    ps_manzanas_intra_buffer = vec_datos[14]
-    ps_buffer_predio = vec_datos[15]
-    dx = vec_datos[16]
-    dy = vec_datos[17]
-    ps_areaEdif = vec_datos[18]
+id_ = 0
 
-    fig, ax, ax_mat = plotBaseEdificio3D(fpe, xopt, alturaPiso, ps_predio, ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico,
-        ps_volConSombra, matConexionVertices_conSombra, vecVertices_conSombra, ps_publico, ps_calles, ps_base, ps_baseSeparada)
+fpe, temp_opt, alturaPiso, xopt, vec_datos, superficieTerreno, superficieTerrenoBruta = funcionPrincipal(tipoOptimizacion, codigo_predial, id_, datos_LandValue, datos_mygis_db, [])
 
-    fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_predios_intra_buffer, 0.0, "green", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
-    fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_manzanas_intra_buffer, 0.0, "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
-    fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_buffer_predio, 0.0, "gray", 0.15, fig=fig, ax=ax, ax_mat=ax_mat)
+ps_predio = vec_datos[1]
+ps_volTeorico = vec_datos[2]
+matConexionVertices_volTeorico = vec_datos[3]
+vecVertices_volTeorico = vec_datos[4]
+ps_volConSombra = vec_datos[5]
+matConexionVertices_conSombra = vec_datos[6]
+vecVertices_conSombra = vec_datos[7]
+ps_publico = vec_datos[8]
+ps_calles = vec_datos[9]
+ps_base = vec_datos[10]
+ps_baseSeparada = vec_datos[11]
+ps_calles_intra_buffer = vec_datos[12]
+ps_predios_intra_buffer = vec_datos[13]
+ps_manzanas_intra_buffer = vec_datos[14]
+ps_buffer_predio = vec_datos[15]
+dx = vec_datos[16]
+dy = vec_datos[17]
+ps_areaEdif = vec_datos[18]
 
-end
+datos = [xopt[1]*alturaPiso, ps_base, superficieTerreno, superficieTerrenoBruta, xopt]
+
+fig, ax, ax_mat = plotBaseEdificio3D(fpe, xopt, alturaPiso, ps_predio, ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico,
+    ps_volConSombra, matConexionVertices_conSombra, vecVertices_conSombra, ps_publico, ps_calles, ps_base, ps_baseSeparada)
+
+fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_predios_intra_buffer, 0.0, "green", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_manzanas_intra_buffer, 0.0, "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_buffer_predio, 0.0, "gray", 0.15, fig=fig, ax=ax, ax_mat=ax_mat)
+
 
 # UPDATE tabla_combinacion_predios
 # SET status = 0 

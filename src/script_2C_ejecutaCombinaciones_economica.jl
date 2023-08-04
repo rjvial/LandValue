@@ -1,28 +1,24 @@
 using LandValue, Distributed, DotEnv
 
+codigo_predial = [151600055100011, 151600055100010]
+# Para cómputos sobre la base de datos usar codigo_predial = []
+tipoOptimizacion = "provisoria" #"economica"
+
+DotEnv.load("secrets.env") #Caso Docker
+datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
+datos_mygis_db = ["gis_data", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
+# datos_LandValue = ["landengines_local", "postgres", "", "localhost"]
+# datos_mygis_db = ["gis_data_local", "postgres", "", "localhost"]
+
+conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
+conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
 
 
-let codigo_predial = [151600340500136, 151600340500137, 151600340500138, 151600340500139] 
-    # Para cómputos sobre la base de datos usar codigo_predial = []
-    tipoOptimizacion = "provisoria" #"economica"
+id_ = 0
 
-    DotEnv.load("secrets.env") #Caso Docker
-    datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
-    datos_mygis_db = ["gis_data", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
-    # datos_LandValue = ["landengines_local", "postgres", "", "localhost"]
-    # datos_mygis_db = ["gis_data_local", "postgres", "", "localhost"]
+dcc, resultados, xopt, vecColumnNames, vecColumnValue, id_ = funcionPrincipal(tipoOptimizacion, codigo_predial, id_, datos_LandValue, datos_mygis_db, datos)
 
-    conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
-    conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
-
-
-    id_ = 0
-
-    dcc, resultados, xopt, vecColumnNames, vecColumnValue, id_ = funcionPrincipal(tipoOptimizacion, codigo_predial, id_, datos_LandValue, datos_mygis_db)
-
-    displayResults(resultados, dcc)
-
-end
+displayResults(resultados, dcc)
 
 # Para reinicializar tabla_resultados_cabidas
 # update tabla_resultados_cabidas

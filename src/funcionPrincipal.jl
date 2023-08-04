@@ -1,4 +1,4 @@
-function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1},Int64}, id_, datos_LandValue, datos_mygis_db)
+function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1},Int64}, id_, datos_LandValue, datos_mygis_db, datos)
 
     ##############################################
     # PARTE "1": OBTENCIÓN DE PARÁMETROS         #
@@ -497,7 +497,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         sleep(3)
 
 
-        return fpe, temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id_
+        return fpe, temp_opt, alturaPiso, xopt, vec_datos, superficieTerreno, superficieTerrenoBruta
 
     else
         display("Obtiene DatosCabidaComercial")
@@ -529,17 +529,26 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         display("")
         display("Inicio de Optimización Económica: Predio N° " * string(codigo_predial))
 
-        queryStr = """
-        SELECT cabida_altura, ps_base, optimo_solucion, terreno_superficie, terreno_superficie_bruta FROM tabla_resultados_cabidas WHERE cond_
-        """
-        condStr = "combi_predios " * "= \'" * string(codigo_predial) * "\'"
-        queryStr = replace(queryStr, "cond_" => condStr)
-        df_ = pg_julia.query(conn_LandValue, queryStr)
-        alturaEdif = df_[1, "cabida_altura"]
-        ps_base = eval(Meta.parse(df_[1, "ps_base"]))
-        superficieTerreno = df_[1, "terreno_superficie"]
-        superficieTerrenoBruta = df_[1, "terreno_superficie_bruta"]
-        xopt = eval(Meta.parse(df_[1, "optimo_solucion"]))
+        if isempty(datos) # Si datos está vacío, se obtiene la info. de la tabla_resultados_cabidas
+            queryStr = """
+            SELECT cabida_altura, ps_base, optimo_solucion, terreno_superficie, terreno_superficie_bruta FROM tabla_resultados_cabidas WHERE cond_
+            """
+            condStr = "combi_predios " * "= \'" * string(codigo_predial) * "\'"
+            queryStr = replace(queryStr, "cond_" => condStr)
+            df_ = pg_julia.query(conn_LandValue, queryStr)
+
+            alturaEdif = df_[1, "cabida_altura"]
+            ps_base = eval(Meta.parse(df_[1, "ps_base"]))
+            superficieTerreno = df_[1, "terreno_superficie"]
+            superficieTerrenoBruta = df_[1, "terreno_superficie_bruta"]
+            xopt = eval(Meta.parse(df_[1, "optimo_solucion"]))
+        else # Si datos contiene información predefinida, se utiliza esa info.
+            alturaEdif = datos[1]
+            ps_base =datos[2]
+            superficieTerreno = datos[3]
+            superficieTerrenoBruta = datos[4]
+            xopt = datos[5]
+        end
 
         sn, sa, si, st, so, sm, sf = optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, alturaEdif, ps_base, superficieTerreno, superficieTerrenoBruta)
         #xopt[1] = numPisos #sa.altura 

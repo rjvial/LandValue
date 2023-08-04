@@ -12,6 +12,11 @@ query_combi_locations = """
 select * from combi_locations
 order by id_combi_list ASC
 """
+# query_combi_locations = """
+# select * from combi_locations
+# where id_max_gap = 4268
+# """
+
 df_combi_locations = pg_julia.query(conn_LandValue, query_combi_locations)
 numRows_combi, numCols_combi = size(df_combi_locations)
 
@@ -30,7 +35,7 @@ for r = 1:numRows_combi
     num_unique_lotes_r = length(vec_unique_lotes)
 
     num_lotes_combi_r = eval(Meta.parse(df_combi_locations[r, "num_lotes_combi"]))
-    flag_num_lotes_combi = num_lotes_combi_r .>= 2
+    flag_num_lotes_combi = num_lotes_combi_r .>= 1
 
     sign_combi_r = eval(Meta.parse(df_combi_locations[r, "sign_combi_vec"]))
     flag_sign_combi = sign_combi_r .>= 1

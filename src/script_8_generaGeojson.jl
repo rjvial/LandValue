@@ -15,6 +15,7 @@ for field_s in fieldnames(DatosCabidaArquitectura)
 end
 alturaPiso = dca.alturaPiso
 
+# display("Obtiene listado de todas las combinaciones")
 # query_resultados_str = """
 # select id from tabla_resultados_cabidas ORDER BY id ASC;
 # """
@@ -77,6 +78,7 @@ for r in rowSet
     gap_porcentual = df_r[1, "gap_porcentual"]
     
     filestr = "C:/Users/rjvia/Documents/Land_engines_code/Julia/edificios_geojson/edificio_" * string(id) * "_vitacura.geojson"
+    # filestr = "C:/Users/rjvia/Documents/Land_engines_code/Julia/edificios_geojson_todos/edificio_" * string(id) * "_vitacura.geojson"
 
     create_edificio_geojson(xopt, ps_predio, ps_base, ps_areaEdif, alturaPiso, dx, dy, filestr, gap_porcentual)
 
