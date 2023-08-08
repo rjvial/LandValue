@@ -177,7 +177,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         V_volConSombra = ps_volConSombra.Vertices[1]
         vecAlturas_conSombra = sort(unique(V_volConSombra[:, end]))
 
-        sepNaves = 12.0 #dca.anchoMin - 0
+        sepNaves = 5.# 12.0 #dca.anchoMin - 0
 
         maxSupConstruida = superficieTerreno * dcn.coefConstructibilidad * (1 + 0.3 * dcp.fusionTerrenos)
         maxOcupación = dcn.coefOcupacion * superficieTerreno
