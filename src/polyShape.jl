@@ -890,29 +890,50 @@ function polyDifference_v2(ps1::PolyShape, ps2::PolyShape)::PolyShape
 
     # Revisa si ciertas regiones están contenidas en otras. En caso de estarlo se aplica diferenciación especial
 
-    numRegions1 = ps1.NumRegions
-    numRegions2 = ps2.NumRegions
-    Vout_vec = Array{Array{Float64,2},1}(undef, numRegions1)
-    for i = 1:numRegions1
-        ps1_i = polyShape.subShape(ps1, i)
-        Vout_vec[i] = ps1_i.Vertices[1]
-        for j = 1:numRegions2
-            V1_i = copy(Vout_vec[i])
-            ps2_j = polyShape.subShape(ps2, j)
-            flag_ij = polyShape.shapeContains(ps1_i, ps2_j)
-            if flag_ij #ps1_i contiene a ps2_j
-                dist_min, id1_min, id2_min = polyShape.minPolyDistance(ps1_i, ps2_j)
-                V2_j = ps2_j.Vertices[1]
-                V2_j_ = [V2_j[id2_min:-1:1, :]; V2_j[end:-1:id2_min, :]]
-                Vout_vec[i] = [V1_i[1:id1_min, :]; V2_j_; V1_i[id1_min:end, :]]
+    if polyShape.polyIntersect(ps1,ps2).NumRegions >= 1
+    
+        numRegions1 = ps1.NumRegions
+        numRegions2 = ps2.NumRegions
+        ps_mat = Array{PolyShape,2}(undef, numRegions1, numRegions2)
+        for i = 1:numRegions1
+            ps1_i = polyShape.subShape(ps1, i)
+            for j = 1:numRegions2
+                ps2_j = polyShape.subShape(ps2, j)
+                flag_ij = polyShape.shapeContains(ps1_i, ps2_j)
+                if flag_ij #ps1_i contiene a ps2_j
+                    centroid_j = polyShape.shapeCentroid(ps2_j).Vertices[1,:]
+
+                    ps_box = polyShape.polyBox(centroid_j[1], centroid_j[2], .01, 1000., 0.)
+                    ps2_ex_j = polyShape.polyUnion(ps2_j, ps_box)
+                    d_ps1_i_ps2_j = polyShape.polyDifference(ps1_i, ps2_ex_j)
+                    ps_mat[i,j] = d_ps1_i_ps2_j
+                elseif polyShape.polyIntersect(ps1_i,ps2_j).NumRegions >= 1
+                    ps_mat[i,j] = polyShape.polyDifference(ps1_i, ps2_j)
+                end
+
             end
-
         end
+
+
+        ps_out = []
+        flag = true
+        for i = 1:numRegions1
+            for j = 1:numRegions2
+                try
+                    if flag
+                        ps_out = ps_mat[i,j]
+                        flag = false
+                    else
+                        ps_out = polyShape.polyIntersect(ps_out, ps_mat[i,j])
+                    end
+                catch
+                end
+            end
+        end
+
+    else
+        ps_out = deepcopy(ps1)
     end
-
-    ps1_ = PolyShape(Vout_vec, numRegions1)
-
-    ps_out = polyShape.polyDifference(ps1_, ps2)
 
     return ps_out
 end
