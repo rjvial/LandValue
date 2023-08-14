@@ -53,10 +53,10 @@ for r = 1:numRows_combi
 
 end
 
-# Agrega columna valor_combi a tabla_resultados_cabidas
+# Agrega columna valor_mercado_combi a tabla_resultados_cabidas
 query_resultados_str = """
 ALTER TABLE tabla_resultados_cabidas
-  ADD COLUMN IF NOT EXISTS valor_combi double precision;
+  ADD COLUMN IF NOT EXISTS valor_mercado_combi double precision;
 """
 pg_julia.query(conn_LandValue, query_resultados_str)
 
@@ -95,10 +95,10 @@ for r = 1:numRows_resultados
         valorizacion_r += valorizacion_rp
     end
     query_propiedades_str = """
-      UPDATE tabla_resultados_cabidas SET valor_combi = valor_combi_str_
+      UPDATE tabla_resultados_cabidas SET valor_mercado_combi = valor_mercado_combi_str_
       WHERE combi_predios = \'list_prop_r_\'
       """
-    query_propiedades_str = replace(query_propiedades_str, "valor_combi_str_" => string(valorizacion_r))
+    query_propiedades_str = replace(query_propiedades_str, "valor_mercado_combi_str_" => string(valorizacion_r))
     query_propiedades_str = replace(query_propiedades_str, "list_prop_r_" => list_prop_r)
     pg_julia.query(conn_LandValue, query_propiedades_str)
 

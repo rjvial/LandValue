@@ -128,7 +128,7 @@ function getDisconnectedSubgraphs(A::Matrix{Int64})
     return list_subgraphs
 end
 
-function getDisconnectedSubgraphs_v2(C::Matrix{Int64})
+function Combi2Adjacency(C)
     function CtoA!(A, C, k)
         A_ = copy(A)
         num_lotes = size(C, 2)
@@ -144,10 +144,16 @@ function getDisconnectedSubgraphs_v2(C::Matrix{Int64})
     end
     num_combis, num_lotes = size(C)
     A = zeros(Int, num_lotes, num_lotes)
-
     for k = 1:num_combis
         A = CtoA!(A, C, k)
     end
+
+    return A
+end
+
+
+function getDisconnectedSubgraphs_v2(C::Matrix{Int64})
+    A = graphMod.Combi2Adjacency(C)
     vec = graphMod.getDisconnectedSubgraphs(A)
     return vec
 end
@@ -332,7 +338,7 @@ end
 
 
 export dfs, node_combis, simpleGraph, getDisconnectedSubgraphs, getDisconnectedSubgraphs_v2, getAdjacencyMat, 
-        graphPlot, setProp!, getProp, getVertices, getEdges, nodeSubgraph, edgeSubgraph, numVertices, 
+        graphPlot, setProp!, getProp, getVertices, getEdges, nodeSubgraph, edgeSubgraph, numVertices, Combi2Adjacency,
         numEdges, filterVertices, filterEdges, neighbors, adjMatSubNode, combiMatForNode, eliminateNodeAdjMat
 
 end

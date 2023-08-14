@@ -73,7 +73,7 @@ for r in rowSet
     dy = df_r[1, "dy"]
     id = df_r[1, "id"]
     id_combi = df_r[1, "id_combi_list"]
-    valor_combi = df_r[1, "valor_combi"]
+    valor_mercado_combi = df_r[1, "valor_mercado_combi"]
     gap = df_r[1, "gap"]
     gap_porcentual = df_r[1, "gap_porcentual"]
     

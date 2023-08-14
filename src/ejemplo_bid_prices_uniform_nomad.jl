@@ -22,22 +22,30 @@ prob_compraValorInmobiliario = .9
 # C = graphMod.node_combis(Ad, flag_mat = true) #Genera matriz de Combinaciones de lotes
 # C = [1 1 0 0; 0 1 1 0; 0 1 0 1; 1 1 1 0; 1 1 0 1; 0 1 1 1]
 # C = [0 0 0 0]
-C = [1 1 0 0; 0 1 1 0; 1 0 0 1; 1 1 0 1; 1 1 1 0; 1 1 1 1]
+# C = [1 1 0 0; 0 1 1 0; 1 0 0 1; 1 1 0 1; 1 1 1 0; 1 1 1 1]
+# C = [1  1  0  0;1  0  0  0;0  1  0  1;0  1  0  0;0  0  0  1;0  0  1  0]
+C = [1  1  0;0  1   1]
 # C = [1 1 1 0; 0 1 1 1; 1 1 1 1]
 numLotes = size(C, 2)
 
 # 4) Valor de mercado de los lotes
-valorMercado_lote = 38888.  # * .9 = 35000 = precio_lb
-valorMercado_lotes = vec(ones(numLotes,1) .* valorMercado_lote)
- 
+# valorMercado_lote = 38888.  # * .9 = 35000 = precio_lb
+# valorMercado_lotes = vec(ones(numLotes,1) .* valorMercado_lote)
+# valorMercado_lotes = [68495.1977872724 76735.6739262459 61840.3023374807 57523.6746797915]
+valorMercado_lotes = [68495.1977872724 76735.6739262459 57523.6746797915]
+
+
 # 5) Tamaño de los lotes
-superficie_lotes = [700. for i = 1:numLotes]
+# superficie_lotes = [700. for i = 1:numLotes]
+superficie_lotes = [ 1675.0 1800.0 1424.0]
 
 # 6) Valor inmobiliario de las combinaciones
-valorInmobiliario_lote = 50000.
-valorInmobiliario_combis = sum(C, dims=2) .* valorInmobiliario_lote #valor de los combis para el Inmobiliario
-valorInmobiliario_combis[ sum(C, dims=2) .<= 1 ] .= valorMercado_lote
-valorInmobiliario_combis = vec(valorInmobiliario_combis)
+# valorInmobiliario_lote = 50000.
+# valorInmobiliario_combis = sum(C, dims=2) .* valorInmobiliario_lote #valor de los combis para el Inmobiliario
+# valorInmobiliario_combis[ sum(C, dims=2) .<= 1 ] .= valorMercado_lote
+# valorInmobiliario_combis = vec(valorInmobiliario_combis)
+# valorInmobiliario_combis = [145230.87171351828 68495.1977872724 134259.34860603738 76735.6739262459 57523.6746797915 61840.3023374807]
+valorInmobiliario_combis = [145230.87171351828 134259.34860603738]
 
 # 7) Mínima probabilidad de compra exigida
 minProb = 0.0

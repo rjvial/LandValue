@@ -1,7 +1,6 @@
 module LandValue
 
-    using JuMP, NOMAD, Cbc, BlackBoxOptim, ArchGDAL, DotEnv #,
-            # NonconvexBayesian, NonconvexIpopt, NonconvexNLopt, Distributions
+    using JuMP, NOMAD, Cbc, BlackBoxOptim, ArchGDAL, DotEnv, LinearAlgebra, Optim
     
 
     mutable struct PolyShape

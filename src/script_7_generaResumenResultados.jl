@@ -125,7 +125,7 @@ query_ = """
         id,
         dir_image_file,
         id_combi_list,
-        valor_combi,
+        valor_mercado_combi,
         gap,
         gap_porcentual
 
