@@ -10,8 +10,13 @@ conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], dat
 conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
 
 
+# Parametros
+delta_porcentual = 0.1
+minGap = 0. #0.2
+
+
 query_combi_locations = """
-select * from combi_locations
+select id_combi_list from combi_locations
 order by id_combi_list ASC
 """
 df_combi_locations = pg_julia.query(conn_LandValue, query_combi_locations)
@@ -22,22 +27,19 @@ query_add_column = """
     ALTER TABLE combi_locations
     ADD COLUMN IF NOT EXISTS util_esp_combi double precision,
     ADD COLUMN IF NOT EXISTS id_lotes_pos_gap text,
+    ADD COLUMN IF NOT EXISTS geom_lotes_pos geometry(Geometry,4326),
     ADD COLUMN IF NOT EXISTS optimal_price_vec text,
     ADD COLUMN IF NOT EXISTS superficie_lote_vec text,
     ADD COLUMN IF NOT EXISTS optimal_unit_price_vec text
 """
 pg_julia.query(conn_LandValue, query_add_column)
 
-delta_porcentual = 0.1
-minProb = 0.
-
-
 for r = 1:numRows_locations
 
 
     query_valor_combi_r = """
     select id, combi_predios, terreno_costo, valor_mercado_combi from tabla_resultados_cabidas
-    where id_combi_list = $r and gap >= 0.2
+    where id_combi_list = $r and gap >= $minGap
     order by id ASC
     """
     df_valor_combi_r = pg_julia.query(conn_LandValue, query_valor_combi_r)
@@ -98,7 +100,7 @@ for r = 1:numRows_locations
                 valorInmobiliario_combis[i] = df_valor_combi_r[df_valor_combi_r.id .== id_combi_vec[i], "terreno_costo"][1]
             end
 
-            xopt_r, util_opt_r, unit_price_r = optimal_pricing(C, valorMercado_lotes, superficie_lotes, valorInmobiliario_combis, delta_porcentual, minProb)
+            xopt_r, util_opt_r, unit_price_r = optimal_pricing(C, valorMercado_lotes, superficie_lotes, valorInmobiliario_combis, delta_porcentual)
             display(util_opt_r)
             display(xopt_r)
             
@@ -117,6 +119,22 @@ for r = 1:numRows_locations
             WHERE id_combi_list = $r
         """
         pg_julia.query(conn_LandValue, query_)
+
+
+        query_geom = """
+            select ST_AsText(ST_Union(ST_Transform(geom_predios, 4326))) as geom_str 
+            from datos_predios_vitacura where codigo_predial in $id_combi_list_r
+        """
+        df_lotes_pos_geom = pg_julia.query(conn_mygis_db, query_geom)
+
+        df_lotes_pos_aux = "\'" * df_lotes_pos_geom[1,"geom_str"] * "\'"
+        query_ = """
+            UPDATE combi_locations SET geom_lotes_pos = st_geomfromtext($df_lotes_pos_aux)
+            WHERE id_combi_list = $r
+        """
+        pg_julia.query(conn_LandValue, query_)
+
+
         xopt_str = string(xopt_r)
         query_ = """
             UPDATE combi_locations SET optimal_price_vec = '$xopt_str'
@@ -139,19 +157,10 @@ for r = 1:numRows_locations
             UPDATE combi_locations SET util_esp_combi = -999999
             WHERE id_combi_list = $r
         """
-        pg_julia.query(conn_LandValue, query_)
-        query_ = """
-            UPDATE combi_locations SET optimal_price_vec = 'Error'
-            WHERE id_combi_list = $r
-        """
-        pg_julia.query(conn_LandValue, query_)
-        query_ = """
-            UPDATE combi_locations SET optimal_unit_price_vec = 'Error'
-            WHERE id_combi_list = $r
-        """
-        pg_julia.query(conn_LandValue, query_)
         display("Error")
     end
 
 
 end
+
+# pg_dump -h aws-landengines-db.cggiqowut9c4.us-east-1.rds.amazonaws.com -U postgres -d landengines_dev -t "combi_locations" | psql -d landengines -h aws-landengines-db.cggiqowut9c4.us-east-1.rds.amazonaws.com -U postgres
