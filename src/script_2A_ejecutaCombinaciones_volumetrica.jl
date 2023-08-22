@@ -15,7 +15,7 @@ codigo_predial = [151600140700001, 151600140700002, 151600140700003, 15160014070
 
 tipoOptimizacion = "volumetrica"
 
-DotEnv.load("secrets.env") #Caso Docker
+DotEnv.load("secrets.env")
 datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
 datos_mygis_db = ["gis_data", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
 # datos_LandValue = ["landengines_local", "postgres", "", "localhost"]
