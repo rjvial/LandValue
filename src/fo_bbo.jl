@@ -11,7 +11,7 @@ function fo_bbo(x, template, sepNaves, dca, V_volConSombra, vecAlturas_conSombra
     penalizacion_r = area_r^1.1
     penalizacionCoefOcup = max(0.0, areaBasal - maxOcupación)
 
-    total_fit = total_fit - 50*(penalizacion_r + penalizacionCoefOcup)
+    total_fit = total_fit - 500*(penalizacion_r + penalizacionCoefOcup)
 
     return -total_fit
 end
