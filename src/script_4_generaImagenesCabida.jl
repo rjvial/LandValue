@@ -7,8 +7,6 @@ datos_LandValue = ["landengines_local", "postgres", "", "localhost"]
 conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
 
 
-
-
 query_resultados_str = """
 SELECT id
 FROM public.tabla_resultados_cabidas
@@ -100,6 +98,11 @@ for r in rowSet
     fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_buffer_predio_, 0.0, "gray", 0.15, fig=fig, ax=ax, ax_mat=ax_mat, filestr=filestr)
 
     close("all")
+
+    infileStr = "C:\\Users\\rjvia\\Documents\\Land_engines_code\\Julia\\imagenes_cabidas\\____cabida_vitacura_" * string(k) * ".png"
+    outfileStr = "C:\\Users\\rjvia\\Documents\\Land_engines_code\\Julia\\imagenes_cabidas\\cabida_vitacura_" * string(k) * ".png"
+
+    polyShape.imageWhiteSpaceReduction(infileStr, outfileStr)
 
     aux_str = "C:/Users/rjvia/Documents/Land_engines_code/Julia/imagenes_cabidas/cabida_vitacura_" * string(df_resultados_r[1, "id"]) * ".png"
     executeStr = "UPDATE tabla_resultados_cabidas SET dir_image_file = \'" * aux_str * "\', id = " * string(df_resultados_r[1, "id"]) * " WHERE combi_predios = \'" * df_resultados_r[1, "combi_predios"] * "\'"

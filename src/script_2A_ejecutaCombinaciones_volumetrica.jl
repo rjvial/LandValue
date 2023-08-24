@@ -9,7 +9,7 @@ using LandValue, Distributed, DotEnv
 # [151600055100011, 151600055100010]
 
 
-codigo_predial = [151600140700001, 151600140700002, 151600140700003, 151600140700004, 151600140700005, 151600140700006, 151600140700007, 151600140700008, 151600140700009, 151600140700010, 151600140700011, 151600140700012]
+codigo_predial = [151600140700001, 151600140700002, 151600140700003, 151600140700005, 151600140700006, 151600140700007, 151600140700008, 151600140700009, 151600140700010, 151600140700004, 151600140700011, 151600140700012]
 
 # Para cómputos sobre la base de datos usar codigo_predial = []
 
@@ -48,6 +48,7 @@ dy = vec_datos[17]
 ps_areaEdif = vec_datos[18]
 
 datos = [xopt[1]*alturaPiso, ps_base, superficieTerreno, superficieTerrenoBruta, xopt]
+
 
 fig, ax, ax_mat = plotBaseEdificio3D(fpe, xopt, alturaPiso, ps_predio, ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico,
     ps_volConSombra, matConexionVertices_conSombra, vecVertices_conSombra, ps_publico, ps_calles, ps_base, ps_baseSeparada)

@@ -21,7 +21,7 @@ alturaPiso = dca.alturaPiso
 
 display("Obtiene tabla combi_locations")
 query_combi_locations = """
-    SELECT * 
+    SELECT id_combi_list
     FROM combi_locations
     ORDER BY id_combi_list ASC;
 """
@@ -70,6 +70,14 @@ for r in eachindex(df_combi_locations[:,"id_combi_list"])
 end
 
 
+display("Genera archivo JSON para los combis con max gap de cada localidad usando los valores de la tabla_resultados_cabidas")
+query_ = """
+SELECT id_max_gap FROM public.combi_locations
+"""
+df_id_max_gap = pg_julia.query(conn_LandValue, query_)
+list_max_gap = df_id_max_gap[:,"id_max_gap"]
+list_max_gap = string(sort(list_max_gap))
+list_max_gap = replace(replace(list_max_gap, "Union{Missing, Int32}[" => "("), "]" => ")")
 query_ = """
     SELECT ST_AsGeoJSON(subq.*) AS geojson
     FROM (

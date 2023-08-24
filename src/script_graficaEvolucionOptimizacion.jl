@@ -2,6 +2,7 @@ using LandValue, Distributed, DotEnv, BlackBoxOptim, Images, ImageBinarization
 
 let
 
+    # id = 187
     codigo_predial = [151600217300030, 151600217300048, 151600217300049, 151600217300050, 151600217300051, 151600217300052, 151600217300053]
     # Para cómputos sobre la base de datos usar codigo_predial = []
 

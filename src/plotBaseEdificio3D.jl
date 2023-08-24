@@ -1,7 +1,7 @@
-function plotBaseEdificio3D(fpe, x::Array{Float64,1}, alturaPiso::Float64, ps_predio::PolyShape,
-                             ps_volTeorico::PolyShape, matConexionVertices::Array{Float64,2}, vecVertices::Array{Any,1}, 
-                            ps_volConSombra::PolyShape, matConexionVertices_restSombra::Array{Float64,2}, vecVertices_restSombra::Array{Any,1}, 
-                            ps_publico::PolyShape, ps_calles::PolyShape, ps_base::PolyShape, ps_baseSeparada::PolyShape; flagV = false)
+function plotBaseEdificio3D(fpe, x, alturaPiso, ps_predio,
+                             ps_volTeorico, matConexionVertices, vecVertices, 
+                            ps_volConSombra, matConexionVertices_restSombra, vecVertices_restSombra, 
+                            ps_publico, ps_calles, ps_base, ps_baseSeparada; flagV = false)
 
     f_predio = fpe.predio
     f_volTeorico = fpe.volTeorico
@@ -16,7 +16,6 @@ function plotBaseEdificio3D(fpe, x::Array{Float64,1}, alturaPiso::Float64, ps_pr
     f_sombraEdif_o = fpe.sombraEdif_o
     f_sombraEdif_s = fpe.sombraEdif_s
 
-    alt = x[1]*alturaPiso
 
     fig=nothing
     ax=nothing
@@ -42,6 +41,7 @@ function plotBaseEdificio3D(fpe, x::Array{Float64,1}, alturaPiso::Float64, ps_pr
 
     if f_edif
         # Grafica cabida óptima
+        alt = x[1]*alturaPiso
         numPisos = Int(round(alt/alturaPiso))
         numVertices = size(ps_base.Vertices[1],1)
         V_edif3D = zeros((numPisos+1)*numVertices,3)    
@@ -60,29 +60,32 @@ function plotBaseEdificio3D(fpe, x::Array{Float64,1}, alturaPiso::Float64, ps_pr
         end
     end
 
-    
-    ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s = generaSombraTeor(ps_volTeorico, matConexionVertices, vecVertices, ps_publico, ps_calles)
-    if f_sombraVolTeorico_p
-        fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_sombraVolTeorico_p, 0, "gold", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
-    end
-    if f_sombraVolTeorico_o
-        fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_sombraVolTeorico_o, 0, "gold", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
-    end
-    if f_sombraVolTeorico_s
-        fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_sombraVolTeorico_s, 0, "gold", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
+    if f_sombraVolTeorico_p + f_sombraVolTeorico_o + f_sombraVolTeorico_s >= 1
+        ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s = generaSombraTeor(ps_volTeorico, matConexionVertices, vecVertices, ps_publico, ps_calles)
+        if f_sombraVolTeorico_p
+            fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_sombraVolTeorico_p, 0, "gold", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
+        end
+        if f_sombraVolTeorico_o
+            fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_sombraVolTeorico_o, 0, "gold", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
+        end
+        if f_sombraVolTeorico_s
+            fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_sombraVolTeorico_s, 0, "gold", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
+        end
     end
 
     
 
-    ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s = generaSombraEdificio(ps_baseSeparada, alt, ps_publico, ps_calles)
-    if f_sombraEdif_p
-        fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_sombraEdif_p, 0, "red", 0.25, fig=fig, ax=ax, ax_mat=ax_mat)
-    end
-    if f_sombraEdif_o
-        fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_sombraEdif_o, 0, "red", 0.25, fig=fig, ax=ax, ax_mat=ax_mat)
-    end
-    if f_sombraEdif_s
-        fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_sombraEdif_s, 0, "red", 0.25, fig=fig, ax=ax, ax_mat=ax_mat)
+    if f_sombraEdif_p + f_sombraEdif_o + f_sombraEdif_s >= 1
+        ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s = generaSombraEdificio(ps_baseSeparada, alt, ps_publico, ps_calles)
+        if f_sombraEdif_p
+            fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_sombraEdif_p, 0, "red", 0.25, fig=fig, ax=ax, ax_mat=ax_mat)
+        end
+        if f_sombraEdif_o
+            fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_sombraEdif_o, 0, "red", 0.25, fig=fig, ax=ax, ax_mat=ax_mat)
+        end
+        if f_sombraEdif_s
+            fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_sombraEdif_s, 0, "red", 0.25, fig=fig, ax=ax, ax_mat=ax_mat)
+        end
     end
     
     if flagV == false

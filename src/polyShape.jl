@@ -1,6 +1,6 @@
 module polyShape
 
-using LandValue, ..poly2D, Devices, Clipper, ArchGDAL, PyCall, PyPlot
+using LandValue, ..poly2D, Devices, Clipper, ArchGDAL, PyCall, PyPlot, Images, ImageBinarization
 
 
 
@@ -335,7 +335,43 @@ function plotPolyshape3D(ps_volteor::PolyShape, matConexionVertices::Array{Float
 
 end
 
+function imageWhiteSpaceReduction(infileStr, outfileStr)
 
+    img = load(infileStr)
+
+    img_bn = binarize(Gray.(img), UnimodalRosin()) .< 0.5
+
+    pos_vec = []
+
+    vec_bn_h = sum(img_bn * 1, dims=1)
+    for i = 1:length(vec_bn_h)-1
+        if (vec_bn_h[i] == 0) && (vec_bn_h[i+1] >= 1) && (length(pos_vec) < 1)
+            pos_vec = push!(pos_vec, i)
+        end
+    end
+    for i = length(vec_bn_h):-1:2
+        if (vec_bn_h[i] == 0) && (vec_bn_h[i-1] >= 1) && (length(pos_vec) < 2)
+            pos_vec = push!(pos_vec, i)
+        end
+    end
+
+    vec_bn_v = sum(img_bn * 1, dims=2)
+    for i = 1:length(vec_bn_v)-1
+        if (vec_bn_v[i] == 0) && (vec_bn_v[i+1] >= 1) && (length(pos_vec) < 3)
+            pos_vec = push!(pos_vec, i)
+        end
+    end
+    for i = length(vec_bn_v):-1:2
+        if (vec_bn_v[i] == 0) && (vec_bn_v[i-1] >= 1) && (length(pos_vec) < 4)
+            pos_vec = push!(pos_vec, i)
+        end
+    end
+
+    img_cropped = img[pos_vec[3]:pos_vec[4], pos_vec[1]:pos_vec[2]]
+    save(outfileStr, img_cropped)
+
+    rm(infileStr)
+end
 
 
 function plotScatter3d(x, y, z, fig=nothing, ax=nothing, ax_mat=nothing, color="red", marker="o", alpha=0.3)
@@ -2245,7 +2281,7 @@ end
 
 export extraeInfoPoly, largoLadosPoly, isPolyConvex, isPolyInPoly, plotPolyshape2D, plotPolyshape2Din3D, plotPolyshape2DVecin3D,
     polyArea, polyDifference, polyDifference_v2, plotFig, plotScatter3d, polyShape2constraints, polyOrientation, polyUnion, shapeBuffer,
-    polyIntersect, polyExpand, plotPolyshape3D,
+    polyIntersect, polyExpand, plotPolyshape3D, imageWhiteSpaceReduction,
     polyshape2clipper, clipper2polyshape, shape2geom, geom2shape, astext2polyshape, polyEliminaColineales,
     astext2lineshape, shapeContains, shapeArea, shapeDifference, shapeIntersect, shapeUnion, shapeHull, shapeSimplify, shapeSimplifyTopology, subShape,
     shapeVertex, numVertices, shapeCentroid, partialCentroid, shapeDistance, partialDistance, polyBox, polyRotate, polyReverse, setPolyOrientation,
