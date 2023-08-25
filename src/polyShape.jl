@@ -68,7 +68,7 @@ end
 
 
 # Grafica múltiples polyshape 2D en espacio 3D a distintas alturas.
-function plotPolyshape2DVecin3D(vec_ps::Array{polyShape.PolyShape,1}, vec_h, fc::String="red", a::Float64=0.1; fig::Union{Nothing,PyPlot.Figure}=nothing, ax=nothing, ax_mat=nothing, line_width::Float64=0.5, line_end::Int64=3)
+function plotPolyshape2DVecin3D(vec_ps::Array{polyShape.LineShape,1}, vec_h::Vector{Float64}, fc::String="red", a::Float64=0.1; fig::Union{Nothing,PyPlot.Figure}=nothing, ax=nothing, ax_mat=nothing, line_width::Float64=0.5, line_end::Int64=3)
     fig_ = []
     ax_ = []
     ax_mat_ = []
@@ -76,9 +76,9 @@ function plotPolyshape2DVecin3D(vec_ps::Array{polyShape.PolyShape,1}, vec_h, fc:
         ps_i = vec_ps[i]
         h_i = vec_h[i]
         if i == 1
-            fig_, ax_, ax_mat_ = plotPolyshape2Din3D(ps_i, h_i, fc, a, fig=fig, ax=ax, ax_mat=ax_mat)
+            fig_, ax_, ax_mat_ = plotPolyshape2Din3D(ps_i, h_i, fc, a, fig=fig, ax=ax, ax_mat=ax_mat, line_width=line_width, line_end=line_end)
         end
-        fig_, ax_, ax_mat_ = plotPolyshape2Din3D(ps_i, h_i, fc, a, fig=fig_, ax=ax_, ax_mat=ax_mat_)
+        fig_, ax_, ax_mat_ = plotPolyshape2Din3D(ps_i, h_i, fc, a, fig=fig_, ax=ax_, ax_mat=ax_mat_, line_width=line_width, line_end=line_end)
     end
     return fig_, ax_, ax_mat_
 end
@@ -93,7 +93,7 @@ function plotPolyshape2Din3D(ps::LineShape, height::Real=0.0, fc::String="blue",
     ps = polyShape.shapeBuffer(ps, line_width, line_end)
     fig, ax, ax_mat = plotPolyshape2Din3D(ps, height, fc, a; fig=fig, ax=ax, ax_mat=ax_mat)
 end
-function plotPolyshape2Din3D(ps::GeomObject, height::Real=0.0, fc::String="blue", a::Float64=0.25; fig::Union{Nothing,PyPlot.Figure}=nothing, ax=nothing, ax_mat=nothing, filestr="none")
+function plotPolyshape2Din3D(ps::PolyShape, height::Real=0.0, fc::String="blue", a::Float64=0.25; fig::Union{Nothing,PyPlot.Figure}=nothing, ax=nothing, ax_mat=nothing, line_width::Float64=0., filestr="none")
     plt = pyimport("matplotlib.pyplot")
     art3d = pyimport("mpl_toolkits.mplot3d.art3d")
     PyCall.pyimport("mpl_toolkits.mplot3d")
@@ -227,13 +227,20 @@ function plotPolyshape2Din3D(ps::GeomObject, height::Real=0.0, fc::String="blue"
 
     plt.show()
 
+
+    ax_mat = [min_ax max_ax]
+
+    if line_width > 0.
+        ls_vec = polyShape.polyShape2lineVec(ps)
+        fig, ax, ax_mat = polyShape.plotPolyshape2DVecin3D(ls_vec, height *ones(size(ls_vec)), fc, a, fig=fig, ax=ax, ax_mat=ax_mat, line_width=line_width, line_end=3)
+    end
+
     if filestr != "none"
         plt.savefig(filestr, dpi=300)
     end
 
-    ax_mat = [min_ax max_ax]
 
-    fig, ax, ax_mat
+    return fig, ax, ax_mat
 
 end
 
