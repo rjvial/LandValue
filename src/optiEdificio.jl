@@ -5,7 +5,8 @@ function optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, alturaEdif, ps_base, superfi
     superficieDensidad = dcn.flagDensidadBruta ? superficieTerrenoBruta : superficieTerreno
     maxDeptos = dcn.densidadMax / 4 * superficieDensidad / 10000;
     numPisosMaxVol = Int(round(alturaEdif / dca.alturaPiso))
-    
+    maxOcupación = dcn.coefOcupacion * superficieTerreno
+
 
     ##############################################
     # PARTE "3": DEFINICIÓN SOLVER               #
@@ -30,6 +31,7 @@ function optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, alturaEdif, ps_base, superfi
         0 <= CostoUnitTerreno
         0 <= superficieUtil
         0 <= superficieComun
+        0 <= superficiePisoBase <= maxOcupación
         0 <= estacionamientosVendibles
         0 <= maxSupTipo
     end)
@@ -66,7 +68,7 @@ function optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, alturaEdif, ps_base, superfi
     superficieTerraza = sum(superficieTerrazaDepto);
     superficieInteriorDepto = numDeptosTipo .* dcc.supInterior;
     superficieInterior = sum(superficieInteriorDepto);
-    superficieLosaSNT = areaBasalPso*numPisos
+    superficieLosaSNT = areaBasalPso*(numPisos - 1) + superficiePisoBase
     superficieComun = superficieLosaSNT - (superficieTerraza + superficieInterior) # Superficie Común absorbe lo que no se utiliza en departamentos 
     superficieEstacionamientos = dcn.supPorEstacionamiento * estacionamientosVendibles
     superficieBodegas = dcn.supPorBodega * bodegas
@@ -144,7 +146,7 @@ function optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, alturaEdif, ps_base, superfi
     # Restricción de Densidad
         sum(numDeptosTipo) <= maxDeptos
 
-    # Restricciones de Asignacion de Tipos de Deptos
+    # Restricciones de Asignacion de Tipos de Deptos desde Piso 2 al N
         numDeptosTipoPorPiso .* (numPisosMaxVol - 1) .== numDeptosTipo
 
     # Restricciones de Estacionamientos

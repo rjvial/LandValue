@@ -16,6 +16,7 @@ conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_
 
 id_ = 0
 
+# datos = [] #Si se quiere que la información se obtenga de la base se datos
 dcc, resultados, xopt, vecColumnNames, vecColumnValue, id_ = funcionPrincipal(tipoOptimizacion, codigo_predial, id_, datos_LandValue, datos_mygis_db, datos)
 
 displayResults(resultados, dcc)
