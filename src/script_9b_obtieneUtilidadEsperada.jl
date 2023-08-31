@@ -14,7 +14,7 @@ conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_
 delta_porcentual = 0.1
 minGap = 0. #0.2
 
-
+display("Obtiene listados de localidades")
 query_combi_locations = """
 select id_combi_list from combi_locations
 order by id_combi_list ASC
@@ -22,7 +22,7 @@ order by id_combi_list ASC
 df_combi_locations = pg_julia.query(conn_LandValue, query_combi_locations)
 numRows_locations, aux = size(df_combi_locations)
 
-display("Agrega columna a combi_locations")
+display("Agrega columnas a combi_locations")
 query_add_column = """
     ALTER TABLE combi_locations
     ADD COLUMN IF NOT EXISTS util_esp_combi double precision,
@@ -30,13 +30,15 @@ query_add_column = """
     ADD COLUMN IF NOT EXISTS geom_lotes_pos geometry(Geometry,4326),
     ADD COLUMN IF NOT EXISTS optimal_price_vec text,
     ADD COLUMN IF NOT EXISTS superficie_lote_vec text,
-    ADD COLUMN IF NOT EXISTS optimal_unit_price_vec text
+    ADD COLUMN IF NOT EXISTS optimal_unit_price_vec text,
+    ADD COLUMN IF NOT EXISTS prob_combis text,
+    ADD COLUMN IF NOT EXISTS util_esp_lotes text
 """
 pg_julia.query(conn_LandValue, query_add_column)
 
 for r = 1:numRows_locations
 
-
+    display("Obtiene filas de la tabla_resultados_cabidas donde Localidad = $r")
     query_valor_combi_r = """
     select id, combi_predios, terreno_costo, valor_mercado_combi from tabla_resultados_cabidas
     where id_combi_list = $r and gap >= $minGap
@@ -46,11 +48,12 @@ for r = 1:numRows_locations
 
     try
         if !isempty(df_valor_combi_r) 
-            display("Maximizando utilidad esperada de la Localidad N° " * string(r))
+            display("Maximizando utilidad esperada de la Localidad N° $r")
 
             id_combi_vec = sort(df_valor_combi_r[:,"id"])
             num_combi_pos = length(id_combi_vec)
 
+            display("Obtiene listado de lotes de la Localidad N° $r")
             id_prop_vec = []
             for i = 1:num_combi_pos
                 id_prop_vec_str = df_valor_combi_r[i,"combi_predios"]
@@ -61,6 +64,7 @@ for r = 1:numRows_locations
             num_lotes = length(id_prop_vec)
             id_combi_list_r = replace(replace(string(id_prop_vec), "Any[" => "("), "]" => ")")
 
+            display("Obtiene info de superficie para los lotes de la Localidad N° $r")
             query_sup_prop_r = """
             select codigo_predial, sup_terreno_edif from datos_predios_vitacura
             where codigo_predial in $id_combi_list_r
@@ -68,6 +72,7 @@ for r = 1:numRows_locations
             """
             df_sup_prop_r = pg_julia.query(conn_mygis_db, query_sup_prop_r)
 
+            display("Obtiene info de precios comerciales de los lotes de la Localidad N° $r")
             query_valor_prop_r = """
             select rol as codigo_predial, precio_estimado_final from tabla_propiedades
             where rol in $id_combi_list_r
@@ -75,6 +80,7 @@ for r = 1:numRows_locations
             """
             df_valor_prop_r = pg_julia.query(conn_LandValue, query_valor_prop_r)
 
+            display("Obtiene matriz de combinaciones C de la Localidad N° $r")
             C = zeros(Int, num_combi_pos, num_lotes)
             for i = 1:num_combi_pos
                 id_prop_vec_str = df_valor_combi_r[i,"combi_predios"]
@@ -88,6 +94,7 @@ for r = 1:numRows_locations
             # A = graphMod.Combi2Adjacency(C)
             # graphMod.graphPlot(A)
 
+            display("Obtiene vector de superficies de los lotes de la Localidad N° $r")
             valorMercado_lotes = zeros(num_lotes,1)
             superficie_lotes = zeros(num_lotes,1)
             for j in eachindex(id_prop_vec)
@@ -95,14 +102,28 @@ for r = 1:numRows_locations
                 superficie_lotes[j] = df_sup_prop_r[df_sup_prop_r.codigo_predial .== id_prop_vec[j], "sup_terreno_edif"][1]
             end
 
+            display("Obtiene vector de valoes de las combinaciones de la Localidad N° $r")
             valorInmobiliario_combis = zeros(num_combi_pos,1)
             for i = 1:num_combi_pos
                 valorInmobiliario_combis[i] = df_valor_combi_r[df_valor_combi_r.id .== id_combi_vec[i], "terreno_costo"][1]
             end
 
-            xopt_r, util_opt_r, unit_price_r = optimal_pricing(C, valorMercado_lotes, superficie_lotes, valorInmobiliario_combis, delta_porcentual)
+            display("Ejecuta optimización de la Localidad N° $r")
+            xopt_r, util_opt_r, unit_price_r, prob_combis_r = optimal_pricing(C, valorMercado_lotes, superficie_lotes, valorInmobiliario_combis, delta_porcentual)
             display(util_opt_r)
             display(xopt_r)
+
+            pos_lotes = collect(1:num_lotes)
+            pos_combis = collect(1:num_combi_pos)
+            util_esp_lotes = zeros(num_lotes,1)
+            for j = 1:num_lotes
+                lotes_j =  setdiff(pos_lotes, j)
+                c_j = C[:, j]
+                combis_j = setdiff(pos_combis, pos_combis[c_j .== 1])
+                C_j = C[combis_j, lotes_j]
+                xopt_rj, util_opt_rj, unit_price_rj, prob_combis_rj = optimal_pricing(C_j, valorMercado_lotes[lotes_j], superficie_lotes[lotes_j], valorInmobiliario_combis[combis_j], delta_porcentual)
+                util_esp_lotes[j] = util_opt_r - util_opt_rj
+            end
             
 
         else
@@ -114,6 +135,7 @@ for r = 1:numRows_locations
             WHERE id_combi_list = $r
         """
         pg_julia.query(conn_LandValue, query_)
+
         query_ = """
             UPDATE combi_locations SET id_lotes_pos_gap = '$id_combi_list_r'
             WHERE id_combi_list = $r
@@ -152,6 +174,18 @@ for r = 1:numRows_locations
             WHERE id_combi_list = $r
         """
         pg_julia.query(conn_LandValue, query_)
+        query_ = """
+            UPDATE combi_locations SET prob_combis = '$prob_combis_r'
+            WHERE id_combi_list = $r
+        """
+        pg_julia.query(conn_LandValue, query_)
+
+        query_ = """
+            UPDATE combi_locations SET util_esp_lotes = '$util_esp_lotes'
+            WHERE id_combi_list = $r
+        """
+        pg_julia.query(conn_LandValue, query_)
+        
     catch
         query_ = """
             UPDATE combi_locations SET util_esp_combi = -999999

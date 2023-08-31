@@ -33,6 +33,7 @@ function optimal_pricing(C, valorMercado_lotes, superficie_lotes, valorInmobilia
 
     xopt = Float64.(copy(valorMercado_lotes))
     util_vec = zeros(num_sg,1)
+    probCombis = zeros(num_sg,1)
     for i = 1:num_sg
     
         flag = [sum(C[:, vec_sg[i]], dims=2) .>= 1][1][:]
@@ -56,10 +57,11 @@ function optimal_pricing(C, valorMercado_lotes, superficie_lotes, valorInmobilia
 
         xopt[vec_sg[i]] = Optim.minimizer(result)
     
-        util_vec[i] = -Optim.minimum(result)    
+        util_vec[i] = -Optim.minimum(result)
+        probCombis = prob_combis(xopt[vec_sg[i]], lb_lotes, ub_lotes, C_i)
     end
     
-    return xopt, sum(util_vec), xopt ./ superficie_lotes
+    return xopt, sum(util_vec), xopt ./ superficie_lotes, probCombis
 
 end
 

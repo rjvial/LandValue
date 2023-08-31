@@ -73,7 +73,6 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
     ps_predio_db = polyShape.setPolyOrientation(ps_predio_db, 1)
     ps_predio_db, dx, dy = polyShape.ajustaCoordenadas(ps_predio_db)
     ps_predio_db = polyShape.polyUnion(ps_predio_db)
-    # ps_predio_db = polyShape.polyExpand(polyShape.polyExpand(ps_predio_db,0.02),-0.02)
     simplify_value = 1.0 #1. #.1
     ps_predio = polyShape.shapeSimplify(ps_predio_db, simplify_value)
     ps_predio = polyShape.polyEliminaColineales(ps_predio)
@@ -176,7 +175,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         V_volConSombra = ps_volConSombra.Vertices[1]
         vecAlturas_conSombra = sort(unique(V_volConSombra[:, end]))
 
-        sepNaves = 5.# 12.0 #dca.anchoMin - 0
+        sepNaves = 10. #5.# 12.0 #dca.anchoMin - 0
 
         maxSupConstruida = superficieTerreno * dcn.coefConstructibilidad * (1 + 0.3 * dcp.fusionTerrenos)
         maxOcupación = dcn.coefOcupacion * superficieTerreno
@@ -205,19 +204,19 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         temp_opt = 0
 
         # plan_optimizacion: [template, lb_bbo, ub_bbo]
-        lb_bbo, ub_bbo = generaCotas(10, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
-        plan_optimizacion = [[10, lb_bbo, ub_bbo]]
+        # lb_bbo, ub_bbo = generaCotas(10, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
+        # plan_optimizacion = [[10, lb_bbo, ub_bbo]]
 
-        # lb_bbo, ub_bbo = generaCotas(0, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
-        # plan_optimizacion = [[0, lb_bbo, ub_bbo]]
-        # lb_bbo, ub_bbo = generaCotas(1, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
-        # push!(plan_optimizacion, [1, lb_bbo, ub_bbo])
-        # lb_bbo, ub_bbo = generaCotas(2, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
-        # push!(plan_optimizacion, [2, lb_bbo, ub_bbo])
-        # lb_bbo, ub_bbo = generaCotas(3, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, 6)
-        # push!(plan_optimizacion, [3, lb_bbo, ub_bbo])
-        # lb_bbo, ub_bbo = generaCotas(7, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, 6)
-        # push!(plan_optimizacion, [7, lb_bbo, ub_bbo])
+        lb_bbo, ub_bbo = generaCotas(0, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
+        plan_optimizacion = [[0, lb_bbo, ub_bbo]]
+        lb_bbo, ub_bbo = generaCotas(1, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
+        push!(plan_optimizacion, [1, lb_bbo, ub_bbo])
+        lb_bbo, ub_bbo = generaCotas(6, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, 6)
+        push!(plan_optimizacion, [6, lb_bbo, ub_bbo])
+        lb_bbo, ub_bbo = generaCotas(7, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, 6)
+        push!(plan_optimizacion, [7, lb_bbo, ub_bbo])
+        lb_bbo, ub_bbo = generaCotas(10, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, 6)
+        push!(plan_optimizacion, [10, lb_bbo, ub_bbo])
 
         flag_penalizacion_residual = true
         flag_penalizacion_coefOcup = true
