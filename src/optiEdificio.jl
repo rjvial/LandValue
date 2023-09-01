@@ -31,7 +31,6 @@ function optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, alturaEdif, ps_base, superfi
         0 <= CostoUnitTerreno
         0 <= superficieUtil
         0 <= superficieComun
-        0 <= superficiePisoBase <= maxOcupación
         0 <= estacionamientosVendibles
         0 <= maxSupTipo
     end)
@@ -68,7 +67,7 @@ function optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, alturaEdif, ps_base, superfi
     superficieTerraza = sum(superficieTerrazaDepto);
     superficieInteriorDepto = numDeptosTipo .* dcc.supInterior;
     superficieInterior = sum(superficieInteriorDepto);
-    superficieLosaSNT = areaBasalPso*(numPisos - 1) + superficiePisoBase
+    superficieLosaSNT = areaBasalPso*(numPisos)
     superficieComun = superficieLosaSNT - (superficieTerraza + superficieInterior) # Superficie Común absorbe lo que no se utiliza en departamentos 
     superficieEstacionamientos = dcn.supPorEstacionamiento * estacionamientosVendibles
     superficieBodegas = dcn.supPorBodega * bodegas

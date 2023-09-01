@@ -1,6 +1,6 @@
 using LandValue, Distributed, DotEnv
 
-codigo_predial = [151600140700001, 151600140700002, 151600140700003, 151600140700006, 151600140700007, 151600140700008, 151600140700009, 151600140700010]
+codigo_predial = [151600055100011, 151600055100010]
 # Para cómputos sobre la base de datos usar codigo_predial = []
 tipoOptimizacion = "provisoria" #"economica"
 
