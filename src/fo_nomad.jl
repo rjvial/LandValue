@@ -25,12 +25,8 @@ function fo_nomad(x, template, sepNaves, dca, porcTerraza, flag_conSombra, flag_
         penalizacion_r = area_r^1.1
         constraints = push!(constraints, penalizacion_r)
     end
-    if flag_penalizacion_coefOcup
-        penalizacionCoefOcup = max(0.0, areaBasal - maxOcupación)
-        constraints = push!(constraints, penalizacionCoefOcup)
-    end
     if flag_penalizacion_constructibilidad
-        superficieConstruidaSNT = areaBasal * numPisos
+        superficieConstruidaSNT = areaBasal * (numPisos-1) + min(areaBasal, maxOcupación)
         penalizacionConstructibilidad = max(0.0, superficieConstruidaSNT / (1 + dca.porcSupComun + 0.5*porcTerraza) - maxSupConstruida)
         constraints = push!(constraints, penalizacionConstructibilidad)
     end
@@ -58,4 +54,3 @@ function fo_nomad(x, template, sepNaves, dca, porcTerraza, flag_conSombra, flag_
 
     return (success, count_eval, bb_outputs)
 end
-
