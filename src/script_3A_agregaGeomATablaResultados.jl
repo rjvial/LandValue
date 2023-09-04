@@ -27,24 +27,24 @@ numRows, numCols = size(df_resultados)
 
 # Completa columna geom_combi con la union de los predios que conforman la combinación
 for r = 1:numRows
-  combi_predios_r = eval(Meta.parse(df_resultados[r, "combi_predios"]))
-  codPredialStr = replace(replace(string(combi_predios_r), "[" => "("), "]" => ")")
+    combi_predios_r = eval(Meta.parse(df_resultados[r, "combi_predios"]))
+    codPredialStr = replace(replace(string(combi_predios_r), "[" => "("), "]" => ")")
 
-  display(string(r) * "  " * codPredialStr)
+    display(string(r) * "  " * codPredialStr)
 
-  query_predios_str = """
-  SELECT ST_AsText(ST_Transform(ST_Union(geom_predios),4326)) as predios_str
-          FROM datos_predios_vitacura
-          WHERE codigo_predial IN codPredialStr_
-          """
+    query_predios_str = """
+    SELECT ST_AsText(ST_Transform(ST_Union(geom_predios),4326)) as predios_str
+            FROM datos_predios_vitacura
+            WHERE codigo_predial IN codPredialStr_
+            """
 
-  query_predios_str = replace(query_predios_str, "codPredialStr_" => codPredialStr)
-  df_predios = pg_julia.query(conn_mygis_db, query_predios_str)
-  aux_str = "ST_GeomFromText(\'" * df_predios[1, "predios_str"] * "\',4326)"
+    query_predios_str = replace(query_predios_str, "codPredialStr_" => codPredialStr)
+    df_predios = pg_julia.query(conn_mygis_db, query_predios_str)
+    aux_str = "ST_GeomFromText(\'" * df_predios[1, "predios_str"] * "\',4326)"
 
-  executeStr = "UPDATE tabla_resultados_cabidas SET geom_combi = " * aux_str * " WHERE combi_predios = \'" * df_resultados[r, "combi_predios"] * "\'"
+    executeStr = "UPDATE tabla_resultados_cabidas SET geom_combi = " * aux_str * " WHERE combi_predios = \'" * df_resultados[r, "combi_predios"] * "\'"
 
-  pg_julia.query(conn_LandValue, executeStr)
+    pg_julia.query(conn_LandValue, executeStr)
 
 end
 
@@ -99,81 +99,81 @@ numRows_combi_locations, numCols_combi_locations = size(df_combi_locations)
 
 
 for r = 1:numRows_combi_locations
-  display(r)
-  query_combi_str = """
-  SELECT ARRAY_AGG(combi_predios)
-  FROM tabla_resultados_cabidas 
-  WHERE st_intersects(geom_combi, (SELECT geom FROM combi_locations WHERE id_combi_list = rrr_ )) 
-  """
-  query_combi_str = replace(query_combi_str, "rrr_" => string(df_combi_locations[r, "id_combi_list"]))
-  df = pg_julia.query(conn_LandValue, query_combi_str)
-  combi_list_str = replace(df[1, "array_agg"], "\"" => "")
+    display(r)
+    query_combi_str = """
+    SELECT ARRAY_AGG(combi_predios)
+    FROM tabla_resultados_cabidas 
+    WHERE st_intersects(geom_combi, (SELECT geom FROM combi_locations WHERE id_combi_list = rrr_ )) 
+    """
+    query_combi_str = replace(query_combi_str, "rrr_" => string(df_combi_locations[r, "id_combi_list"]))
+    df = pg_julia.query(conn_LandValue, query_combi_str)
+    combi_list_str = replace(df[1, "array_agg"], "\"" => "")
 
-  combi_list = eval(Meta.parse(replace(replace(combi_list_str, "{" => "["), "}" => "]")))
+    combi_list = eval(Meta.parse(replace(replace(combi_list_str, "{" => "["), "}" => "]")))
 
-  num_combi = length(combi_list)
+    num_combi = length(combi_list)
 
-  num_lotes_combi = "["
-  min_lotes = 100
-  max_lotes = 0
-  for k = 1:num_combi
-    combi_k = combi_list[k]
-    num_lotes_k = length(combi_k)
-    if num_lotes_k < min_lotes
-      min_lotes = num_lotes_k
-    end
-    if num_lotes_k > max_lotes
-      max_lotes = num_lotes_k
-    end
+    num_lotes_combi = "["
+    min_lotes = 100
+    max_lotes = 0
+    for k = 1:num_combi
+        combi_k = combi_list[k]
+        num_lotes_k = length(combi_k)
+        if num_lotes_k < min_lotes
+            min_lotes = num_lotes_k
+        end
+        if num_lotes_k > max_lotes
+            max_lotes = num_lotes_k
+        end
 
-    if k < num_combi
-      num_lotes_combi = num_lotes_combi * string(num_lotes_k) * "; "
-    else
-      num_lotes_combi = num_lotes_combi * string(num_lotes_k) * "]"
-    end
-  end
-
-  lotes_list = eval(Meta.parse(replace(replace(replace(combi_list_str, "{[" => "["), "]}" => "]"), "],[" => ", ")))
-  num_lotes_list = length(lotes_list)
-
-  unique_lotes = unique(lotes_list)
-  num_unique_lotes = length(unique_lotes)
-
-  unique_lotes_str = "["
-  num_combi_lote_str = "["
-  for k = 1:num_unique_lotes
-    if k < num_unique_lotes
-      unique_lotes_str = unique_lotes_str * string(unique_lotes[k]) * "; "
-    else
-      unique_lotes_str = unique_lotes_str * string(unique_lotes[k]) * "]"
+        if k < num_combi
+            num_lotes_combi = num_lotes_combi * string(num_lotes_k) * "; "
+        else
+            num_lotes_combi = num_lotes_combi * string(num_lotes_k) * "]"
+        end
     end
 
-    num_combi_lote_k = 0
-    for l = 1:num_combi
-      if unique_lotes[k] in combi_list[l]
-        num_combi_lote_k += 1
-      end
+    lotes_list = eval(Meta.parse(replace(replace(replace(combi_list_str, "{[" => "["), "]}" => "]"), "],[" => ", ")))
+    num_lotes_list = length(lotes_list)
+
+    unique_lotes = unique(lotes_list)
+    num_unique_lotes = length(unique_lotes)
+
+    unique_lotes_str = "["
+    num_combi_lote_str = "["
+    for k = 1:num_unique_lotes
+        if k < num_unique_lotes
+            unique_lotes_str = unique_lotes_str * string(unique_lotes[k]) * "; "
+        else
+            unique_lotes_str = unique_lotes_str * string(unique_lotes[k]) * "]"
+        end
+
+        num_combi_lote_k = 0
+        for l = 1:num_combi
+            if unique_lotes[k] in combi_list[l]
+                num_combi_lote_k += 1
+            end
+        end
+        if k < num_unique_lotes
+            num_combi_lote_str = num_combi_lote_str * string(num_combi_lote_k) * "; "
+        else
+            num_combi_lote_str = num_combi_lote_str * string(num_combi_lote_k) * "]"
+        end
+
+
     end
-    if k < num_unique_lotes
-      num_combi_lote_str = num_combi_lote_str * string(num_combi_lote_k) * "; "
-    else
-      num_combi_lote_str = num_combi_lote_str * string(num_combi_lote_k) * "]"
-    end
-    
-
-  end
 
 
-  query_combi_str = "UPDATE combi_locations SET " * 
-          "combi_list = " * "\'" * combi_list_str * 
-      "\' , num_combi_tot = " * "\'" * string(num_combi) *
-      "\' , num_lotes_combi = " * "\'" * num_lotes_combi * 
-      "\' , min_lotes_combi = " * "\'" * string(min_lotes) * 
-      "\' , max_lotes_combi = " * "\'" * string(max_lotes) * 
-      "\' , unique_lotes = " * "\'" * unique_lotes_str * 
-      "\' , num_lotes = " * "\'" * string(num_unique_lotes) *
-      "\' , num_combi_lote = " * "\'" * num_combi_lote_str * 
-      "\' WHERE id_combi_list = " * string(df_combi_locations[r, "id_combi_list"])
-  pg_julia.query(conn_LandValue, query_combi_str)
+    query_combi_str = "UPDATE combi_locations SET " *
+                      "combi_list = " * "\'" * combi_list_str *
+                      "\' , num_combi_tot = " * "\'" * string(num_combi) *
+                      "\' , num_lotes_combi = " * "\'" * num_lotes_combi *
+                      "\' , min_lotes_combi = " * "\'" * string(min_lotes) *
+                      "\' , max_lotes_combi = " * "\'" * string(max_lotes) *
+                      "\' , unique_lotes = " * "\'" * unique_lotes_str *
+                      "\' , num_lotes = " * "\'" * string(num_unique_lotes) *
+                      "\' , num_combi_lote = " * "\'" * num_combi_lote_str *
+                      "\' WHERE id_combi_list = " * string(df_combi_locations[r, "id_combi_list"])
+    pg_julia.query(conn_LandValue, query_combi_str)
 
 end

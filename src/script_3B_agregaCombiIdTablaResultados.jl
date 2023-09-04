@@ -31,25 +31,25 @@ numRows_combi, numCols_combi = size(df_combi)
 
 # Completa columna id_combi_list
 for r = 1:numRows_combi
-  id_combi_str = string(df_combi[r, "id_combi_list"])
+    id_combi_str = string(df_combi[r, "id_combi_list"])
 
-  combi_list_r = df_combi[r, "combi_list"]
-  vec_combi_list = eval(Meta.parse(replace(replace(replace(replace(string(combi_list_r), "{" => "["), "}" => "]")))))
+    combi_list_r = df_combi[r, "combi_list"]
+    vec_combi_list = eval(Meta.parse(replace(replace(replace(replace(string(combi_list_r), "{" => "["), "}" => "]")))))
 
 
-  for k in eachindex(vec_combi_list)
-    predios_ik_str = string(vec_combi_list[k])
-    query_predios_str = """
-            UPDATE tabla_resultados_cabidas SET id_combi_list = id_combi_str_
-            WHERE combi_predios = \'predios_ik_str_\'
-            """
-    query_predios_str = replace(query_predios_str, "id_combi_str_" => id_combi_str)
-    query_predios_str = replace(query_predios_str, "predios_ik_str_" => predios_ik_str)
-    df_predios = pg_julia.query(conn_LandValue, query_predios_str)
+    for k in eachindex(vec_combi_list)
+        predios_ik_str = string(vec_combi_list[k])
+        query_predios_str = """
+                UPDATE tabla_resultados_cabidas SET id_combi_list = id_combi_str_
+                WHERE combi_predios = \'predios_ik_str_\'
+                """
+        query_predios_str = replace(query_predios_str, "id_combi_str_" => id_combi_str)
+        query_predios_str = replace(query_predios_str, "predios_ik_str_" => predios_ik_str)
+        df_predios = pg_julia.query(conn_LandValue, query_predios_str)
 
-  end
+    end
 
-  display(string(r) * "  " * combi_list_r)
+    display(string(r) * "  " * combi_list_r)
 
 end
 
@@ -75,42 +75,42 @@ df_propiedades = pg_julia.csv2df(infileStr)
 numRows_propiedades, numCols_propiedades = size(df_propiedades)
 
 for r = 1:numRows_resultados
-  list_prop_r = df_resultados[r, "combi_predios"]
-  vec_list_prop = eval(Meta.parse(list_prop_r))
-  valorizacion_r = 0
-  for p in eachindex(vec_list_prop)
-    valorizacion_rp = df_propiedades[(df_propiedades.Rol.==vec_list_prop[p]), "Valorizacion"][1]
-    if valorizacion_rp == "NA"
-      break
-    else
-      valorizacion_rp = parse(Float64, valorizacion_rp)
+    list_prop_r = df_resultados[r, "combi_predios"]
+    vec_list_prop = eval(Meta.parse(list_prop_r))
+    valorizacion_r = 0
+    for p in eachindex(vec_list_prop)
+        valorizacion_rp = df_propiedades[(df_propiedades.Rol.==vec_list_prop[p]), "Valorizacion"][1]
+        if valorizacion_rp == "NA"
+            break
+        else
+            valorizacion_rp = parse(Float64, valorizacion_rp)
+        end
+
+        valorizacion_r += valorizacion_rp
     end
-
-    valorizacion_r += valorizacion_rp
-  end
-  query_propiedades_str = """
-    UPDATE tabla_resultados_cabidas SET valor_combi = valor_combi_str_
-    WHERE combi_predios = \'list_prop_r_\'
-    """
-  query_propiedades_str = replace(query_propiedades_str, "valor_combi_str_" => string(valorizacion_r))
-  query_propiedades_str = replace(query_propiedades_str, "list_prop_r_" => list_prop_r)
-  pg_julia.query(conn_LandValue, query_propiedades_str)
-
-  terreno_costo_r = df_resultados[r, "terreno_costo"]
-  gap_r = terreno_costo_r - valorizacion_r
-  gap_porcentual_r = (terreno_costo_r - valorizacion_r) / valorizacion_r
-  if string(gap_porcentual_r) != "Inf" && lowercase(string(gap_porcentual_r)) != "nan"
-    query_gap_str = """
-      UPDATE tabla_resultados_cabidas 
-      SET gap = gap_str_, gap_porcentual = gap_porcentual_r_
+    query_propiedades_str = """
+      UPDATE tabla_resultados_cabidas SET valor_combi = valor_combi_str_
       WHERE combi_predios = \'list_prop_r_\'
       """
-    query_gap_str = replace(query_gap_str, "gap_str_" => string(gap_r))
-    query_gap_str = replace(query_gap_str, "gap_porcentual_r_" => string(gap_porcentual_r))
-    query_gap_str = replace(query_gap_str, "list_prop_r_" => list_prop_r)
-    pg_julia.query(conn_LandValue, query_gap_str)
-  end
-  display(string(r))
+    query_propiedades_str = replace(query_propiedades_str, "valor_combi_str_" => string(valorizacion_r))
+    query_propiedades_str = replace(query_propiedades_str, "list_prop_r_" => list_prop_r)
+    pg_julia.query(conn_LandValue, query_propiedades_str)
+
+    terreno_costo_r = df_resultados[r, "terreno_costo"]
+    gap_r = terreno_costo_r - valorizacion_r
+    gap_porcentual_r = (terreno_costo_r - valorizacion_r) / valorizacion_r
+    if string(gap_porcentual_r) != "Inf" && lowercase(string(gap_porcentual_r)) != "nan"
+        query_gap_str = """
+          UPDATE tabla_resultados_cabidas 
+          SET gap = gap_str_, gap_porcentual = gap_porcentual_r_
+          WHERE combi_predios = \'list_prop_r_\'
+          """
+        query_gap_str = replace(query_gap_str, "gap_str_" => string(gap_r))
+        query_gap_str = replace(query_gap_str, "gap_porcentual_r_" => string(gap_porcentual_r))
+        query_gap_str = replace(query_gap_str, "list_prop_r_" => list_prop_r)
+        pg_julia.query(conn_LandValue, query_gap_str)
+    end
+    display(string(r))
 
 end
 
