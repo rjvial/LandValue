@@ -11,13 +11,12 @@ function fo_bbo(x, template, sepNaves, dca, V_volConSombra, vecAlturas_conSombra
     ps_r = polyShape.polyDifference(ps_base, psCorte) #Sector de la base del edificio que sobrepasa el poligono de corte
     area_r = polyShape.polyArea(ps_r) #Area del sector que sobrepasa
     penalizacion_r = area_r^1.1
-    penalizacionCoefOcup = max(0.0, areaBasal - maxOcupación) 
 
-    superficieConstruidaSNT = areaBasal * numPisos
+    superficieConstruidaSNT = areaBasal * (numPisos-1) + min(areaBasal, maxOcupación)
     penalizacionConstructibilidad = max(0.0, superficieConstruidaSNT / (1 + dca.porcSupComun + 0.5*porcTerraza) - maxSupConstruida)
 
 
-    total_fit = total_fit - 500*(penalizacion_r + penalizacionCoefOcup + penalizacionConstructibilidad)
+    total_fit = total_fit - 500*(penalizacion_r + penalizacionConstructibilidad)
 
     return -total_fit
 end

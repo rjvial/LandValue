@@ -233,11 +233,11 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             areaBasal, ps_base, ps_baseSeparada = resultConverter(x, template, sepNaves)
             numPisos = Int(round(alt / dca.alturaPiso))
 
-            superficieConstruidaSNT = numPisos * areaBasal
+            superficieConstruidaSNT = (numPisos-1) * areaBasal + min(areaBasal, maxOcupación)
             constructibilidad = superficieConstruidaSNT / (1 + dca.porcSupComun + 0.5 * porcTerraza)
 
             holgura_constructibilidad = (maxSupConstruida - constructibilidad) / maxSupConstruida
-            holgura_ocupacion = (maxOcupación - areaBasal) / maxOcupación
+            holgura_ocupacion = (maxOcupación - min(areaBasal, maxOcupación)) / maxOcupación
             holgura_superficie = (sup_areaEdif - areaBasal) / sup_areaEdif
 
             ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s = generaSombraEdificio(ps_baseSeparada, alt, ps_publico, ps_calles)
@@ -249,7 +249,6 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             deltaSombra_s = abs(areaSombra_s - areaSombraEdif_s)
             holgura_sombra = minimum([deltaSombra_p, deltaSombra_o, deltaSombra_s])
             flagSeguir = true
-
 
             if f < 99990
 
@@ -268,7 +267,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
                 end
 
                 optiTol = 0.0015
-                if (holgura_constructibilidad <= optiTol) || (holgura_ocupacion <= optiTol && numPisos == dcn.maxPisos[1]) || (holgura_ocupacion <= optiTol && holgura_sombra <= optiTol && numPisos >= dcn.maxPisos[1] - 1)
+                if (holgura_constructibilidad <= optiTol) #|| (holgura_ocupacion <= optiTol && numPisos == dcn.maxPisos[1]) || (holgura_ocupacion <= optiTol && holgura_sombra <= optiTol && numPisos >= dcn.maxPisos[1] - 1)
                     display("Template Tipo " * vec_template_str[template+1] * ": Solución óptima encontrada. ")
                     flagSeguir = false
                 else
@@ -290,7 +289,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             ub_bbo = plan_optimizacion[r][3]
 
             flag_divergenciaAncho = template in [7, 8]
-            num_penalizaciones = flag_penalizacion_residual + flag_penalizacion_coefOcup + flag_penalizacion_constructibilidad + flag_conSombra + flag_divergenciaAncho
+            num_penalizaciones = flag_penalizacion_residual + flag_penalizacion_constructibilidad + flag_conSombra + flag_divergenciaAncho
 
             display("Template Tipo " * vec_template_str[template+1] * ": Inicio de Optimización BBO. Genera solución inicial.")
             x_bbo, f_bbo = optim_bbo(obj_bbo, lb_bbo, ub_bbo)

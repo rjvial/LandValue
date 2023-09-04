@@ -67,7 +67,7 @@ function optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, alturaEdif, ps_base, superfi
     superficieTerraza = sum(superficieTerrazaDepto);
     superficieInteriorDepto = numDeptosTipo .* dcc.supInterior;
     superficieInterior = sum(superficieInteriorDepto);
-    superficieLosaSNT = areaBasalPso*(numPisos)
+    superficieLosaSNT = areaBasalPso*(numPisos-1) + min(areaBasalPso, maxOcupación)
     superficieComun = superficieLosaSNT - (superficieTerraza + superficieInterior) # Superficie Común absorbe lo que no se utiliza en departamentos 
     superficieEstacionamientos = dcn.supPorEstacionamiento * estacionamientosVendibles
     superficieBodegas = dcn.supPorBodega * bodegas
@@ -192,7 +192,7 @@ function optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, alturaEdif, ps_base, superfi
         sa = SalidaArquitectonica(
             JuMP.value.(numDeptosTipo), # numDeptosTipo
             sum(JuMP.value.(numDeptosTipo)), # numDeptos
-            areaBasalPso, # ocupacion
+            min(areaBasalPso, maxOcupación), # ocupacion
             JuMP.value(superficieUtil), # constructibilidad
             JuMP.value(numPisos), # numPisos
             JuMP.value(numPisos)*dca.alturaPiso, # altura
@@ -232,7 +232,7 @@ function optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, alturaEdif, ps_base, superfi
         )
 
         so = SalidaOptimizacion(
-            superficieTerreno * dcn.coefOcupacion - areaBasalPso,
+            superficieTerreno * dcn.coefOcupacion - min(areaBasalPso, maxOcupación),
             superficieTerreno * dcn.coefConstructibilidad * (1 + 0.3 * dcp.fusionTerrenos) - JuMP.value(superficieUtil), # Holgura Constructibilidad
             maxDeptos - sum(JuMP.value.(numDeptosTipo)), # Holgura Densidad
         )
