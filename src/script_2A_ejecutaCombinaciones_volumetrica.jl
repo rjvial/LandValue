@@ -38,19 +38,20 @@ ps_publico = vec_datos[8]
 ps_calles = vec_datos[9]
 ps_base = vec_datos[10]
 ps_baseSeparada = vec_datos[11]
-ps_calles_intra_buffer = vec_datos[12]
-ps_predios_intra_buffer = vec_datos[13]
-ps_manzanas_intra_buffer = vec_datos[14]
-ps_buffer_predio = vec_datos[15]
-dx = vec_datos[16]
-dy = vec_datos[17]
-ps_areaEdif = vec_datos[18]
+ps_primerPiso = vec_datos[12]
+ps_calles_intra_buffer = vec_datos[13]
+ps_predios_intra_buffer = vec_datos[14]
+ps_manzanas_intra_buffer = vec_datos[15]
+ps_buffer_predio = vec_datos[16]
+dx = vec_datos[17]
+dy = vec_datos[18]
+ps_areaEdif = vec_datos[19]
 
 datos = [xopt[1]*alturaPiso, ps_base, superficieTerreno, superficieTerrenoBruta, xopt]
 
 
 fig, ax, ax_mat = plotBaseEdificio3D(fpe, xopt, alturaPiso, ps_predio, ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico,
-    ps_volConSombra, matConexionVertices_conSombra, vecVertices_conSombra, ps_publico, ps_calles, ps_base, ps_baseSeparada)
+    ps_volConSombra, matConexionVertices_conSombra, vecVertices_conSombra, ps_publico, ps_calles, ps_base, ps_baseSeparada, ps_primerPiso)
 
 fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_predios_intra_buffer, 0.0, "green", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
 fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_manzanas_intra_buffer, 0.0, "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)

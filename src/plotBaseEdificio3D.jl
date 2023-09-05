@@ -1,7 +1,7 @@
 function plotBaseEdificio3D(fpe, x, alturaPiso, ps_predio,
                              ps_volTeorico, matConexionVertices, vecVertices, 
                             ps_volConSombra, matConexionVertices_restSombra, vecVertices_restSombra, 
-                            ps_publico, ps_calles, ps_base, ps_baseSeparada; flagV = false)
+                            ps_publico, ps_calles, ps_base, ps_baseSeparada, ps_primerPiso; flagV = false)
 
     f_predio = fpe.predio
     f_volTeorico = fpe.volTeorico
@@ -44,10 +44,22 @@ function plotBaseEdificio3D(fpe, x, alturaPiso, ps_predio,
         alt = x[1]*alturaPiso
         numPisos = Int(round(alt/alturaPiso))
         numVertices = size(ps_base.Vertices[1],1)
-        V_edif3D = zeros((numPisos+1)*numVertices,3)    
-        V_edif3D = zeros((numPisos+1)*numVertices, 3)
+        V_edif3D = zeros((numPisos+1)*numVertices,3)
         V_edif3D[1:numVertices,:] = [ps_base.Vertices[1] zeros(numVertices,1)]
-        for k = 1:numPisos
+        
+        # Primer piso
+        for j=1:ps_base.NumRegions
+            V_base_j = ps_primerPiso.Vertices[j]
+            numVerticesBase_j = size(V_base_j,1)
+            V_1j = [V_base_j zeros(numVerticesBase_j,1);
+                    V_base_j alturaPiso * ones(numVerticesBase_j,1)]
+            fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(PolyShape([V_1j],1), 0, "teal", 1.0, fig=fig, ax=ax, ax_mat=ax_mat)
+        end
+        # V_edif3D[k*numVertices+1:(k+1)*numVertices,:] = [ps_base.Vertices[1] alturaPiso*k*ones(numVertices,1)]
+        # fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_base, alturaPiso * k, "teal", 1.0, fig=fig, ax=ax, ax_mat=ax_mat)
+    
+        # Pisos 2 hasta último piso
+        for k = 2:numPisos
             for j=1:ps_base.NumRegions
                 V_base_j = ps_base.Vertices[j]
                 numVerticesBase_j = size(V_base_j,1)
