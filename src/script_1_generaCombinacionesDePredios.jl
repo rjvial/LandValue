@@ -20,13 +20,10 @@ function obtieneDelta(codigo_predial, conn_gis_data)
     ps_predio_db = polyShape.setPolyOrientation(ps_predio_db, 1)
     ps_predio_db, dx, dy = polyShape.ajustaCoordenadas(ps_predio_db)
 
-	return dx, dy
+    return dx, dy
 end
 
 function obtienePrediosAltura(conn_gis_data, nombre_datos_predios_vitacura, comunaStr, dx, dy)
-
-    #--------------------------------------------------------------------------------------------------------
-    # Obtiene los predios pertenecientes a las zonas de edificación en altura 
     display("Obtiene los predios pertenecientes a las zonas de edificación en altura")
 
     query_check_predios_altura_str = """
@@ -51,7 +48,7 @@ function obtienePrediosAltura(conn_gis_data, nombre_datos_predios_vitacura, comu
         		points_inter_vitacura AS (SELECT ST_Transform(poi_vitacura_points.geom,5361) as geom  
         			FROM division_comunal JOIN poi_vitacura_points on st_contains(ST_Transform(division_comunal.geom,5361), ST_Transform(poi_vitacura_points.geom,5361))
         			WHERE poi_vitacura_points.osm_subtype NOT IN ('swimming_pool', 'commercial') AND poi_vitacura_points.osm_type <> 'shop' AND division_comunal.nom_com = 'Vitacura'),
-        		predios_inmobiliarias AS (select geom_predios as geom, codigo_predial from datos_predios_vitacura__ where UPPER(propietario) LIKE any(array['%INMOB%', '%CONSTR%', '%HOTEL%', '%S.A%', '%EMBAJADA%']))
+        		predios_inmobiliarias AS (select geom_predios as geom, codigo_predial from datos_predios_vitacura__ where UPPER(propietario) LIKE any(array['%INMOB%', '%CONSTR%']))
 
         	SELECT predios_altura.geom as geom, ST_AsText(predios_altura.geom) as predios_str, predios_altura.codigo_predial
         	FROM predios_altura 
@@ -72,12 +69,10 @@ function obtienePrediosAltura(conn_gis_data, nombre_datos_predios_vitacura, comu
     ps_predios_altura = polyShape.astext2polyshape(df_predios_altura.predios_str)
     ps_predios_altura = polyShape.ajustaCoordenadas(ps_predios_altura, dx, dy)
     ps_predios_altura = polyShape.setPolyOrientation(ps_predios_altura, 1)
-	return ps_predios_altura
+    return ps_predios_altura
 end
 
 function obtieneManzanasAltura(conn_gis_data, nombre_datos_predios_vitacura, comunaStr, dx, dy)
-    #--------------------------------------------------------------------------------------------------------
-    # Obtiene las manzanas que contienen predios aptos para edificación en altura 
     display("Obtiene las manzanas que contienen predios aptos para edificación en altura")
 
     query_check_manzanas_altura_str = """
@@ -112,14 +107,14 @@ function obtieneManzanasAltura(conn_gis_data, nombre_datos_predios_vitacura, com
     ps_manzanas_altura = polyShape.ajustaCoordenadas(ps_manzanas_altura, dx, dy)
     ps_manzanas_altura = polyShape.setPolyOrientation(ps_manzanas_altura, 1)
 
-	num_manzanas_altura = size(df_manzanas_altura, 1)
+    num_manzanas_altura = size(df_manzanas_altura, 1)
     conjunto_manzanas = sort(unique(df_manzanas_altura[:, "id"]))
 
-	return num_manzanas_altura, conjunto_manzanas
+    return num_manzanas_altura, conjunto_manzanas
 end
 
 function generaCombinaciones(conjunto_manzanas, nombre_tabla_combinacion_predios, conn_LandValue, area_lote_lb, area_lote_ub, area_predio_lb, area_predio_ub, num_lote_max, largo_compartido_min)
-    
+
     #--------------------------------------------------------------------------------------------------------
     # Genera tabla con las combinaciones de predios por manazana
     query_str = """ 
@@ -136,11 +131,11 @@ function generaCombinaciones(conjunto_manzanas, nombre_tabla_combinacion_predios
         id bigint NOT NULL
         )
     """
-	query_str = replace(query_str, "tabla_combinacion_predios_str" => nombre_tabla_combinacion_predios)
+    query_str = replace(query_str, "tabla_combinacion_predios_str" => nombre_tabla_combinacion_predios)
     pg_julia.query(conn_LandValue, query_str)
 
     for num_manzana in conjunto_manzanas
-        display("Manzana N°: " * string(num_manzana) )
+        display("Manzana N°: " * string(num_manzana))
 
         # Obtiene los predios disponibles en una manzana específica
         display("Obtiene los predios disponibles en una manzana específica")
@@ -197,7 +192,7 @@ function generaCombinaciones(conjunto_manzanas, nombre_tabla_combinacion_predios
                     combi_predios = [[1]]
                 end
 
-                combi_predios = combi_predios[length.(combi_predios) .<= num_lote_max]
+                combi_predios = combi_predios[length.(combi_predios).<=num_lote_max]
                 length_combi_predios = length(combi_predios)
                 display(length_combi_predios)
 
@@ -215,7 +210,7 @@ function generaCombinaciones(conjunto_manzanas, nombre_tabla_combinacion_predios
                             vec_area_ps_i = polyShape.polyArea(polyShape.subShape(ps_predios_manzana, combi_i), sep_flag=true)
                             area_max_lote = maximum(vec_area_ps_i)
                             area_min_lote = minimum(vec_area_ps_i)
-                            ps_str = "PolyShape([" * string(ps_i.Vertices[1]) * "],1)"                        
+                            ps_str = "PolyShape([" * string(ps_i.Vertices[1]) * "],1)"
                             vecColumnNames = ["combi_predios_str", "status", "manzana_id", "num_lotes", "area_predio", "area_max_lote", "area_min_lote", "ps_combi", "id"]
                             vecColumnValue = [vec_codigo_predial_i, 0, num_manzana, length(combi_i), area_i, area_max_lote, area_min_lote, ps_str, string(i)]
                             pg_julia.insertRow!(conn_LandValue, nombre_tabla_combinacion_predios, vecColumnNames, vecColumnValue, :id)
@@ -232,11 +227,11 @@ function generaCombinaciones(conjunto_manzanas, nombre_tabla_combinacion_predios
     """
     query_tabla_combinacion_str = replace(query_tabla_combinacion_str, "tabla_combinacion_predios_str" => nombre_tabla_combinacion_predios)
     df_tabla_combinacion = pg_julia.query(conn_LandValue, query_tabla_combinacion_str)
-    
+
     return df_tabla_combinacion
 end
 
-function concatenate_vectors(v::Vector{Vector{T}}) where T
+function concatenate_vectors(v::Vector{Vector{T}}) where {T}
     concatenated = v[1]
     for i = 2:length(v)
         concatenated = vcat(concatenated, v[i])
@@ -245,7 +240,7 @@ function concatenate_vectors(v::Vector{Vector{T}}) where T
 end
 
 function generaCombinacionesFinales(df_predios_combi, df_predios, nombre_tabla_combinacion_predios, conn_LandValue, area_lote_lb, area_lote_ub, area_predio_lb, area_predio_ub, num_lote_max, largo_compartido_min)
-    
+
     # Genera tabla con las combinaciones de predios por manazana
     query_str = """ 
     CREATE TABLE IF NOT EXISTS public.tabla_combinacion_predios_str
@@ -261,17 +256,17 @@ function generaCombinacionesFinales(df_predios_combi, df_predios, nombre_tabla_c
         id bigint NOT NULL    
         )
     """
-	query_str = replace(query_str, "tabla_combinacion_predios_str" => nombre_tabla_combinacion_predios)
+    query_str = replace(query_str, "tabla_combinacion_predios_str" => nombre_tabla_combinacion_predios)
     pg_julia.query(conn_LandValue, query_str)
 
-    conjunto_manzanas = sort(unique(df_predios_combi[:,"manzana_id"]))
+    conjunto_manzanas = sort(unique(df_predios_combi[:, "manzana_id"]))
 
     for num_manzana in conjunto_manzanas   # Manzana N°: 2738
         display("##################################")
         display("# Manzana N°: " * string(num_manzana))
         display("##################################")
 
-        df_predios_combi_manzana = filter(:manzana_id => m-> m == num_manzana, df_predios_combi)
+        df_predios_combi_manzana = filter(:manzana_id => m -> m == num_manzana, df_predios_combi)
 
         # Obtiene los predios disponibles en una manzana específica
         display("Obtiene los predios disponibles en una manzana específica")
@@ -289,9 +284,8 @@ function generaCombinacionesFinales(df_predios_combi, df_predios, nombre_tabla_c
 
         # Obtiene combinaciones factibles de predios en la manzana
         display("Obtiene combinaciones factibles de predios en la manzana")
-        vec_id_str = string.(vec_id)
-        num_lotes = length(vec_id_str)
-        print(vec_id_str)
+        num_lotes = length(vec_id)
+        print(string.(vec_id))
         combi_predios = []
         if sum(flag_area_vec) >= 2
             # Obtiene matriz de adyacencia a partir de la magnitud del largo compartido
@@ -314,8 +308,8 @@ function generaCombinacionesFinales(df_predios_combi, df_predios, nombre_tabla_c
             adj_mat = adj_mat .+ adj_mat'
 
             # Calcula todas las combinaciones de nodos que están conectados
-            combi_predios = graphMod.node_combis(adj_mat)
-        elseif sum(flag_area_vec) >= 1
+            combi_predios = graphMod.node_combis(adj_mat, path_len=num_lote_max)
+        elseif sum(flag_area_vec) == 1
             adj_mat = 1
             combi_predios = [[1]]
         end
@@ -327,12 +321,11 @@ function generaCombinacionesFinales(df_predios_combi, df_predios, nombre_tabla_c
         for i = 1:length_combi_predios
             combi_i = combi_predios[i]
             ps_i = polyShape.polyUnion(vec_ps_predios_manzana[combi_i])
-            ps_i = polyShape.polyExpand(polyShape.polyExpand(ps_i,0.02),-0.02)
 
             if ps_i.NumRegions == 1 #Si la unión genera un sólo polígono --> predios están conectados
                 area_i = polyShape.polyArea(ps_i)
                 vec_codigo_predial_i = sort(unique(concatenate_vectors(vec_codigo_predial[combi_i])[1]))
-                if i==1
+                if i == 1
                     push!(vec_combi_manzana, vec_codigo_predial_i)
                     flag_repetido = false
                 elseif vec_codigo_predial_i in vec_combi_manzana
@@ -349,10 +342,10 @@ function generaCombinacionesFinales(df_predios_combi, df_predios, nombre_tabla_c
                     ps_predios_i = polyShape.astext2polyshape(df_predios_i.geom)
                     ps_predios_i = polyShape.ajustaCoordenadas(ps_predios_i, dx, dy)
                     ps_predios_i = polyShape.setPolyOrientation(ps_predios_i, 1)
-                    vec_area_ps_i =  polyShape.polyArea(ps_predios_i, sep_flag=true)
+                    vec_area_ps_i = polyShape.polyArea(ps_predios_i, sep_flag=true)
                     area_max_lote = maximum(vec_area_ps_i)
                     area_min_lote = minimum(vec_area_ps_i)
-                    ps_str = "PolyShape([" * string(ps_i.Vertices[1]) * "],1)"                        
+                    ps_str = "PolyShape([" * string(ps_i.Vertices[1]) * "],1)"
                     vecColumnNames = ["combi_predios_str", "status", "manzana_id", "num_lotes", "area_predio", "area_max_lote", "area_min_lote", "ps_combi", "id"]
                     vecColumnValue = [string(vec_codigo_predial_i), 0, num_manzana, length(vec_codigo_predial_i), area_i, area_max_lote, area_min_lote, ps_str, string(i)]
                     pg_julia.insertRow!(conn_LandValue, nombre_tabla_combinacion_predios, vecColumnNames, vecColumnValue, :id)
@@ -368,6 +361,19 @@ function generaCombinacionesFinales(df_predios_combi, df_predios, nombre_tabla_c
     pg_julia.query(conn_gis_data, query_delete_aux_str)
 
 end
+
+############################################
+# Inicio Código 
+############################################
+
+
+# Limpieza de tablas auxiliares (en caso que existan)
+query_borra_tablas_aux_str = """DROP TABLE IF EXISTS tabla_combinacion_predios, tabla_predios_chicos, tabla_predios_grandes"""
+pg_julia.query(conn_LandValue, query_borra_tablas_aux_str)
+query_borra_tablas_aux_str = """DROP TABLE IF EXISTS __predios_altura, __manzanas_altura"""
+pg_julia.query(conn_gis_data, query_borra_tablas_aux_str)
+
+
 
 nombre_datos_predios_vitacura = "datos_predios_vitacura"
 comunaStr = "vitacura"
@@ -388,32 +394,33 @@ ps_predios = polyShape.setPolyOrientation(ps_predios, 1)
 
 #### 2877
 #### 2730 = 23 (1516002173000XX)
+#### 2820
 
 
 nombre_tabla_combinacion_predios = "tabla_predios_chicos"
 # ########################################################
-# filtros
+# Filtro Predios Chicos (predios que se deben combinar en pares)
 # ########################################################
 area_lote_lb = 100
-area_lote_ub = 400 
-area_predio_lb = 400 
+area_lote_ub = 400
+area_predio_lb = 400
 area_predio_ub = 4000
-num_lote_max = 2 
-largo_compartido_min = 20
+num_lote_max = 2
+largo_compartido_min = 18 #20
 ########################################################
 df_tabla_chicos = generaCombinaciones(conjunto_manzanas, nombre_tabla_combinacion_predios, conn_LandValue, area_lote_lb, area_lote_ub, area_predio_lb, area_predio_ub, num_lote_max, largo_compartido_min)
 
 
 nombre_tabla_combinacion_predios = "tabla_predios_grandes"
 # ########################################################
-# filtros
+# Filtro Predios Grandes (predios que se pueden incluir por sí solos)
 # ########################################################
 area_lote_lb = 400
 area_lote_ub = 3000
 area_predio_lb = 400
 area_predio_ub = 3000
 num_lote_max = 1
-largo_compartido_min = 20
+largo_compartido_min = 18 #20
 ########################################################
 df_tabla_grandes = generaCombinaciones(conjunto_manzanas, nombre_tabla_combinacion_predios, conn_LandValue, area_lote_lb, area_lote_ub, area_predio_lb, area_predio_ub, num_lote_max, largo_compartido_min)
 
@@ -422,18 +429,17 @@ df_predios_combi = vcat(df_tabla_grandes, df_tabla_chicos)
 
 nombre_tabla_combinacion_predios = "tabla_combinacion_predios"
 #########################################################
-# filtros
+# Filtro Final (combina predios chicos (en pares) con predios grandes)
 #########################################################
-area_lote_lb = 450 #400
+area_lote_lb = 400
 area_lote_ub = 3000
 area_predio_lb = 1200
 area_predio_ub = 4000
-num_lote_max = 12
+num_lote_max = 11 #12
 largo_compartido_min = 18
 #########################################################
 generaCombinacionesFinales(df_predios_combi, df_predios, nombre_tabla_combinacion_predios, conn_LandValue, area_lote_lb, area_lote_ub, area_predio_lb, area_predio_ub, num_lote_max, largo_compartido_min)
 
 query_borra_tablas_aux_str = """DROP TABLE tabla_predios_chicos, tabla_predios_grandes"""
 pg_julia.query(conn_LandValue, query_borra_tablas_aux_str)
-
 
