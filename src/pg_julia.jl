@@ -45,23 +45,19 @@ function query(conn::LibPQ.Connection, queryStr::String)
     #queryStr = """
     #            DELETE FROM public."tablaCabidaNormativa" WHERE "id_Normativa">1;
     #            """
-    try
-        result = execute(conn, queryStr; throw_error = false)
-        if length(result) >= 1
-            df = myDataFrame(result)
-            if !isempty(df)
-                return df
-            end
-        else
-            return []
+    result = execute(conn, queryStr; throw_error = true)
+    if length(result) >= 1
+        df = myDataFrame(result)
+        if !isempty(df)
+            return df
         end
-    catch
+    else
         return []
     end
 end
 
 function myDataFrame(result)
-    df = DataFrame(result)
+    df = DataFrames.DataFrame(result)
     columnsAsSymbol = propertynames(df)
     typeList = [Int64, Float64]
     for c in columnsAsSymbol
@@ -84,7 +80,7 @@ function appendToTable!(conn::LibPQ.Connection, tableStr::String, df::DataFrame,
     end
     copyinStr = LibPQ.CopyIn("COPY public.\"$tableStr\" FROM STDIN (FORMAT CSV);", dfStr)
     execute(conn, copyinStr)
-    df_out = pg_julia.query(conn, """SELECT * FROM public."$tableStr";""")
+    df_out = []
     return df_out
 end
 
@@ -114,7 +110,7 @@ function deleteRows!(conn::LibPQ.Connection, tableNameStr::String, columnNameCon
     #df_out = pg_julia.deleteRows!(conn, "tablaCabidaNormativa", "id_Normativa", ">=2")
     executeStr = """DELETE FROM public."$tableNameStr" WHERE "$columnNameCondStr" $deleteCondStr;"""
     pg_julia.query(conn, executeStr)
-    df_out = pg_julia.query(conn, """SELECT * FROM public."$tableNameStr";""")
+    df_out = []
     return df_out
 end
 
@@ -137,7 +133,6 @@ function insertRow!(conn::LibPQ.Connection, tableNameStr::String, vecColumnNames
     columnValueStr = join((string("\'", x, "\'") for x in vecColumnValue), ", ")
     executeStr = "INSERT INTO public.\"$tableNameStr\" (" * columnNameStr * ") VALUES (" * columnValueStr * ");"
     pg_julia.query(conn, executeStr)
-    # df_out = pg_julia.query(conn, """SELECT * FROM public."$tableNameStr";""")
     df_out = []
     return df_out
 end
@@ -151,7 +146,6 @@ function modifyRow!(conn::LibPQ.Connection, tableNameStr::String, vecColumnNames
     columnStr = join((string("\"", x, "\"", "=", y) for (x, y) in zip(vecColumnNames, vecColumnValue)), ", ")
     executeStr = "UPDATE public.\"$tableNameStr\" SET " * columnStr * " WHERE \"$columnNameCondStr\" $modifyCondStr;"
     pg_julia.query(conn, executeStr)
-    #df_out = pg_julia.query(conn, """SELECT * FROM public."$tableNameStr";""")
     df_out = []
     return df_out
 end
@@ -194,21 +188,3 @@ export connection, query, simpleQuery, appendToTable!, createTable, deleteTable,
 
 end
 
-
-"""
-anteJardin = df.ANTEJARDIN
-
-nombreColumnas = names(df)
-nombreColumnasAsSymbol = propertynames(df)
-
-df[:, [:RASANTE, :RASANTESOMBRA]]
-df[:, :RASANTE]
-df[[1,3], [:RASANTE, :ANTEJARDIN]]
-
-df_byRows = eachrow(df)
-row_2 = df_byRows[2]
-row_3_Antejardin = df_byRows[3][:ANTEJARDIN]
-
-select(df, Not(:RASANTE)) # Selecciona columnas que no contienen :RASANTE
-select(df, (r"RASAN")) # Selecciona columnas que contienen :RASAN*
-"""

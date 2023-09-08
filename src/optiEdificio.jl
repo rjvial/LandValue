@@ -1,11 +1,12 @@
-function optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, alturaEdif, ps_base, superficieTerreno, superficieTerrenoBruta)
+function optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, alturaEdif, ps_base, superficieTerreno, superficieTerrenoBruta, sup_areaEdif)
 
     areaBasalPso = polyShape.polyArea(ps_base)
     numTiposDepto = length(dcc.supDeptoUtil);
     superficieDensidad = dcn.flagDensidadBruta ? superficieTerrenoBruta : superficieTerreno
     maxDeptos = dcn.densidadMax / 4 * superficieDensidad / 10000;
     numPisosMaxVol = Int(round(alturaEdif / dca.alturaPiso))
-    maxOcupación = dcn.coefOcupacion * superficieTerreno
+    maxOcupación = dcn.coefOcupacion > 0 ? dcn.coefOcupacion * superficieTerreno : sup_areaEdif
+    maxSupConstruida = dcn.coefConstructibilidad > 0 ? superficieTerreno * dcn.coefConstructibilidad * (1 + 0.3 * dcp.fusionTerrenos) : dcn.maxPisos[1] * sup_areaEdif
 
 
     ##############################################
@@ -27,7 +28,7 @@ function optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, alturaEdif, ps_base, superfi
         numPisos == numPisosMaxVol, Int
         0 <= numDeptosTipo[u = 1:numTiposDepto], Int # Toma valores enteros
         0 <= numDeptosTipoPorPiso[u = 1:numTiposDepto], Int # Toma valores enteros
-        tipoDepto[u = 1:numTiposDepto], Bin
+        tipoDepto[u = 1:numTiposDepto], Bin # Es 1 si el tipoDepto se utiliza, 0 en caso contrario 
         0 <= CostoUnitTerreno
         0 <= superficieUtil
         0 <= superficieComun
@@ -67,7 +68,8 @@ function optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, alturaEdif, ps_base, superfi
     superficieTerraza = sum(superficieTerrazaDepto);
     superficieInteriorDepto = numDeptosTipo .* dcc.supInterior;
     superficieInterior = sum(superficieInteriorDepto);
-    superficieLosaSNT = areaBasalPso*(numPisos-1) + min(areaBasalPso, maxOcupación)
+    superficiePrimerPiso = min(areaBasalPso, maxOcupación)
+    superficieLosaSNT = areaBasalPso*(numPisos-1) + superficiePrimerPiso    
     superficieComun = superficieLosaSNT - (superficieTerraza + superficieInterior) # Superficie Común absorbe lo que no se utiliza en departamentos 
     superficieEstacionamientos = dcn.supPorEstacionamiento * estacionamientosVendibles
     superficieBodegas = dcn.supPorBodega * bodegas
@@ -130,7 +132,10 @@ function optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, alturaEdif, ps_base, superfi
             BalanceIva
 
 
-
+    flag_tipoDepto = [1 for i = 1:numTiposDepto]
+    if dcn.coefConstructibilidad <= 0
+        flag_tipoDepto[dcc.supDeptoUtil .>= 140] .= 0
+    end        
     ##############################################
     # PARTE "6": RESTRICCIONES DEL MIP           #
     ##############################################
@@ -153,8 +158,8 @@ function optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, alturaEdif, ps_base, superfi
         estacionamientosVendibles >= estacionamientosNormalesDespDesc - estacionamientosVisitas
 
     # Restricciones para Controlar Dispersión entre la Superficie del Tipo más Chico y el más Grande
-        tipoDepto .* dcc.supDeptoUtil .<= ones(numTiposDepto) * maxSupTipo
-        tipoDepto .* dcc.supDeptoUtil .* 2.5 + (ones(numTiposDepto) - tipoDepto)*100000  .>= ones(numTiposDepto) * maxSupTipo
+        tipoDepto .* dcc.supDeptoUtil .<= ones(numTiposDepto) .* flag_tipoDepto * maxSupTipo
+        tipoDepto .* dcc.supDeptoUtil .* 2.5 + (ones(numTiposDepto) - tipoDepto)*100000 .>= ones(numTiposDepto) * maxSupTipo
         tipoDepto .<= numDeptosTipo
         numDeptosTipo .<= 10000*tipoDepto
     end)
@@ -180,8 +185,8 @@ function optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, alturaEdif, ps_base, superfi
         # Construye estructura con los resultados de la optimización   
         sn = SalidaNormativa(
             maxDeptos, # maxNumDeptos
-            dcn.coefOcupacion * superficieTerreno, # maxOcupacion
-            superficieTerreno * dcn.coefConstructibilidad * (1 + 0.3 * dcp.fusionTerrenos), # maxConstructibilidad
+            maxOcupación, # maxOcupacion
+            maxSupConstruida, # maxConstructibilidad
             dcn.maxPisos[1], # maxPisos
             dcn.alturaMax[1], # maxAltura
             JuMP.value(estacionamientosVendibles), # minEstacionamientosVendible
@@ -232,8 +237,8 @@ function optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, alturaEdif, ps_base, superfi
         )
 
         so = SalidaOptimizacion(
-            superficieTerreno * dcn.coefOcupacion - min(areaBasalPso, maxOcupación),
-            superficieTerreno * dcn.coefConstructibilidad * (1 + 0.3 * dcp.fusionTerrenos) - JuMP.value(superficieUtil), # Holgura Constructibilidad
+            maxOcupación - JuMP.value(superficiePrimerPiso),
+            maxSupConstruida - JuMP.value(superficieUtil), # Holgura Constructibilidad
             maxDeptos - sum(JuMP.value.(numDeptosTipo)), # Holgura Densidad
         )
 
