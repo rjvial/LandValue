@@ -43,7 +43,7 @@ function obtienePrediosAltura(conn_gis_data, nombre_datos_predios_vitacura, comu
             
         	WITH predios_altura AS (SELECT codigo_predial, num_roles, zona, num_pisos_total, altura_max_total, ST_Transform(geom_predios,5361) as geom
         			FROM datos_predios_vitacura__ 
-        			WHERE num_pisos_total >= 4 AND num_roles = 1 AND sup_construccion < sup_terreno_edif AND codigo_predial not in (SELECT anteproyectos_vitacura.codigo_predial 
+        			WHERE num_pisos_total >= 3 AND densidad_bruta_hab_ha >= 200 AND num_roles = 1 AND sup_construccion < sup_terreno_edif AND codigo_predial not in (SELECT anteproyectos_vitacura.codigo_predial 
         																					FROM anteproyectos_vitacura)),
         		predios_inter_poi AS (SELECT predios_altura.codigo_predial as codigo_predial
         			FROM predios_altura JOIN poi_vitacura on st_intersects(predios_altura.geom, ST_Transform(poi_vitacura.geom_poi,5361))

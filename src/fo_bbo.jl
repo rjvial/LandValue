@@ -1,5 +1,5 @@
-function fo_bbo(x, template, sepNaves, dca, V_volConSombra, vecAlturas_conSombra, vecVertices_conSombra, matConexionVertices_conSombra, maxOcupación, porcTerraza, maxSupConstruida)
-
+function fo_bbo(x, template, sepNaves, dca, dcn, V_volConSombra, vecAlturas_conSombra, vecVertices_conSombra, matConexionVertices_conSombra, maxOcupación, porcTerraza, maxSupConstruida)
+    
     numPisos = Int(floor(x[1]))
 
     areaBasal, ps_base, ps_baseSeparada = resultConverter(x, template, sepNaves)
@@ -13,8 +13,11 @@ function fo_bbo(x, template, sepNaves, dca, V_volConSombra, vecAlturas_conSombra
     penalizacion_r = area_r^1.1
 
     superficieConstruidaSNT = areaBasal * (numPisos-1) + min(areaBasal, maxOcupación)
-    penalizacionConstructibilidad = max(0.0, superficieConstruidaSNT / (1 + dca.porcSupComun + 0.5*porcTerraza) - maxSupConstruida)
-
+    if dcn.coefConstructibilidad > 0
+        penalizacionConstructibilidad = max(0.0, superficieConstruidaSNT / (1 + dca.porcSupComun + 0.5*porcTerraza) - maxSupConstruida)
+    else
+        penalizacionConstructibilidad = 0
+    end
 
     total_fit = total_fit - 500*(penalizacion_r + penalizacionConstructibilidad)
 

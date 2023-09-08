@@ -2,9 +2,9 @@ function generaCotas(template, minPisos, maxPisos, V_areaEdif, sepNaves, maxDiag
 
     # min_pisos = min(minPisos, maxPisos - 1) 
     # max_ancho = anchoMax #6 #
+    min_pisos = min(minPisos, maxPisos - 1); max_pisos = maxPisos
 
     if template == 0 #I
-        min_pisos = min(minPisos, maxPisos - 1); max_pisos = maxPisos
         min_theta = -pi; max_theta = pi
         xmin = minimum(V_areaEdif[:, 1]); xmax = maximum(V_areaEdif[:, 1])
         ymin = minimum(V_areaEdif[:, 2]); ymax = maximum(V_areaEdif[:, 2])
@@ -14,7 +14,6 @@ function generaCotas(template, minPisos, maxPisos, V_areaEdif, sepNaves, maxDiag
         ub = [max_pisos, max_theta, xmax, ymax, max_ancho, max_largo]
 
     elseif template == 1 #L
-        min_pisos = min(minPisos, maxPisos - 1); max_pisos = maxPisos
         min_theta = -pi; max_theta = pi
         xmin = minimum(V_areaEdif[:, 1]); xmax = maximum(V_areaEdif[:, 1])
         ymin = minimum(V_areaEdif[:, 2]); ymax = maximum(V_areaEdif[:, 2])
@@ -26,7 +25,6 @@ function generaCotas(template, minPisos, maxPisos, V_areaEdif, sepNaves, maxDiag
         ub = [max_pisos, max_theta, xmax, ymax, max_alfa, max_largo1, max_largo2, max_ancho]
 
     elseif template == 2 #C
-        min_pisos = min(minPisos, maxPisos - 1); max_pisos = maxPisos
         min_theta = -pi; max_theta = pi
         xmin = minimum(V_areaEdif[:, 1]); xmax = maximum(V_areaEdif[:, 1])
         ymin = minimum(V_areaEdif[:, 2]); ymax = maximum(V_areaEdif[:, 2])
@@ -40,7 +38,6 @@ function generaCotas(template, minPisos, maxPisos, V_areaEdif, sepNaves, maxDiag
         ub = [max_pisos, max_theta, xmax, ymax, max_phi1, max_phi2, max_largo0, max_largo1, max_largo2, max_ancho]
 
     elseif template == 3 #III
-        min_pisos = min(minPisos, maxPisos - 1); max_pisos = maxPisos
         min_theta = -pi; max_theta = pi
         xmin = minimum(V_areaEdif[:, 1]); xmax = maximum(V_areaEdif[:, 1])
         ymin = minimum(V_areaEdif[:, 2]); ymax = maximum(V_areaEdif[:, 2])
@@ -53,7 +50,6 @@ function generaCotas(template, minPisos, maxPisos, V_areaEdif, sepNaves, maxDiag
         ub = [max_pisos, max_theta, xmax, ymax, max_unidades, max_largo, max_var, max_sep, max_ancho]
 
     elseif template == 4 #V
-        min_pisos = min(minPisos, maxPisos - 1); max_pisos = maxPisos
         min_theta = -pi; max_theta = pi
         xmin = minimum(V_areaEdif[:, 1]); xmax = maximum(V_areaEdif[:, 1])
         ymin = minimum(V_areaEdif[:, 2]); ymax = maximum(V_areaEdif[:, 2])
@@ -65,7 +61,6 @@ function generaCotas(template, minPisos, maxPisos, V_areaEdif, sepNaves, maxDiag
         ub = [max_pisos, max_theta, xmax, ymax, max_alfa, max_largo1, max_largo2, max_ancho]
 
     elseif template == 5 #H
-        min_pisos = min(minPisos, maxPisos - 1); max_pisos = maxPisos
         min_theta = -pi; max_theta = pi
         xmin = minimum(V_areaEdif[:, 1]); xmax = maximum(V_areaEdif[:, 1])
         ymin = minimum(V_areaEdif[:, 2]); ymax = maximum(V_areaEdif[:, 2])
@@ -79,7 +74,6 @@ function generaCotas(template, minPisos, maxPisos, V_areaEdif, sepNaves, maxDiag
         ub = [max_pisos, max_theta, xmax, ymax, max_largo, max_largo1_, max_largo1, max_largo2_, max_largo2, max_ancho]
 
     elseif template == 6 #C-flex
-        min_pisos = min(minPisos, maxPisos - 1); max_pisos = maxPisos
         min_theta = -pi; max_theta = pi
         xmin = minimum(V_areaEdif[:, 1]); xmax = maximum(V_areaEdif[:, 1])
         ymin = minimum(V_areaEdif[:, 2]); ymax = maximum(V_areaEdif[:, 2])
@@ -95,7 +89,6 @@ function generaCotas(template, minPisos, maxPisos, V_areaEdif, sepNaves, maxDiag
         ub = [max_pisos, max_theta, xmax, ymax, max_phi1, max_phi2, max_largo0, max_largo1, max_largo2, max_ancho0, max_ancho1, max_ancho2]
 
     elseif template == 7 #S
-        min_pisos = min(minPisos, maxPisos - 1); max_pisos = maxPisos
         min_theta = -pi; max_theta = pi
         xmin = minimum(V_areaEdif[:, 1]); xmax = maximum(V_areaEdif[:, 1])
         ymin = minimum(V_areaEdif[:, 2]); ymax = maximum(V_areaEdif[:, 2])
@@ -111,7 +104,6 @@ function generaCotas(template, minPisos, maxPisos, V_areaEdif, sepNaves, maxDiag
         ub = [max_pisos, max_theta, xmax, ymax, max_phi1, max_phi2, max_largo0, max_largo1, max_largo2, max_ancho0, max_ancho1, max_ancho2]
     
     elseif template == 10 #S
-        min_pisos = min(minPisos, maxPisos - 1); max_pisos = maxPisos
         min_theta = -pi; max_theta = pi
         xmin = minimum(V_areaEdif[:, 1]); xmax = maximum(V_areaEdif[:, 1])
         ymin = minimum(V_areaEdif[:, 2]); ymax = maximum(V_areaEdif[:, 2])
@@ -127,7 +119,7 @@ function generaCotas(template, minPisos, maxPisos, V_areaEdif, sepNaves, maxDiag
         ub = [max_pisos, max_theta, xmax, ymax, max_phi1, max_phi2, max_largo0, max_largo1, max_largo2, max_ancho0, max_ancho1, max_ancho2]
     
     elseif template == 8 #C-superFlex
-        min_pisos = min(minPisos, maxPisos - 1); max_pisos = maxPisos; min_theta = -pi; max_theta = pi
+        min_theta = -pi; max_theta = pi
         xmin = minimum(V_areaEdif[:, 1]); xmax = maximum(V_areaEdif[:, 1]); ymin = minimum(V_areaEdif[:, 2]); ymax = maximum(V_areaEdif[:, 2])
         min_phi1 = 0; max_phi1 = pi/2; min_phi2 = -pi/2; max_phi2 = 0
         min_deltax_1 = 0; max_deltax_1 = anchoMax
@@ -144,7 +136,6 @@ function generaCotas(template, minPisos, maxPisos, V_areaEdif, sepNaves, maxDiag
         ub = [max_pisos, max_theta, xmax, ymax, max_phi1, max_phi2, max_deltax_1, max_deltay_1, max_deltax_2, max_deltay_2, max_largo0, max_largo1, max_largo2, max_ancho0, max_ancho1, max_ancho2]
 
     elseif template == 9 #Cuña
-        min_pisos = min(minPisos, maxPisos - 1); max_pisos = maxPisos
         min_theta = -pi; max_theta = pi
         xmin = minimum(V_areaEdif[:, 1]); xmax = maximum(V_areaEdif[:, 1])
         ymin = minimum(V_areaEdif[:, 2]); ymax = maximum(V_areaEdif[:, 2])
