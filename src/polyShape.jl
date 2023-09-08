@@ -572,6 +572,27 @@ function polyExpand(ps::PolyShape, dist::Union{Real,Array{Real,1}})::PolyShape
 end
 
 
+function polyShrink(ps_base, ratio)
+
+    area_target = polyShape.polyArea(ps_base) * ratio
+
+    ps_actual = polyShape.polyCopy(ps_base)
+    area_actual = polyShape.polyArea(ps_actual)
+
+    delta = -0.01
+    while true
+        p = abs((area_actual - area_target)/area_target)
+        delta = -0.1*p
+        if p <= 0.00001
+            return ps_actual
+        else
+            ps_actual = polyShape.polyExpand(ps_actual, delta)
+            area_actual = polyShape.polyArea(ps_actual)
+        end
+    end
+end
+
+
 function polyOrientation(ps::PolyShape)::Union{Int64,Array{Int64,1}}
     numRegions = ps.NumRegions
     ccw_vec = fill(0, numRegions)
@@ -1863,7 +1884,7 @@ export extraeInfoPoly, largoLadosPoly, isPolyConvex, isPolyInPoly
     shapeVertex, numVertices, shapeCentroid, partialCentroid, shapeDistance, partialDistance, polyBox, polyRotate, polyReverse, setPolyOrientation,
     minPolyDistance, polyCopy, polyUnique, polyEliminateWithin, pointLineDist, intersectLines, findPolyIntersection, pointDistanceMat, polySimplify,
     lineLineDist, parallelLineAtDist, lineAngle, halfspaceSignOfPointToLine, extendLine, polyEliminaRepetidos, polyEliminaSpikes, polyEliminaCrucesComplejos,
-    polyObtieneCruces, polyExpandSegmentVec, replaceShapeVertex, lineVec2polyShape, polyShape2lineVec,
+    polyObtieneCruces, polyExpandSegmentVec, replaceShapeVertex, lineVec2polyShape, polyShape2lineVec, polyShrink,
     ajustaCoordenadas, angleMaxDistRect, extendRectToIntersection, createLine, polyReproject, bisector_direction, angleBetweenLines,
     reverseLine, distanceBetweenPoints, midPointSegment, alphaPointSegment, points2Line, points2Poly, lineLength, isLineLineParallel, distanceBetweenLines
 

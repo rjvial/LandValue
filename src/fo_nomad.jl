@@ -54,3 +54,4 @@ function fo_nomad(x, template, sepNaves, dca, porcTerraza, flag_conSombra, flag_
 
     return (success, count_eval, bb_outputs)
 end
+

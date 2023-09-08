@@ -4,7 +4,7 @@ using LandValue, Distributed, DotEnv
 
 let codigo_predial = [] 
     # Para cómputos sobre la base de datos usar codigo_predial = []
-    tipoOptimizacion = "economica" #"provisoria" #
+    tipoOptimizacion = "provisoria" #"economica"
 
     DotEnv.load("secrets.env") #Caso Docker
     datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]

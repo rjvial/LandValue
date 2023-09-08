@@ -1,7 +1,9 @@
 function optim_bbo(fo_bbo, lb_bbo, ub_bbo)
 
     # Repetición de optimizaciones bb para encontrar buena solución
+    lb_bbo[1] = ub_bbo[1]
     sr = [(lb_bbo[i], ub_bbo[i]) for i in eachindex(lb_bbo)] # Search Region    
+    
     fopt = 10000
     xopt = []
     maxSteps = 20000

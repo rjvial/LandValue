@@ -47,6 +47,29 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
     dcn.sepEstMin = 7.0
     dcn.reduccionEstPorDistMetro = false
 
+    #Condicion para Vivienda Económica
+    if dcn.maxPisos == 3
+        dcn.distanciamiento = 10.0
+        dcn.densidadMax = dcn.densidadMax * 1.25
+        dcn.maxPisos = 4
+        dcn.alturaMax = 14.0
+        dcn.coefConstructibilidad = -1 #5
+        dcn.coefOcupacion = -1
+    elseif dcn.maxPisos == 4
+        dcn.densidadMax = dcn.densidadMax * 1.25
+        dcn.maxPisos = 4
+        dcn.alturaMax = 14.0
+        dcn.coefConstructibilidad = -1 #5
+        dcn.coefOcupacion = -1
+    elseif dcn.maxPisos == 5
+        dcn.densidadMax = dcn.densidadMax * 1.25
+        dcn.maxPisos = 4
+        dcn.alturaMax = 14.0
+        dcn.coefConstructibilidad = -1 #5
+        dcn.coefOcupacion = -1
+    end
+
+
     # Simplifica, corrige orientacion y escala del predio
     ps_predio_db = polyShape.setPolyOrientation(ps_predio_db, 1)
     ps_predio_db, dx, dy = polyShape.ajustaCoordenadas(ps_predio_db)
@@ -86,6 +109,26 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
     dcp.ladosConCalle = vecSecConCalle
     dcp.anchoEspacioPublico = vecAnchoCalle
 
+    # Calcula matriz V_areaEdif asociada a los vértices del area de edificación
+    display("Establece el área de edificación")
+
+    vec_edges_predio = polyShape.polyShape2lineVec(ps_predio)
+    numLadosPredio = length(vec_edges_predio)
+    vecSecTodos = collect(1:numLadosPredio)
+    vecSecSinCalle = setdiff(vecSecTodos, vecSecConCalle)
+
+    antejardin = dcn.antejardin[1]
+    sepVecinos = dcn.distanciamiento[1]
+
+    vec_edges = vecSecTodos
+    vec_dist = Float64.(vec_edges)
+    vec_dist .= -antejardin
+    vec_dist[vecSecSinCalle] .= -sepVecinos
+    ps_areaEdif = polyShape.polyExpandSegmentVec(ps_predio, vec_dist)
+    V_areaEdif = ps_areaEdif.Vertices[1]
+    sup_areaEdif = polyShape.polyArea(ps_areaEdif)
+    rasante = dcn.rasante
+
     if tipoOptimizacion == "volumetrica"
         display("")
         display("Inicio de Optimización Volumétrica: Predio N° " * string(codigo_predial))
@@ -101,26 +144,6 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         superficieTerrenoBrutaCalc = polyShape.polyArea(ps_bruto)
         superficieTerrenoBruta = superficieTerrenoBrutaCalc / superficieTerrenoCalc * superficieTerreno
 
-
-        # Calcula matriz V_areaEdif asociada a los vértices del area de edificación
-        display("Establece el área de edificación")
-
-        vec_edges_predio = polyShape.polyShape2lineVec(ps_predio)
-        numLadosPredio = length(vec_edges_predio)
-        vecSecTodos = collect(1:numLadosPredio)
-        vecSecSinCalle = setdiff(vecSecTodos, vecSecConCalle)
-
-        antejardin = dcn.antejardin[1]
-        sepVecinos = dcn.distanciamiento[1]
-
-        vec_edges = vecSecTodos
-        vec_dist = Float64.(vec_edges)
-        vec_dist .= -antejardin
-        vec_dist[vecSecSinCalle] .= -sepVecinos
-        ps_areaEdif = polyShape.polyExpandSegmentVec(ps_predio, vec_dist)
-        V_areaEdif = ps_areaEdif.Vertices[1]
-        sup_areaEdif = polyShape.polyArea(ps_areaEdif)
-        rasante = dcn.rasante
 
         vec_altVolteor = collect(0:0.5:50) .* rasante
         vec_altVolteor = vec_altVolteor[vec_altVolteor.<dcn.alturaMax]
@@ -154,15 +177,15 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         V_volConSombra = ps_volConSombra.Vertices[1]
         vecAlturas_conSombra = sort(unique(V_volConSombra[:, end]))
 
-        sepNaves = 10 #12.0 #dca.anchoMin - 0
+        sepNaves = 10. #5.# 12.0 #dca.anchoMin - 0
 
-        maxSupConstruida = superficieTerreno * dcn.coefConstructibilidad * (1 + 0.3 * dcp.fusionTerrenos)
-        maxOcupación = dcn.coefOcupacion * superficieTerreno
+        maxOcupación = dcn.coefOcupacion > 0 ? dcn.coefOcupacion * superficieTerreno : sup_areaEdif
+        maxSupConstruida = dcn.coefConstructibilidad > 0 ? superficieTerreno * dcn.coefConstructibilidad * (1 + 0.3 * dcp.fusionTerrenos) : dcn.maxPisos[1] * sup_areaEdif
         template = 0
 
         min_pisos_bbo = min(4, dcn.maxPisos[1] - 1)
         alt_bbo = min_pisos_bbo * dca.alturaPiso
-        obj_bbo = x -> fo_bbo(x, template, sepNaves, dca, V_volConSombra, vecAlturas_conSombra, vecVertices_conSombra, matConexionVertices_conSombra, maxOcupación, porcTerraza, maxSupConstruida)
+        obj_bbo = x -> fo_bbo(x, template, sepNaves, dca, dcn, V_volConSombra, vecAlturas_conSombra, vecVertices_conSombra, matConexionVertices_conSombra, maxOcupación, porcTerraza, maxSupConstruida)
 
         porcTerraza = 0.15 / 1.075
         obj_nomad = x -> fo_nomad(x, template, sepNaves, dca, porcTerraza, flag_conSombra, flag_penalizacion_residual, flag_penalizacion_coefOcup,
@@ -186,7 +209,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         plan_optimizacion = [[0, lb_bbo, ub_bbo]]
         lb_bbo, ub_bbo = generaCotas(1, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
         push!(plan_optimizacion, [1, lb_bbo, ub_bbo])
-        lb_bbo, ub_bbo = generaCotas(6, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
+        lb_bbo, ub_bbo = generaCotas(6, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, 6)
         push!(plan_optimizacion, [6, lb_bbo, ub_bbo])
         lb_bbo, ub_bbo = generaCotas(7, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, 6)
         push!(plan_optimizacion, [7, lb_bbo, ub_bbo])
@@ -196,6 +219,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         flag_penalizacion_residual = true
         flag_penalizacion_coefOcup = true
         flag_penalizacion_constructibilidad = true
+        flag_penalizacion_constructibilidad = flag_penalizacion_constructibilidad & (dcn.coefConstructibilidad > 0)
         flag_conSombra = true
         flag_divergenciaAncho = false
 
@@ -208,10 +232,10 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             areaBasal, ps_base, ps_baseSeparada = resultConverter(x, template, sepNaves)
             numPisos = Int(round(alt / dca.alturaPiso))
 
-            superficieConstruidaSNT = (numPisos - 1) * areaBasal + min(areaBasal, maxOcupación)
+            superficieConstruidaSNT = (numPisos-1) * areaBasal + min(areaBasal, maxOcupación)
             constructibilidad = superficieConstruidaSNT / (1 + dca.porcSupComun + 0.5 * porcTerraza)
 
-            holgura_constructibilidad = (maxSupConstruida - constructibilidad) / maxSupConstruida
+            holgura_constructibilidad = maxSupConstruida > 0 ? (maxSupConstruida - constructibilidad) / maxSupConstruida : -1
             holgura_ocupacion = (maxOcupación - min(areaBasal, maxOcupación)) / maxOcupación
             holgura_superficie = (sup_areaEdif - areaBasal) / sup_areaEdif
 
@@ -255,7 +279,6 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
 
             return fopt, xopt, template, flagSeguir, holgura_constructibilidad
         end
-
 
         for r in eachindex(plan_optimizacion)
 
@@ -461,9 +484,14 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         ps_calles_intra_buffer_ = polyShape.shapeBuffer(ps_calles_intra_buffer, buffer_dist_, 20)
         ps_predios_intra_buffer_ = polyShape.polyIntersect(ps_predios_intra_buffer, ps_buffer_predio_)
         ps_manzanas_intra_buffer_ = polyShape.polyIntersect(ps_manzanas_intra_buffer, ps_buffer_predio_)
+        
+        areaOcupacion = min(areaBasal, maxOcupación)
+        razon_ocupacion_basal = areaOcupacion / areaBasal
+
+        ps_primerPiso = polyShape.polyShrink(ps_base, razon_ocupacion_basal)
 
         vec_datos = [ps_predio, ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico, ps_volConSombra,
-            matConexionVertices_conSombra, vecVertices_conSombra, ps_publico, ps_calles, ps_base, ps_baseSeparada,
+            matConexionVertices_conSombra, vecVertices_conSombra, ps_publico, ps_calles, ps_base, ps_baseSeparada, ps_primerPiso,
             ps_calles_intra_buffer_, ps_predios_intra_buffer_, ps_manzanas_intra_buffer_, ps_buffer_predio_, dx, dy, ps_areaEdif]
 
 
@@ -515,7 +543,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         superficieTerrenoBruta = df_[1, "terreno_superficie_bruta"]
         xopt = eval(Meta.parse(df_[1, "optimo_solucion"]))
 
-        sn, sa, si, st, so, sm, sf = optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, alturaEdif, ps_base, superficieTerreno, superficieTerrenoBruta)
+        sn, sa, si, st, so, sm, sf = optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, alturaEdif, ps_base, superficieTerreno, superficieTerrenoBruta, sup_areaEdif)
         resultados = ResultadoCabida(sn, sa, si, st, sm, so, xopt)
 
         tipo_Depto = ""
@@ -607,6 +635,5 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         return dcc, resultados, xopt, vecColumnNames, vecColumnValue, id_, codigo_predial
 
     end
-
 
 end
