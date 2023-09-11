@@ -181,7 +181,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
 
         maxOcupación = dcn.coefOcupacion > 0 ? dcn.coefOcupacion * superficieTerreno : sup_areaEdif
         maxSupConstruida = dcn.coefConstructibilidad > 0 ? superficieTerreno * dcn.coefConstructibilidad * (1 + 0.3 * dcp.fusionTerrenos) : dcn.maxPisos[1] * sup_areaEdif
-        template = 0
+        template = 0 
 
         min_pisos_bbo = min(4, dcn.maxPisos[1] - 1)
         alt_bbo = min_pisos_bbo * dca.alturaPiso
@@ -410,11 +410,10 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             "dy",
             "id"]
 
-
         vecColumnValue = [string(codigo_predial),
             dcn.densidadMax / 4 * (dcn.flagDensidadBruta ? superficieTerrenoBruta : superficieTerreno) / 10000, #resultados.salidaNormativa.maxNumDeptos,
-            superficieTerreno * dcn.coefOcupacion, #resultados.salidaNormativa.maxOcupacion,
-            superficieTerreno * dcn.coefConstructibilidad * (1 + 0.3 * dcp.fusionTerrenos), #resultados.salidaNormativa.maxConstructibilidad,
+            maxOcupación, #resultados.salidaNormativa.maxOcupacion,
+            maxSupConstruida, #resultados.salidaNormativa.maxConstructibilidad,
             dcn.maxPisos[1], #resultados.salidaNormativa.maxPisos,
             dcn.alturaMax[1], #resultados.salidaNormativa.maxAltura,
             0, #resultados.salidaNormativa.minEstacionamientosVendibles,
