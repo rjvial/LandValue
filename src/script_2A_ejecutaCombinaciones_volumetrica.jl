@@ -14,11 +14,11 @@ codigo_predial = [151600187100034, 151600187100035, 151600187100036, 15160018710
 
 tipoOptimizacion = "volumetrica"
 
-DotEnv.load("secrets.env")
-datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
-datos_mygis_db = ["gis_data", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
-# datos_LandValue = ["landengines_local", "postgres", "", "localhost"]
-# datos_mygis_db = ["gis_data_local", "postgres", "", "localhost"]
+# DotEnv.load("secrets.env")
+# datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
+# datos_mygis_db = ["gis_data", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
+datos_LandValue = ["landengines_local", "postgres", "", "localhost"]
+datos_mygis_db = ["gis_data_local", "postgres", "", "localhost"]
 
 conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
 conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
@@ -47,7 +47,7 @@ dx = vec_datos[17]
 dy = vec_datos[18]
 ps_areaEdif = vec_datos[19]
 
-datos = [xopt[1]*alturaPiso, ps_base, superficieTerreno, superficieTerrenoBruta, xopt]
+datos = [xopt[1]*alturaPiso, ps_base, superficieTerreno, superficieTerrenoBruta, xopt, ps_areaEdif]
 
 
 fig, ax, ax_mat = plotBaseEdificio3D(fpe, xopt, alturaPiso, ps_predio, ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico,

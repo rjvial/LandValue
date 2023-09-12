@@ -4,7 +4,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
     # PARTE "1": OBTENCIÓN DE PARÁMETROS         #
     ##############################################
 
-    DotEnv.load("secrets.env")
+    DotEnv.load("secrets.env") 
     conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
     db_LandValue_str = datos_LandValue[1]
     query_LandValue_pid = """
@@ -69,6 +69,28 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
     dcn.sepEstMin = 7.0
     dcn.reduccionEstPorDistMetro = false
 
+    #Condicion para Vivienda Económica
+    if dcn.maxPisos == 3
+        dcn.distanciamiento = 10.
+        dcn.densidadMax = dcn.densidadMax * 1.25
+        dcn.maxPisos = 4
+        dcn.alturaMax = 14.
+        dcn.coefConstructibilidad = -1 #5
+        dcn.coefOcupacion = -1
+    elseif dcn.maxPisos == 4
+        dcn.densidadMax = dcn.densidadMax * 1.25
+        dcn.maxPisos = 4
+        dcn.alturaMax = 14.
+        dcn.coefConstructibilidad = -1 #5
+        dcn.coefOcupacion = -1        
+    elseif dcn.maxPisos == 5
+        dcn.densidadMax = dcn.densidadMax * 1.25
+        dcn.maxPisos = 4
+        dcn.alturaMax = 14.
+        dcn.coefConstructibilidad = -1 #5
+        dcn.coefOcupacion = -1        
+    end
+
 
     # Simplifica, corrige orientacion y escala del predio
     ps_predio_db = polyShape.setPolyOrientation(ps_predio_db, 1)
@@ -116,8 +138,18 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
     vecSecTodos = collect(1:numLadosPredio)
     vecSecSinCalle = setdiff(vecSecTodos, vecSecConCalle)
 
-    #Condicion para Vivienda Económica
+    antejardin = dcn.antejardin[1]
+    sepVecinos = dcn.distanciamiento[1]
 
+    vec_edges = vecSecTodos
+    vec_dist = Float64.(vec_edges)
+    vec_dist .= -antejardin
+    vec_dist[vecSecSinCalle] .= -sepVecinos
+    ps_areaEdif = polyShape.polyExpandSegmentVec(ps_predio, vec_dist)
+    V_areaEdif = ps_areaEdif.Vertices[1]
+    sup_areaEdif = polyShape.polyArea(ps_areaEdif)
+    rasante = dcn.rasante
+    
     if tipoOptimizacion == "volumetrica"
         display("")
         display("Inicio de Optimización Volumétrica: Predio N° " * string(codigo_predial))
@@ -134,8 +166,58 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         superficieTerrenoBruta = superficieTerrenoBrutaCalc / superficieTerrenoCalc * superficieTerreno
 
 
-        sepNaves = 10.0 #5.# 12.0 #dca.anchoMin - 0
+        vec_altVolteor = collect(0:0.5:50) .* rasante
+        vec_altVolteor = vec_altVolteor[vec_altVolteor.<dcn.alturaMax]
+        push!(vec_altVolteor, dcn.alturaMax)
+        vec_psVolteor = [polyShape.polyExpand(ps_bruto, -i / rasante) for i in vec_altVolteor]
+        vec_psVolteor = [polyShape.polyIntersect(vec_psVolteor[i], ps_areaEdif) for i in eachindex(vec_psVolteor)]
+
+
+        # Calcula el volumen y sombra teórica 
+        display("Calcula el volumen teórico")
+        @time matConexionVertices_volTeorico, vecVertices_volTeorico, ps_volTeorico = generaVol3D(vec_psVolteor, vec_altVolteor)
+        V_volTeorico = ps_volTeorico.Vertices[1]
+        vecAlturas_volTeorico = sort(unique(V_volTeorico[:, end]))
+
+        display("Calcula sombra del Volumen Teórico")
+        @time ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s = generaSombraTeor(ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico, ps_publico, ps_calles)
+
+        areaSombra_p = polyShape.polyArea(ps_sombraVolTeorico_p)
+        areaSombra_o = polyShape.polyArea(ps_sombraVolTeorico_o)
+        areaSombra_s = polyShape.polyArea(ps_sombraVolTeorico_s)
+
+
+        display("Calcula el volumen sin restricciones")
+        rasante_sombra = Float64(dcn.rasanteSombra)
+        vec_altVolConSombra = collect(0:0.5:50) .* rasante_sombra
+        vec_altVolConSombra = vec_altVolConSombra[vec_altVolConSombra.<dcn.alturaMax]
+        push!(vec_altVolConSombra, dcn.alturaMax)
+        vec_psVolConSombra = [polyShape.polyExpand(ps_bruto, -i / rasante_sombra) for i in vec_altVolConSombra]
+        vec_psVolConSombra = [polyShape.polyIntersect(vec_psVolConSombra[i], ps_areaEdif) for i in eachindex(vec_psVolConSombra)]
+        @time matConexionVertices_conSombra, vecVertices_conSombra, ps_volConSombra = generaVol3D(vec_psVolConSombra, vec_altVolConSombra)
+        V_volConSombra = ps_volConSombra.Vertices[1]
+        vecAlturas_conSombra = sort(unique(V_volConSombra[:, end]))
+
+        sepNaves = 10. #5.# 12.0 #dca.anchoMin - 0
+
+        maxOcupación = dcn.coefOcupacion > 0 ? dcn.coefOcupacion * superficieTerreno : sup_areaEdif
+        maxSupConstruida = dcn.coefConstructibilidad > 0 ? superficieTerreno * dcn.coefConstructibilidad * (1 + 0.3 * dcp.fusionTerrenos) : dcn.maxPisos[1] * sup_areaEdif
+        template = 0
+
+        min_pisos_bbo = min(4, dcn.maxPisos[1] - 1)
+        alt_bbo = min_pisos_bbo * dca.alturaPiso
+        obj_bbo = x -> fo_bbo(x, template, sepNaves, dca, dcn, V_volConSombra, vecAlturas_conSombra, vecVertices_conSombra, matConexionVertices_conSombra, maxOcupación, porcTerraza, maxSupConstruida)
+
         porcTerraza = 0.15 / 1.075
+        obj_nomad = x -> fo_nomad(x, template, sepNaves, dca, porcTerraza, flag_conSombra, flag_penalizacion_residual, flag_penalizacion_coefOcup,
+            flag_penalizacion_constructibilidad, flag_divergenciaAncho,
+            V_volConSombra, vecAlturas_conSombra, vecVertices_conSombra, matConexionVertices_conSombra,
+            V_volTeorico, vecAlturas_volTeorico, vecVertices_volTeorico, matConexionVertices_volTeorico,
+            maxOcupación, maxSupConstruida, areaSombra_p, areaSombra_o, areaSombra_s, ps_publico, ps_calles)
+
+
+        largos, angulosExt, angulosInt, largosDiag = polyShape.extraeInfoPoly(ps_areaEdif)
+        maxDiagonal = maximum(largosDiag)
 
         default_min_pisos = 3
 
@@ -144,20 +226,20 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         flagSeguir = true
         temp_opt = 0
 
-        # [template, flag_viv_eco, pisos]
-        set_pisos_true_viv_econ = [3, 4, 5]
-        plan_optimizacion = [[0, 1, set_pisos_true_viv_econ]]
-        push!(plan_optimizacion, [1, 1, set_pisos_true_viv_econ])
-        push!(plan_optimizacion, [6, 1, set_pisos_true_viv_econ])
-        push!(plan_optimizacion, [7, 1, set_pisos_true_viv_econ])
-        push!(plan_optimizacion, [10, 1, set_pisos_true_viv_econ])
+        # plan_optimizacion: [template, lb_bbo, ub_bbo]
+        # lb_bbo, ub_bbo = generaCotas(10, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
+        # plan_optimizacion = [[10, lb_bbo, ub_bbo]]
 
-        set_pisos_false_viv_econ = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 ,20]
-        push!(plan_optimizacion, [0, 0, set_pisos_false_viv_econ])
-        push!(plan_optimizacion, [1, 0, set_pisos_false_viv_econ])
-        push!(plan_optimizacion, [6, 0, set_pisos_false_viv_econ])
-        push!(plan_optimizacion, [7, 0, set_pisos_false_viv_econ])
-        push!(plan_optimizacion, [10, 0, set_pisos_false_viv_econ])
+        lb_bbo, ub_bbo = generaCotas(0, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
+        plan_optimizacion = [[0, lb_bbo, ub_bbo]]
+        lb_bbo, ub_bbo = generaCotas(1, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
+        push!(plan_optimizacion, [1, lb_bbo, ub_bbo])
+        lb_bbo, ub_bbo = generaCotas(6, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, 6)
+        push!(plan_optimizacion, [6, lb_bbo, ub_bbo])
+        lb_bbo, ub_bbo = generaCotas(7, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, 6)
+        push!(plan_optimizacion, [7, lb_bbo, ub_bbo])
+        lb_bbo, ub_bbo = generaCotas(10, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, 6)
+        push!(plan_optimizacion, [10, lb_bbo, ub_bbo])
 
         flag_penalizacion_residual = true
         flag_penalizacion_coefOcup = true
@@ -170,12 +252,12 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         vec_template_str = ["I", "L", "C", "lll", "V", "H", "C-flex", "S", "C-superFlex", "Cuña", "Z"]
 
         # Chequea si se encontró la solución óptima o es necesario seguir optimizando
-        function chequeaSolucion(x, f, fopt, template, maxOcupación, maxSupConstruida, vecAlturas_conSombra, sup_areaEdif, ps_publico, ps_calles, areaSombra_p, areaSombra_o, areaSombra_s)
+        function chequeaSolucion(x, f, fopt, template)
             alt = min(x[1] * dca.alturaPiso, maximum(vecAlturas_conSombra))
             areaBasal, ps_base, ps_baseSeparada = resultConverter(x, template, sepNaves)
             numPisos = Int(round(alt / dca.alturaPiso))
 
-            superficieConstruidaSNT = (numPisos - 1) * areaBasal + min(areaBasal, maxOcupación)
+            superficieConstruidaSNT = (numPisos-1) * areaBasal + min(areaBasal, maxOcupación)
             constructibilidad = superficieConstruidaSNT / (1 + dca.porcSupComun + 0.5 * porcTerraza)
 
             holgura_constructibilidad = maxSupConstruida > 0 ? (maxSupConstruida - constructibilidad) / maxSupConstruida : -1
@@ -200,6 +282,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
                 display("Holgura Superficie: " * string(holgura_superficie))
                 display("Holgura Sombra: " * string(holgura_sombra))
                 if f < fopt
+                    temp_opt = template
                     fopt = f
                     xopt = x
                     display("Template Tipo " * vec_template_str[template+1] * ": Se obtuvo una solución mejor.")
@@ -222,148 +305,45 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             return fopt, xopt, template, flagSeguir, holgura_constructibilidad
         end
 
-        vecAlturas_conSombra = []
-        maxOcupación = []
-        ps_volTeorico = []
-        matConexionVertices_volTeorico = []
-        vecVertices_volTeorico = []
-        ps_volConSombra = []
-        matConexionVertices_conSombra = []
-        vecVertices_conSombra = []
-        ps_primerPiso = []
-        ps_calles_intra_buffer_ = []
-        ps_predios_intra_buffer_ = []
-        ps_manzanas_intra_buffer_ = []
-        ps_buffer_predio_ = []
-        ps_areaEdif = []
-        sup_areaEdif = []
         for r in eachindex(plan_optimizacion)
-
-            antejardin = dcn.antejardin[1]
-            sepVecinos = dcn.distanciamiento[1]
-            densidadMax = dcn.densidadMax
-            maxPisos = dcn.maxPisos
-            alturaMax = dcn.alturaMax
-            rasante = dcn.rasante
-            coefConstructibilidad = dcn.coefConstructibilidad
-            coefOcupacion = dcn.coefOcupacion
-
-            vec_edges = vecSecTodos
-            vec_dist = Float64.(vec_edges)
-            vec_dist .= -antejardin
-            vec_dist[vecSecSinCalle] .= -sepVecinos
-            ps_areaEdif = polyShape.polyExpandSegmentVec(ps_predio, vec_dist)
-            V_areaEdif = ps_areaEdif.Vertices[1]
-            sup_areaEdif = polyShape.polyArea(ps_areaEdif)
 
             # template: [0:I, 1:L, 2:C, 3:lll, 4:V, 5:H]
             template = plan_optimizacion[r][1]
-            flag_viv_eco = plan_optimizacion[r][2]
-            set_pisos = plan_optimizacion[r][3]
+            lb_bbo = plan_optimizacion[r][2]
+            ub_bbo = plan_optimizacion[r][3]
 
-            if maxPisos in set_pisos
-                if flag_viv_eco == 1 && maxPisos == 3
-                    sepVecinos = 10.0
-                    densidadMax = dcn.densidadMax * 1.25
-                    maxPisos = 4
-                    alturaMax = 14.0
-                    coefConstructibilidad = -1 #5
-                    coefOcupacion = -1
-                elseif flag_viv_eco == 1 && maxPisos == 4
-                    densidadMax = dcn.densidadMax * 1.25
-                    maxPisos = 4
-                    alturaMax = 14.0
-                    coefConstructibilidad = -1 #5
-                    coefOcupacion = -1
-                elseif flag_viv_eco == 1 && maxPisos == 5
-                    densidadMax = dcn.densidadMax * 1.25
-                    maxPisos = 4
-                    alturaMax = 14.0
-                    coefConstructibilidad = -1 #5
-                    coefOcupacion = -1
-                end
+            flag_divergenciaAncho = template in [7, 8]
+            num_penalizaciones = flag_penalizacion_residual + flag_penalizacion_constructibilidad + flag_conSombra + flag_divergenciaAncho
 
-                # Calcula el volumen y sombra teórica 
-                vec_altVolteor = collect(0:0.5:50) .* rasante
-                vec_altVolteor = vec_altVolteor[vec_altVolteor.<alturaMax]
-                push!(vec_altVolteor, alturaMax)
-                vec_psVolteor = [polyShape.polyExpand(ps_bruto, -i / rasante) for i in vec_altVolteor]
-                vec_psVolteor = [polyShape.polyIntersect(vec_psVolteor[i], ps_areaEdif) for i in eachindex(vec_psVolteor)]
+            display("Template Tipo " * vec_template_str[template+1] * ": Inicio de Optimización BBO. Genera solución inicial.")
+            x_bbo, f_bbo = optim_bbo(obj_bbo, lb_bbo, ub_bbo)
+            fopt, xopt, template, flagSeguir, holgura_constructibilidad = chequeaSolucion(x_bbo, f_bbo, fopt, template)
 
-                display("Calcula el volumen teórico")
-                @time matConexionVertices_volTeorico, vecVertices_volTeorico, ps_volTeorico = generaVol3D(vec_psVolteor, vec_altVolteor)
-                V_volTeorico = ps_volTeorico.Vertices[1]
-                vecAlturas_volTeorico = sort(unique(V_volTeorico[:, end]))
+            if holgura_constructibilidad <= 0.5 || template in [7, 8]
+                display("Template Tipo " * vec_template_str[template+1] * ": Inicio de Optimización NOMAD")
+                MaxSteps = 8000
+                lb, ub = generaCotas(template, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
+                initSol = max.(min.(copy(x_bbo), ub), lb)
+                initSol[1] = floor(dcn.maxPisos[1])
+                x_nomad, f_nomad = optim_nomad(obj_nomad, num_penalizaciones, lb, ub, MaxSteps, initSol)
+                fopt, xopt, template, flagSeguir, holgura_constructibilidad = chequeaSolucion(x_nomad, f_nomad, fopt, template)
 
-                display("Calcula sombra del Volumen Teórico")
-                @time ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s = generaSombraTeor(ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico, ps_publico, ps_calles)
-
-                areaSombra_p = polyShape.polyArea(ps_sombraVolTeorico_p)
-                areaSombra_o = polyShape.polyArea(ps_sombraVolTeorico_o)
-                areaSombra_s = polyShape.polyArea(ps_sombraVolTeorico_s)
-
-
-                display("Calcula el volumen sin restricciones")
-                rasante_sombra = Float64(dcn.rasanteSombra)
-                vec_altVolConSombra = collect(0:0.5:50) .* rasante_sombra
-                vec_altVolConSombra = vec_altVolConSombra[vec_altVolConSombra.<alturaMax]
-                push!(vec_altVolConSombra, alturaMax)
-                vec_psVolConSombra = [polyShape.polyExpand(ps_bruto, -i / rasante_sombra) for i in vec_altVolConSombra]
-                vec_psVolConSombra = [polyShape.polyIntersect(vec_psVolConSombra[i], ps_areaEdif) for i in eachindex(vec_psVolConSombra)]
-                @time matConexionVertices_conSombra, vecVertices_conSombra, ps_volConSombra = generaVol3D(vec_psVolConSombra, vec_altVolConSombra)
-                V_volConSombra = ps_volConSombra.Vertices[1]
-                vecAlturas_conSombra = sort(unique(V_volConSombra[:, end]))
-
-                largos, angulosExt, angulosInt, largosDiag = polyShape.extraeInfoPoly(ps_areaEdif)
-                maxDiagonal = maximum(largosDiag)
-
-                lb_bbo, ub_bbo = generaCotas(template, default_min_pisos, floor(maxPisos), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
-
-                maxOcupación = coefOcupacion > 0 ? coefOcupacion * superficieTerreno : sup_areaEdif
-                maxSupConstruida = coefConstructibilidad > 0 ? superficieTerreno * coefConstructibilidad * (1 + 0.3 * dcp.fusionTerrenos) : maxPisos * sup_areaEdif
-
-                obj_bbo = x -> fo_bbo(x, template, sepNaves, dca, coefConstructibilidad, V_volConSombra, vecAlturas_conSombra, vecVertices_conSombra, matConexionVertices_conSombra, maxOcupación, porcTerraza, maxSupConstruida)
-
-                obj_nomad = x -> fo_nomad(x, template, sepNaves, dca, porcTerraza, flag_conSombra, flag_penalizacion_residual, flag_penalizacion_coefOcup,
-                    flag_penalizacion_constructibilidad, flag_divergenciaAncho,
-                    V_volConSombra, vecAlturas_conSombra, vecVertices_conSombra, matConexionVertices_conSombra,
-                    V_volTeorico, vecAlturas_volTeorico, vecVertices_volTeorico, matConexionVertices_volTeorico,
-                    maxOcupación, maxSupConstruida, areaSombra_p, areaSombra_o, areaSombra_s, ps_publico, ps_calles)
-
-
-                flag_divergenciaAncho = template in [7, 8]
-                num_penalizaciones = flag_penalizacion_residual + flag_penalizacion_constructibilidad + flag_conSombra + flag_divergenciaAncho
-
-                display("Template Tipo " * vec_template_str[template+1] * ": Inicio de Optimización BBO. Genera solución inicial.")
-                x_bbo, f_bbo = optim_bbo(obj_bbo, lb_bbo, ub_bbo)
-                fopt, xopt, template, flagSeguir, holgura_constructibilidad = chequeaSolucion(x_bbo, f_bbo, fopt, template, maxOcupación, maxSupConstruida, vecAlturas_conSombra, sup_areaEdif, ps_publico, ps_calles, areaSombra_p, areaSombra_o, areaSombra_s)
-
-                if holgura_constructibilidad <= 0.5 || template in [7, 8]
+                if r == length(plan_optimizacion) && flagSeguir == "infactible"
+                    template = 1
+                    lb_bbo, ub_bbo = generaCotas(template, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, 6)
+                    display("Template Tipo " * vec_template_str[template+1] * ": Inicio de Optimización BBO. Genera solución inicial.")
+                    x_bbo, f_bbo = optim_bbo(obj_bbo, lb_bbo, ub_bbo)
                     display("Template Tipo " * vec_template_str[template+1] * ": Inicio de Optimización NOMAD")
                     MaxSteps = 8000
-                    lb, ub = generaCotas(template, default_min_pisos, floor(maxPisos), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
+                    lb, ub = generaCotas(template, default_min_pisos, floor(dcn.maxPisos[1]), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
                     initSol = max.(min.(copy(x_bbo), ub), lb)
-                    initSol[1] = floor(maxPisos)
+                    initSol[1] = floor(dcn.maxPisos[1])
                     x_nomad, f_nomad = optim_nomad(obj_nomad, num_penalizaciones, lb, ub, MaxSteps, initSol)
-                    fopt, xopt, template, flagSeguir, holgura_constructibilidad = chequeaSolucion(x_nomad, f_nomad, fopt, template, maxOcupación, maxSupConstruida, vecAlturas_conSombra, sup_areaEdif, ps_publico, ps_calles, areaSombra_p, areaSombra_o, areaSombra_s)
-
-                    if r == length(plan_optimizacion) && flagSeguir == "infactible"
-                        template = 1
-                        lb_bbo, ub_bbo = generaCotas(template, default_min_pisos, floor(maxPisos), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, 6)
-                        display("Template Tipo " * vec_template_str[template+1] * ": Inicio de Optimización BBO. Genera solución inicial.")
-                        x_bbo, f_bbo = optim_bbo(obj_bbo, lb_bbo, ub_bbo)
-                        display("Template Tipo " * vec_template_str[template+1] * ": Inicio de Optimización NOMAD")
-                        MaxSteps = 8000
-                        lb, ub = generaCotas(template, default_min_pisos, floor(maxPisos), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
-                        initSol = max.(min.(copy(x_bbo), ub), lb)
-                        initSol[1] = floor(maxPisos)
-                        x_nomad, f_nomad = optim_nomad(obj_nomad, num_penalizaciones, lb, ub, MaxSteps, initSol)
-                        fopt, xopt, template, flagSeguir, holgura_constructibilidad = chequeaSolucion(x_nomad, f_nomad, fopt, template, maxOcupación, maxSupConstruida, vecAlturas_conSombra, sup_areaEdif, ps_publico, ps_calles, areaSombra_p, areaSombra_o, areaSombra_s)
-                        break
-                    end
-                    if flagSeguir == false
-                        break
-                    end
+                    fopt, xopt, template, flagSeguir, holgura_constructibilidad = chequeaSolucion(x_nomad, f_nomad, fopt, template)
+                    break
+                end
+                if flagSeguir == false
+                    break
                 end
 
             end
@@ -459,15 +439,12 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             xopt = eval(Meta.parse(df_[1, "optimo_solucion"]))
         else # Si datos contiene información predefinida, se utiliza esa info.
             alturaEdif = datos[1]
-            ps_base = datos[2]
+            ps_base =datos[2]
             superficieTerreno = datos[3]
             superficieTerrenoBruta = datos[4]
             xopt = datos[5]
-            ps_areaEdif = datos[6]
         end
 
-        sup_areaEdif = polyShape.polyArea(ps_areaEdif)
-        
         sn, sa, si, st, so, sm, sf = optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, alturaEdif, ps_base, superficieTerreno, superficieTerrenoBruta, sup_areaEdif)
         #xopt[1] = numPisos #sa.altura 
         #numPisos = sa.numPisos[1]
