@@ -84,6 +84,7 @@ let codigo_predial = []
             "ps_calles" text, 
             "ps_base" text, 
             "ps_baseSeparada" text,
+            "ps_primerPiso" text,
             "ps_predios_intra_buffer" text, 
             "ps_manzanas_intra_buffer" text, 
             "ps_calles_intra_buffer" text,

@@ -123,7 +123,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         temp_opt = 0
 
         # [template, flag_viv_eco, pisos]
-        set_pisos_true_viv_econ = [3, 4, 5]
+        set_pisos_true_viv_econ = [3, 4]
         plan_optimizacion = [[0, 1, set_pisos_true_viv_econ]]
         push!(plan_optimizacion, [1, 1, set_pisos_true_viv_econ])
         push!(plan_optimizacion, [6, 1, set_pisos_true_viv_econ])
@@ -148,7 +148,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         vec_template_str = ["I", "L", "C", "lll", "V", "H", "C-flex", "S", "C-superFlex", "Cuña", "Z"]
 
         # Chequea si se encontró la solución óptima o es necesario seguir optimizando
-        function chequeaSolucion(x, f, fopt, template, maxOcupación, maxSupConstruida, vecAlturas_conSombra, sup_areaEdif, ps_publico, ps_calles, areaSombra_p, areaSombra_o, areaSombra_s)
+        function chequeaSolucion(x, f, fopt, template, temp_opt, maxOcupación, maxSupConstruida, vecAlturas_conSombra, sup_areaEdif, ps_publico, ps_calles, areaSombra_p, areaSombra_o, areaSombra_s)
             alt = min(x[1] * dca.alturaPiso, maximum(vecAlturas_conSombra))
             areaBasal, ps_base, ps_baseSeparada = resultConverter(x, template, sepNaves)
             numPisos = Int(round(alt / dca.alturaPiso))
@@ -180,6 +180,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
                 if f < fopt
                     fopt = f
                     xopt = x
+                    temp_opt = template
                     display("Template Tipo " * vec_template_str[template+1] * ": Se obtuvo una solución mejor.")
                 else
                     display("Template Tipo " * vec_template_str[template+1] * ": No se obtuvo una solución mejor.")
@@ -197,7 +198,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
                 flagSeguir = "infactible"
             end
 
-            return fopt, xopt, template, flagSeguir, holgura_constructibilidad
+            return fopt, xopt, temp_opt, flagSeguir, holgura_constructibilidad
         end
 
         vecAlturas_conSombra = []
@@ -315,16 +316,16 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
 
                 display("Template Tipo " * vec_template_str[template+1] * ": Inicio de Optimización BBO. Genera solución inicial.")
                 x_bbo, f_bbo = optim_bbo(obj_bbo, lb_bbo, ub_bbo)
-                fopt, xopt, template, flagSeguir, holgura_constructibilidad = chequeaSolucion(x_bbo, f_bbo, fopt, template, maxOcupación, maxSupConstruida, vecAlturas_conSombra, sup_areaEdif, ps_publico, ps_calles, areaSombra_p, areaSombra_o, areaSombra_s)
+                fopt, xopt, temp_opt, flagSeguir, holgura_constructibilidad = chequeaSolucion(x_bbo, f_bbo, fopt, template, temp_opt, maxOcupación, maxSupConstruida, vecAlturas_conSombra, sup_areaEdif, ps_publico, ps_calles, areaSombra_p, areaSombra_o, areaSombra_s)
 
-                if holgura_constructibilidad <= 0.5 || template in [7, 8]
+                if holgura_constructibilidad <= 0.7 || template in [7, 8]
                     display("Template Tipo " * vec_template_str[template+1] * ": Inicio de Optimización NOMAD")
                     MaxSteps = 8000
                     lb, ub = generaCotas(template, default_min_pisos, floor(maxPisos), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
                     initSol = max.(min.(copy(x_bbo), ub), lb)
                     initSol[1] = floor(maxPisos)
                     x_nomad, f_nomad = optim_nomad(obj_nomad, num_penalizaciones, lb, ub, MaxSteps, initSol)
-                    fopt, xopt, template, flagSeguir, holgura_constructibilidad = chequeaSolucion(x_nomad, f_nomad, fopt, template, maxOcupación, maxSupConstruida, vecAlturas_conSombra, sup_areaEdif, ps_publico, ps_calles, areaSombra_p, areaSombra_o, areaSombra_s)
+                    fopt, xopt, temp_opt, flagSeguir, holgura_constructibilidad = chequeaSolucion(x_nomad, f_nomad, fopt, template, temp_opt, maxOcupación, maxSupConstruida, vecAlturas_conSombra, sup_areaEdif, ps_publico, ps_calles, areaSombra_p, areaSombra_o, areaSombra_s)
 
                     if r == length(plan_optimizacion) && flagSeguir == "infactible"
                         template = 1
@@ -337,7 +338,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
                         initSol = max.(min.(copy(x_bbo), ub), lb)
                         initSol[1] = floor(maxPisos)
                         x_nomad, f_nomad = optim_nomad(obj_nomad, num_penalizaciones, lb, ub, MaxSteps, initSol)
-                        fopt, xopt, template, flagSeguir, holgura_constructibilidad = chequeaSolucion(x_nomad, f_nomad, fopt, template, maxOcupación, maxSupConstruida, vecAlturas_conSombra, sup_areaEdif, ps_publico, ps_calles, areaSombra_p, areaSombra_o, areaSombra_s)
+                        fopt, xopt, temp_opt, flagSeguir, holgura_constructibilidad = chequeaSolucion(x_nomad, f_nomad, fopt, template, temp_opt, maxOcupación, maxSupConstruida, vecAlturas_conSombra, sup_areaEdif, ps_publico, ps_calles, areaSombra_p, areaSombra_o, areaSombra_s)
                         break
                     end
                     if flagSeguir == false
@@ -367,6 +368,19 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         # Obtiene manzanas contenidas al interior del buffer 
         ps_manzanas_intra_buffer = queryCabida.query_manzanas_intra_buffer(conn_mygis_db, "vitacura", codPredialStr, buffer_dist, dx, dy)
 
+
+        alturaPiso = dca.alturaPiso[1]
+
+        buffer_dist_ = min(140, 2.7474774194546216 * xopt[1] * alturaPiso)
+        ps_buffer_predio_ = polyShape.shapeBuffer(ps_predio, buffer_dist_, 20)
+        ps_calles_intra_buffer_ = polyShape.shapeBuffer(ps_calles_intra_buffer, buffer_dist_, 20)
+        ps_predios_intra_buffer_ = polyShape.polyIntersect(ps_predios_intra_buffer, ps_buffer_predio_)
+        ps_manzanas_intra_buffer_ = polyShape.polyIntersect(ps_manzanas_intra_buffer, ps_buffer_predio_)
+
+        areaOcupacion = min(areaBasal, maxOcupación)
+        razon_ocupacion_basal = areaOcupacion / areaBasal
+
+        ps_primerPiso = polyShape.polyShrink(ps_base, razon_ocupacion_basal)
 
         vecColumnNames = ["combi_predios",
             "norma_max_num_deptos",
@@ -427,6 +441,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             "ps_calles",
             "ps_base",
             "ps_baseSeparada",
+            "ps_primerPiso",
             "ps_predios_intra_buffer",
             "ps_manzanas_intra_buffer",
             "ps_calles_intra_buffer",
@@ -493,25 +508,13 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             string(ps_calles),
             string(ps_base),
             string(ps_baseSeparada),
+            string(ps_primerPiso),
             string(ps_predios_intra_buffer),
             string(ps_manzanas_intra_buffer),
             string(ps_calles_intra_buffer),
             dx,
             dy,
             string(id_)]
-
-        alturaPiso = dca.alturaPiso[1]
-
-        buffer_dist_ = min(140, 2.7474774194546216 * xopt[1] * alturaPiso)
-        ps_buffer_predio_ = polyShape.shapeBuffer(ps_predio, buffer_dist_, 20)
-        ps_calles_intra_buffer_ = polyShape.shapeBuffer(ps_calles_intra_buffer, buffer_dist_, 20)
-        ps_predios_intra_buffer_ = polyShape.polyIntersect(ps_predios_intra_buffer, ps_buffer_predio_)
-        ps_manzanas_intra_buffer_ = polyShape.polyIntersect(ps_manzanas_intra_buffer, ps_buffer_predio_)
-
-        areaOcupacion = min(areaBasal, maxOcupación)
-        razon_ocupacion_basal = areaOcupacion / areaBasal
-
-        ps_primerPiso = polyShape.polyShrink(ps_base, razon_ocupacion_basal)
 
         vec_datos = [ps_predio, ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico, ps_volConSombra,
             matConexionVertices_conSombra, vecVertices_conSombra, ps_publico, ps_calles, ps_base, ps_baseSeparada, ps_primerPiso,
