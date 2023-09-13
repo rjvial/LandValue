@@ -129,7 +129,7 @@ function resultConverter(x::Array{Float64,1}, template::Int64, sepNaves::Float64
         pos_y0 = x[4]
         phi1 = x[5]
         phi2 = x[6]
-        largo0 = max(x[7], sepNaves + 2*x[10])
+        largo0 = max(x[7], sepNaves + x[11] + x[12])
         largo1 = x[8] 
         largo2 = x[9] 
         anchoLado0 = x[10]
