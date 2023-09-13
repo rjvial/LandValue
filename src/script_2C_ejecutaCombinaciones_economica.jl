@@ -1,7 +1,9 @@
 using LandValue, Distributed, DotEnv
 
-codigo_predial = [151600187100034, 151600187100035, 151600187100036, 151600187100037, 151600187100038, 151600187100039]
+
 # Para cómputos sobre la base de datos usar codigo_predial = []
+codigo_predial = [151600187100034, 151600187100035, 151600187100036, 151600187100037, 151600187100038, 151600187100039]
+
 tipoOptimizacion = "provisoria" #"economica"
 
 # DotEnv.load("secrets.env") #Caso Docker
@@ -12,7 +14,6 @@ datos_mygis_db = ["gis_data_local", "postgres", "", "localhost"]
 
 conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
 conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
-
 
 id_ = 0
 

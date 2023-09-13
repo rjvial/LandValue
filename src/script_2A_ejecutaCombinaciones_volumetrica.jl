@@ -8,17 +8,16 @@ using LandValue, Distributed, DotEnv
 # [151600052500029, 151600052500030, 151600052500031]
 # [151600055100011, 151600055100010]
 
-codigo_predial = [151600187100034, 151600187100035, 151600187100036, 151600187100037, 151600187100038, 151600187100039]
+codigo_predial = [151600231900001, 151600231900002, 151600231900003, 151600231900004, 151600231900005, 151600231900006]
 
-# Para cómputos sobre la base de datos usar codigo_predial = []
 
 tipoOptimizacion = "volumetrica"
 
-# DotEnv.load("secrets.env")
-# datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
-# datos_mygis_db = ["gis_data", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
-datos_LandValue = ["landengines_local", "postgres", "", "localhost"]
-datos_mygis_db = ["gis_data_local", "postgres", "", "localhost"]
+DotEnv.load("secrets.env")
+datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
+datos_mygis_db = ["gis_data", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
+# datos_LandValue = ["landengines_local", "postgres", "", "localhost"]
+# datos_mygis_db = ["gis_data_local", "postgres", "", "localhost"]
 
 conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
 conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
@@ -47,8 +46,6 @@ dx = vec_datos[17]
 dy = vec_datos[18]
 ps_areaEdif = vec_datos[19]
 
-datos = [xopt[1]*alturaPiso, ps_base, superficieTerreno, superficieTerrenoBruta, xopt, ps_areaEdif]
-
 
 fig, ax, ax_mat = plotBaseEdificio3D(fpe, xopt, alturaPiso, ps_predio, ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico,
     ps_volConSombra, matConexionVertices_conSombra, vecVertices_conSombra, ps_publico, ps_calles, ps_base, ps_baseSeparada, ps_primerPiso)
@@ -56,6 +53,10 @@ fig, ax, ax_mat = plotBaseEdificio3D(fpe, xopt, alturaPiso, ps_predio, ps_volTeo
 fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_predios_intra_buffer, 0.0, "green", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
 fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_manzanas_intra_buffer, 0.0, "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
 fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_buffer_predio, 0.0, "gray", 0.15, fig=fig, ax=ax, ax_mat=ax_mat)
+
+
+# datos contiene la información necesaria para correr la Evaluación Económica
+datos = [xopt[1]*alturaPiso, ps_base, superficieTerreno, superficieTerrenoBruta, xopt, ps_areaEdif]
 
 
 # UPDATE tabla_combinacion_predios
