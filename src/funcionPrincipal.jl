@@ -146,7 +146,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
 
         # plan_optimizacion = [[6, 0, [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 ,20]]]
         # [template, flag_viv_eco, pisos]
-        set_pisos_true_viv_econ = [3, 4, 5]
+        set_pisos_true_viv_econ = [3, 4]
         plan_optimizacion = [[0, 1, set_pisos_true_viv_econ]]
         push!(plan_optimizacion, [1, 1, set_pisos_true_viv_econ])
         push!(plan_optimizacion, [6, 1, set_pisos_true_viv_econ])
@@ -340,7 +340,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
                 x_bbo, f_bbo = optim_bbo(obj_bbo, lb_bbo, ub_bbo)
                 fopt, xopt, temp_opt, flagSeguir, holgura_constructibilidad = chequeaSolucion(x_bbo, f_bbo, fopt, template, temp_opt, maxOcupación, maxSupConstruida, vecAlturas_conSombra, sup_areaEdif, ps_publico, ps_calles, areaSombra_p, areaSombra_o, areaSombra_s)
 
-                if holgura_constructibilidad <= 1. #0.5 || template in [7, 8]
+                if holgura_constructibilidad <= 0.7 #0.5 || template in [7, 8]
                     display("Template Tipo " * vec_template_str[template+1] * ": Inicio de Optimización NOMAD")
                     MaxSteps = 8000
                     lb, ub = generaCotas(template, default_min_pisos, floor(maxPisos), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
@@ -349,20 +349,20 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
                     x_nomad, f_nomad = optim_nomad(obj_nomad, num_penalizaciones, lb, ub, MaxSteps, initSol)
                     fopt, xopt, temp_opt, flagSeguir, holgura_constructibilidad = chequeaSolucion(x_nomad, f_nomad, fopt, template, temp_opt, maxOcupación, maxSupConstruida, vecAlturas_conSombra, sup_areaEdif, ps_publico, ps_calles, areaSombra_p, areaSombra_o, areaSombra_s)
 
-                    if r == length(plan_optimizacion) && flagSeguir == "infactible"
-                        template = 1
-                        lb_bbo, ub_bbo = generaCotas(template, default_min_pisos, floor(maxPisos), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, 6)
-                        display("Template Tipo " * vec_template_str[template+1] * ": Inicio de Optimización BBO. Genera solución inicial.")
-                        x_bbo, f_bbo = optim_bbo(obj_bbo, lb_bbo, ub_bbo)
-                        display("Template Tipo " * vec_template_str[template+1] * ": Inicio de Optimización NOMAD")
-                        MaxSteps = 8000
-                        lb, ub = generaCotas(template, default_min_pisos, floor(maxPisos), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
-                        initSol = max.(min.(copy(x_bbo), ub), lb)
-                        initSol[1] = floor(maxPisos)
-                        x_nomad, f_nomad = optim_nomad(obj_nomad, num_penalizaciones, lb, ub, MaxSteps, initSol)
-                        fopt, xopt, temp_opt, flagSeguir, holgura_constructibilidad = chequeaSolucion(x_nomad, f_nomad, fopt, template, temp_opt, maxOcupación, maxSupConstruida, vecAlturas_conSombra, sup_areaEdif, ps_publico, ps_calles, areaSombra_p, areaSombra_o, areaSombra_s)
-                        break
-                    end
+                    # if r == length(plan_optimizacion) && flagSeguir == "infactible"
+                    #     template = 1
+                    #     lb_bbo, ub_bbo = generaCotas(template, default_min_pisos, floor(maxPisos), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, 6)
+                    #     display("Template Tipo " * vec_template_str[template+1] * ": Inicio de Optimización BBO. Genera solución inicial.")
+                    #     x_bbo, f_bbo = optim_bbo(obj_bbo, lb_bbo, ub_bbo)
+                    #     display("Template Tipo " * vec_template_str[template+1] * ": Inicio de Optimización NOMAD")
+                    #     MaxSteps = 8000
+                    #     lb, ub = generaCotas(template, default_min_pisos, floor(maxPisos), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
+                    #     initSol = max.(min.(copy(x_bbo), ub), lb)
+                    #     initSol[1] = floor(maxPisos)
+                    #     x_nomad, f_nomad = optim_nomad(obj_nomad, num_penalizaciones, lb, ub, MaxSteps, initSol)
+                    #     fopt, xopt, temp_opt, flagSeguir, holgura_constructibilidad = chequeaSolucion(x_nomad, f_nomad, fopt, template, temp_opt, maxOcupación, maxSupConstruida, vecAlturas_conSombra, sup_areaEdif, ps_publico, ps_calles, areaSombra_p, areaSombra_o, areaSombra_s)
+                    #     break
+                    # end
                     if flagSeguir == false
                         break
                     end
