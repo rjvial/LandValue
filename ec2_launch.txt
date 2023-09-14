@@ -2,7 +2,7 @@
 # 01 # Launch EC2 with spot-options.json & mapping-options.json (in Powershell)
 ######
 cd C:\Users\rjvia
-aws ec2 run-instances --cli-input-json file://my-le-ec2-template.json
+aws ec2 run-instances --cli-input-json file://my-le-ec2-template-128.json
 #NO# aws ec2 run-instances --image-id ami-0889a44b331db0194 --count 1 --instance-type c6a.16xlarge --security-group-ids sg-01791c00da527aad7 --subnet-id subnet-02dfe0cdc6db91616 --region us-east-1 --key-name landengines_kp --instance-market-options file://spot-options.json --block-device-mappings file://mapping-options.json
 #NO# aws ec2 run-instances --image-id ami-0889a44b331db0194 --count 1 --instance-type m5.16xlarge --security-group-ids sg-01791c00da527aad7 --subnet-id subnet-02dfe0cdc6db91616 --region us-east-1 --key-name landengines_kp --instance-market-options file://spot-options.json --block-device-mappings file://mapping-options.json
 

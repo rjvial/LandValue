@@ -96,7 +96,7 @@ let codigo_predial = []
         pg_julia.query(conn_LandValue, query_str)
     end
 
-    num_workers = 4 #60 #
+    num_workers = 124 #4 #60 #124 #
     addprocs(num_workers; exeflags="--project")
     @everywhere using LandValue, Distributed
 
