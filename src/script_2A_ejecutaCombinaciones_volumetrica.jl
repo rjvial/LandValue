@@ -74,12 +74,8 @@ let codigo_predial = []
             "indicador_incidencia_terreno" double precision,
             "optimo_solucion" text,
             "ps_predio" text, 
-            "ps_vol_teorico" text, 
-            "mat_conexion_vertices_vol_teorico" text, 
-            "vecVertices_volTeorico" text, 
-            "ps_volConSombra" text, 
-            "mat_conexion_vertices_con_sombra" text,
-            "vec_vertices_con_sombra" text, 
+            "verts" text, 
+            "verts_conSombra" text,
             "ps_publico" text, 
             "ps_calles" text, 
             "ps_base" text, 
@@ -96,7 +92,7 @@ let codigo_predial = []
         pg_julia.query(conn_LandValue, query_str)
     end
 
-    num_workers = 124 #4 #60 #124 #
+    num_workers = 4 #124 #60 #124 #
     addprocs(num_workers; exeflags="--project")
     @everywhere using LandValue, Distributed
 
@@ -132,13 +128,13 @@ let codigo_predial = []
             display("* Ejecutando cabida predio: " * string(codigo_predial) * " en el Worker N° " * string(myid()))
             display("***************************************************")
             
-            try
+            # try
                 
                 temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id = funcionPrincipal(tipoOptimizacion, codigo_predial, id, datos_LandValue, datos_mygis_db)
                 wkr = myid()
                 put!(results, (temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id, wkr))
 
-            catch error
+            # catch error
                 display("")
                 display("#############################################################################")
                 display("#############################################################################")
@@ -159,7 +155,7 @@ let codigo_predial = []
                 pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)
                 pg_julia.close_db(conn_LandValue)
 
-            end
+            # end
         end
     end
 

@@ -1,13 +1,11 @@
-function generaPoligonoCorte(alt, V, vecAlturas, vecVertices, matConexionVertices)::PolyShape
+function generaPoligonoCorte(alt, vec_psVolteor, vec_altVolteor)::PolyShape
 
-    idAlt = findfirst(y -> y >= alt, vecAlturas) - 1
-    vert_0 = Int.(vecVertices[idAlt])
-    vert_1 = Int.(matConexionVertices[vert_0,2])
-    V_0 = copy(V[vert_0, 1:2])[:,1,:]
-    V_1 = copy(V[vert_1, 1:2])[:,1,:]
-    alfa_ = (vecAlturas[idAlt + 1] - alt) / (vecAlturas[idAlt + 1] - vecAlturas[idAlt])
-    polyCorte_alt = alfa_ .* V_0 .+ (1 - alfa_) .* V_1
-    psCorte = PolyShape([polyCorte_alt], 1)
+    idAlt = findfirst(y -> y >= alt, vec_altVolteor) - 1
+    vert_0 = vec_psVolteor[idAlt].Vertices[:]
+    vert_1 = vec_psVolteor[idAlt+1].Vertices[:]
+    alfa_ = (vec_altVolteor[idAlt + 1] - alt) / (vec_altVolteor[idAlt + 1] - vec_altVolteor[idAlt])
+    polyCorte_alt = [alfa_ .* vert_0 .+ (1 - alfa_) .* vert_1][1]
+    psCorte = PolyShape(polyCorte_alt, length(polyCorte_alt))
 
     return psCorte
 end

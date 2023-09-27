@@ -1,33 +1,24 @@
-function generaSombraTeor(ps_volteor, matConexionVertices, vecVertices, ps_publico, ps_calles)
+function generaSombraTeor(verts, ps_publico, ps_calles)
 
-    V_ = ps_volteor.Vertices[1]
-    numVerticesTotales, numDim = size(V_);
+    # V_ = ps_volteor.Vertices[1]
+    # numVerticesTotales, numDim = size(V_);
 
-    conjuntoAlturas = unique(V_[:,3])
-    numAlturas = length(conjuntoAlturas)
+    # conjuntoAlturas = unique(V_[:,3])
+    # numAlturas = length(conjuntoAlturas)
 
-    numVerticesBase = Int(round(numVerticesTotales / numAlturas));
+    # numVerticesBase = Int(round(numVerticesTotales / numAlturas));
     ps_sombraVolTeorico_p = PolyShape([],0)
     ps_sombraVolTeorico_o = PolyShape([],0)
     ps_sombraVolTeorico_s = PolyShape([],0)
 
-    for k = 1:numAlturas-1
-        for j = 1:length(vecVertices[k])
-            if j == length(vecVertices[k])
-                jl0 = Int.(vecVertices[k][j])
-                jl1 = Int.(vecVertices[k][1])
-            else
-                jl0 = Int.(vecVertices[k][j])
-                jl1 = Int.(vecVertices[k][j + 1])
-            end
-            x1 = V_[jl0,1]; y1 = V_[jl0,2]; z1 = V_[jl0,3];
-            x2 = V_[jl1,1]; y2 = V_[jl1,2]; z2 = V_[jl1,3];
-            ju0 = Int.(matConexionVertices[matConexionVertices[:,1] .== jl0,2])[1]
-            ju1 = Int.(matConexionVertices[matConexionVertices[:,1] .== jl1,2])[1]
+    num_caras_vol = length(verts)
 
-            x3 = V_[ju1,1]; y3 = V_[ju1,2]; z3 = V_[ju1,3];
-            x4 = V_[ju0,1]; y4 = V_[ju0,2]; z4 = V_[ju0,3];
-    
+    for k = 1:num_caras_vol
+        x1 = verts[k][1][1]; y1 = verts[k][1][2]; z1 = verts[k][1][3];
+        x2 = verts[k][2][1]; y2 = verts[k][2][2]; z2 = verts[k][2][3];
+        x3 = verts[k][3][1]; y3 = verts[k][3][2]; z3 = verts[k][3][3];
+        x4 = verts[k][4][1]; y4 = verts[k][4][2]; z4 = verts[k][4][3];
+     
             verts_p = [[x1 - z1/0.49  y1];
                        [x2 - z2/0.49  y2]; 
                        [x3 - z3/0.49  y3]; 
@@ -55,7 +46,6 @@ function generaSombraTeor(ps_volteor, matConexionVertices, vecVertices, ps_publi
                 ps_sombraVolTeorico_o = polyShape.polyUnion(ps_sombraVolTeorico_o, PolyShape([verts_o],1))
                 ps_sombraVolTeorico_s = polyShape.polyUnion(ps_sombraVolTeorico_s, PolyShape([verts_s],1))
             end
-        end
 
     end
 

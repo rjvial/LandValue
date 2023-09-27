@@ -1,15 +1,14 @@
-function fo_nomad(x, template, sepNaves, dca, porcTerraza, flag_conSombra, flag_penalizacion_residual, flag_penalizacion_coefOcup, 
+function fo_nomad(x, template, sepNaves, dca, porcTerraza, flag_conSombra, flag_penalizacion_residual, flag_penalizacion_coefOcup,
     flag_penalizacion_constructibilidad, flag_divergenciaAncho,
-    V_volConSombra, vecAlturas_conSombra, vecVertices_conSombra, matConexionVertices_conSombra, 
-    V_volTeorico, vecAlturas_volTeorico, vecVertices_volTeorico, matConexionVertices_volTeorico,
+    vec_psVolConSombra, vec_altVolConSombra, vec_psVolteor, vec_altVolteor,
     maxOcupación, maxSupConstruida, areaSombra_p, areaSombra_o, areaSombra_s, ps_publico, ps_calles)
 
     if flag_conSombra
-        alt = min(x[1] * dca.alturaPiso, maximum(vecAlturas_conSombra))
-        psCorte = generaPoligonoCorte(alt, V_volConSombra, vecAlturas_conSombra, vecVertices_conSombra, matConexionVertices_conSombra)
+        alt = min(x[1] * dca.alturaPiso, maximum(vec_altVolConSombra))
+        psCorte = generaPoligonoCorte(alt, vec_psVolConSombra, vec_altVolConSombra)
     else
-        alt = min(x[1] * dca.alturaPiso, maximum(vecAlturas_volTeorico))
-        psCorte = generaPoligonoCorte(alt, V_volTeorico, vecAlturas_volTeorico, vecVertices_volTeorico, matConexionVertices_volTeorico)
+        alt = min(x[1] * dca.alturaPiso, maximum(vec_altVolteor))
+        psCorte = generaPoligonoCorte(alt, vec_psVolteor, vec_altVolteor)
     end
 
     areaBasal, ps_base, ps_baseSeparada = resultConverter(x, template, sepNaves)
