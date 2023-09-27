@@ -1,10 +1,10 @@
-function fo_bbo(x, template, sepNaves, dca, coefConstructibilidad, V_volConSombra, vecAlturas_conSombra, vecVertices_conSombra, matConexionVertices_conSombra, maxOcupación, porcTerraza, maxSupConstruida)
+function fo_bbo(x, template, sepNaves, dca, coefConstructibilidad, vec_psVolConSombra, vec_altVolConSombra, maxOcupación, porcTerraza, maxSupConstruida)
     
     numPisos = Int(floor(x[1]))
 
     areaBasal, ps_base, ps_baseSeparada = resultConverter(x, template, sepNaves)
-    alt = min(numPisos * dca.alturaPiso, maximum(vecAlturas_conSombra))
-    psCorte = generaPoligonoCorte(alt, V_volConSombra, vecAlturas_conSombra, vecVertices_conSombra, matConexionVertices_conSombra)
+    alt = min(numPisos * dca.alturaPiso, maximum(vec_altVolConSombra))
+    psCorte = generaPoligonoCorte(alt, vec_psVolConSombra, vec_altVolConSombra)
     total_fit = areaBasal*numPisos
 
     # Restricciones

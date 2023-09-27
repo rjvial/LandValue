@@ -17,7 +17,7 @@ function obtieneCalles(ps_predio::PolyShape, ps_buffer_predio::PolyShape, ps_pre
     # Obtiene vector de secciones con calle y vector de ángulos de los bordes del predio
     ps_buffer_local_predio = polyShape.shapeBuffer(ps_predio, 30, 0)
     ps_calle_predio = polyShape.polyDifference_v2(ps_buffer_local_predio, ps_predios_buffer_union)
-    vec_edges_predio = polyShape.polyShape2lineVec(ps_predio)
+    vec_edges_predio, vec_reg_predio = polyShape.polyShape2lineVec(ps_predio)
     ps_calle_predio_ = polyShape.shapeBuffer(ps_calle_predio, 2, 0)
     flag_sec_con_calle = [polyShape.shapeContains(ps_calle_predio_,vec_edges_predio[i]) for i in eachindex(vec_edges_predio)]
     vecSecConCalle = collect(1:length(vec_edges_predio))
@@ -43,8 +43,8 @@ function obtieneCalles(ps_predio::PolyShape, ps_buffer_predio::PolyShape, ps_pre
         vec_dist_i = [polyShape.distanceBetweenPoints(vec_cetroids_i[j], vec_points_i[j]) for j in eachindex(vec_cetroids_i)]
         mean_dist_i = sum(vec_dist_i) / length(vec_dist_i)
         vecAnchoCalle = push!(vecAnchoCalle, mean_dist_i * 2)
-        vec_box_i = polyShape.polyBox(polyShape.shapeVertex(vec_edges_predio_con_calle[i],1,2), largo_edge_i+10, mean_dist_i, vec_angle[i])
-        vec_box_doble_i = polyShape.polyBox(polyShape.shapeVertex(vec_edges_predio_con_calle[i],1,2), largo_edge_i+10, mean_dist_i * 2, vec_angle[i])
+        vec_box_i = polyShape.polyBox(polyShape.shapeVertex(vec_edges_predio_con_calle[i],1,2), largo_edge_i+0, mean_dist_i, vec_angle[i])
+        vec_box_doble_i = polyShape.polyBox(polyShape.shapeVertex(vec_edges_predio_con_calle[i],1,2), largo_edge_i+0, mean_dist_i * 2, vec_angle[i])
         vec_media_calle = push!(vec_media_calle, vec_box_i)
         vec_toda_calle = push!(vec_toda_calle, vec_box_doble_i)
     end

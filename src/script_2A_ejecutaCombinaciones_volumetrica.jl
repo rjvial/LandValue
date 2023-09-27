@@ -1,14 +1,15 @@
 using LandValue, Distributed, DotEnv
 
-# [151600243300012, 151600243300021, 151600243300022, 151600243300023, 151600243300015, 151600243300014, 151600243300013]
-# [151600243500008, 151600243500009, 151600243500010, 151600243500011, 151600243500012]
-# [151600187100034, 151600187100035, 151600187100036, 151600187100037, 151600187100038, 151600187100039]
-# [151600046100004, 151600046100012, 151600046100011, 151600046100010, 151600046100009, 151600046100008]
-# [151600044500028, 151600044500029, 151600044500030]
-# [151600052500029, 151600052500030, 151600052500031]
-# [151600055100011, 151600055100010]
+# [151600217300030, 151600217300031, 151600217300051, 151600217300052, 151600217300053]
+# [151600140500007, 151600140500008, 151600140500009, 151600140500019, 151600140500020, 151600140500021, 151600140500028, 151600140500029, 151600140500030, 151600140500031, 151600140500032]
+# [151600140500019, 151600140500020, 151600140500021, 151600140500022, 151600140500023, 151600140500028, 151600140500029, 151600140500030]
+# [151600143500043, 151600143500044, 151600143500057, 151600143500058, 151600143500059, 151600143500060]
+# [151600143500043, 151600143500044, 151600143500057, 151600143500058, 151600143500059, 151600143500060, 151600143500061, 151600143500062, 151600143500063, 151600143500064]
+# [151600143500043, 151600143500044, 151600143500046, 151600143500047, 151600143500054, 151600143500055, 151600143500056, 151600143500057, 151600143500058, 151600143500059, 151600143500060]
+# [151600048300007, 151600048300042, 151600048300043, 151600048300044, 151600048300045, 151600048300046]
+# [151600052300001, 151600052300002, 151600052300019, 151600052300020, 151600052300021, 151600052300024]
 
-codigo_predial = [151600231900001, 151600231900002, 151600231900003, 151600231900005, 151600231900006, 151600231900007, 151600231900008]
+codigo_predial = [151600217300030, 151600217300031, 151600217300051, 151600217300052, 151600217300053]
 
 
 tipoOptimizacion = "volumetrica"
@@ -26,29 +27,25 @@ id_ = 0
 
 fpe, temp_opt, alturaPiso, xopt, vec_datos, superficieTerreno, superficieTerrenoBruta = funcionPrincipal(tipoOptimizacion, codigo_predial, id_, datos_LandValue, datos_mygis_db, [])
 
+
 ps_predio = vec_datos[1]
-ps_volTeorico = vec_datos[2]
-matConexionVertices_volTeorico = vec_datos[3]
-vecVertices_volTeorico = vec_datos[4]
-ps_volConSombra = vec_datos[5]
-matConexionVertices_conSombra = vec_datos[6]
-vecVertices_conSombra = vec_datos[7]
-ps_publico = vec_datos[8]
-ps_calles = vec_datos[9]
-ps_base = vec_datos[10]
-ps_baseSeparada = vec_datos[11]
-ps_primerPiso = vec_datos[12]
-ps_calles_intra_buffer = vec_datos[13]
-ps_predios_intra_buffer = vec_datos[14]
-ps_manzanas_intra_buffer = vec_datos[15]
-ps_buffer_predio = vec_datos[16]
-dx = vec_datos[17]
-dy = vec_datos[18]
-ps_areaEdif = vec_datos[19]
+verts = vec_datos[2]
+verts_conSombra = vec_datos[3]
+ps_publico = vec_datos[4]
+ps_calles = vec_datos[5]
+ps_base = vec_datos[6]
+ps_baseSeparada = vec_datos[7]
+ps_primerPiso = vec_datos[8]
+ps_calles_intra_buffer = vec_datos[9]
+ps_predios_intra_buffer = vec_datos[10]
+ps_manzanas_intra_buffer = vec_datos[11]
+ps_buffer_predio = vec_datos[12]
+dx = vec_datos[13]
+dy = vec_datos[14]
+ps_areaEdif = vec_datos[15]
 
 
-fig, ax, ax_mat = plotBaseEdificio3D(fpe, xopt, alturaPiso, ps_predio, ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico,
-    ps_volConSombra, matConexionVertices_conSombra, vecVertices_conSombra, ps_publico, ps_calles, ps_base, ps_baseSeparada, ps_primerPiso)
+fig, ax, ax_mat = plotBaseEdificio3D(fpe, xopt, alturaPiso, ps_predio, verts, verts_conSombra, ps_publico, ps_calles, ps_base, ps_baseSeparada, ps_primerPiso)
 
 fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_predios_intra_buffer, 0.0, "green", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
 fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_manzanas_intra_buffer, 0.0, "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)

@@ -1,6 +1,4 @@
-function plotBaseEdificio3D(fpe, x, alturaPiso, ps_predio,
-                             ps_volTeorico, matConexionVertices, vecVertices, 
-                            ps_volConSombra, matConexionVertices_restSombra, vecVertices_restSombra, 
+function plotBaseEdificio3D(fpe, x, alturaPiso, ps_predio, verts, verts_conSombra, 
                             ps_publico, ps_calles, ps_base, ps_baseSeparada, ps_primerPiso; flagV = false)
 
     f_predio = fpe.predio
@@ -28,12 +26,12 @@ function plotBaseEdificio3D(fpe, x, alturaPiso, ps_predio,
 
     if f_volTeorico
         # Grafica Volumen Teórico
-        fig, ax, ax_mat = polyShape.plotPolyshape3D(ps_volTeorico, matConexionVertices, vecVertices, fig=fig, ax=ax, ax_mat=ax_mat)
+        fig, ax, ax_mat = polyShape.plotPolyshape3D(verts, fig=fig, ax=ax, ax_mat=ax_mat)
     end
 
     if f_volConSombra
         # Grafica Volumen Teórico
-        fig, ax, ax_mat = polyShape.plotPolyshape3D(ps_volConSombra, matConexionVertices_restSombra, vecVertices_restSombra, "gray", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+        fig, ax, ax_mat = polyShape.plotPolyshape3D(verts_conSombra, "gray", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
     end
 
     #ps_calles = polyShape.polyUnion_v2(ps_calles, ps_calles)
@@ -73,7 +71,7 @@ function plotBaseEdificio3D(fpe, x, alturaPiso, ps_predio,
     end
 
     if f_sombraVolTeorico_p + f_sombraVolTeorico_o + f_sombraVolTeorico_s >= 1
-        ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s = generaSombraTeor(ps_volTeorico, matConexionVertices, vecVertices, ps_publico, ps_calles)
+        ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s = generaSombraTeor(verts, ps_publico, ps_calles)
         if f_sombraVolTeorico_p
             fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_sombraVolTeorico_p, 0, "gold", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
         end

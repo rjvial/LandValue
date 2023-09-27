@@ -342,6 +342,95 @@ function plotPolyshape3D(ps_volteor::PolyShape, matConexionVertices::Array{Float
 
 end
 
+
+# Grafica polyshape 3D en espacio 3D.
+function plotPolyshape3D(verts, fc::String="red", a::Float64=0.25; fig::Union{Nothing,PyPlot.Figure}=nothing, ax=nothing, ax_mat=nothing, filestr="none")
+    plt = pyimport("matplotlib.pyplot")
+    art3d = pyimport("mpl_toolkits.mplot3d.art3d")
+    pyimport("mpl_toolkits.mplot3d")
+
+    if ax_mat === nothing
+        min_ax = 0
+        max_ax = 0
+    else
+        min_ax = ax_mat[1]
+        max_ax = ax_mat[2]
+    end
+
+    min_x = 10000
+    min_y = 10000
+    min_z = 10000
+    max_x = -10000
+    max_y = -10000
+    max_z = -10000
+    for k in eachindex(verts)
+        for j = 1:4
+            if verts[k][j][1] < min_x
+                min_x = verts[k][j][1] 
+            end
+            if verts[k][j][2] < min_y
+                min_y = verts[k][j][2]
+            end
+            if verts[k][j][3] < min_z
+                min_z = verts[k][j][3]
+            end
+
+            if verts[k][j][1] > max_x
+                max_x = verts[k][j][1]
+            end
+            if verts[k][j][2] > max_y
+                max_y = verts[k][j][2]
+            end
+            if verts[k][j][3] > max_z
+                max_z = verts[k][j][3] 
+            end
+
+        end
+    end
+
+    if fig === nothing
+        pygui(true)
+
+        fig = plt.figure()
+        ax = fig.add_subplot(projection="3d")
+
+        min_ax = minimum([min_x min_y min_z])
+        max_ax = maximum([max_x max_y max_z])
+
+    else
+        min_ax = minimum([min_x min_y min_z])
+        max_ax = maximum([max_x max_y max_z])
+    end
+
+    ax.set_xlim(min_ax, max_ax)
+    ax.set_ylim(min_ax, max_ax)
+    ax.set_zlim(max(0, min_ax), max_ax)
+
+    # conjuntoAlturas = unique(V_[:, 3])
+    # numAlturas = length(conjuntoAlturas)
+
+    #numVerticesBase = Int(round(numVerticesTotales / numAlturas))
+
+    ax.add_collection3d(art3d.Poly3DCollection(verts, facecolors=fc, linewidths=0.06, edgecolors="k", alpha=a))
+
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.set_zlabel("Z")
+
+    plt.show()
+
+    if filestr != "none"
+        plt.savefig(filestr)
+    end
+
+    ax_mat = [min_ax max_ax]
+
+    fig, ax, ax_mat
+
+end
+
+
+
 function imageWhiteSpaceReduction(infileStr, outfileStr)
 
     img = load(infileStr)
@@ -531,8 +620,12 @@ end
 function shape2geom(shape::PointShape)
     n = shape.NumPoints
     V = shape.Vertices
-    largo = size(V, 1)
-    out = ArchGDAL.createmultipoint([Float64(V[i, 1]) for i = 1:largo], [Float64(V[i, 2]) for i = 1:largo])
+    largo, dim = size(V)
+    if dim == 2
+        out = ArchGDAL.createmultipoint([Float64(V[i, 1]) for i = 1:largo], [Float64(V[i, 2]) for i = 1:largo])
+    elseif dim == 3
+        out = ArchGDAL.createmultipoint([Float64(V[i, 1]) for i = 1:largo], [Float64(V[i, 2]) for i = 1:largo], [Float64(V[i, 3]) for i = 1:largo])
+    end
     return out
 end
 
@@ -617,7 +710,7 @@ end
 
 function shapeHull(shape::PosDimGeom)::PosDimGeom
 
-    geom = shape2geom(shape)
+    geom = polyShape.shape2geom(shape)
     geom_out = ArchGDAL.convexhull(geom)
     shape_out = geom2shape(geom_out)
     V = shape_out.Vertices[1]
@@ -1376,7 +1469,12 @@ function polyDifference_v2(ps1::PolyShape, ps2::PolyShape)::PolyShape
                         ps_out = ps_mat[i,j]
                         flag = false
                     else
-                        ps_out = polyShape.polyIntersect(ps_out, ps_mat[i,j])
+                        ps_intersect = polyShape.polyIntersect(ps_out, ps_mat[i,j])
+                        if ps_intersect.NumRegions >= 1
+                            ps_out = ps_intersect
+                        else
+                            ps_out = polyShape.polyUnion(ps_out, ps_mat[i,j])
+                        end
                     end
                 catch
                 end
@@ -2041,83 +2139,107 @@ function replaceShapeVertex(pt::PointShape, id::Int, shape::PosDimGeom)::PosDimG
 end
 
 
-function lineVec2polyShape(lineVec::Array{LineShape,1})::PolyShape
-    N = length(lineVec)
-    V = fill(0.0, N, 2)
-    for i = 1:N
-        ix_1 = i
-        if i == N
-            ix_2 = 1
-        else
-            ix_2 = i + 1
-        end
-        l_1 = lineVec[ix_1]
-        l_2 = lineVec[ix_2]
-        point_x_12 = polyShape.shapeIntersect(l_1, l_2)
-        if size(point_x_12.Vertices[1], 1) >= 1
-            V[ix_2, :] = point_x_12.Vertices[1, :]'
-        else
-            V[ix_2, :] = V[ix_1, :]
-        end
+function lineVec2polyShape(lineVec::Array{LineShape,1}, reg_vec = [])::PolyShape
 
+    if isempty(reg_vec)
+        num_reg = 1
+    else
+        num_reg = maximum(reg_vec)
     end
-    ps_out = PolyShape([V], 1)
+
+    ps_out = []
+    for k = 1:num_reg
+        lineVec_k = lineVec[reg_vec .== k]
+        N_k = length(lineVec_k)
+        V_k = fill(0.0, N_k, 2)
+        for i = 1:N_k
+            ix_1 = i
+            if i == N_k
+                ix_2 = 1
+            else
+                ix_2 = i + 1
+            end
+            l_1 = lineVec_k[ix_1]
+            l_2 = lineVec_k[ix_2]
+            point_x_12 = polyShape.shapeIntersect(l_1, l_2)
+            if size(point_x_12.Vertices[1], 1) >= 1
+                V_k[ix_2, :] = point_x_12.Vertices[1, :]'
+            else
+                V_k[ix_2, :] = V_k[ix_1, :]
+            end
+        end
+        if k == 1
+            ps_out = PolyShape([V_k], 1)
+        else
+            ps_out = polyShape.polyUnion(ps_out, PolyShape([V_k], 1))
+        end
+    end
 
     return ps_out
 end
 
 
 
-function polyShape2lineVec(ps::PolyShape)::Array{LineShape,1}
-    V = copy(ps.Vertices[1])
-    N = size(V, 1)
+function polyShape2lineVec(ps::PolyShape)
 
-    # Obtiene vector de bordes del polígono original
+    num_regions = ps.NumRegions
     line_vec = Array{LineShape,1}()
-    for i in 1:N
-        if i < N
-            l_i = LineShape([[V[i, :]'; V[i+1, :]']], 1)
-        else
-            l_i = LineShape([[V[i, :]'; V[1, :]']], 1)
+    reg_vec = Array{Int,1}()
+    for k = 1:num_regions
+        V_k = copy(ps.Vertices[k])
+        N_k = size(V_k, 1)
+    
+        # Obtiene vector de bordes del polígono original
+        for i in 1:N_k
+            if i < N_k
+                l_i = LineShape([[V_k[i, :]'; V_k[i+1, :]']], 1)
+            else
+                l_i = LineShape([[V_k[i, :]'; V_k[1, :]']], 1)
+            end
+            line_vec = push!(line_vec, l_i)
+            reg_vec = push!(reg_vec, k)
         end
-        line_vec = push!(line_vec, l_i)
+    
     end
 
-    return line_vec
+    return line_vec, reg_vec
 end
 
-
 function polyExpandSegmentVec(ps::PolyShape, vec_dist::Array{Float64,1})::PolyShape
-    vec_ls_orig = polyShape.polyShape2lineVec(ps) #lineas polyShape original
+    max_dist = maximum(vec_dist)
+    min_dist = minimum(vec_dist)
+    if max_dist < 0
+        delta = vec_dist .- min_dist
+        ps_ = polyShape.polyExpand(ps, max_dist)
+        vec_dist_ = copy(delta)
+    else
+        ps_ = deepcopy(ps)
+        vec_dist_ = copy(vec_dist)
+    end
+    vec_ls_orig, vec_reg_orig = polyShape.polyShape2lineVec(ps_) #lineas polyShape original
     vec_ps = []
+    vec_reg = []
     for k in eachindex(vec_ls_orig) #para todas las lineas originales
         ls_k = vec_ls_orig[k]
-        dist_k = vec_dist[k]
-        vec_ls_dist_k = polyShape.polyShape2lineVec(polyShape.polyExpand(ps, dist_k))
+        dist_k = vec_dist_[k]
+        vec_ls_dist_k, vec_reg_k = polyShape.polyShape2lineVec(polyShape.polyExpand(ps_, dist_k))
         vec_flag_k = [polyShape.isLineLineParallel(ls_k, vec_ls_dist_k[i]) for i in eachindex(vec_ls_dist_k)]
         vec_dist_k = [polyShape.shapeDistance(ls_k, vec_ls_dist_k[i]) for i in eachindex(vec_ls_dist_k)]
         if sum(vec_flag_k) >= 1
             posrel = argmin(vec_dist_k[vec_flag_k .== 1])
             ls_ki = vec_ls_dist_k[vec_flag_k .== 1][posrel]
-            ls_ki_ext = polyShape.extendLine(ls_ki, 12.0)
+            reg_ki = vec_reg_k[vec_flag_k .== 1][posrel]
             dist_ki = polyShape.distanceBetweenLines(ls_k, ls_ki)
-            if length(vec_ps) < 1
-                flag_intersect = true
-            else
-                point_inter = polyShape.shapeIntersect(ls_ki_ext, vec_ps[end])
-                if typeof(point_inter) == PointShape
-                    flag_intersect = true
-                else
-                    flag_intersect = false
-                end
-            end
+            flag_intersect = true
+            ls_ki_ext = polyShape.extendLine(ls_ki, 12.0)
             if flag_intersect && abs(dist_ki - abs(dist_k)) <= 0.01
                 vec_ps = push!(vec_ps, ls_ki_ext)
+                vec_reg = push!(vec_reg, reg_ki)
             end
         end
     end
     vec_ps = convert(Array{LineShape,1}, vec_ps)
-    ps_out = polyShape.lineVec2polyShape(vec_ps)
+    ps_out = polyShape.lineVec2polyShape(vec_ps, vec_reg)
     return ps_out 
 end
 
@@ -2277,7 +2399,7 @@ end
 
 
 function isLineLineParallel(l1::LineShape, l2::LineShape)::Bool
-    err = 0.0001
+    err = 0.001
 
     angle1 = polyShape.lineAngle(l1)
     angle2 = polyShape.lineAngle(l2)
@@ -2294,7 +2416,7 @@ end
 function distanceBetweenLines(l1::LineShape, l2::LineShape)
     if polyShape.isLineLineParallel(l1, l2)
         p1 = polyShape.midPointSegment(l1)
-        dist = pointLineDist(l2, p1)
+        dist = polyShape.pointLineDist(l2, p1)
     else
         dist = 10000
     end
