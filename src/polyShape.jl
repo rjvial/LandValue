@@ -89,11 +89,27 @@ function plotPolyshape2Din3D(ps::PointShape, height::Float64=0.0, fc::String="bl
     ps = polyShape.shapeBuffer(ps, line_width)
     fig, ax, ax_mat = plotPolyshape2Din3D(ps, height, fc, a; fig=fig, ax=ax, ax_mat=ax_mat)
 end
-function plotPolyshape2Din3D(ps::LineShape, height::Real=0.0, fc::String="blue", a::Float64=0.25; fig::Union{Nothing,PyPlot.Figure}=nothing, ax=nothing, ax_mat=nothing, line_width::Float64=0.5, line_end::Int64=3, filestr="none")
-    ps = polyShape.shapeBuffer(ps, line_width, line_end)
+function plotPolyshape2Din3D(ls::LineShape, height::Real=0.0, fc::String="blue", a::Float64=0.25; fig::Union{Nothing,PyPlot.Figure}=nothing, ax=nothing, ax_mat=nothing, line_width::Float64=0.5, line_end::Int64=3, filestr="none")
+    ps = polyShape.shapeBuffer(ls, line_width, line_end)
     fig, ax, ax_mat = plotPolyshape2Din3D(ps, height, fc, a; fig=fig, ax=ax, ax_mat=ax_mat)
 end
-function plotPolyshape2Din3D(ps::PolyShape, height::Real=0.0, fc::String="blue", a::Float64=0.25; fig::Union{Nothing,PyPlot.Figure}=nothing, ax=nothing, ax_mat=nothing, line_width::Float64=0., filestr="none")
+
+function plotPolyshape2DVecin3D(vec_ps::Array{polyShape.PolyShape,1}, vec_h::Vector{Float64}, fc::String="red", a::Float64=0.1; fig::Union{Nothing,PyPlot.Figure}=nothing, ax=nothing, ax_mat=nothing, line_width::Float64=0.5, edge_color="k", filestr="none")
+    fig_ = []
+    ax_ = []
+    ax_mat_ = []
+    for i in eachindex(vec_h)
+        ps_i = vec_ps[i]
+        h_i = vec_h[i]
+        if i == 1
+            fig_, ax_, ax_mat_ = plotPolyshape2Din3D(ps_i, h_i, fc, a, fig=fig, ax=ax, ax_mat=ax_mat, line_width=line_width, edge_color=edge_color)
+        end
+        fig_, ax_, ax_mat_ = plotPolyshape2Din3D(ps_i, h_i, fc, a, fig=fig_, ax=ax_, ax_mat=ax_mat_, line_width=line_width, edge_color=edge_color)
+    end
+    return fig_, ax_, ax_mat_
+end
+
+function plotPolyshape2Din3D(ps::PolyShape, height::Real=0.0, fc::String="blue", a::Float64=0.25; fig::Union{Nothing,PyPlot.Figure}=nothing, ax=nothing, ax_mat=nothing, line_width::Float64=0.5, edge_color="k", filestr="none")
     plt = pyimport("matplotlib.pyplot")
     art3d = pyimport("mpl_toolkits.mplot3d.art3d")
     PyCall.pyimport("mpl_toolkits.mplot3d")
@@ -191,7 +207,7 @@ function plotPolyshape2Din3D(ps::PolyShape, height::Real=0.0, fc::String="blue",
 
                 end
 
-                ax.add_collection3d(art3d.Poly3DCollection(verts, facecolors=fc, linewidths=0.4, edgecolors="k", alpha=a))
+                ax.add_collection3d(art3d.Poly3DCollection(verts, facecolors=fc, linewidths=line_width, edgecolors=edge_color, alpha=a))
             end
 
         else
@@ -206,7 +222,7 @@ function plotPolyshape2Din3D(ps::PolyShape, height::Real=0.0, fc::String="blue",
             end
             verts = [verts_]
 
-            ax.add_collection3d(art3d.Poly3DCollection(verts, facecolors=fc, linewidths=0.4, edgecolors="k", alpha=a))
+            ax.add_collection3d(art3d.Poly3DCollection(verts, facecolors=fc, linewidths=line_width, edgecolors=edge_color, alpha=a))
 
         end
 
@@ -230,10 +246,10 @@ function plotPolyshape2Din3D(ps::PolyShape, height::Real=0.0, fc::String="blue",
 
     ax_mat = [min_ax max_ax]
 
-    if line_width > 0.
-        ls_vec = polyShape.polyShape2lineVec(ps)
-        fig, ax, ax_mat = polyShape.plotPolyshape2DVecin3D(ls_vec, height *ones(size(ls_vec)), fc, a, fig=fig, ax=ax, ax_mat=ax_mat, line_width=line_width, line_end=3)
-    end
+    # if line_width > 0.
+    #     ls_vec = polyShape.polyShape2lineVec(ps)
+    #     fig, ax, ax_mat = polyShape.plotPolyshape2DVecin3D(ls_vec, height *ones(size(ls_vec)), fc, a, fig=fig, ax=ax, ax_mat=ax_mat, line_width=line_width, line_end=3)
+    # end
 
     if filestr != "none"
         plt.savefig(filestr, dpi=300)
@@ -2424,6 +2440,26 @@ function distanceBetweenLines(l1::LineShape, l2::LineShape)
 end
 
 
+function polyProyeccion(ps, alt, orientacion)
+    num_regions = ps.NumRegions
+    V = []
+    for k = 1:num_regions
+        V_k = ps.Vertices[k]
+        num_verts_k = size(V_k,1)
+        if orientacion == "p"
+            V_k_ = [V_k[:,1] - ones(num_verts_k,1)*alt/0.49 V_k[:,2]]
+        elseif orientacion == "o"
+            V_k_ = [V_k[:,1] + ones(num_verts_k,1)*alt/0.49 V_k[:,2]]
+        else
+            V_k_ = [V_k[:,1] V_k[:,2] - ones(num_verts_k,1)*alt/1.54]
+        end
+        push!(V, V_k_)
+    end
+
+    return PolyShape(V, length(V))
+
+end
+
 ########################################################################
 ########################################################################
 ########################################################################
@@ -2439,7 +2475,8 @@ export extraeInfoPoly, largoLadosPoly, isPolyConvex, isPolyInPoly, plotPolyshape
     lineLineDist, parallelLineAtDist, lineAngle, halfspaceSignOfPointToLine, extendLine, polyEliminaRepetidos, polyEliminaSpikes, polyEliminaCrucesComplejos,
     polyObtieneCruces, polyExpandSegmentVec, replaceShapeVertex, lineVec2polyShape, polyShape2lineVec, polyShrink,
     ajustaCoordenadas, angleMaxDistRect, extendRectToIntersection, createLine, polyReproject, bisector_direction, angleBetweenLines,
-    reverseLine, distanceBetweenPoints, midPointSegment, alphaPointSegment, points2Line, points2Poly, lineLength, isLineLineParallel, distanceBetweenLines
+    reverseLine, distanceBetweenPoints, midPointSegment, alphaPointSegment, points2Line, points2Poly, lineLength, isLineLineParallel, distanceBetweenLines,
+    polyProyeccion
 
 end
 

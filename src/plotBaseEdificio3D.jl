@@ -1,4 +1,4 @@
-function plotBaseEdificio3D(fpe, x, alturaPiso, ps_predio, verts, verts_conSombra, 
+function plotBaseEdificio3D(fpe, x, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, 
                             ps_publico, ps_calles, ps_base, ps_baseSeparada, ps_primerPiso; flagV = false)
 
     f_predio = fpe.predio
@@ -24,14 +24,9 @@ function plotBaseEdificio3D(fpe, x, alturaPiso, ps_predio, verts, verts_conSombr
         fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_predio, 0.0, "green", .3)
     end
 
-    if f_volTeorico
-        # Grafica Volumen Teórico
-        fig, ax, ax_mat = polyShape.plotPolyshape3D(verts, fig=fig, ax=ax, ax_mat=ax_mat)
-    end
-
     if f_volConSombra
         # Grafica Volumen Teórico
-        fig, ax, ax_mat = polyShape.plotPolyshape3D(verts_conSombra, "gray", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+        # fig, ax, ax_mat = polyShape.plotPolyshape3D(verts_conSombra, "gray", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
     end
 
     #ps_calles = polyShape.polyUnion_v2(ps_calles, ps_calles)
@@ -71,7 +66,7 @@ function plotBaseEdificio3D(fpe, x, alturaPiso, ps_predio, verts, verts_conSombr
     end
 
     if f_sombraVolTeorico_p + f_sombraVolTeorico_o + f_sombraVolTeorico_s >= 1
-        ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s = generaSombraTeor(verts, ps_publico, ps_calles)
+        ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s = generaSombraTeor(vec_psVolteor, vec_altVolteor, ps_publico, ps_calles)
         if f_sombraVolTeorico_p
             fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_sombraVolTeorico_p, 0, "gold", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
         end
@@ -97,6 +92,12 @@ function plotBaseEdificio3D(fpe, x, alturaPiso, ps_predio, verts, verts_conSombr
             fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_sombraEdif_s, 0, "red", 0.25, fig=fig, ax=ax, ax_mat=ax_mat)
         end
     end
+
+    if f_volTeorico
+        # Grafica Volumen Teórico
+        fig, ax, ax_mat = polyShape.plotPolyshape2DVecin3D(vec_psVolteor, vec_altVolteor, "red", 0.001, fig=fig, ax=ax, ax_mat=ax_mat, edge_color="red", line_width=0.05)
+    end
+
     
     if flagV == false
         return fig, ax, ax_mat

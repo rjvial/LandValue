@@ -9,7 +9,12 @@ using LandValue, Distributed, DotEnv
 # [151600048300007, 151600048300042, 151600048300043, 151600048300044, 151600048300045, 151600048300046]
 # [151600052300001, 151600052300002, 151600052300019, 151600052300020, 151600052300021, 151600052300024]
 
-codigo_predial = [151600217300030, 151600217300031, 151600217300051, 151600217300052, 151600217300053]
+# [151600231900001, 151600231900002, 151600231900004, 151600231900005, 151600231900006, 151600231900007, 151600231900008]
+# [151600231900001, 151600231900002, 151600231900005, 151600231900006, 151600231900007, 151600231900008]
+# [151600231900002, 151600231900003, 151600231900004, 151600231900005, 151600231900006, 151600231900007]
+# [151600231900001, 151600231900002, 151600231900006, 151600231900007, 151600231900008] 
+
+codigo_predial = [151600231900001, 151600231900002, 151600231900004, 151600231900005, 151600231900006, 151600231900007, 151600231900008]
 
 
 tipoOptimizacion = "volumetrica"
@@ -29,8 +34,8 @@ fpe, temp_opt, alturaPiso, xopt, vec_datos, superficieTerreno, superficieTerreno
 
 
 ps_predio = vec_datos[1]
-verts = vec_datos[2]
-verts_conSombra = vec_datos[3]
+vec_psVolteor = vec_datos[2]
+vec_altVolteor = vec_datos[3]
 ps_publico = vec_datos[4]
 ps_calles = vec_datos[5]
 ps_base = vec_datos[6]
@@ -45,7 +50,7 @@ dy = vec_datos[14]
 ps_areaEdif = vec_datos[15]
 
 
-fig, ax, ax_mat = plotBaseEdificio3D(fpe, xopt, alturaPiso, ps_predio, verts, verts_conSombra, ps_publico, ps_calles, ps_base, ps_baseSeparada, ps_primerPiso)
+fig, ax, ax_mat = plotBaseEdificio3D(fpe, xopt, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, ps_publico, ps_calles, ps_base, ps_baseSeparada, ps_primerPiso)
 
 fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_predios_intra_buffer, 0.0, "green", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
 fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_manzanas_intra_buffer, 0.0, "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
