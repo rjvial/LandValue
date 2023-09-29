@@ -74,8 +74,8 @@ let codigo_predial = []
             "indicador_incidencia_terreno" double precision,
             "optimo_solucion" text,
             "ps_predio" text, 
-            "verts" text, 
-            "verts_conSombra" text,
+            "vec_psVolteor" text, 
+            "vec_altVolteor" text,
             "ps_publico" text, 
             "ps_calles" text, 
             "ps_base" text, 
@@ -135,25 +135,25 @@ let codigo_predial = []
                 put!(results, (temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id, wkr))
 
             # catch error
-                display("")
-                display("#############################################################################")
-                display("#############################################################################")
-                display("# Se produjo un error, se proseguirá con la siguiente combinación de lotes. #")
-                display("#############################################################################")
-                display("#############################################################################")
-                display("")
-                display(id)
-                display("")
+                # display("")
+                # display("#############################################################################")
+                # display("#############################################################################")
+                # display("# Se produjo un error, se proseguirá con la siguiente combinación de lotes. #")
+                # display("#############################################################################")
+                # display("#############################################################################")
+                # display("")
+                # display(id)
+                # display("")
 
-                cond_str = "=" * string(id)
-                vecColumnNames = ["status", "id"]
-                vecColumnValue = ["19", string(id)]
+                # cond_str = "=" * string(id)
+                # vecColumnNames = ["status", "id"]
+                # vecColumnValue = ["19", string(id)]
                 
-                datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]                 
-                conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
+                # datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]                 
+                # conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
 
-                pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)
-                pg_julia.close_db(conn_LandValue)
+                # pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)
+                # pg_julia.close_db(conn_LandValue)
 
             # end
         end
