@@ -103,7 +103,7 @@ function generaCotas(template, minPisos, maxPisos, V_areaEdif, sepNaves, maxDiag
         lb = [min_pisos, min_theta, xmin, ymin, min_phi1, min_phi2, min_largo0, min_largo1, min_largo2, min_ancho0, min_ancho1, min_ancho2]
         ub = [max_pisos, max_theta, xmax, ymax, max_phi1, max_phi2, max_largo0, max_largo1, max_largo2, max_ancho0, max_ancho1, max_ancho2]
     
-    elseif template == 10 #S
+    elseif template == 10 #Z
         min_theta = -pi; max_theta = pi
         xmin = minimum(V_areaEdif[:, 1]); xmax = maximum(V_areaEdif[:, 1])
         ymin = minimum(V_areaEdif[:, 2]); ymax = maximum(V_areaEdif[:, 2])
