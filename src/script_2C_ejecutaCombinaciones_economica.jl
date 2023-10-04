@@ -5,6 +5,7 @@ using LandValue, Distributed, DotEnv
 let codigo_predial = [] 
     # Para cómputos sobre la base de datos usar codigo_predial = []
     tipoOptimizacion = "provisoria" #"economica"
+    status_str = tipoOptimizacion == "economica" ? 2 : 1
 
     DotEnv.load("secrets.env") #Caso Docker
     datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
@@ -15,11 +16,10 @@ let codigo_predial = []
     conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
     conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
 
-    num_workers = 60 #4 #
+    num_workers = length(Sys.cpu_info()) - 4 #1 #60 #
     addprocs(num_workers; exeflags="--project")
     @everywhere using LandValue, Distributed
 
-    status_str = tipoOptimizacion == "economica" ? 2 : 1
     query_combinaciones_str = """
     select combi_predios_str, status, id from tabla_combinacion_predios 
     where status = $status_str

@@ -26,11 +26,13 @@ let codigo_predial = []
         CREATE TABLE IF NOT EXISTS public.tabla_resultados_cabidas
         (
             "combi_predios" text,
+            "norma_viv_economica" int,
             "norma_max_num_deptos" double precision,
             "norma_max_ocupacion" double precision,
             "norma_max_constructibilidad" double precision,
             "norma_max_pisos" double precision,
             "norma_max_altura" double precision,
+            "norma_distanciamiento" double precision,
             "norma_min_estacionamientos_vendibles" double precision,
             "norma_min_estacionamientos_visita" double precision,
             "norma_min_estacionamientos_discapacitados" double precision,
@@ -92,7 +94,7 @@ let codigo_predial = []
         pg_julia.query(conn_LandValue, query_str)
     end
 
-    num_workers = 4 #124 #60 #124 #
+    num_workers = length(Sys.cpu_info()) - 4
     addprocs(num_workers; exeflags="--project")
     @everywhere using LandValue, Distributed
 
