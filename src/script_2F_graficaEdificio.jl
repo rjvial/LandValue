@@ -1,6 +1,6 @@
 using LandValue, DotEnv
 
-codigo_predial = [151600217300085, 151600217300086, 151600217300087, 151600217300088, 151600217300089, 151600217300090, 151600217300091]
+codigo_predial = [151600231900001, 151600231900002, 151600231900003, 151600231900004, 151600231900005]
 
 DotEnv.load("secrets.env")
 datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
@@ -38,8 +38,7 @@ display("")
 codPredialStr = string(codigo_predial)
 
 query_resultados = """
-SELECT combi_predios, optimo_solucion, ps_predio, ps_vol_teorico, mat_conexion_vertices_vol_teorico,
-"vecVertices_volTeorico", "ps_volConSombra", mat_conexion_vertices_con_sombra, vec_vertices_con_sombra,
+SELECT combi_predios, optimo_solucion, ps_predio, "vec_psVolteor", "vec_altVolteor",
 ps_publico, ps_calles, ps_base, "ps_baseSeparada", "ps_primerPiso", ps_predios_intra_buffer, ps_manzanas_intra_buffer,
 ps_calles_intra_buffer, id
 FROM public.tabla_resultados_cabidas
@@ -50,12 +49,8 @@ df_resultados = pg_julia.query(conn_LandValue, query_resultados)
 codigo_predial = eval(Meta.parse(df_resultados[1, "combi_predios"]))
 xopt = eval(Meta.parse(df_resultados[1, "optimo_solucion"]))
 ps_predio = eval(Meta.parse(df_resultados[1, "ps_predio"]))
-ps_volTeorico = eval(Meta.parse(df_resultados[1, "ps_vol_teorico"]))
-matConexionVertices_volTeorico = eval(Meta.parse(df_resultados[1, "mat_conexion_vertices_vol_teorico"])) 
-vecVertices_volTeorico = eval(Meta.parse(df_resultados[1, "vecVertices_volTeorico"]))
-ps_volConSombra = eval(Meta.parse(df_resultados[1, "ps_volConSombra"]))
-matConexionVertices_conSombra = eval(Meta.parse(df_resultados[1, "mat_conexion_vertices_con_sombra"]))
-vecVertices_conSombra = eval(Meta.parse(df_resultados[1, "vec_vertices_con_sombra"]))
+vec_psVolteor = eval(Meta.parse(df_resultados[1, "vec_psVolteor"]))
+vec_altVolteor = eval(Meta.parse(df_resultados[1, "vec_altVolteor"])) 
 ps_publico = eval(Meta.parse(df_resultados[1, "ps_publico"]))
 ps_calles = eval(Meta.parse(df_resultados[1, "ps_calles"]))
 ps_base = eval(Meta.parse(df_resultados[1, "ps_base"]))
@@ -66,8 +61,8 @@ ps_manzanas_intra_buffer = eval(Meta.parse(df_resultados[1, "ps_manzanas_intra_b
 ps_calles_intra_buffer = eval(Meta.parse(df_resultados[1, "ps_calles_intra_buffer"]))
 id = df_resultados[1, "id"]
 
-fig, ax, ax_mat = polyShape.plotBaseEdificio3D(fpe, xopt, alturaPiso, ps_predio, ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico, 
-ps_volConSombra, matConexionVertices_conSombra, vecVertices_conSombra, ps_publico, ps_calles, ps_base, ps_baseSeparada, ps_primerPiso);
+fig, ax, ax_mat = polyShape.plotBaseEdificio3D(fpe, xopt, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, ps_publico, ps_calles, ps_base, ps_baseSeparada, ps_primerPiso)
+
 
 buffer_dist_ = min(140, 2.7474774194546216 * xopt[1] * alturaPiso)
 

@@ -116,7 +116,35 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
     vecSecTodos = collect(1:numLadosPredio)
     vecSecSinCalle = setdiff(vecSecTodos, vecSecConCalle)
 
-    #Condicion para Vivienda Económica
+    antejardin = dcn.antejardin[1]
+    sepVecinos = dcn.distanciamiento[1]
+    densidadMax = dcn.densidadMax
+    maxPisos = round(dcn.maxPisos)
+    alturaMax = dcn.alturaMax
+    rasante = dcn.rasante
+    coefConstructibilidad = dcn.coefConstructibilidad
+    coefOcupacion = dcn.coefOcupacion
+    
+    vec_edges = vecSecTodos
+    vec_dist = Float64.(vec_edges)
+    vec_dist .= -antejardin
+    vec_dist[vecSecSinCalle] .= -sepVecinos
+    ps_areaEdif = polyShape.polyExpandSegmentVec(ps_predio, vec_dist)
+    area_max_region = 0
+    id_max = 1
+    if ps_areaEdif.NumRegions >= 2
+        for i = 1:ps_areaEdif.NumRegions
+            ps_areaEdif_i = polyShape.subShape(ps_areaEdif, i)
+            area_i = polyShape.polyArea(ps_areaEdif_i)
+            if area_i > area_max_region
+                area_max_region = area_i
+                id_max = i
+            end
+        end
+    end
+    V_areaEdif = ps_areaEdif.Vertices[id_max]
+    sup_areaEdif = polyShape.polyArea(ps_areaEdif)
+
 
     if tipoOptimizacion == "volumetrica"
         display("")
@@ -144,24 +172,24 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         flagSeguir = true
         temp_opt = 0
 
-        plan_optimizacion = [[5, 0, [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 ,20]]]
+        # plan_optimizacion = [[5, 0, [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 ,20]]]
 
-        # # [template, flag_viv_eco, pisos]
-        # set_pisos_true_viv_econ = [3, 4]
-        # plan_optimizacion = [[0, 1, set_pisos_true_viv_econ]]
-        # push!(plan_optimizacion, [1, 1, set_pisos_true_viv_econ])
-        # push!(plan_optimizacion, [5, 1, set_pisos_true_viv_econ])
-        # push!(plan_optimizacion, [6, 1, set_pisos_true_viv_econ])
-        # push!(plan_optimizacion, [7, 1, set_pisos_true_viv_econ])
-        # push!(plan_optimizacion, [10, 1, set_pisos_true_viv_econ])
+        # [template, flag_viv_eco, pisos]
+        set_pisos_true_viv_econ = [3, 4]
+        plan_optimizacion = [[0, 1, set_pisos_true_viv_econ]]
+        push!(plan_optimizacion, [1, 1, set_pisos_true_viv_econ])
+        push!(plan_optimizacion, [5, 1, set_pisos_true_viv_econ])
+        push!(plan_optimizacion, [6, 1, set_pisos_true_viv_econ])
+        push!(plan_optimizacion, [7, 1, set_pisos_true_viv_econ])
+        push!(plan_optimizacion, [10, 1, set_pisos_true_viv_econ])
 
-        # set_pisos_false_viv_econ = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-        # push!(plan_optimizacion, [0, 0, set_pisos_false_viv_econ])
-        # push!(plan_optimizacion, [1, 0, set_pisos_false_viv_econ])
-        # push!(plan_optimizacion, [5, 0, set_pisos_false_viv_econ])
-        # push!(plan_optimizacion, [6, 0, set_pisos_false_viv_econ])
-        # push!(plan_optimizacion, [7, 0, set_pisos_false_viv_econ])
-        # push!(plan_optimizacion, [10, 0, set_pisos_false_viv_econ])
+        set_pisos_false_viv_econ = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+        push!(plan_optimizacion, [0, 0, set_pisos_false_viv_econ])
+        push!(plan_optimizacion, [1, 0, set_pisos_false_viv_econ])
+        push!(plan_optimizacion, [5, 0, set_pisos_false_viv_econ])
+        push!(plan_optimizacion, [6, 0, set_pisos_false_viv_econ])
+        push!(plan_optimizacion, [7, 0, set_pisos_false_viv_econ])
+        push!(plan_optimizacion, [10, 0, set_pisos_false_viv_econ])
 
         flag_penalizacion_residual = true
         flag_penalizacion_coefOcup = true
@@ -173,34 +201,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         #                    0    1    2    3      4    5         6         7    8              9       10
         vec_template_str = ["I", "L", "C", "lll", "V", "H-flex", "C-flex", "S", "C-superFlex", "Cuña", "Z"]
 
-        antejardin = dcn.antejardin[1]
-        sepVecinos = dcn.distanciamiento[1]
-        densidadMax = dcn.densidadMax
-        maxPisos = round(dcn.maxPisos)
-        alturaMax = dcn.alturaMax
-        rasante = dcn.rasante
-        coefConstructibilidad = dcn.coefConstructibilidad
-        coefOcupacion = dcn.coefOcupacion
-
-        vec_edges = vecSecTodos
-        vec_dist = Float64.(vec_edges)
-        vec_dist .= -antejardin
-        vec_dist[vecSecSinCalle] .= -sepVecinos
-        ps_areaEdif = polyShape.polyExpandSegmentVec(ps_predio, vec_dist)
-        area_max_region = 0
-        id_max = 1
-        if ps_areaEdif.NumRegions >= 2
-            for i = 1:ps_areaEdif.NumRegions
-                ps_areaEdif_i = polyShape.subShape(ps_areaEdif, i)
-                area_i = polyShape.polyArea(ps_areaEdif_i)
-                if area_i > area_max_region
-                    area_max_region = area_i
-                    id_max = i
-                end
-            end
-        end
-        V_areaEdif = ps_areaEdif.Vertices[id_max]
-        sup_areaEdif = polyShape.polyArea(ps_areaEdif)
+        
 
         largos, angulosExt, angulosInt, largosDiag = polyShape.extraeInfoPoly(ps_areaEdif)
         maxDiagonal = maximum(largosDiag)
@@ -285,6 +286,11 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         x_bbo_opt = []
         f_bbo_opt = 10000
         template_opt = 0
+        flag_viv_eco_opt = []
+        sepVecinos_opt = []
+        maxPisos_opt = []
+        alturaMax_opt = []
+        densidadMax_opt = []
         maxOcupación = []
         maxSupConstruida = []
         cont = 1
@@ -295,10 +301,10 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
                 x_bbo_opt = mat_res[cont][2]
                 template_opt = mat_res[cont][3]
                 flag_viv_eco_opt = mat_res[cont][4]
-                # sepVecinos_opt = mat_res[cont][5]
-                # densidadMax_opt = mat_res[cont][6]
+                sepVecinos_opt = mat_res[cont][5]
+                densidadMax_opt = mat_res[cont][6]
                 maxPisos_opt = mat_res[cont][7]
-                # alturaMax_opt = mat_res[cont][8]
+                alturaMax_opt = mat_res[cont][8]
                 coefConstructibilidad_opt = mat_res[cont][9]
                 coefOcupacion_opt = mat_res[cont][10]
 
@@ -401,8 +407,11 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         display("Inicio de Optimización Económica: Predio N° " * string(codigo_predial))
 
         if isempty(datos) # Si datos está vacío, se obtiene la info. de la tabla_resultados_cabidas
+            
             queryStr = """
-            SELECT cabida_altura, ps_base, optimo_solucion, terreno_superficie, terreno_superficie_bruta FROM tabla_resultados_cabidas WHERE cond_
+            SELECT cabida_altura, ps_base, optimo_solucion, terreno_superficie, 
+            terreno_superficie_bruta, norma_viv_economica, norma_max_num_deptos, norma_max_ocupacion,
+            norma_max_constructibilidad, norma_max_pisos FROM tabla_resultados_cabidas WHERE cond_
             """
             condStr = "combi_predios " * "= \'" * string(codigo_predial) * "\'"
             queryStr = replace(queryStr, "cond_" => condStr)
@@ -413,6 +422,15 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             superficieTerreno = df_[1, "terreno_superficie"]
             superficieTerrenoBruta = df_[1, "terreno_superficie_bruta"]
             xopt = eval(Meta.parse(df_[1, "optimo_solucion"]))
+
+            flag_viv_eco_opt = df_[1, "norma_viv_economica"]
+            maxDeptos_opt = df_[1, "norma_max_num_deptos"]
+            maxOcupación_opt = df_[1, "norma_max_ocupacion"]
+            maxSupConstruida_opt = df_[1, "norma_max_constructibilidad"]
+            maxPisos_opt = df_[1, "norma_max_pisos"]
+
+            mat_dcn_opt = [flag_viv_eco_opt, maxDeptos_opt, maxOcupación_opt, maxSupConstruida_opt, maxPisos_opt]
+            
         else # Si datos contiene información predefinida, se utiliza esa info.
             alturaEdif = datos[1]
             ps_base = datos[2]
@@ -422,9 +440,8 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             ps_areaEdif = datos[6]
         end
 
-        sup_areaEdif = polyShape.polyArea(ps_areaEdif)
-
-        sn, sa, si, st, so, sm, sf = optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, alturaEdif, ps_base, superficieTerreno, superficieTerrenoBruta, sup_areaEdif)
+       
+        sn, sa, si, st, so, sm, sf = optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, mat_dcn_opt, alturaEdif, ps_base, superficieTerreno, superficieTerrenoBruta, sup_areaEdif)
         resultados = ResultadoCabida(sn, sa, si, st, sm, so, xopt)
 
         tipo_Depto = ""

@@ -1,14 +1,25 @@
-function optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, alturaEdif, ps_base, superficieTerreno, superficieTerrenoBruta, sup_areaEdif)
+function optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, mat_dcn_opt, alturaEdif, ps_base, superficieTerreno, superficieTerrenoBruta, sup_areaEdif)
 
     areaBasalPso = polyShape.polyArea(ps_base)
     numTiposDepto = length(dcc.supDeptoUtil);
-    superficieDensidad = dcn.flagDensidadBruta ? superficieTerrenoBruta : superficieTerreno
-    maxDeptos = dcn.densidadMax / 4 * superficieDensidad / 10000;
-    numPisosMaxVol = Int(round(alturaEdif / dca.alturaPiso))
-    maxOcupación = dcn.coefOcupacion > 0 ? dcn.coefOcupacion * superficieTerreno : sup_areaEdif
-    maxSupConstruida = dcn.coefConstructibilidad > 0 ? superficieTerreno * dcn.coefConstructibilidad * (1 + 0.3 * dcp.fusionTerrenos) : dcn.maxPisos[1] * sup_areaEdif
+
+    flag_viv_eco_opt = mat_dcn_opt[1]
+
+    # superficieDensidad = dcn.flagDensidadBruta ? superficieTerrenoBruta : superficieTerreno
+    # maxDeptos = dcn.densidadMax / 4 * superficieDensidad / 10000;
+    maxDeptos = mat_dcn_opt[2]
+
+    # maxOcupación = dcn.coefOcupacion > 0 ? dcn.coefOcupacion * superficieTerreno : sup_areaEdif
+    maxOcupación = mat_dcn_opt[3]
+
+    # maxSupConstruida = dcn.coefConstructibilidad > 0 ? superficieTerreno * dcn.coefConstructibilidad * (1 + 0.3 * dcp.fusionTerrenos) : dcn.maxPisos[1] * sup_areaEdif
+    maxSupConstruida = mat_dcn_opt[4]
+
+    # numPisosMaxVol = Int(round(alturaEdif / dca.alturaPiso))
+    numPisosMaxVol = mat_dcn_opt[5]
 
 
+    maxOcupación, maxSupConstruida, maxDeptos
     ##############################################
     # PARTE "3": DEFINICIÓN SOLVER               #
     ##############################################
