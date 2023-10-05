@@ -214,7 +214,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
                     coefOcupacion = -1
                 end
 
-                lb_bbo, ub_bbo = generaCotas(template, default_min_pisos, floor(maxPisos), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin + 0.7, dca.anchoMin + 0.8)
+                lb_bbo, ub_bbo = generaCotas(template, default_min_pisos, floor(maxPisos), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMin + 0.1)
                 obj_bbo = x -> fo_bbo(x, template, sepNaves, ps_areaEdif)
 
                 display("Optimización BBO con Template Tipo " * vec_template_str[template+1])
