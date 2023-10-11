@@ -162,7 +162,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         superficieTerrenoBruta = superficieTerrenoBrutaCalc / superficieTerrenoCalc * superficieTerreno
 
 
-        sepNaves = 10.0 #5.# 12.0 #dca.anchoMin - 0
+        sepNaves = 18.0 #5.# 12.0 #dca.anchoMin - 0
         porcTerraza = 0.15 / 1.075
 
         default_min_pisos = 3

@@ -41,6 +41,9 @@ for r = 1:numRows
     query_predios_str = replace(query_predios_str, "codPredialStr_" => codPredialStr)
     df_predios = pg_julia.query(conn_mygis_db, query_predios_str)
     aux_str = "ST_GeomFromText(\'" * df_predios[1, "predios_str"] * "\',4326)"
+    aux_str = replace(aux_str, " Z " => " ")
+    aux_str = replace(aux_str, " 0," => " ,")
+    aux_str = replace(aux_str, " 0)" => " )")
 
     executeStr = "UPDATE tabla_resultados_cabidas SET geom_combi = " * aux_str * " WHERE combi_predios = \'" * df_resultados[r, "combi_predios"] * "\'"
 

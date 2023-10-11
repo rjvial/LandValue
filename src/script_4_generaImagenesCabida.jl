@@ -16,11 +16,7 @@ df_resultados = pg_julia.query(conn_LandValue, query_resultados_str)
 numRows, numCols = size(df_resultados)
 rowSet = sort(df_resultados[:,"id"])
 
-
-# # Guarda resultados en archivos csv y xlsx
-# outfileStr = "C:/Users/rjvia/.julia/dev/ws/resultados_cabida/resultadoCabida.csv"
-# pg_julia.df2csv(df_resultados, outfileStr)
-
+# rowSet = setdiff(rowSet, 1:5935)
 
 
 display("Obtiene FlagPlotEdif3D")
@@ -54,10 +50,9 @@ for r in rowSet
     display("Generando Imagen de Cabida N° = " * string(r))
     display("")
 
-    try 
+    # try 
         query_resultados_r = """
-        SELECT combi_predios, optimo_solucion, ps_predio, ps_vol_teorico, mat_conexion_vertices_vol_teorico,
-        "vecVertices_volTeorico", "ps_volConSombra", mat_conexion_vertices_con_sombra, vec_vertices_con_sombra,
+        SELECT combi_predios, optimo_solucion, ps_predio, "vec_psVolteor", "vec_altVolteor",
         ps_publico, ps_calles, ps_base, "ps_baseSeparada", "ps_primerPiso", ps_predios_intra_buffer, ps_manzanas_intra_buffer,
         ps_calles_intra_buffer, id
         FROM public.tabla_resultados_cabidas
@@ -68,12 +63,8 @@ for r in rowSet
         codigo_predial = eval(Meta.parse(df_resultados_r[1, "combi_predios"]))
         xopt = eval(Meta.parse(df_resultados_r[1, "optimo_solucion"]))
         ps_predio = eval(Meta.parse(df_resultados_r[1, "ps_predio"]))
-        ps_volTeorico = eval(Meta.parse(df_resultados_r[1, "ps_vol_teorico"]))
-        matConexionVertices_volTeorico = eval(Meta.parse(df_resultados_r[1, "mat_conexion_vertices_vol_teorico"])) 
-        vecVertices_volTeorico = eval(Meta.parse(df_resultados_r[1, "vecVertices_volTeorico"]))
-        ps_volConSombra = eval(Meta.parse(df_resultados_r[1, "ps_volConSombra"]))
-        matConexionVertices_conSombra = eval(Meta.parse(df_resultados_r[1, "mat_conexion_vertices_con_sombra"]))
-        vecVertices_conSombra = eval(Meta.parse(df_resultados_r[1, "vec_vertices_con_sombra"]))
+        vec_psVolteor = eval(Meta.parse(df_resultados_r[1, "vec_psVolteor"]))
+        vec_altVolteor = eval(Meta.parse(df_resultados_r[1, "vec_altVolteor"])) 
         ps_publico = eval(Meta.parse(df_resultados_r[1, "ps_publico"]))
         ps_calles = eval(Meta.parse(df_resultados_r[1, "ps_calles"]))
         ps_base = eval(Meta.parse(df_resultados_r[1, "ps_base"]))
@@ -86,8 +77,7 @@ for r in rowSet
 
         filestr = "C:\\Users\\rjvia\\Documents\\Land_engines_code\\Julia\\imagenes_cabidas\\____cabida_vitacura_" * string(id) * ".png"
 
-        fig, ax, ax_mat = plotBaseEdificio3D(fpe, xopt, alturaPiso, ps_predio, ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico, 
-                                                ps_volConSombra, matConexionVertices_conSombra, vecVertices_conSombra, ps_publico, ps_calles, ps_base, ps_baseSeparada, ps_primerPiso);
+        fig, ax, ax_mat = plotBaseEdificio3D(fpe, xopt, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, ps_publico, ps_calles, ps_base, ps_baseSeparada, ps_primerPiso);
 
                                                 
         buffer_dist_ = min(140, 2.7474774194546216 * xopt[1] * alturaPiso)
@@ -110,9 +100,9 @@ for r in rowSet
         aux_str = "C:/Users/rjvia/Documents/Land_engines_code/Julia/imagenes_cabidas/cabida_vitacura_" * string(df_resultados_r[1, "id"]) * ".png"
         executeStr = "UPDATE tabla_resultados_cabidas SET dir_image_file = \'" * aux_str * "\', id = " * string(df_resultados_r[1, "id"]) * " WHERE combi_predios = \'" * df_resultados_r[1, "combi_predios"] * "\'"
         pg_julia.query(conn_LandValue, executeStr)
-    catch
-        display("Error en Cabida N° = " * string(r))    
-    end
+    # catch
+    #     display("Error en Cabida N° = " * string(r))    
+    # end
 
 
 end

@@ -9,12 +9,12 @@ datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_
 conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
 
 
-# # Agrega columna id_combi_list a tabla_resultados_cabidas
-# query_resultados_str = """
-# ALTER TABLE tabla_resultados_cabidas
-#   ADD COLUMN IF NOT EXISTS id_combi_list integer;
-# """
-# df_resultados = pg_julia.query(conn_LandValue, query_resultados_str)
+# Agrega columna id_combi_list a tabla_resultados_cabidas
+query_resultados_str = """
+ALTER TABLE tabla_resultados_cabidas
+  ADD COLUMN IF NOT EXISTS id_combi_list integer;
+"""
+df_resultados = pg_julia.query(conn_LandValue, query_resultados_str)
 
 query_resultados_str = """
 select combi_predios, terreno_costo from tabla_resultados_cabidas

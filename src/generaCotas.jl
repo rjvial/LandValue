@@ -63,7 +63,7 @@ function generaCotas(template, minPisos, maxPisos, V_areaEdif, sepNaves, maxDiag
         ymin = minimum(V_areaEdif[:, 2]); ymax = maximum(V_areaEdif[:, 2])
         min_largo = anchoMin; max_largo = maxDiagonal
         min_ancho = anchoMin; max_ancho = anchoMax
-        lb = [min_pisos, min_theta, xmin, ymin, min_largo, min_largo, min_largo, min_largo, min_largo, min_ancho, min_ancho, min_ancho]
+        lb = [min_pisos, min_theta, xmin, ymin, sepNaves, min_largo, min_largo, min_largo, min_largo, min_ancho, min_ancho, min_ancho]
         ub = [max_pisos, max_theta, xmax, ymax, max_largo, max_largo, max_largo, max_largo, max_largo, max_ancho, max_ancho, max_ancho]
 
     elseif template == 6 #C-flex
