@@ -1686,11 +1686,11 @@ function polyShape2lineVec(ps::PolyShape)
 end
 
 function polyExpandSegmentVec(ps::PolyShape, vec_dist::Array{Float64,1})::PolyShape
-max_dist = maximum(vec_dist)
-min_dist = minimum(vec_dist)
+max_dist = maximum(vec_dist) #-4
+min_dist = minimum(vec_dist) #-7
 if max_dist < 0
     delta = vec_dist .- min_dist
-    ps_ = polyShape.polyExpand(ps, max_dist)
+    ps_ = polyShape.polyExpand(ps, min_dist)
     vec_dist_ = copy(delta)
 else
     ps_ = deepcopy(ps)
