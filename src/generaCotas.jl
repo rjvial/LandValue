@@ -118,6 +118,41 @@ function generaCotas(template, minPisos, maxPisos, V_areaEdif, sepNaves, maxDiag
         lb = [min_pisos, min_theta, xmin, ymin, min_largo, min_ancho, min_ancho]
         ub = [max_pisos, max_theta, xmax, ymax, max_largo, max_ancho, max_ancho]
 
+    elseif template == 11 #F-Flex
+        min_theta = -pi; max_theta = pi
+        xmin = minimum(V_areaEdif[:, 1]); xmax = maximum(V_areaEdif[:, 1])
+        ymin = minimum(V_areaEdif[:, 2]); ymax = maximum(V_areaEdif[:, 2])
+        min_largo = anchoMin; max_largo = maxDiagonal
+        min_ancho = anchoMin; max_ancho = anchoMax
+                                                #5        #6          #7         #8        #9          #10        #11        #12
+        lb = [min_pisos, min_theta, xmin, ymin, sepNaves, 0.        , 0.,        sepNaves, 0.        , min_ancho, min_ancho, min_ancho]
+        ub = [max_pisos, max_theta, xmax, ymax, max_largo, max_largo, max_largo, max_largo, max_largo, max_ancho, max_ancho, max_ancho]
+
+    elseif template == 12 #Sep-flex
+        min_theta = -pi; max_theta = pi
+        xmin = minimum(V_areaEdif[:, 1]); xmax = maximum(V_areaEdif[:, 1])
+        ymin = minimum(V_areaEdif[:, 2]); ymax = maximum(V_areaEdif[:, 2])
+        min_largo = anchoMin; max_largo = maxDiagonal
+        min_ancho = anchoMin; max_ancho = anchoMax
+                                                #5        #6          #7         #8         #9         #10        #11        #12        #13        #14
+        lb = [min_pisos, min_theta, xmin, ymin, min_largo, min_largo, min_largo, sepNaves,  0.       , sepNaves,  sepNaves,  min_ancho, min_ancho, min_ancho]
+        ub = [max_pisos, max_theta, xmax, ymax, max_largo, max_largo, max_largo, max_largo, max_largo, max_largo, max_largo, max_ancho, max_ancho, max_ancho]
+
+        # pos_x = x[3]
+        # pos_y = x[4]
+        # largo1 = x[5]    
+        # largo2 = x[6] #
+        # largo3 = x[7] #
+        # h12 = x[8] #
+        # v12 = x[9] #
+        # h13 = x[10] #
+        # v23 = x[11] #
+        # anchoLado1 = x[12]
+        # anchoLado2 = x[13]
+        # anchoLado3 = x[14]
+
+
+
     end
 
     return lb, ub

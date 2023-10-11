@@ -172,7 +172,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         flagSeguir = true
         temp_opt = 0
 
-        # plan_optimizacion = [[5, 0, [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 ,20]]]
+        # plan_optimizacion = [[12, 0, [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 ,20]]]
 
         # [template, flag_viv_eco, pisos]
         set_pisos_true_viv_econ = [3, 4]
@@ -182,6 +182,8 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         push!(plan_optimizacion, [6, 1, set_pisos_true_viv_econ])
         push!(plan_optimizacion, [7, 1, set_pisos_true_viv_econ])
         push!(plan_optimizacion, [10, 1, set_pisos_true_viv_econ])
+        push!(plan_optimizacion, [11, 1, set_pisos_true_viv_econ])
+        push!(plan_optimizacion, [12, 1, set_pisos_true_viv_econ])
 
         set_pisos_false_viv_econ = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
         push!(plan_optimizacion, [0, 0, set_pisos_false_viv_econ])
@@ -190,6 +192,8 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         push!(plan_optimizacion, [6, 0, set_pisos_false_viv_econ])
         push!(plan_optimizacion, [7, 0, set_pisos_false_viv_econ])
         push!(plan_optimizacion, [10, 0, set_pisos_false_viv_econ])
+        push!(plan_optimizacion, [11, 0, set_pisos_true_viv_econ])
+        push!(plan_optimizacion, [12, 0, set_pisos_true_viv_econ])
 
         flag_penalizacion_residual = true
         flag_penalizacion_coefOcup = true
@@ -198,10 +202,9 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         flag_conSombra = true
         flag_divergenciaAncho = false
 
-        #                    0    1    2    3      4    5         6         7    8              9       10
-        vec_template_str = ["I", "L", "C", "lll", "V", "H-flex", "C-flex", "S", "C-superFlex", "Cuña", "Z"]
+        #                    0    1    2    3      4    5         6         7    8              9       10   11        12
+        vec_template_str = ["I", "L", "C", "lll", "V", "H-flex", "C-flex", "S", "C-superFlex", "Cuña", "Z", "F_flex", "Sep-flex"]
 
-        
 
         largos, angulosExt, angulosInt, largosDiag = polyShape.extraeInfoPoly(ps_areaEdif)
         maxDiagonal = maximum(largosDiag)

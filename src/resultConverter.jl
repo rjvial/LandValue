@@ -252,6 +252,56 @@ function resultConverter(x::Array{Float64,1}, template::Int64, sepNaves::Float64
 
         ps_baseSeparada = polyShape.polyCopy(ps_base)
 
+    elseif template == 11 #F-Flex
+
+        pos_x = x[3]
+        pos_y = x[4]
+        largo0 = x[5]    
+        delta_1 = x[6] #
+        largo1 = x[7] #
+        delta_2 = x[8] #
+        largo2 = x[9] #
+        anchoLado0 = x[10]
+        anchoLado1 = x[11]
+        anchoLado2 = x[12]
+
+        cr = [pos_x; pos_y]
+
+        ps1 = polyShape.polyBox(pos_x, pos_y, anchoLado0, largo0, theta)        
+        ps2 = polyShape.polyBox(pos_x + anchoLado0, pos_y + delta_1, largo1, anchoLado1, theta, cr)
+        ps3 = polyShape.polyBox(pos_x + anchoLado0, pos_y + delta_1 + anchoLado1 + delta_2, largo2, anchoLado2, theta, cr)
+
+        ps_base = polyShape.polyUnion(ps1, ps2)
+        ps_base = polyShape.polyUnion(ps_base, ps3)
+
+        ps_baseSeparada = PolyShape([ps1.Vertices[1], ps2.Vertices[1], ps3.Vertices[1]], 3)
+
+    elseif template == 12 #Sep-flex
+
+        pos_x = x[3]
+        pos_y = x[4]
+        largo1 = x[5]    
+        largo2 = x[6] #
+        largo3 = x[7] #
+        h12 = x[8] #
+        v12 = x[9] #
+        h13 = x[10] #
+        v23 = x[11] #
+        anchoLado1 = x[12]
+        anchoLado2 = x[13]
+        anchoLado3 = x[14]
+
+        cr = [pos_x; pos_y]
+
+        ps1 = polyShape.polyBox(pos_x, pos_y, anchoLado1, largo1, theta)        
+        ps2 = polyShape.polyBox(pos_x + anchoLado1 + h12, pos_y - v12, anchoLado2, largo2, theta, cr)
+        ps3 = polyShape.polyBox(pos_x + anchoLado1 + h13, pos_y - v12 + largo2 + v23, largo3, anchoLado3, theta, cr)
+
+        ps_base = polyShape.polyUnion(ps1, ps2)
+        ps_base = polyShape.polyUnion(ps_base, ps3)
+
+        ps_baseSeparada = PolyShape([ps1.Vertices[1], ps2.Vertices[1], ps3.Vertices[1]], 3)
+
     end
     areaBasal = polyShape.polyArea(ps_base)
     
