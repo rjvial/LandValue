@@ -11,5 +11,5 @@ valor_ub = 45000.; prob_ub = 1 - prob_lb
 λ = (valor_ub - δ) / exp( log(log(1/(1-prob_ub))) / α )
 cdf_weibull = [Θ[i] - δ < 0 ? 0 : 1 - exp(-((Θ[i] - δ) / λ)^α) for i in eachindex(Θ)]
 pdf_weibull = cdf_weibull[2:end] .- cdf_weibull[1:end-1]
-plot(Θ[1:end-1], pdf_weibull, label="Weibull")
+# plot(Θ[1:end-1], pdf_weibull, label="Weibull")
 

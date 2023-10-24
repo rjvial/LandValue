@@ -4,15 +4,15 @@ function optim_nomad(fo_nomad, num_penalizaciones, lb, ub, MaxSteps, initSol)
     num_outputs = num_penalizaciones + 1; # Number of outputs of the blackbox. Is required to be > 0
     output_types = vcat(["OBJ"], ["PB" for i in 1:num_penalizaciones]); # "OBJ" objective value to be minimized, "PB" progressive barrier constraint, "EB" extreme barrier constraint
     input_types = vcat(["I"], ["R" for i in 1:num_inputs-1]); # A vector containing String objects that define the types of inputs to be given to eval_bb (the order is important). "R" Real/Continuous, "B" Binary,"I" Integer
-    #granularity = [0. for i in 1:num_inputs]; # 0 for real variables, 1 for integer and binary ones.
-    #min_mesh_size = [0.1 for i in 1:num_inputs];
+    # granularity = [0. for i in 1:num_inputs]; # 0 for real variables, 1 for integer and binary ones.
+    # min_mesh_size = [0.1 for i in 1:num_inputs]; #The minimum mesh size to reach allowed by each input variable. When a variable decreases below the threshold, the algorithm stops. Default is 0
     lower_bound = lb;
     upper_bound = ub;
     #initial_mesh_size = vcat([1.], [0.1 for i in 1:num_inputs-1])
     p = NOMAD.NomadProblem(num_inputs, num_outputs, output_types, fo_nomad; 
                     input_types = input_types, 
-                    #granularity = granularity,
-                    #min_mesh_size = min_mesh_size,
+                    # granularity = granularity,
+                    # min_mesh_size = min_mesh_size,
                     lower_bound = lower_bound, 
                     upper_bound = upper_bound)
 
@@ -30,7 +30,7 @@ function optim_nomad(fo_nomad, num_penalizaciones, lb, ub, MaxSteps, initSol)
     # speculative_search - If true, the algorithm executes a speculative search strategy at each iteration (true by default)
     # nm_search - If true, the algorithm executes a speculative search strategy at each iteration (true by default)
 
-    p.options.display_degree = 0 #0;
+    p.options.display_degree = 2
     p.options.max_bb_eval = MaxSteps; # Fix some options
 
     # solve problem starting from the point
@@ -38,12 +38,13 @@ function optim_nomad(fo_nomad, num_penalizaciones, lb, ub, MaxSteps, initSol)
 
     fopt = 99999.
     xopt = initSol
-    try
+
+    if result.bbo_best_feas !== nothing
         fopt = result.bbo_best_feas[1]
         xopt = result.x_best_feas
-    catch
+    else
         fopt = 99999.
-        xopt = initSol
+        xopt = []
     end
 
     return xopt, fopt

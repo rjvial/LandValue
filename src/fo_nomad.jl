@@ -1,5 +1,5 @@
 function fo_nomad(x, template, sepNaves, dca, porcTerraza, flag_conSombra, flag_penalizacion_residual, flag_penalizacion_coefOcup,
-    flag_penalizacion_constructibilidad, flag_divergenciaAncho,
+    flag_penalizacion_constructibilidad, flag_divergenciaAncho, vec_ancho,
     vec_psVolConSombra, vec_altVolConSombra, vec_psVolteor, vec_altVolteor,
     maxOcupación, maxSupConstruida, areaSombra_p, areaSombra_o, areaSombra_s, ps_publico, ps_calles)
 
@@ -13,7 +13,7 @@ function fo_nomad(x, template, sepNaves, dca, porcTerraza, flag_conSombra, flag_
 
     areaBasal, ps_base, ps_baseSeparada = resultConverter(x, template, sepNaves)
 
-    numPisos = Int(floor(x[1]))
+    numPisos = Int(round(x[1]; digits = 0))
     total_fit = -(numPisos * areaBasal )
 
     # Restricciones
@@ -40,8 +40,8 @@ function fo_nomad(x, template, sepNaves, dca, porcTerraza, flag_conSombra, flag_
         constraints = push!(constraints, penalizacionSombra_p + penalizacionSombra_o + penalizacionSombra_s)
     end
     if flag_divergenciaAncho
-        ancho_max = maximum(x[end-2:end])
-        ancho_min = minimum(x[end-2:end])
+        ancho_max = maximum(x[vec_ancho])
+        ancho_min = minimum(x[vec_ancho])
         penalizacionAncho = max(0.0, ancho_max/ancho_min - 1.6)
         constraints = push!(constraints, penalizacionAncho)
     end
