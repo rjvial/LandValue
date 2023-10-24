@@ -7,7 +7,7 @@ function fo_bbo(x, template, sepNaves, ps_areaEdif)
     area_r = polyShape.polyArea(ps_r) #Area del sector que sobrepasa
     penalizacion_r = area_r^1.1
 
-    total_fit = areaBasal - 500*penalizacion_r
+    total_fit = areaBasal - 2000*penalizacion_r
 
     return -total_fit
 end

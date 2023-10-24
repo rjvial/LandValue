@@ -132,9 +132,9 @@ let codigo_predial = []
             
             # try
                 
-                temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id = funcionPrincipal(tipoOptimizacion, codigo_predial, id, datos_LandValue, datos_mygis_db)
+                temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id, status_optim = funcionPrincipal(tipoOptimizacion, codigo_predial, id, datos_LandValue, datos_mygis_db)
                 wkr = myid()
-                put!(results, (temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id, wkr))
+                put!(results, (temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id, status_optim, wkr))
 
             # catch error
                 # display("")
@@ -170,16 +170,33 @@ let codigo_predial = []
     cont = length(vec_combi)
     while cont > 0 # print out results
 
-        temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id, wkr = take!(results)
-        pg_julia.insertRow!(conn_LandValue, "tabla_resultados_cabidas", vecColumnNames, vecColumnValue, :id)
+        temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id, status_optim, wkr = take!(results)
 
-        cond_str = "=" * string(id)
-        vecColumnNames = ["status", "id"]
-        vecColumnValue = ["1", string(id)]
-        pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)
+        if status_optim == "Optimo Encontrado"
+            pg_julia.insertRow!(conn_LandValue, "tabla_resultados_cabidas", vecColumnNames, vecColumnValue, :id)
+
+            cond_str = "=" * string(id)
+            vecColumnNames = ["status", "id"]
+            vecColumnValue = ["1", string(id)]
+            pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)
+    
+    
+        else
+            if status_optim == "Error Nomad"
+                vecColumnValue = ["191", string(id)]
+            elseif status_optim == "Infactible"
+                vecColumnValue = ["192", string(id)]
+            elseif status_optim == "Baja Ocupacion"
+                vecColumnValue = ["193", string(id)]
+            end
+            cond_str = "=" * string(id)
+            vecColumnNames = ["status", "id"]
+            pg_julia.modifyRow!(conn_LandValue, "tabla_combinacion_predios", vecColumnNames, vecColumnValue, "id", cond_str)
+    
+        end
 
         sleep(2)
-
+    
         display("")
         display(" Se agrego a la tabla_resultados_cabidas el resultado predio_id N° " *string(id) * " ejecutado por el worker N° " * string(wkr))
         display("")
