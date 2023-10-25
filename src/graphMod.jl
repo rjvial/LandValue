@@ -127,7 +127,6 @@ end
 
 
 function extendAdjMat(A::Matrix{Int64})
-    # Agrega nodo de entrada y de salida
     filas, columnas = size(A)
     A_ext = zeros(Int64, filas+2, columnas+2)
     for i = 1:filas
@@ -151,6 +150,42 @@ function simpleGraph(A::Matrix{Int64})
     return mg
 end
 
+
+function getDisconnectedSubgraphs(A::Matrix{Int64})
+    g = GraphPlot.SimpleGraph(A)
+    list_subgraphs = connected_components(g)
+    return list_subgraphs
+end
+
+function Combi2Adjacency(C)
+    function CtoA!(A, C, k)
+        A_ = copy(A)
+        num_lotes = size(C, 2)
+        vec = collect(1:num_lotes)
+        set = C[k,:] .* vec
+        set = set[set .>= 1]
+        for i in set
+            for j in setdiff(set, i)
+                A_[i,j] = 1
+            end
+        end
+        return A_
+    end
+    num_combis, num_lotes = size(C)
+    A = zeros(Int, num_lotes, num_lotes)
+    for k = 1:num_combis
+        A = CtoA!(A, C, k)
+    end
+
+    return A
+end
+
+
+function getDisconnectedSubgraphs_v2(C::Matrix{Int64})
+    A = graphMod.Combi2Adjacency(C)
+    vec = graphMod.getDisconnectedSubgraphs(A)
+    return vec
+end
 
 function getAdjacencyMat(g::MetaGraphs.MetaGraph{Int64, Int64})
     A_aux = adjacency_matrix(g)

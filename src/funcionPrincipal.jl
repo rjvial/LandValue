@@ -1,4 +1,4 @@
-function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1},Int64}, id_, datos_LandValue, datos_mygis_db)
+function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1},Int64}, id_, datos_LandValue, datos_mygis_db, datos)
 
     ##############################################
     # PARTE "1": OBTENCIÓN DE PARÁMETROS         #
@@ -28,7 +28,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
 
     codPredialStr = replace(replace(string(codigo_predial), "[" => "("), "]" => ")")
 
-    # Obtiene desde la base de datos los parametros del predio 
+    # Obtiene desde la base de datos los parametros del predio
     display("Obtiene desde la base de datos los parametros del predio")
     @time dcn, sup_terreno_sii, ps_predio_db = queryCabida.query_datos_predio(conn_mygis_db, "vitacura", codPredialStr)
 
@@ -101,7 +101,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
     rasante = dcn.rasante
     coefConstructibilidad = dcn.coefConstructibilidad
     coefOcupacion = dcn.coefOcupacion
-    
+
     vec_edges = vecSecTodos
     vec_dist = Float64.(vec_edges)
     vec_dist .= -antejardin
@@ -149,7 +149,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         flagSeguir = true
         temp_opt = 0
 
-        # plan_optimizacion = [[3, 0, [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 ,20]]]
+        # plan_optimizacion = [[5, 0, [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 ,20]]]
 
         # [template, flag_viv_eco, pisos]
         set_pisos_true_viv_econ = [3, 4]
@@ -231,8 +231,14 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
                     maxSteps = 20000
                     numIter = 30 #20
                     @time x_bbo, f_bbo = optim_bbo(obj_bbo, lb_bbo, ub_bbo, maxSteps, numIter)
+                    if id_ == 0
+                        areaBasal, ps_base, ps_baseSeparada = resultConverter(x_bbo, template, sepNaves)
+                        fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_predio, 0.0, "green", 0.1)
+                        fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_areaEdif, 0.0, "red", 0.15, fig=fig, ax=ax, ax_mat=ax_mat)
+                        fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_base, 0.0, "blue", 0.15, fig=fig, ax=ax, ax_mat=ax_mat)
+                    end
 
-                    # Favorece templates 0 y 1 
+                    # Favorece templates 0 y 1
                     if template in [0, 1]
                         f_bbo = f_bbo * 1.05
                     end
@@ -249,7 +255,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         pos_id = sortperm([mat_res[i][1] for i = 1:num_res])
         mat_res = mat_res[pos_id]
 
-        # Calcula el volumen y sombra teórica 
+        # Calcula el volumen y sombra teórica
         vec_altVolteor = collect(0:0.1:50) .* rasante
         vec_altVolteor = vec_altVolteor[vec_altVolteor.<alturaMax]
         push!(vec_altVolteor, alturaMax)
@@ -302,7 +308,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
                 coefOcupacion_opt = mat_res[cont][10]
                 maxOcupación = coefOcupacion_opt > 0 ? coefOcupacion_opt * superficieTerreno : sup_areaEdif
                 maxSupConstruida = coefConstructibilidad_opt > 0 ? superficieTerreno * coefConstructibilidad_opt * (1 + 0.3 * dcp.fusionTerrenos) : maxPisos_opt * sup_areaEdif
-        
+
 
                 display("Template Tipo " * vec_template_str[template_opt+1] * ": Inicio de Optimización BBO-2")
                 lb_, ub_ = generaCotas(template_opt, default_min_pisos, floor(maxPisos_opt-1), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
@@ -317,10 +323,20 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
                 maxSteps = 3*20000
                 numIter = 1*20
                 @time x_bbo_e2, f_bbo_e2 = optim_bbo(obj_bbo_e2, lb, ub, maxSteps, numIter)
+                areaBasal, ps_base, ps_baseSeparada = resultConverter(x_bbo_e2, template_opt, sepNaves)
+                if id_ == 0
+                    numPisos = Int(round(x_bbo_e2[1]))
+                    superficieConstruidaSNT = areaBasal * (numPisos-1) + min(areaBasal, maxOcupación)
+                    display([superficieConstruidaSNT / (1 + dca.porcSupComun + 0.5*porcTerraza)  maxSupConstruida])
+                    fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_predio, 0.0, "green", 0.1)
+                    fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_areaEdif, 0.0, "red", 0.15, fig=fig, ax=ax, ax_mat=ax_mat)
+                    fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_base, 0.0, "blue", 0.15, fig=fig, ax=ax, ax_mat=ax_mat)
+                    display(areaBasal/sup_areaEdif)
+                end
 
-                if areaBasal/sup_areaEdif > 0.6
+                if areaBasal/sup_areaEdif > 0.4
                     display("Template Tipo " * vec_template_str[template_opt+1] * ": Inicio de Optimización NOMAD")
-                    
+
                     lb_, ub_ = generaCotas(template_opt, default_min_pisos, floor(maxPisos_opt), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
                     delta_b = 0.1*(ub_ .- lb_)
                     lb = max.(copy(x_bbo_e2) .- delta_b, lb_)
@@ -345,7 +361,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
                         status_optim = "Optimo Encontrado"
                     else
                         status_optim = "Infactible"
-                    end
+                    end                    
                 else
                     display("Relación areaBasal/sup_areaEdif = " * string(areaBasal/sup_areaEdif) * " , es menor a 0.6")
                     status_optim = "Baja Ocupacion"
@@ -368,17 +384,17 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             areaBasal, ps_base, ps_baseSeparada = resultConverter(xopt, temp_opt, sepNaves)
             numPisos = Int(round(xopt[1]))
             alturaEdif = numPisos * dca.alturaPiso[1]
-            
+
             superficieConstruidaSNT = areaBasal * (numPisos-1) + min(areaBasal, maxOcupación)
             display([superficieConstruidaSNT / (1 + dca.porcSupComun + 0.5*porcTerraza)  maxSupConstruida])
 
             # Obtiene calles al interior del buffer
             ps_calles_intra_buffer = polyShape.polyIntersect(ps_calles, ps_buffer_predio)
 
-            # Obtiene predios contenidos al interior del buffer 
+            # Obtiene predios contenidos al interior del buffer
             ps_predios_intra_buffer = queryCabida.query_predios_intra_buffer(conn_mygis_db, "vitacura", codPredialStr, buffer_dist, dx, dy)
 
-            # Obtiene manzanas contenidas al interior del buffer 
+            # Obtiene manzanas contenidas al interior del buffer
             ps_manzanas_intra_buffer = queryCabida.query_manzanas_intra_buffer(conn_mygis_db, "vitacura", codPredialStr, buffer_dist, dx, dy)
 
             alturaPiso = dca.alturaPiso[1]
@@ -536,7 +552,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
             vecColumnValue = []
         
         end
-
+    
         pg_julia.close_db(conn_LandValue)
         pg_julia.close_db(conn_mygis_db)
 
@@ -573,28 +589,39 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         display("")
         display("Inicio de Optimización Económica: Predio N° " * string(codigo_predial))
 
-        queryStr = """
-        SELECT cabida_altura, ps_base, optimo_solucion, terreno_superficie, 
-        terreno_superficie_bruta, norma_viv_economica, norma_max_num_deptos, norma_max_ocupacion,
-        norma_max_constructibilidad, norma_max_pisos FROM tabla_resultados_cabidas WHERE cond_
-        """
-        condStr = "combi_predios " * "= \'" * string(codigo_predial) * "\'"
-        queryStr = replace(queryStr, "cond_" => condStr)
-        df_ = pg_julia.query(conn_LandValue, queryStr)
+        if isempty(datos) # Si datos está vacío, se obtiene la info. de la tabla_resultados_cabidas
 
-        alturaEdif = df_[1, "cabida_altura"]
-        ps_base = eval(Meta.parse(df_[1, "ps_base"]))
-        superficieTerreno = df_[1, "terreno_superficie"]
-        superficieTerrenoBruta = df_[1, "terreno_superficie_bruta"]
-        xopt = eval(Meta.parse(df_[1, "optimo_solucion"]))
+            queryStr = """
+            SELECT cabida_altura, ps_base, optimo_solucion, terreno_superficie,
+            terreno_superficie_bruta, norma_viv_economica, norma_max_num_deptos, norma_max_ocupacion,
+            norma_max_constructibilidad, norma_max_pisos FROM tabla_resultados_cabidas WHERE cond_
+            """
+            condStr = "combi_predios " * "= \'" * string(codigo_predial) * "\'"
+            queryStr = replace(queryStr, "cond_" => condStr)
+            df_ = pg_julia.query(conn_LandValue, queryStr)
 
-        flag_viv_eco_opt = df_[1, "norma_viv_economica"]
-        maxDeptos_opt = df_[1, "norma_max_num_deptos"]
-        maxOcupación_opt = df_[1, "norma_max_ocupacion"]
-        maxSupConstruida_opt = df_[1, "norma_max_constructibilidad"]
-        maxPisos_opt = df_[1, "norma_max_pisos"]
+            alturaEdif = df_[1, "cabida_altura"]
+            ps_base = eval(Meta.parse(df_[1, "ps_base"]))
+            superficieTerreno = df_[1, "terreno_superficie"]
+            superficieTerrenoBruta = df_[1, "terreno_superficie_bruta"]
+            xopt = eval(Meta.parse(df_[1, "optimo_solucion"]))
 
-        mat_dcn_opt = [flag_viv_eco_opt, maxDeptos_opt, maxOcupación_opt, maxSupConstruida_opt, maxPisos_opt]
+            flag_viv_eco_opt = df_[1, "norma_viv_economica"]
+            maxDeptos_opt = df_[1, "norma_max_num_deptos"]
+            maxOcupación_opt = df_[1, "norma_max_ocupacion"]
+            maxSupConstruida_opt = df_[1, "norma_max_constructibilidad"]
+            maxPisos_opt = df_[1, "norma_max_pisos"]
+
+            mat_dcn_opt = [flag_viv_eco_opt, maxDeptos_opt, maxOcupación_opt, maxSupConstruida_opt, maxPisos_opt]
+
+        else # Si datos contiene información predefinida, se utiliza esa info.
+            alturaEdif = datos[1]
+            ps_base = datos[2]
+            superficieTerreno = datos[3]
+            superficieTerrenoBruta = datos[4]
+            xopt = datos[5]
+            ps_areaEdif = datos[6]
+        end
 
 
         sn, sa, si, st, so, sm, sf = optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, mat_dcn_opt, alturaEdif, ps_base, superficieTerreno, superficieTerrenoBruta, sup_areaEdif)

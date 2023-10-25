@@ -1,6 +1,6 @@
 module LandValue
 
-using JuMP, NOMAD, Cbc, BlackBoxOptim, ArchGDAL, DotEnv
+using JuMP, NOMAD, Cbc, BlackBoxOptim, ArchGDAL, DotEnv, LinearAlgebra, Optim
             # NonconvexBayesian, NonconvexIpopt, NonconvexNLopt, Distributions
     
 
@@ -90,6 +90,20 @@ using JuMP, NOMAD, Cbc, BlackBoxOptim, ArchGDAL, DotEnv
     GeomObject = Union{PolyShape,LineShape,PointShape}
 
     PosDimGeom = Union{PolyShape,LineShape}
+
+    mutable struct FlagPlotEdif3D
+        predio::Bool
+        volTeorico::Bool
+        volConSombra::Bool
+        edif::Bool
+        sombraVolTeorico_p::Bool
+        sombraVolTeorico_o::Bool
+        sombraVolTeorico_s::Bool
+        sombraEdif_p::Bool
+        sombraEdif_o::Bool
+        sombraEdif_s::Bool
+        FlagPlotEdif3D() = new()
+    end
 
 
     mutable struct DatosCabidaPredio
@@ -281,7 +295,7 @@ using JuMP, NOMAD, Cbc, BlackBoxOptim, ArchGDAL, DotEnv
     export DatosCabidaPredio, DatosCabidaNormativa, DatosCabidaArquitectura, DatosCabidaComercial, DatosCabidaUnit,
             DatosCabidaRentabilidad, SalidaArquitectonica, SalidaIndicadores, SalidaMonetaria,
             SalidaTerreno, SalidaOptimizacion, SalidaNormativa, GeomObject, PosDimGeom, PolyShape, LineShape, PointShape, 
-            ResultadoCabida
+            FlagPlotEdif3D, ResultadoCabida
 
 
     include("funcionPrincipal.jl")
@@ -292,6 +306,7 @@ using JuMP, NOMAD, Cbc, BlackBoxOptim, ArchGDAL, DotEnv
     include("generaSombraEdificio.jl")
     include("optiEdificio.jl")
     include("displayResults.jl")
+    include("plotBaseEdificio3D.jl")
     include("poly2D.jl")
     include("polyShape.jl")
     include("graphMod.jl")
@@ -307,10 +322,13 @@ using JuMP, NOMAD, Cbc, BlackBoxOptim, ArchGDAL, DotEnv
     include("generaCotas.jl")
     include("create_scr.jl")
     include("create_edificio_geojson.jl")
+    include("optimal_pricing.jl")
+    include("optimal_lot_selection.jl")
 
     export funcionPrincipal, fo_bbo, fo_bbo_e2, fo_nomad, calculaAnguloRotacion, generaSombraEdificio, optiEdificio, displayResults, 
-        optim_nomad, optim_bbo, poly2D, polyShape, graphMod, resultConverter, generaVol3D, generaSombraTeor, 
-        pg_julia, obtieneCalles, generaPoligonoCorte, queryCabida, generaCotas, create_scr, create_edificio_geojson
+        optim_nomad, optim_bbo, poly2D, polyShape, graphMod, resultConverter, plotBaseEdificio3D, generaVol3D, generaSombraTeor, 
+        pg_julia, obtieneCalles, generaPoligonoCorte, queryCabida, generaCotas, create_scr, create_edificio_geojson,
+        optimal_pricing, optimal_lot_selection
 
 
 end

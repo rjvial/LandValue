@@ -1,7 +1,7 @@
 function create_edificio_geojson(xopt, ps_predio, ps_base, ps_areaEdif, alturaPiso, dx, dy, file_str, gap_porcentual)
     # create_edificio_geojson(xopt, ps_predio, ps_base, ps_areaEdif, alturaPiso, dx, dy, "edificio_test.geojson")
     
-    numPisos = Int(xopt[1])
+    numPisos = Int(round(xopt[1]))
 
     EPSG_in = 5361
     EPSG_out = 4326

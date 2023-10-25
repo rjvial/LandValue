@@ -15,7 +15,7 @@ RUN julia -e 'using Pkg; Pkg.instantiate(); Pkg.add("DotEnv"); \
 
 
 # Set the entry point for the container
-CMD ["julia", "/src/script_2A_ejecutaCombinaciones_volumetrica.jl"]
+CMD ["julia", "/src/script_2A_optim_volumetrica_paralela.jl"]
 
 
 # Use the official Julia Docker image as the base

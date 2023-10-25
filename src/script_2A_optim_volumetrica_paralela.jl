@@ -132,7 +132,7 @@ let codigo_predial = []
             
             # try
                 
-                temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id, status_optim = funcionPrincipal(tipoOptimizacion, codigo_predial, id, datos_LandValue, datos_mygis_db)
+                temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id, status_optim = funcionPrincipal(tipoOptimizacion, codigo_predial, id, datos_LandValue, datos_mygis_db, [])
                 wkr = myid()
                 put!(results, (temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id, status_optim, wkr))
 

@@ -53,10 +53,10 @@ for r = 1:numRows_combi
 
 end
 
-# Agrega columna valor_combi a tabla_resultados_cabidas
+# Agrega columna valor_mercado_combi a tabla_resultados_cabidas
 query_resultados_str = """
 ALTER TABLE tabla_resultados_cabidas
-  ADD COLUMN IF NOT EXISTS valor_combi double precision;
+  ADD COLUMN IF NOT EXISTS valor_mercado_combi double precision;
 """
 pg_julia.query(conn_LandValue, query_resultados_str)
 
@@ -70,7 +70,8 @@ ALTER TABLE tabla_resultados_cabidas
 pg_julia.query(conn_LandValue, query_resultados_str)
 
 
-infileStr = "C:\\Users\\rjvia\\OneDrive\\_traspasos\\qgis_env\\aux_files\\Valorizacion_Sitios.csv"
+# infileStr = "C:\\Users\\rjvia\\OneDrive\\_traspasos\\qgis_env\\aux_files\\Valorizacion_Sitios.csv"
+infileStr = "C:\\Users\\rjvia\\Documents\\Land_engines_code\\Julia\\Valorizacion_Casas_Modelo_Comps.csv"
 df_propiedades = pg_julia.csv2df(infileStr)
 numRows_propiedades, numCols_propiedades = size(df_propiedades)
 
@@ -79,20 +80,25 @@ for r = 1:numRows_resultados
     vec_list_prop = eval(Meta.parse(list_prop_r))
     valorizacion_r = 0
     for p in eachindex(vec_list_prop)
-        valorizacion_rp = df_propiedades[(df_propiedades.Rol.==vec_list_prop[p]), "Valorizacion"][1]
-        if valorizacion_rp == "NA"
-            break
-        else
-            valorizacion_rp = parse(Float64, valorizacion_rp)
-        end
+      valorizacion_rp = df_propiedades[(df_propiedades.Rol.==vec_list_prop[p]), "Precio_Estimado_Final"]
+      if isempty(valorizacion_rp)
+          valorizacion_rp = 0
+      else
+          valorizacion_rp = valorizacion_rp[1]
+          if valorizacion_rp == "NA"
+              break
+          else
+              valorizacion_rp = valorizacion_rp
+          end
+      end
 
         valorizacion_r += valorizacion_rp
     end
     query_propiedades_str = """
-      UPDATE tabla_resultados_cabidas SET valor_combi = valor_combi_str_
-      WHERE combi_predios = \'list_prop_r_\'
+    UPDATE tabla_resultados_cabidas SET valor_mercado_combi = valor_mercado_combi_str_
+    WHERE combi_predios = \'list_prop_r_\'
       """
-    query_propiedades_str = replace(query_propiedades_str, "valor_combi_str_" => string(valorizacion_r))
+    query_propiedades_str = replace(query_propiedades_str, "valor_mercado_combi_str_" => string(valorizacion_r))
     query_propiedades_str = replace(query_propiedades_str, "list_prop_r_" => list_prop_r)
     pg_julia.query(conn_LandValue, query_propiedades_str)
 
@@ -121,3 +127,4 @@ end
 
 
 # pg_dump -h aws-landengines-db.cggiqowut9c4.us-east-1.rds.amazonaws.com -U postgres -d landengines_dev -t "combi_locations" -t "tabla_combinacion_predios" -t "tabla_resultados_cabidas" | psql -d landengines -h aws-landengines-db.cggiqowut9c4.us-east-1.rds.amazonaws.com -U postgres
+
