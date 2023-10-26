@@ -44,11 +44,11 @@ function obtienePrediosAltura(conn_gis_data, nombre_datos_predios_vitacura, comu
         																					FROM anteproyectos_vitacura)),
         		predios_inter_poi AS (SELECT predios_altura.codigo_predial as codigo_predial
         			FROM predios_altura JOIN poi_vitacura on st_intersects(predios_altura.geom, ST_Transform(poi_vitacura.geom_poi,5361))
-        			WHERE poi_vitacura.poi_subtype NOT IN ('swimming_pool', 'commercial') AND poi_vitacura.poi_type <> 'shop'),
+        			WHERE poi_vitacura.poi_subtype NOT IN ('swimming_pool') ),
         		points_inter_vitacura AS (SELECT ST_Transform(poi_vitacura_points.geom,5361) as geom  
         			FROM division_comunal JOIN poi_vitacura_points on st_contains(ST_Transform(division_comunal.geom,5361), ST_Transform(poi_vitacura_points.geom,5361))
-        			WHERE poi_vitacura_points.osm_subtype NOT IN ('swimming_pool', 'commercial') AND poi_vitacura_points.osm_type <> 'shop' AND division_comunal.nom_com = 'Vitacura'),
-        		predios_inmobiliarias AS (select geom_predios as geom, codigo_predial from datos_predios_vitacura__ where UPPER(propietario) LIKE any(array['%INMOB%', '%CONSTR%']))
+        			WHERE poi_vitacura_points.osm_subtype NOT IN ('swimming_pool') AND division_comunal.nom_com = 'Vitacura'),
+        		predios_inmobiliarias AS (select geom_predios as geom, codigo_predial from datos_predios_vitacura__ where UPPER(propietario) LIKE any(array['%INMOB%', '%CONSTR%', '%EMBAJA%']))
 
         	SELECT predios_altura.geom as geom, ST_AsText(predios_altura.geom) as predios_str, predios_altura.codigo_predial
         	FROM predios_altura 
@@ -57,6 +57,7 @@ function obtienePrediosAltura(conn_gis_data, nombre_datos_predios_vitacura, comu
         					FROM predios_altura JOIN points_inter_vitacura on st_contains(predios_altura.geom, points_inter_vitacura.geom) ) and
         			predios_altura.codigo_predial not in (SELECT predios_inmobiliarias.codigo_predial from predios_inmobiliarias)
         """
+        # NOT IN ('swimming_pool', 'commercial') AND poi_vitacura.poi_type <> 'shop'
         query_predios_altura_str = replace(query_predios_altura_str, "comunaStr_" => comunaStr)
         query_predios_altura_str = replace(query_predios_altura_str, "datos_predios_vitacura__" => nombre_datos_predios_vitacura)
         pg_julia.query(conn_gis_data, query_predios_altura_str)
