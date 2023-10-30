@@ -18,8 +18,8 @@ function fo_bbo_e2(x, template, sepNaves, dca, porcTerraza, flag_penalizacion_re
     if flag_penalizacion_residual
         ps_r = polyShape.polyDifference(ps_base, psCorte) #Sector de la base del edificio que sobrepasa el poligono de corte
         area_r = polyShape.polyArea(ps_r) #Area del sector que sobrepasa
-        penalizacion_r = area_r^1.1
-        constraints = constraints + 1000 * penalizacion_r
+        penalizacion_r = (1+area_r)^3 - 1
+        constraints = constraints + 100000 * penalizacion_r
     end
     if flag_penalizacion_constructibilidad 
         superficieConstruidaSNT = areaBasal * (numPisos-1) + min(areaBasal, maxOcupación)

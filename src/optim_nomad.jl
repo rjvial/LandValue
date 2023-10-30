@@ -42,12 +42,26 @@ function optim_nomad(fo_nomad, num_penalizaciones, lb, ub, MaxSteps, initSol)
     if result.bbo_best_feas !== nothing
         fopt = result.bbo_best_feas[1]
         xopt = result.x_best_feas
+
     else
-        fopt = 99999.
-        xopt = []
+        fopt = result.bbo_best_inf[1]
+        xopt = result.x_best_inf
     end
 
-    return xopt, fopt
+    out_vec = fo_nomad(xopt)[3][2:end]
+
+    if all(out_vec .<= .001)
+        status = "opt"
+    else
+        status = "inf"
+        fopt = 99999.
+    end
+
+    mat_bounds = [lb xopt ub]
+
+
+
+    return xopt, fopt, status, mat_bounds, out_vec
 
 
 

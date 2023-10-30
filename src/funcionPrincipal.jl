@@ -149,7 +149,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         flagSeguir = true
         temp_opt = 0
 
-        # plan_optimizacion = [[5, 0, [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 ,20]]]
+        # plan_optimizacion = [[3, 0, [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 ,20]]]
 
         # [template, flag_viv_eco, pisos]
         set_pisos_true_viv_econ = [3, 4]
@@ -224,7 +224,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
                 end
 
                 try
-                    lb_bbo, ub_bbo = generaCotas(template, default_min_pisos, floor(maxPisos), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin - .2, dca.anchoMin + .1)
+                    lb_bbo, ub_bbo = generaCotas(template, default_min_pisos, floor(maxPisos), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMin + .1)
                     obj_bbo = x -> fo_bbo(x, template, sepNaves, ps_areaEdif)
 
                     display("Optimización BBO con Template Tipo " * vec_template_str[template+1])
@@ -355,13 +355,15 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
                     initSol = max.(min.(copy(x_bbo_e2), ub), lb)
                     initSol[vec_ancho] = max.(x_bbo_e2[vec_ancho] .- 1, lb[vec_ancho])
                     initSol[vec_largo] = max.(x_bbo_e2[vec_largo] .- 3, lb[vec_largo])
-                    initSol[1] = maxPisos#floor(maxPisos_opt)
-                    @time xopt, fopt  = optim_nomad(obj_nomad, num_penalizaciones, lb, ub, MaxSteps, initSol)
-                    if fopt < 0
+                    initSol[1] = maxPisos
+                    @time xopt, fopt, status, mat_bounds, out_vec  = optim_nomad(obj_nomad, num_penalizaciones, lb, ub, MaxSteps, initSol)
+                    if status == "opt"
                         status_optim = "Optimo Encontrado"
                     else
                         status_optim = "Infactible"
-                    end                    
+                    end
+                    # display(mat_bounds)
+                    # display(out_vec)
                 else
                     display("Relación areaBasal/sup_areaEdif = " * string(areaBasal/sup_areaEdif) * " , es menor a 0.6")
                     status_optim = "Baja Ocupacion"
