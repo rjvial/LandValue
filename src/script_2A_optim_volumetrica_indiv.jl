@@ -7,7 +7,7 @@ using LandValue, Distributed, DotEnv
 
 #[151600231900001, 151600231900002, 151600231900003, 151600231900004, 151600231900005, 151600231900008]
 
-codigo_predial = [151600196900002, 151600196900003, 151600196900005, 151600196900020, 151600196900021, 151600196900026, 151600196900027]
+codigo_predial = [151600217300071, 151600217300072, 151600217300073, 151600217300074, 151600217300084, 151600217300085, 151600217300086, 151600217300087, 151600217300088, 151600217300089, 151600217300090]
 
 
 tipoOptimizacion = "volumetrica"
@@ -20,8 +20,9 @@ datos_mygis_db = ["gis_data", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
 
 conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
 conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
+id_ = 0
 
-temp_opt, alturaPiso, xopt, vec_datos, superficieTerreno, superficieTerrenoBruta, status_optim = funcionPrincipal(tipoOptimizacion, codigo_predial, 0, datos_LandValue, datos_mygis_db, []);
+temp_opt, alturaPiso, xopt, vec_datos, superficieTerreno, superficieTerrenoBruta, status_optim = funcionPrincipal(tipoOptimizacion, codigo_predial, id_, datos_LandValue, datos_mygis_db, []);
 
 
 display("Obtiene FlagPlotEdif3D")

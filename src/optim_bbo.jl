@@ -14,6 +14,7 @@ function optim_bbo(fo_bbo, lb_bbo, ub_bbo, maxSteps, numIter)
         f_i = BlackBoxOptim.best_fitness(result)
         if f_i < fopt
             fopt = f_i
+            # display(fopt)
             xopt = BlackBoxOptim.best_candidate(result)
         end
     end
