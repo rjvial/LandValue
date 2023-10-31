@@ -111,7 +111,7 @@ for r = 1:numRows_combi_locations
     """
     query_combi_str = replace(query_combi_str, "rrr_" => string(df_combi_locations[r, "id_combi_list"]))
     df = pg_julia.query(conn_LandValue, query_combi_str)
-    
+
     combi_list_str = replace(df[1, "array_agg"], "\"" => "")
     combi_list = eval(Meta.parse(replace(replace(combi_list_str, "{" => "["), "}" => "]")))
 

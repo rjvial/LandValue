@@ -366,8 +366,8 @@ function eliminateNodeAdjMat(A::Matrix{Int64}, k::Int64)
 end
 
 
-export dfs, node_combis, simpleGraph, getDisconnectedSubgraphs, getDisconnectedSubgraphs_v2, getAdjacencyMat, 
-        graphPlot, setProp!, getProp, getVertices, getEdges, nodeSubgraph, edgeSubgraph, numVertices, Combi2Adjacency,
-        numEdges, filterVertices, filterEdges, neighbors, adjMatSubNode, combiMatForNode, eliminateNodeAdjMat
+export dfs, node_combis, simpleGraph, getAdjacencyMat, graphPlot, setProp!, getProp, getVertices,
+        getEdges, nodeSubgraph, edgeSubgraph, numVertices, numEdges, filterVertices, filterEdges, neighbors,
+        adjMatSubNode, combiMatForNode, eliminateNodeAdjMat
 
 end

@@ -2,7 +2,7 @@ function resultConverter(x::Array{Float64,1}, template::Int64, sepNaves::Float64
     
     theta = x[2]
     ps_base = []
-
+    
     #                      0    1   2    3    4    5    6    7      
     # vec_template_str = ["I", "L","H", "C", "S", "Z", "T", "II"]
 
@@ -44,7 +44,7 @@ function resultConverter(x::Array{Float64,1}, template::Int64, sepNaves::Float64
         anchoLado0 = x[10]
         anchoLado1 = x[11]
         anchoLado2 = x[12]
-
+    
         cr = [pos_x; pos_y]
 
         ps1 = polyShape.polyBox(pos_x, pos_y, anchoLado0, largo0, theta)        
@@ -109,7 +109,7 @@ function resultConverter(x::Array{Float64,1}, template::Int64, sepNaves::Float64
         ps_base = polyShape.polyUnion(ps0, ps1)
         ps_base = polyShape.polyUnion(ps_base, ps2)
         ps_baseSeparada = PolyShape([ps0.Vertices[1], ps1.Vertices[1], ps2.Vertices[1]], 3)
-
+        
     elseif template == 5 #Z
         pos_x0 = x[3]
         pos_y0 = x[4]

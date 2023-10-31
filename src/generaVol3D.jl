@@ -33,7 +33,7 @@ function generaVol3D(vec_psVolteor, vec_altVolteor)
                 if min_pos >= 1
                     mat_lines[i,min_pos] = line_ij
                 end
-            end 
+            end
         end
     end
 

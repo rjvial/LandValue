@@ -80,23 +80,23 @@ for r = 1:numRows_resultados
     vec_list_prop = eval(Meta.parse(list_prop_r))
     valorizacion_r = 0
     for p in eachindex(vec_list_prop)
-        valorizacion_rp = df_propiedades[(df_propiedades.Rol.==vec_list_prop[p]), "Precio_Estimado_Final"]
-        if isempty(valorizacion_rp)
-            valorizacion_rp = 0
-        else
-            valorizacion_rp = valorizacion_rp[1]
-            if valorizacion_rp == "NA"
-                break
-            else
-                valorizacion_rp = valorizacion_rp
-            end
-        end
+      valorizacion_rp = df_propiedades[(df_propiedades.Rol.==vec_list_prop[p]), "Precio_Estimado_Final"]
+      if isempty(valorizacion_rp)
+          valorizacion_rp = 0
+      else
+          valorizacion_rp = valorizacion_rp[1]
+          if valorizacion_rp == "NA"
+              break
+          else
+              valorizacion_rp = valorizacion_rp
+          end
+      end
 
         valorizacion_r += valorizacion_rp
     end
     query_propiedades_str = """
-      UPDATE tabla_resultados_cabidas SET valor_mercado_combi = valor_mercado_combi_str_
-      WHERE combi_predios = \'list_prop_r_\'
+    UPDATE tabla_resultados_cabidas SET valor_mercado_combi = valor_mercado_combi_str_
+    WHERE combi_predios = \'list_prop_r_\'
       """
     query_propiedades_str = replace(query_propiedades_str, "valor_mercado_combi_str_" => string(valorizacion_r))
     query_propiedades_str = replace(query_propiedades_str, "list_prop_r_" => list_prop_r)

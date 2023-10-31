@@ -7,7 +7,7 @@ using LandValue, Distributed, DotEnv
 
 #[151600231900001, 151600231900002, 151600231900003, 151600231900004, 151600231900005, 151600231900008]
 
-codigo_predial = [151600231900001, 151600231900002, 151600231900003, 151600231900005, 151600231900006, 151600231900007, 151600231900008]
+codigo_predial = [151600217300071, 151600217300072, 151600217300073, 151600217300074, 151600217300084, 151600217300085, 151600217300086, 151600217300087, 151600217300088, 151600217300089, 151600217300090]
 
 
 tipoOptimizacion = "volumetrica"
@@ -20,10 +20,24 @@ datos_mygis_db = ["gis_data", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
 
 conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
 conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
-
 id_ = 0
 
-fpe, temp_opt, alturaPiso, xopt, vec_datos, superficieTerreno, superficieTerrenoBruta = funcionPrincipal(tipoOptimizacion, codigo_predial, id_, datos_LandValue, datos_mygis_db, []);
+temp_opt, alturaPiso, xopt, vec_datos, superficieTerreno, superficieTerrenoBruta, status_optim = funcionPrincipal(tipoOptimizacion, codigo_predial, id_, datos_LandValue, datos_mygis_db, []);
+
+
+display("Obtiene FlagPlotEdif3D")
+fpe = FlagPlotEdif3D()
+fpe.predio = true
+fpe.volTeorico = true
+fpe.volConSombra = true
+fpe.edif = true
+fpe.sombraVolTeorico_p = true
+fpe.sombraVolTeorico_o = true
+fpe.sombraVolTeorico_s = true
+fpe.sombraEdif_p = true
+fpe.sombraEdif_o = true
+fpe.sombraEdif_s = true
+id = 1
 
 
 ps_predio = vec_datos[1]

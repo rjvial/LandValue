@@ -2222,41 +2222,41 @@ function polyShape2lineVec(ps::PolyShape)
 end
 
 function polyExpandSegmentVec(ps::PolyShape, vec_dist::Array{Float64,1})::PolyShape
-    max_dist = maximum(vec_dist) #-4
-    min_dist = minimum(vec_dist) #-7
-    if max_dist < 0
-        delta = vec_dist .- min_dist
-        ps_ = polyShape.polyExpand(ps, min_dist)
-        vec_dist_ = copy(delta)
-    else
-        ps_ = deepcopy(ps)
-        vec_dist_ = copy(vec_dist)
-    end
-    vec_ls_orig, vec_reg_orig = polyShape.polyShape2lineVec(ps_) #lineas polyShape original
-    vec_ps = []
-    vec_reg = []
-    for k in eachindex(vec_ls_orig) #para todas las lineas originales
-        ls_k = vec_ls_orig[k]
-        dist_k = vec_dist_[k]
-        vec_ls_dist_k, vec_reg_k = polyShape.polyShape2lineVec(polyShape.polyExpand(ps_, dist_k))
-        vec_flag_k = [polyShape.isLineLineParallel(ls_k, vec_ls_dist_k[i]) for i in eachindex(vec_ls_dist_k)]
-        vec_dist_k = [polyShape.shapeDistance(ls_k, vec_ls_dist_k[i]) for i in eachindex(vec_ls_dist_k)]
-        if sum(vec_flag_k) >= 1
-            posrel = argmin(vec_dist_k[vec_flag_k .== 1])
-            ls_ki = vec_ls_dist_k[vec_flag_k .== 1][posrel]
-            reg_ki = vec_reg_k[vec_flag_k .== 1][posrel]
-            dist_ki = polyShape.distanceBetweenLines(ls_k, ls_ki)
-            flag_intersect = true
-            ls_ki_ext = polyShape.extendLine(ls_ki, 12.0)
-            if flag_intersect && abs(dist_ki - abs(dist_k)) <= 0.01
-                vec_ps = push!(vec_ps, ls_ki_ext)
-                vec_reg = push!(vec_reg, reg_ki)
-            end
+max_dist = maximum(vec_dist) #-4
+min_dist = minimum(vec_dist) #-7
+if max_dist < 0
+    delta = vec_dist .- min_dist
+    ps_ = polyShape.polyExpand(ps, min_dist)
+    vec_dist_ = copy(delta)
+else
+    ps_ = deepcopy(ps)
+    vec_dist_ = copy(vec_dist)
+end
+vec_ls_orig, vec_reg_orig = polyShape.polyShape2lineVec(ps_) #lineas polyShape original
+vec_ps = []
+vec_reg = []
+for k in eachindex(vec_ls_orig) #para todas las lineas originales
+    ls_k = vec_ls_orig[k]
+    dist_k = vec_dist_[k]
+    vec_ls_dist_k, vec_reg_k = polyShape.polyShape2lineVec(polyShape.polyExpand(ps_, dist_k))
+    vec_flag_k = [polyShape.isLineLineParallel(ls_k, vec_ls_dist_k[i]) for i in eachindex(vec_ls_dist_k)]
+    vec_dist_k = [polyShape.shapeDistance(ls_k, vec_ls_dist_k[i]) for i in eachindex(vec_ls_dist_k)]
+    if sum(vec_flag_k) >= 1
+        posrel = argmin(vec_dist_k[vec_flag_k .== 1])
+        ls_ki = vec_ls_dist_k[vec_flag_k .== 1][posrel]
+        reg_ki = vec_reg_k[vec_flag_k .== 1][posrel]
+        dist_ki = polyShape.distanceBetweenLines(ls_k, ls_ki)
+        flag_intersect = true
+        ls_ki_ext = polyShape.extendLine(ls_ki, 12.0)
+        if flag_intersect && abs(dist_ki - abs(dist_k)) <= 0.01
+            vec_ps = push!(vec_ps, ls_ki_ext)
+            vec_reg = push!(vec_reg, reg_ki)
         end
     end
-    vec_ps = convert(Array{LineShape,1}, vec_ps)
-    ps_out = polyShape.lineVec2polyShape(vec_ps, vec_reg)
-    return ps_out 
+end
+vec_ps = convert(Array{LineShape,1}, vec_ps)
+ps_out = polyShape.lineVec2polyShape(vec_ps, vec_reg)
+return ps_out 
 end
 
 
@@ -2415,7 +2415,7 @@ end
 
 
 function isLineLineParallel(l1::LineShape, l2::LineShape)::Bool
-    err = 0.001
+    err = 0.0001
 
     angle1 = polyShape.lineAngle(l1)
     angle2 = polyShape.lineAngle(l2)
@@ -2477,7 +2477,7 @@ export extraeInfoPoly, largoLadosPoly, isPolyConvex, isPolyInPoly, plotPolyshape
     ajustaCoordenadas, angleMaxDistRect, extendRectToIntersection, createLine, polyReproject, bisector_direction, angleBetweenLines,
     reverseLine, distanceBetweenPoints, midPointSegment, alphaPointSegment, points2Line, points2Poly, lineLength, isLineLineParallel, distanceBetweenLines,
     polyProyeccion
-
+    
 end
 
 

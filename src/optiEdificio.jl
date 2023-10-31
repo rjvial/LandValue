@@ -40,11 +40,11 @@ function optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, mat_dcn_opt, alturaEdif, ps_
         0 <= numDeptosTipo[u = 1:numTiposDepto], Int # Toma valores enteros
         0 <= numDeptosTipoPorPiso[u = 1:numTiposDepto], Int # Toma valores enteros
         tipoDepto[u = 1:numTiposDepto], Bin # Es 1 si el tipoDepto se utiliza, 0 en caso contrario 
-        0 <= CostoUnitTerreno 
+        0 <= CostoUnitTerreno
         0 <= superficieUtil
         0 <= superficieComun
         0 <= estacionamientosVendibles
-        0 <= maxSupTipo 
+        0 <= maxSupTipo
     end)
 
 
@@ -80,7 +80,7 @@ function optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, mat_dcn_opt, alturaEdif, ps_
     superficieInteriorDepto = numDeptosTipo .* dcc.supInterior;
     superficieInterior = sum(superficieInteriorDepto);
     superficiePrimerPiso = min(areaBasalPso, maxOcupación)
-    superficieLosaSNT = areaBasalPso*(numPisos-1) + superficiePrimerPiso
+    superficieLosaSNT = areaBasalPso*(numPisos-1) + superficiePrimerPiso    
     superficieComun = superficieLosaSNT - (superficieTerraza + superficieInterior) # Superficie Común absorbe lo que no se utiliza en departamentos 
     superficieEstacionamientos = dcn.supPorEstacionamiento * estacionamientosVendibles
     superficieBodegas = dcn.supPorBodega * bodegas
@@ -146,14 +146,14 @@ function optiEdificio(dcn, dca, dcp, dcc, dcu, dcr, mat_dcn_opt, alturaEdif, ps_
     flag_tipoDepto = [1 for i = 1:numTiposDepto]
     if dcn.coefConstructibilidad <= 0
         flag_tipoDepto[dcc.supDeptoUtil .>= 140] .= 0
-    end
+    end        
     ##############################################
     # PARTE "6": RESTRICCIONES DEL MIP           #
     ##############################################
 
     @constraints(m, begin
     # Restricción de Superficie Común
-        superficieComun >= superficieUtil * dca.porcSupComun
+        superficieComun >= superficieUtil * dca.porcSupComun     
   
     # Restricción de Rentabilidad Mínima
         IngresosVentas >= dcr.retornoExigido * CostoTotal

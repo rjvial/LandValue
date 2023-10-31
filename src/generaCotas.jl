@@ -86,8 +86,8 @@ function generaCotas(template, minPisos, maxPisos, V_areaEdif, sepNaves, maxDiag
                                                 #5:phi1   #6:phi2   #7:largo1  #8:largo2  #9:h12     #10:v12     #11:anchoLado1 #12:anchoLado2
         lb = [min_pisos, min_theta, xmin, ymin, min_phi1, min_phi2, min_largo, min_largo, sepNaves, -max_largo , min_ancho,     min_ancho]
         ub = [max_pisos, max_theta, xmax, ymax, max_phi1, max_phi2, max_largo, max_largo, max_largo, max_largo,  max_ancho,     max_ancho]
-
-
+                                        
+                                        
     end
 
     return lb, ub

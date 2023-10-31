@@ -6,22 +6,8 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
 
     DotEnv.load("secrets.env")
     conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
-    db_LandValue_str = datos_LandValue[1]
-    query_LandValue_pid = """
-                SELECT max(pid)
-                FROM pg_stat_activity
-                WHERE application_name = 'LibPQ.jl' AND datname = \'$db_LandValue_str\'
-            """
-    pid_landValue = pg_julia.query(conn_LandValue, query_LandValue_pid)[1, :max]
 
     conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
-    db_mygis_str = datos_mygis_db[1]
-    query_mygis_pid = """
-                SELECT max(pid)
-                FROM pg_stat_activity
-                WHERE application_name = 'LibPQ.jl' AND datname = \'$db_mygis_str\'
-            """
-    pid_mygis = pg_julia.query(conn_LandValue, query_mygis_pid)[1, :max]
 
 
     display("Obtiene DatosCabidaArquitectura")
@@ -39,15 +25,6 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         value_ = df_costosunitarios[:, field_s][1]
         setproperty!(dcu, field_s, value_)
     end
-
-    display("Obtiene FlagPlotEdif3D")
-    @time df_flagplot = pg_julia.query(conn_LandValue, """SELECT * FROM public."tabla_flagplot_default";""")
-    fpe = FlagPlotEdif3D()
-    for field_s in fieldnames(FlagPlotEdif3D)
-        value_ = df_flagplot[:, field_s][1]
-        setproperty!(fpe, field_s, value_)
-    end
-
 
     codPredialStr = replace(replace(string(codigo_predial), "[" => "("), "]" => ")")
 
@@ -172,7 +149,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         flagSeguir = true
         temp_opt = 0
 
-        # plan_optimizacion = [[3, 0, [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 ,20]]]
+        # plan_optimizacion = [[2, 0, [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 ,20]]]
 
         # [template, flag_viv_eco, pisos]
         set_pisos_true_viv_econ = [3, 4]
@@ -247,17 +224,19 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
                 end
 
                 try
-                    lb_bbo, ub_bbo = generaCotas(template, default_min_pisos, floor(maxPisos), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin - .2, dca.anchoMin + .1)
+                    lb_bbo, ub_bbo = generaCotas(template, default_min_pisos, floor(maxPisos), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMin + .1)
                     obj_bbo = x -> fo_bbo(x, template, sepNaves, ps_areaEdif)
 
                     display("Optimización BBO con Template Tipo " * vec_template_str[template+1])
                     maxSteps = 20000
                     numIter = 30 #20
                     @time x_bbo, f_bbo = optim_bbo(obj_bbo, lb_bbo, ub_bbo, maxSteps, numIter)
-                    areaBasal, ps_base, ps_baseSeparada = resultConverter(x_bbo, template, sepNaves)
-                    fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_predio, 0.0, "green", 0.1)
-                    fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_areaEdif, 0.0, "red", 0.15, fig=fig, ax=ax, ax_mat=ax_mat)
-                    fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_base, 0.0, "blue", 0.15, fig=fig, ax=ax, ax_mat=ax_mat)
+                    if id_ == 0
+                        areaBasal, ps_base, ps_baseSeparada = resultConverter(x_bbo, template, sepNaves)
+                        fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_predio, 0.0, "green", 0.1)
+                        fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_areaEdif, 0.0, "red", 0.15, fig=fig, ax=ax, ax_mat=ax_mat)
+                        fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_base, 0.0, "blue", 0.15, fig=fig, ax=ax, ax_mat=ax_mat)
+                    end
 
                     # Favorece templates 0 y 1
                     if template in [0, 1]
@@ -314,6 +293,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         cont = 1
         flag_continuar = true
         flag_divergenciaAncho = template_opt in [1, 2, 3, 4, 5, 6, 7]
+        status_optim = ""
         while flag_continuar
             try
                 f_bbo_opt = mat_res[cont][1]
@@ -326,7 +306,6 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
                 alturaMax_opt = mat_res[cont][8]
                 coefConstructibilidad_opt = mat_res[cont][9]
                 coefOcupacion_opt = mat_res[cont][10]
-
                 maxOcupación = coefOcupacion_opt > 0 ? coefOcupacion_opt * superficieTerreno : sup_areaEdif
                 maxSupConstruida = coefConstructibilidad_opt > 0 ? superficieTerreno * coefConstructibilidad_opt * (1 + 0.3 * dcp.fusionTerrenos) : maxPisos_opt * sup_areaEdif
 
@@ -345,16 +324,19 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
                 numIter = 1*20
                 @time x_bbo_e2, f_bbo_e2 = optim_bbo(obj_bbo_e2, lb, ub, maxSteps, numIter)
                 areaBasal, ps_base, ps_baseSeparada = resultConverter(x_bbo_e2, template_opt, sepNaves)
-                numPisos = Int(round(x_bbo_e2[1]))
-                superficieConstruidaSNT = areaBasal * (numPisos-1) + min(areaBasal, maxOcupación)
-                # display([superficieConstruidaSNT / (1 + dca.porcSupComun + 0.5*porcTerraza)  maxSupConstruida])
-                fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_predio, 0.0, "green", 0.1)
-                fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_areaEdif, 0.0, "red", 0.15, fig=fig, ax=ax, ax_mat=ax_mat)
-                fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_base, 0.0, "blue", 0.15, fig=fig, ax=ax, ax_mat=ax_mat)
-                # display(areaBasal/sup_areaEdif)
+                if id_ == 0
+                    numPisos = Int(round(x_bbo_e2[1]))
+                    superficieConstruidaSNT = areaBasal * (numPisos-1) + min(areaBasal, maxOcupación)
+                    display([superficieConstruidaSNT / (1 + dca.porcSupComun + 0.5*porcTerraza)  maxSupConstruida])
+                    fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_predio, 0.0, "green", 0.1)
+                    fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_areaEdif, 0.0, "red", 0.15, fig=fig, ax=ax, ax_mat=ax_mat)
+                    fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_base, 0.0, "blue", 0.15, fig=fig, ax=ax, ax_mat=ax_mat)
+                    display(areaBasal/sup_areaEdif)
+                end
 
-                if areaBasal/sup_areaEdif > 0.6
+                if areaBasal/sup_areaEdif > 0.4
                     display("Template Tipo " * vec_template_str[template_opt+1] * ": Inicio de Optimización NOMAD")
+
                     lb_, ub_ = generaCotas(template_opt, default_min_pisos, floor(maxPisos_opt), V_areaEdif, sepNaves, maxDiagonal, dca.anchoMin, dca.anchoMax)
                     delta_b = 0.1*(ub_ .- lb_)
                     lb = max.(copy(x_bbo_e2) .- delta_b, lb_)
@@ -373,66 +355,211 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
                     initSol = max.(min.(copy(x_bbo_e2), ub), lb)
                     initSol[vec_ancho] = max.(x_bbo_e2[vec_ancho] .- 1, lb[vec_ancho])
                     initSol[vec_largo] = max.(x_bbo_e2[vec_largo] .- 3, lb[vec_largo])
-                    initSol[1] = maxPisos#floor(maxPisos_opt)
-                    @time xopt, fopt  = optim_nomad(obj_nomad, num_penalizaciones, lb, ub, MaxSteps, initSol)
-                    
+                    initSol[1] = maxPisos
+                    @time xopt, fopt, status, mat_bounds, out_vec  = optim_nomad(obj_nomad, num_penalizaciones, lb, ub, MaxSteps, initSol)
+                    if status == "opt"
+                        status_optim = "Optimo Encontrado"
+                    else
+                        status_optim = "Infactible"
+                    end
+                    # display(mat_bounds)
+                    # display(out_vec)
                 else
-                    display("Relación areaBasal/sup_areaEdif = " * string(areaBasal/sup_areaEdif) * " , es menor a 0.7")
+                    display("Relación areaBasal/sup_areaEdif = " * string(areaBasal/sup_areaEdif) * " , es menor a 0.6")
+                    status_optim = "Baja Ocupacion"
                 end
 
                 temp_opt = template_opt
                 flag_continuar = false
             catch
                 cont += 1
+                status_optim = "Error Nomad"
                 if cont >= 3
                     flag_continuar = false
                 end
-
             end
         end
 
-        display("Obtiene datos necesarios para graficar resultado")
+        if status_optim == "Optimo Encontrado"
+            display("Obtiene datos necesarios para graficar resultado")
 
-        areaBasal, ps_base, ps_baseSeparada = resultConverter(xopt, temp_opt, sepNaves)
-        numPisos = Int(round(xopt[1]))
-        alturaEdif = numPisos * dca.alturaPiso[1]
+            areaBasal, ps_base, ps_baseSeparada = resultConverter(xopt, temp_opt, sepNaves)
+            numPisos = Int(round(xopt[1]))
+            alturaEdif = numPisos * dca.alturaPiso[1]
 
-        superficieConstruidaSNT = areaBasal * (numPisos-1) + min(areaBasal, maxOcupación)
-        display([superficieConstruidaSNT / (1 + dca.porcSupComun + 0.5*porcTerraza)  maxSupConstruida])
+            superficieConstruidaSNT = areaBasal * (numPisos-1) + min(areaBasal, maxOcupación)
+            display([superficieConstruidaSNT / (1 + dca.porcSupComun + 0.5*porcTerraza)  maxSupConstruida])
 
-        # Obtiene calles al interior del buffer
-        ps_calles_intra_buffer = polyShape.polyIntersect(ps_calles, ps_buffer_predio)
+            # Obtiene calles al interior del buffer
+            ps_calles_intra_buffer = polyShape.polyIntersect(ps_calles, ps_buffer_predio)
 
-        # Obtiene predios contenidos al interior del buffer
-        ps_predios_intra_buffer = queryCabida.query_predios_intra_buffer(conn_mygis_db, "vitacura", codPredialStr, buffer_dist, dx, dy)
+            # Obtiene predios contenidos al interior del buffer
+            ps_predios_intra_buffer = queryCabida.query_predios_intra_buffer(conn_mygis_db, "vitacura", codPredialStr, buffer_dist, dx, dy)
 
-        # Obtiene manzanas contenidas al interior del buffer
-        ps_manzanas_intra_buffer = queryCabida.query_manzanas_intra_buffer(conn_mygis_db, "vitacura", codPredialStr, buffer_dist, dx, dy)
+            # Obtiene manzanas contenidas al interior del buffer
+            ps_manzanas_intra_buffer = queryCabida.query_manzanas_intra_buffer(conn_mygis_db, "vitacura", codPredialStr, buffer_dist, dx, dy)
 
-        alturaPiso = dca.alturaPiso[1]
+            alturaPiso = dca.alturaPiso[1]
 
-        buffer_dist_ = min(140, 2.7474774194546216 * xopt[1] * alturaPiso)
-        ps_buffer_predio_ = polyShape.shapeBuffer(ps_predio, buffer_dist_, 20)
-        ps_calles_intra_buffer_ = polyShape.shapeBuffer(ps_calles_intra_buffer, buffer_dist_, 20)
-        ps_predios_intra_buffer_ = polyShape.polyIntersect(ps_predios_intra_buffer, ps_buffer_predio_)
-        ps_manzanas_intra_buffer_ = polyShape.polyIntersect(ps_manzanas_intra_buffer, ps_buffer_predio_)
+            buffer_dist_ = min(140, 2.7474774194546216 * xopt[1] * alturaPiso)
+            ps_buffer_predio_ = polyShape.shapeBuffer(ps_predio, buffer_dist_, 20)
+            ps_calles_intra_buffer_ = polyShape.shapeBuffer(ps_calles_intra_buffer, buffer_dist_, 20)
+            ps_predios_intra_buffer_ = polyShape.polyIntersect(ps_predios_intra_buffer, ps_buffer_predio_)
+            ps_manzanas_intra_buffer_ = polyShape.polyIntersect(ps_manzanas_intra_buffer, ps_buffer_predio_)
 
-        areaOcupacion = min(areaBasal, maxOcupación)
-        razon_ocupacion_basal = areaOcupacion / areaBasal
+            areaOcupacion = min(areaBasal, maxOcupación)
+            razon_ocupacion_basal = areaOcupacion / areaBasal
 
-        ps_primerPiso = polyShape.polyShrink(ps_base, razon_ocupacion_basal)
+            ps_primerPiso = polyShape.polyShrink(ps_base, razon_ocupacion_basal)
 
-        vec_datos = [ps_predio, vec_psVolteor, vec_altVolteor, ps_publico, ps_calles, ps_base, ps_baseSeparada, ps_primerPiso,
-            ps_calles_intra_buffer_, ps_predios_intra_buffer_, ps_manzanas_intra_buffer_, ps_buffer_predio_, dx, dy, ps_areaEdif]
+            vecColumnNames = ["combi_predios",
+                "norma_viv_economica",
+                "norma_max_num_deptos",
+                "norma_max_ocupacion",
+                "norma_max_constructibilidad",
+                "norma_max_pisos",
+                "norma_max_altura",
+                "norma_distanciamiento",
+                "norma_min_estacionamientos_vendibles",
+                "norma_min_estacionamientos_visita",
+                "norma_min_estacionamientos_discapacitados",
+                "cabida_temp_opt",
+                "cabida_tipo_deptos",
+                "cabida_num_deptos",
+                "cabida_ocupacion",
+                "cabida_constructibilidad",
+                "cabida_num_pisos",
+                "cabida_altura",
+                "cabida_superficie_interior",
+                "cabida_superficie_terraza",
+                "cabida_superficie_comun",
+                "cabida_superficie_edificada_snt",
+                "cabida_superficie_por_piso",
+                "cabida_estacionamientos_vendibles",
+                "cabida_estacionamientos_visita",
+                "cabida_num_estacionamientos",
+                "cabida_num_bicicleteros",
+                "cabida_num_bodegas",
+                "terreno_superficie",
+                "terreno_superficie_bruta",
+                "terreno_largoFrenteCalle",
+                "terreno_costo",
+                "terreno_costo_unit",
+                "terreno_costo_corredor",
+                "terreno_costo_demolicion",
+                "terreno_otros",
+                "terreno_costo_total",
+                "terreno_costo_unit_total",
+                "holgura_ocupacion",
+                "holgura_constructibilidad",
+                "holgura_densidad",
+                "indicador_ingresos_ventas",
+                "indicador_costo_total",
+                "indicador_margen_antes_impuesto",
+                "indicador_impuesto_renta",
+                "indicador_utilidad_despues_impuesto",
+                "indicador_rentabilidad_total_bruta",
+                "indicador_rentabilidad_total_neta",
+                "indicador_incidencia_terreno",
+                "optimo_solucion",
+                "ps_predio",
+                "vec_psVolteor",
+                "vec_altVolteor",
+                "ps_publico",
+                "ps_calles",
+                "ps_base",
+                "ps_baseSeparada",
+                "ps_primerPiso",
+                "ps_predios_intra_buffer",
+                "ps_manzanas_intra_buffer",
+                "ps_calles_intra_buffer",
+                "dx",
+                "dy",
+                "id"]
 
+            vecColumnValue = [string(codigo_predial),
+                Int(flag_viv_eco_opt),
+                densidadMax_opt / 4 * (dcn.flagDensidadBruta ? superficieTerrenoBruta : superficieTerreno) / 10000, #resultados.salidaNormativa.maxNumDeptos,
+                maxOcupación, #resultados.salidaNormativa.maxOcupacion,
+                maxSupConstruida, #resultados.salidaNormativa.maxConstructibilidad,
+                maxPisos_opt, #resultados.salidaNormativa.maxPisos,
+                alturaMax_opt, #resultados.salidaNormativa.maxAltura,
+                sepVecinos_opt, 
+                0, #resultados.salidaNormativa.minEstacionamientosVendibles,
+                0, #resultados.salidaNormativa.minEstacionamientosVisita,
+                0, #resultados.salidaNormativa.minEstacionamientosDiscapacitados,
+                temp_opt,
+                "", # tipo_Depto,
+                "", # cantidad_Depto,
+                0, #resultados.salidaArquitectonica.ocupacion,
+                0, #resultados.salidaArquitectonica.constructibilidad,
+                numPisos, #resultados.salidaArquitectonica.numPisos,
+                numPisos * dca.alturaPiso[1], #resultados.salidaArquitectonica.altura,
+                0, #resultados.salidaArquitectonica.superficieInterior,
+                0, #resultados.salidaArquitectonica.superficieTerraza,
+                0, #resultados.salidaArquitectonica.superficieComun,
+                0, #resultados.salidaArquitectonica.superficieEdificadaSNT,
+                0, #resultados.salidaArquitectonica.superficiePorPiso,
+                0, #resultados.salidaArquitectonica.estacionamientosVendibles,
+                0, #resultados.salidaArquitectonica.estacionamientosVisita,
+                0, #resultados.salidaArquitectonica.numEstacionamientos,
+                0, #resultados.salidaArquitectonica.numBicicleteros,
+                0, #resultados.salidaArquitectonica.numBodegas,
+                superficieTerreno, #resultados.salidaTerreno.superficieTerreno,
+                superficieTerrenoBruta, #resultados.salidaTerreno.superficieBruta,
+                sum(polyShape.largoLadosPoly(ps_predio)[vecSecConCalle]),
+                0, #resultados.salidaTerreno.costoTerreno,
+                0, #resultados.salidaTerreno.costoUnitTerreno,
+                0, #resultados.salidaTerreno.costoCorredor,
+                0, #resultados.salidaTerreno.costoDemolicion,
+                0, #resultados.salidaTerreno.otrosTerreno,
+                0, #resultados.salidaTerreno.costoTotalTerreno,
+                0, #resultados.salidaTerreno.costoUnitTerrenoTotal,
+                0, #resultados.salidaOptimizacion.dualMaxOcupación,
+                0, #resultados.salidaOptimizacion.dualMaxConstructibilidad,
+                0, #resultados.salidaOptimizacion.dualMaxDensidad,
+                0, #resultados.salidaIndicadores.ingresosVentas,
+                0, #resultados.salidaIndicadores.costoTotal,
+                0, #resultados.salidaIndicadores.margenAntesImpuesto,
+                0, #resultados.salidaIndicadores.impuestoRenta,
+                0, #resultados.salidaIndicadores.utilidadDespuesImpuesto,
+                0, #resultados.salidaIndicadores.rentabilidadTotalBruta,
+                0, #resultados.salidaIndicadores.rentabilidadTotalNeta,
+                0, #resultados.salidaIndicadores.incidenciaTerreno,
+                string(xopt), #string(resultados.xopt),
+                string(ps_predio),
+                string(vec_psVolteor),
+                string(vec_altVolteor),
+                string(ps_publico),
+                string(ps_calles),
+                string(ps_base),
+                string(ps_baseSeparada),
+                string(ps_primerPiso),
+                string(ps_predios_intra_buffer),
+                string(ps_manzanas_intra_buffer),
+                string(ps_calles_intra_buffer),
+                dx,
+                dy,
+                string(id_)]
 
+            vec_datos = [ps_predio, vec_psVolteor, vec_altVolteor, ps_publico, ps_calles, ps_base, ps_baseSeparada, ps_primerPiso,
+                ps_calles_intra_buffer_, ps_predios_intra_buffer_, ps_manzanas_intra_buffer_, ps_buffer_predio_, dx, dy, ps_areaEdif]
+
+        else
+            temp_opt = []
+            alturaPiso = []
+            xopt = []
+            vec_datos = []
+            vecColumnNames = []
+            vecColumnValue = []
+        
+        end
+    
         pg_julia.close_db(conn_LandValue)
         pg_julia.close_db(conn_mygis_db)
 
-        sleep(3)
 
-
-        return fpe, temp_opt, alturaPiso, xopt, vec_datos, superficieTerreno, superficieTerrenoBruta
+        return temp_opt, alturaPiso, xopt, vec_datos, vecColumnNames, vecColumnValue, id_, status_optim
 
     else
         display("Obtiene DatosCabidaComercial")
@@ -586,7 +713,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         pg_julia.close_db(conn_LandValue)
         pg_julia.close_db(conn_mygis_db)
 
-        sleep(3)
+        sleep(1)
 
         return dcc, resultados, xopt, vecColumnNames, vecColumnValue, id_, codigo_predial
 
