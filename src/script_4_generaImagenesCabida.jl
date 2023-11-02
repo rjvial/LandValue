@@ -16,8 +16,6 @@ df_resultados = pg_julia.query(conn_LandValue, query_resultados_str)
 numRows, numCols = size(df_resultados)
 rowSet = sort(df_resultados[:,"id"])
 
-rowSet = setdiff(rowSet, 1:3121)
-
 
 display("Obtiene FlagPlotEdif3D")
 @time df_flagplot = pg_julia.query(conn_LandValue, """SELECT * FROM public."tabla_flagplot_default";""")
