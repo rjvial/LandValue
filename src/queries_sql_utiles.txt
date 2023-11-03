@@ -1,0 +1,4 @@
+
+update tabla_combinacion_predios set status = 1
+where id in (select id from tabla_combinacion_predios 
+             where id in (SELECT tabla_resultados_cabidas.id FROM tabla_resultados_cabidas) and status = 0)
