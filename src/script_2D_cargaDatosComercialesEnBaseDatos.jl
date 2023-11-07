@@ -1,6 +1,11 @@
 using LandValue, DataFrames
 
-conn_LandValue = pg_julia.connection("LandValue", "postgres", "postgres")
+
+DotEnv.load("secrets.env") #Caso Docker
+datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
+conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
+
+
 
 infileStr = "C:\\Users\\rjvia\\.julia\\dev\\qgis_env\\aux_files\\Salida_RF_Log.csv"
 df = pg_julia.csv2df(infileStr)
