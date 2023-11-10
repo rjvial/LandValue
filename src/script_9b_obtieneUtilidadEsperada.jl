@@ -102,7 +102,7 @@ for r = 1:numRows_locations
                 superficie_lotes[j] = df_sup_prop_r[df_sup_prop_r.codigo_predial .== id_prop_vec[j], "sup_terreno_edif"][1]
             end
 
-            display("Obtiene vector de valoes de las combinaciones de la Localidad N° $r")
+            display("Obtiene vector de valores de las combinaciones de la Localidad N° $r")
             valorInmobiliario_combis = zeros(num_combi_pos,1)
             for i = 1:num_combi_pos
                 valorInmobiliario_combis[i] = df_valor_combi_r[df_valor_combi_r.id .== id_combi_vec[i], "terreno_costo"][1]

@@ -31,7 +31,7 @@ function optimal_pricing(C, valorMercado_lotes, superficie_lotes, valorInmobilia
     vec_sg = graphMod.getDisconnectedSubgraphs_v2(C)
     num_sg = length(vec_sg)
 
-    xopt = Float64.(copy(valorMercado_lotes))
+    popt = Float64.(copy(valorMercado_lotes))
     util_vec = zeros(num_sg,1)
     probCombis = zeros(num_sg,1)
     for i = 1:num_sg
@@ -55,13 +55,13 @@ function optimal_pricing(C, valorMercado_lotes, superficie_lotes, valorInmobilia
         obj_fun = x -> f(x, lb_lotes, ub_lotes, valorInmobiliario_combis_i, C_i)
         result = optimize(obj_fun, lb_lotes, ub_lotes, x0_i, Fminbox(BFGS()); autodiff = :forward)
 
-        xopt[vec_sg[i]] = Optim.minimizer(result)
+        popt[vec_sg[i]] = Optim.minimizer(result)
     
         util_vec[i] = -Optim.minimum(result)
-        probCombis = prob_combis(xopt[vec_sg[i]], lb_lotes, ub_lotes, C_i)
+        probCombis = prob_combis(popt[vec_sg[i]], lb_lotes, ub_lotes, C_i)
     end
     
-    return xopt, sum(util_vec), xopt ./ superficie_lotes, probCombis
+    return popt, sum(util_vec), popt ./ superficie_lotes, probCombis
 
 end
 
