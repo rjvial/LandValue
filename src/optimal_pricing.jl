@@ -22,7 +22,7 @@ function optimal_pricing(C, valorMercado_lotes, superficie_lotes, valorInmobilia
         return probCombis
     end
 
-    function f(x_vec, lb_lotes, ub_lotes, valorInmobiliario_combis, C) 
+    function utilidad_esperada(x_vec, lb_lotes, ub_lotes, valorInmobiliario_combis, C) 
         probCombis = prob_combis(x_vec, lb_lotes, ub_lotes, C)
         utilEsp = (valorInmobiliario_combis .- C * x_vec)' * probCombis
         return -utilEsp
@@ -45,20 +45,21 @@ function optimal_pricing(C, valorMercado_lotes, superficie_lotes, valorInmobilia
         superficie_lotes_i = Float64.(superficie_lotes[vec_sg[i]])
         valorInmobiliario_lotes_i = valorInmob_lotes(valorMercado_lotes_i, superficie_lotes_i, valorInmobiliario_combis_i, C_i)
 
-        # x0_i = (valorMercado_lotes_i .+ valorInmobiliario_lotes_i) * .5 #1.5 (23) # Solución inicial
-        
 
-        lb_lotes = min.(valorMercado_lotes_i, valorInmobiliario_lotes_i) * (1 - delta_porcentual)  #precio mínimo lote = bajo este precio con certeza se rechaza compra-venta
-        ub_lotes = max.(valorMercado_lotes_i, valorInmobiliario_lotes_i) * (1 + delta_porcentual)
-        x0_i = (lb_lotes .+ ub_lotes) * .5 #1.5 (23) # Solución inicial
+        lb_resprice = min.(valorMercado_lotes_i, valorInmobiliario_lotes_i) * (1 - delta_porcentual)  #precio mínimo lote = bajo este precio con certeza se rechaza compra-venta
+        ub_resprice = max.(valorMercado_lotes_i, valorInmobiliario_lotes_i) * (1 + delta_porcentual)
+        x0_i = (lb_resprice .+ ub_resprice) * .5 #1.5 (23) # Solución inicial
 
-        obj_fun = x -> f(x, lb_lotes, ub_lotes, valorInmobiliario_combis_i, C_i)
-        result = optimize(obj_fun, lb_lotes, ub_lotes, x0_i, Fminbox(BFGS()); autodiff = :forward)
+        obj_fun = x -> utilidad_esperada(x, lb_resprice, ub_resprice, valorInmobiliario_combis_i, C_i)
+
+        lb_opt = valorMercado_lotes_i * .8
+        ub_opt = valorInmobiliario_lotes_i * 1.2
+        result = optimize(obj_fun, lb_opt, ub_opt, x0_i, Fminbox(BFGS()); autodiff = :forward)
 
         popt[vec_sg[i]] = Optim.minimizer(result)
     
         util_vec[i] = -Optim.minimum(result)
-        probCombis = prob_combis(popt[vec_sg[i]], lb_lotes, ub_lotes, C_i)
+        probCombis = prob_combis(popt[vec_sg[i]], lb_resprice, ub_resprice, C_i)
     end
     
     return popt, sum(util_vec), popt ./ superficie_lotes, probCombis
