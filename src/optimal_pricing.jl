@@ -1,6 +1,6 @@
 function optimal_pricing(C, valorMercado_lotes, superficie_lotes, valorInmobiliario_combis, delta_porcentual)
 
-    function valorInmob_lotes(valorMercado_lotes, superficie_lotes, valorInmobiliario_combis, C)
+    function valor_inmob_lotes(valorMercado_lotes, superficie_lotes, valorInmobiliario_combis, C)
         superficie_combis = C * superficie_lotes
         valorInmobiliario_lotes = zeros(size(valorMercado_lotes)) # genera vector del tamaño de valorMercado_lotes
         for i in eachindex(valorMercado_lotes)
@@ -10,20 +10,20 @@ function optimal_pricing(C, valorMercado_lotes, superficie_lotes, valorInmobilia
         return valorInmobiliario_lotes
     end
 
-    function prob_lotes(x_vec, lb_lotes, ub_lotes)
+    function prob_compra_lotes(x_vec, lb_lotes, ub_lotes)
         # Entrega la probabilidad de compra de cada uno de los lotes que participan en una matriz de combinación
         return (x_vec .- lb_lotes) ./ (ub_lotes .- lb_lotes)
     end
-    function prob_combis(x_vec, lb_lotes, ub_lotes, C)
+    function prob_compra_combis(x_vec, lb_lotes, ub_lotes, C)
         # Entrega la probabilidad de compra conjunta de los lotes que forman cada combinación de la matriz de combinaciones
         numCombis, numLotes = size(C)
-        probLotes = prob_lotes(x_vec, lb_lotes, ub_lotes)
+        probLotes = prob_compra_lotes(x_vec, lb_lotes, ub_lotes)
         probCombis = [prod( [ C[k,i] * probLotes[i] + (1 - C[k,i]) * (1 - probLotes[i]) for i = 1:numLotes] ) for k = 1:numCombis]
         return probCombis
     end
 
     function utilidad_esperada(x_vec, lb_lotes, ub_lotes, valorInmobiliario_combis, C) 
-        probCombis = prob_combis(x_vec, lb_lotes, ub_lotes, C)
+        probCombis = prob_compra_combis(x_vec, lb_lotes, ub_lotes, C)
         utilEsp = (valorInmobiliario_combis .- C * x_vec)' * probCombis
         return -utilEsp
     end
@@ -43,7 +43,7 @@ function optimal_pricing(C, valorMercado_lotes, superficie_lotes, valorInmobilia
 
         valorMercado_lotes_i = Float64.(valorMercado_lotes[vec_sg[i]])
         superficie_lotes_i = Float64.(superficie_lotes[vec_sg[i]])
-        valorInmobiliario_lotes_i = valorInmob_lotes(valorMercado_lotes_i, superficie_lotes_i, valorInmobiliario_combis_i, C_i)
+        valorInmobiliario_lotes_i = valor_inmob_lotes(valorMercado_lotes_i, superficie_lotes_i, valorInmobiliario_combis_i, C_i)
 
 
         lb_resprice = min.(valorMercado_lotes_i, valorInmobiliario_lotes_i) * (1 - delta_porcentual)  #precio mínimo lote = bajo este precio con certeza se rechaza compra-venta
@@ -59,7 +59,7 @@ function optimal_pricing(C, valorMercado_lotes, superficie_lotes, valorInmobilia
         popt[vec_sg[i]] = Optim.minimizer(result)
     
         util_vec[i] = -Optim.minimum(result)
-        probCombis = prob_combis(popt[vec_sg[i]], lb_resprice, ub_resprice, C_i)
+        probCombis = prob_compra_combis(popt[vec_sg[i]], lb_resprice, ub_resprice, C_i)
     end
     
     return popt, sum(util_vec), popt ./ superficie_lotes, probCombis
