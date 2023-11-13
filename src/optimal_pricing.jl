@@ -10,21 +10,21 @@ function optimal_pricing(C, valorMercado_lotes, superficie_lotes, valorInmobilia
         return valorInmobiliario_lotes
     end
 
-    function prob_compra_lotes(x_vec, lb_lotes, ub_lotes)
+    function prob_compra_lotes(p_lotes, lb_lotes, ub_lotes)
         # Entrega la probabilidad de compra de cada uno de los lotes que participan en una matriz de combinación
-        return (x_vec .- lb_lotes) ./ (ub_lotes .- lb_lotes)
+        return (p_lotes .- lb_lotes) ./ (ub_lotes .- lb_lotes)
     end
-    function prob_compra_combis(x_vec, lb_lotes, ub_lotes, C)
+    function prob_compra_combis(p_lotes, lb_lotes, ub_lotes, C)
         # Entrega la probabilidad de compra conjunta de los lotes que forman cada combinación de la matriz de combinaciones
         numCombis, numLotes = size(C)
-        probLotes = prob_compra_lotes(x_vec, lb_lotes, ub_lotes)
+        probLotes = prob_compra_lotes(p_lotes, lb_lotes, ub_lotes)
         probCombis = [prod( [ C[k,i] * probLotes[i] + (1 - C[k,i]) * (1 - probLotes[i]) for i = 1:numLotes] ) for k = 1:numCombis]
         return probCombis
     end
 
-    function utilidad_esperada(x_vec, lb_lotes, ub_lotes, valorInmobiliario_combis, C) 
-        probCombis = prob_compra_combis(x_vec, lb_lotes, ub_lotes, C)
-        utilEsp = (valorInmobiliario_combis .- C * x_vec)' * probCombis
+    function utilidad_esperada(p_lotes, lb_lotes, ub_lotes, valorInmobiliario_combis, C) 
+        probCombis = prob_compra_combis(p_lotes, lb_lotes, ub_lotes, C)
+        utilEsp = (valorInmobiliario_combis .- C * p_lotes)' * probCombis
         return -utilEsp
     end
     
@@ -48,13 +48,13 @@ function optimal_pricing(C, valorMercado_lotes, superficie_lotes, valorInmobilia
 
         lb_resprice = min.(valorMercado_lotes_i, valorInmobiliario_lotes_i) * (1 - delta_porcentual)  #precio mínimo lote = bajo este precio con certeza se rechaza compra-venta
         ub_resprice = max.(valorMercado_lotes_i, valorInmobiliario_lotes_i) * (1 + delta_porcentual)
-        x0_i = (lb_resprice .+ ub_resprice) * .5 #1.5 (23) # Solución inicial
+        p0_lotes = (lb_resprice .+ ub_resprice) * .5 #1.5 (23) # Solución inicial
 
         obj_fun = x -> utilidad_esperada(x, lb_resprice, ub_resprice, valorInmobiliario_combis_i, C_i)
 
         lb_opt = valorMercado_lotes_i * .8
         ub_opt = valorInmobiliario_lotes_i * 1.2
-        result = optimize(obj_fun, lb_opt, ub_opt, x0_i, Fminbox(BFGS()); autodiff = :forward)
+        result = optimize(obj_fun, lb_opt, ub_opt, p0_lotes, Fminbox(BFGS()); autodiff = :forward)
 
         popt[vec_sg[i]] = Optim.minimizer(result)
     
