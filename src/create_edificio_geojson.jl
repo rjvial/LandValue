@@ -1,4 +1,4 @@
-function create_edificio_geojson(xopt, ps_predio, ps_base, ps_areaEdif, alturaPiso, dx, dy, file_str, gap_porcentual)
+function create_edificio_geojson(xopt, ps_predio, ps_base, ps_base_primerPiso, ps_areaEdif, alturaPiso, dx, dy, file_str, gap_porcentual)
     # create_edificio_geojson(xopt, ps_predio, ps_base, ps_areaEdif, alturaPiso, dx, dy, "edificio_test.geojson")
     
     numPisos = Int(round(xopt[1]))
@@ -8,6 +8,7 @@ function create_edificio_geojson(xopt, ps_predio, ps_base, ps_areaEdif, alturaPi
 
     
     ps_base_ = polyShape.polyCopy(ps_base)
+    ps_base_primerPiso_ = polyShape.polyCopy(ps_base_primerPiso)
     ps_predio_ = polyShape.polyCopy(ps_predio)
     ps_areaEdif_ = polyShape.polyCopy(ps_areaEdif)
 
@@ -61,6 +62,8 @@ function create_edificio_geojson(xopt, ps_predio, ps_base, ps_areaEdif, alturaPi
 
     poly_base = polyShape.polyReproject(ps_base_, dx, dy, EPSG_in, EPSG_out)
     str_geom_base = ArchGDAL.toJSON(poly_base)
+    poly_base_primerPiso = polyShape.polyReproject(ps_base_primerPiso_, dx, dy, EPSG_in, EPSG_out)
+    str_geom_base_primerPiso = ArchGDAL.toJSON(poly_base_primerPiso)
 
     for i = 1:numPisos
         level_str = i
@@ -89,7 +92,7 @@ function create_edificio_geojson(xopt, ps_predio, ps_base, ps_areaEdif, alturaPi
                 "geometry": str_geom_bases__
             },
         """
-        str_piso_i = replace(str_piso_i, "str_geom_bases__" => str_geom_base)
+        str_piso_i = replace(str_piso_i, "str_geom_bases__" => i == 1 ? str_geom_base_primerPiso : str_geom_base)
         str_capa = str_capa * str_piso_i
 
         # const colors = ['#e36465', '#f2ec77', '#92ba7b']
@@ -108,7 +111,7 @@ function create_edificio_geojson(xopt, ps_predio, ps_base, ps_areaEdif, alturaPi
                 "geometry": str_geom_bases__
             }$str_coma
         """
-        str_capa_i = replace(str_capa_i, "str_geom_bases__" => str_geom_base)
+        str_capa_i = replace(str_capa_i, "str_geom_bases__" => i == 1 ? str_geom_base_primerPiso : str_geom_base)
         str_capa = str_capa * str_capa_i
         
         if gap_porcentual <= 0
