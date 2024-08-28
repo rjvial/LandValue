@@ -324,10 +324,11 @@ using JuMP, NOMAD, Cbc, BlackBoxOptim, ArchGDAL, DotEnv, LinearAlgebra, Optim
     include("create_edificio_geojson.jl")
     include("optimal_pricing.jl")
     include("optimal_lot_selection.jl")
+    include("aws_julia.jl")
 
     export funcionPrincipal, fo_bbo, fo_bbo_e2, fo_nomad, calculaAnguloRotacion, generaSombraEdificio, optiEdificio, displayResults, 
         optim_nomad, optim_bbo, poly2D, polyShape, graphMod, resultConverter, plotBaseEdificio3D, generaVol3D, generaSombraTeor, 
-        pg_julia, obtieneCalles, generaPoligonoCorte, queryCabida, generaCotas, create_scr, create_edificio_geojson,
+        pg_julia, aws_julia, obtieneCalles, generaPoligonoCorte, queryCabida, generaCotas, create_scr, create_edificio_geojson,
         optimal_pricing, optimal_lot_selection
 
 
