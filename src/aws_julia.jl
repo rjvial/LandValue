@@ -1,65 +1,41 @@
+module aws_julia
+
 using DotEnv, AWS, DataFrames, CSV
 using AWS: @service
+@service S3
+@service Athena
 
-function pd_read_s3_csv(bucket, file_name, aws_client, S3)
-    
+function connection(aws_access_key_id, aws_secret_access_key, aws_region)
+    creds = AWSCredentials(aws_access_key_id, aws_secret_access_key)
+    aws_client = AWS.global_aws_config(region=aws_region, creds=creds)
+
+    return aws_client
+end
+
+
+function pd_read_s3_csv(bucket, file_name, aws_client)
     text = String(S3.get_object(bucket, file_name; aws_config=aws_client))
     df = CSV.File(IOBuffer(text)) |> DataFrame
 
     return df
 end
 
-function query_to_dataframe(query, database_name, bucket, athena_output, athena_catalog_name, aws_client, Athena)
-    exe_query = execute_athena_query(query, database_name, bucket, athena_output, athena_catalog_name, aws_client, Athena)
+function query_to_dataframe(query, database_name, bucket, athena_output, athena_catalog_name, aws_client)
+    exe_query = execute_athena_query(query, database_name, bucket, athena_output, athena_catalog_name, aws_client)
 
-    result = Athena.get_query_results( exe_query["QueryExecutionId"]; aws_config = aws_client)
+    file_name = "query-results/"*exe_query["QueryExecutionId"]*".csv"
+    df = aws_julia.pd_read_s3_csv(bucket, file_name, aws_client)
         
-    column_names = [col["Label"] for col in result["ResultSet"]["ResultSetMetadata"]["ColumnInfo"]]
-    column_types = [col["Type"] for col in result["ResultSet"]["ResultSetMetadata"]["ColumnInfo"]]
-
-    type_mapping = Dict(
-        "double" => Float64,
-        "bigint" => Int,
-        "int" => Int
-    )
-
-    data_rows = result["ResultSet"]["Rows"]
-    data = [[(column_types[i] == "varchar" ? row["Data"][i]["VarCharValue"] : parse(Int, row["Data"][i]["VarCharValue"])) for i in 1:length(column_names)] for row in data_rows[2:end]]
-    data = []
-    for row in data_rows[2:end]  # Start from the second element
-        row_data = Any[]
-        for i in 1:length(column_names)
-            value = row["Data"][i]["VarCharValue"]
-            if column_types[i] in keys(type_mapping)
-                try
-                    parsed_value = parse(get(type_mapping, column_types[i], Any),value)
-                    push!(row_data, parsed_value)
-                catch
-                    push!(row_data, value)  # Keep the original string value if parsing fails
-                end
-            else
-                push!(row_data, value)
-            end
-        end
-        push!(data, row_data)
-    end
-
-    data = permutedims(hcat(data...))
-
-    # Create a DataFrame with appropriate column names
-    df = DataFrame(data, Symbol.(column_names[1:size(data, 2)]))
-
     return df
 end
 
-function get_execution_response(aws_client, exe_query)
+function get_execution_response(exe_query)
     # Obtiene el estatus de la ejecución de una query
     status = Athena.get_query_execution(exe_query["QueryExecutionId"])["QueryExecution"]["Status"]["State"]
     return status
 end
 
-function execute_athena_query(query, database_name, bucket, athena_output, athena_catalog_name, aws_client, Athena)
-
+function execute_athena_query(query, database_name, bucket, athena_output, athena_catalog_name, aws_client)
     athena_params = Dict(
     "ResultConfiguration" => Dict(
         "OutputLocation" => "s3://"*bucket*"/"*athena_output*"/"
@@ -72,11 +48,11 @@ function execute_athena_query(query, database_name, bucket, athena_output, athen
 
     exe_query = Athena.start_query_execution(query, athena_params; aws_config = aws_client)
     
-    status = get_execution_response(aws_client, exe_query)
+    status = get_execution_response(exe_query)
     contador = 0
-    while (contador < 10) & (status != "SUCCEEDED")
+    while (contador < 100) & (status != "SUCCEEDED")
         sleep(2)
-        status = get_execution_response(aws_client, exe_query)
+        status = get_execution_response(exe_query)
         contador = contador + 1
     end
     print("Status Execute_athena_query: "*status)
@@ -84,35 +60,9 @@ function execute_athena_query(query, database_name, bucket, athena_output, athen
     return exe_query
 end
 
-athena_output = "query-results"
-athena_catalog_name = "AwsDataCatalog"
-database_name = "datos_base"
+export connection, pd_read_s3_csv, query_to_dataframe, get_execution_response, execute_athena_query
 
-DotEnv.load("secrets.env") #Caso Docker
-aws_access_key_id = ENV["AWS_ACCESS_KEY"]
-aws_secret_access_key = ENV["AWS_SECRET_KEY"]
-aws_region = ENV["AWS_REGION"]
-creds = AWSCredentials(aws_access_key_id, aws_secret_access_key)
-# const AWS_GLOBAL_CONFIG = Ref{AWS.AWSConfig}()
-
-aws_client = AWS.global_aws_config(region=aws_region, creds=creds)
-bucket = "landengines-data"
-file_name = "raw-data/sii/valor_tipo_construccion/valor_tipo_construccion_sii.csv"
-
-@service S3
-# df = pd_read_s3_csv(bucket, file_name, aws_client, S3)
-
-query = """
-SELECT rut, nombre_empresa 
-FROM datos_empresas
-WHERE nombre_empresa <> ''
-LIMIT 10
-"""
-@service Athena
-df = query_to_dataframe(query, database_name, bucket, athena_output, athena_catalog_name, aws_client, Athena)
-
-print(df)
-a=1
+end
 
 # function pd_read_s3_parquet(bucket, file_name, s3_client=None)
 #     # Descarga un archivo parquet desde S3 y lo entrega como Dataframe

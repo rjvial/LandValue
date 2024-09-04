@@ -1,4 +1,6 @@
 using LandValue, DataFrames, DotEnv
+using ArchGDAL
+
 
 DotEnv.load("secrets.env") #Caso Docker
 datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
@@ -6,20 +8,36 @@ datos_mygis_db = ["gis_data", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
 conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
 conn_gis_data = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
 
+athena_output = "query-results"
+athena_catalog_name = "AwsDataCatalog"
+database_name = "datos_base"
+bucket = "landengines-data"
+
+DotEnv.load("secrets.env") #Caso Docker
+aws_access_key_id = ENV["AWS_ACCESS_KEY"]
+aws_secret_access_key = ENV["AWS_SECRET_KEY"]
+aws_region = ENV["AWS_REGION"]
+
+aws_client = aws_julia.connection(aws_access_key_id, aws_secret_access_key, aws_region)
+
 # conn_LandValue = pg_julia.connection("landengines_local", "postgres", "", "localhost")
 # conn_gis_data = pg_julia.connection("gis_data_local", "postgres", "", "localhost")
 
-function obtieneDelta(codigo_predial, conn_gis_data)
+function obtieneDelta(ps_predio::PolyShape)
+    ps_predio = polyShape.setPolyOrientation(ps_predio, 1)
+    ps_predio, dx, dy = polyShape.ajustaCoordenadas(ps_predio)
+	return dx, dy
+end
+function obtieneDelta(codigo_predial::Vector{Int64}, conn_gis_data)
     codPredialStr = replace(replace(string(codigo_predial), "[" => "("), "]" => ")")
-
-    # Obtiene desde la base de datos los parametros del predio 
-    display("Obtiene los parametros del predio de ajuste")
-    @time dcn, sup_terreno_edif, ps_predio_db = queryCabida.query_datos_predio(conn_gis_data, "vitacura", codPredialStr)
-
-    # Simplifica, corrige orientacion y escala del predio
-    ps_predio_db = polyShape.setPolyOrientation(ps_predio_db, 1)
-    ps_predio_db, dx, dy = polyShape.ajustaCoordenadas(ps_predio_db)
-
+    @time dcn, sup_terreno_edif, ps_predio = queryCabida.query_datos_predio(conn_gis_data, "vitacura", codPredialStr)
+    dx, dy = obtieneDelta(ps_predio)
+	return dx, dy
+end
+function obtieneDelta(codigo_predial::Vector{Int64}, df::DataFrame)
+    geom_wkt = filter(row -> row.codigo_predial in codigo_predial, df)[:,"geom_wkt"][1]
+    ps_predio = polyShape.astext2polyshape(geom_wkt)
+    dx, dy = obtieneDelta(ps_predio)
 	return dx, dy
 end
 
@@ -368,79 +386,93 @@ end
 ############################################
 
 
-# Limpieza de tablas auxiliares (en caso que existan)
-query_borra_tablas_aux_str = """DROP TABLE IF EXISTS tabla_combinacion_predios, tabla_predios_chicos, tabla_predios_grandes"""
-pg_julia.query(conn_LandValue, query_borra_tablas_aux_str)
-query_borra_tablas_aux_str = """DROP TABLE IF EXISTS __predios_altura, __manzanas_altura"""
-pg_julia.query(conn_gis_data, query_borra_tablas_aux_str)
+query = """
+SELECT codigo_predial_est as codigo_predial, comuna, geom_wkt
+FROM datos_geom_predios
+WHERE comuna = 'vitacura' AND codigo_predial_est > 0
+"""
+df = aws_julia.query_to_dataframe(query, database_name, bucket, athena_output, athena_catalog_name, aws_client)
 
-
-
-nombre_datos_predios_vitacura = "datos_predios_vitacura"
-comunaStr = "vitacura"
+epsg_source = 4326
+epsg_target = 5361
+geom_col_name = "geom_wkt"
+df_geom_wkt = polyShape.wkt_repoject(df, geom_col_name, epsg_source, epsg_target)
 codigo_predial = [151600041700009]
-dx, dy = obtieneDelta(codigo_predial, conn_gis_data)
+dx, dy = obtieneDelta(codigo_predial, df_geom_wkt)
 
-ps_predios_altura = obtienePrediosAltura(conn_gis_data, nombre_datos_predios_vitacura, comunaStr, dx, dy)
-num_manzanas_altura, conjunto_manzanas = obtieneManzanasAltura(conn_gis_data, nombre_datos_predios_vitacura, comunaStr, dx, dy)
-
-query_predios_str = """SELECT codigo_predial, ST_AsText(ST_Transform(geom_predios,5361)) as geom
-                    FROM datos_predios_vitacura__
-                   """
-query_predios_str = replace(query_predios_str, "datos_predios_vitacura__" => nombre_datos_predios_vitacura)
-df_predios = pg_julia.query(conn_gis_data, query_predios_str)
-ps_predios = polyShape.astext2polyshape(df_predios.geom)
+ps_predios = polyShape.astext2polyshape(df_geom_wkt.geom_wkt)
 ps_predios = polyShape.ajustaCoordenadas(ps_predios, dx, dy)
-ps_predios = polyShape.setPolyOrientation(ps_predios, 1)
 
-#### 2877
-#### 2730 = 23 (1516002173000XX)
-#### 2820
+polyShape.plotPolyshape2D(ps_predios, "red", 0.1)
+
+# # Limpieza de tablas auxiliares (en caso que existan)
+# query_borra_tablas_aux_str = """DROP TABLE IF EXISTS tabla_combinacion_predios, tabla_predios_chicos, tabla_predios_grandes"""
+# pg_julia.query(conn_LandValue, query_borra_tablas_aux_str)
+# query_borra_tablas_aux_str = """DROP TABLE IF EXISTS __predios_altura, __manzanas_altura"""
+# pg_julia.query(conn_gis_data, query_borra_tablas_aux_str)
 
 
-nombre_tabla_combinacion_predios = "tabla_predios_chicos"
+
+# ps_predios_altura = obtienePrediosAltura(conn_gis_data, nombre_datos_predios_vitacura, comunaStr, dx, dy)
+# num_manzanas_altura, conjunto_manzanas = obtieneManzanasAltura(conn_gis_data, nombre_datos_predios_vitacura, comunaStr, dx, dy)
+
+# query_predios_str = """SELECT codigo_predial, ST_AsText(ST_Transform(geom_predios,5361)) as geom
+#                     FROM datos_predios_vitacura__
+#                    """
+# query_predios_str = replace(query_predios_str, "datos_predios_vitacura__" => nombre_datos_predios_vitacura)
+# df_predios = pg_julia.query(conn_gis_data, query_predios_str)
+# ps_predios = polyShape.astext2polyshape(df_predios.geom)
+# ps_predios = polyShape.ajustaCoordenadas(ps_predios, dx, dy)
+# ps_predios = polyShape.setPolyOrientation(ps_predios, 1)
+
+# #### 2877
+# #### 2730 = 23 (1516002173000XX)
+# #### 2820
+
+
+# nombre_tabla_combinacion_predios = "tabla_predios_chicos"
+# # ########################################################
+# # Filtro Predios Chicos (predios que se deben combinar en pares)
+# # ########################################################
+# area_lote_lb = 100
+# area_lote_ub = 400
+# area_predio_lb = 400
+# area_predio_ub = 4000
+# num_lote_max = 2
+# largo_compartido_min = 18 #20
 # ########################################################
-# Filtro Predios Chicos (predios que se deben combinar en pares)
+# df_tabla_chicos = generaCombinaciones(conjunto_manzanas, nombre_tabla_combinacion_predios, conn_LandValue, area_lote_lb, area_lote_ub, area_predio_lb, area_predio_ub, num_lote_max, largo_compartido_min)
+
+
+# nombre_tabla_combinacion_predios = "tabla_predios_grandes"
+# # ########################################################
+# # Filtro Predios Grandes (predios que se pueden incluir por sí solos)
+# # ########################################################
+# area_lote_lb = 400
+# area_lote_ub = 3000
+# area_predio_lb = 400
+# area_predio_ub = 3000
+# num_lote_max = 1
+# largo_compartido_min = 18 #20
 # ########################################################
-area_lote_lb = 100
-area_lote_ub = 400
-area_predio_lb = 400
-area_predio_ub = 4000
-num_lote_max = 2
-largo_compartido_min = 18 #20
-########################################################
-df_tabla_chicos = generaCombinaciones(conjunto_manzanas, nombre_tabla_combinacion_predios, conn_LandValue, area_lote_lb, area_lote_ub, area_predio_lb, area_predio_ub, num_lote_max, largo_compartido_min)
+# df_tabla_grandes = generaCombinaciones(conjunto_manzanas, nombre_tabla_combinacion_predios, conn_LandValue, area_lote_lb, area_lote_ub, area_predio_lb, area_predio_ub, num_lote_max, largo_compartido_min)
+
+# df_predios_combi = vcat(df_tabla_grandes, df_tabla_chicos)
 
 
-nombre_tabla_combinacion_predios = "tabla_predios_grandes"
-# ########################################################
-# Filtro Predios Grandes (predios que se pueden incluir por sí solos)
-# ########################################################
-area_lote_lb = 400
-area_lote_ub = 3000
-area_predio_lb = 400
-area_predio_ub = 3000
-num_lote_max = 1
-largo_compartido_min = 18 #20
-########################################################
-df_tabla_grandes = generaCombinaciones(conjunto_manzanas, nombre_tabla_combinacion_predios, conn_LandValue, area_lote_lb, area_lote_ub, area_predio_lb, area_predio_ub, num_lote_max, largo_compartido_min)
+# nombre_tabla_combinacion_predios = "tabla_combinacion_predios"
+# #########################################################
+# # Filtro Final (combina predios chicos (en pares) con predios grandes)
+# #########################################################
+# area_lote_lb = 400
+# area_lote_ub = 3000
+# area_predio_lb = 1200
+# area_predio_ub = 4000
+# num_lote_max = 11 #12
+# largo_compartido_min = 18
+# #########################################################
+# generaCombinacionesFinales(df_predios_combi, df_predios, nombre_tabla_combinacion_predios, conn_LandValue, area_lote_lb, area_lote_ub, area_predio_lb, area_predio_ub, num_lote_max, largo_compartido_min)
 
-df_predios_combi = vcat(df_tabla_grandes, df_tabla_chicos)
-
-
-nombre_tabla_combinacion_predios = "tabla_combinacion_predios"
-#########################################################
-# Filtro Final (combina predios chicos (en pares) con predios grandes)
-#########################################################
-area_lote_lb = 400
-area_lote_ub = 3000
-area_predio_lb = 1200
-area_predio_ub = 4000
-num_lote_max = 11 #12
-largo_compartido_min = 18
-#########################################################
-generaCombinacionesFinales(df_predios_combi, df_predios, nombre_tabla_combinacion_predios, conn_LandValue, area_lote_lb, area_lote_ub, area_predio_lb, area_predio_ub, num_lote_max, largo_compartido_min)
-
-query_borra_tablas_aux_str = """DROP TABLE tabla_predios_chicos, tabla_predios_grandes"""
-pg_julia.query(conn_LandValue, query_borra_tablas_aux_str)
+# query_borra_tablas_aux_str = """DROP TABLE tabla_predios_chicos, tabla_predios_grandes"""
+# pg_julia.query(conn_LandValue, query_borra_tablas_aux_str)
 

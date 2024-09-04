@@ -1,6 +1,6 @@
 module polyShape
 
-using LandValue, ..poly2D, Devices, Clipper, ArchGDAL, PyCall, PyPlot, Images, ImageBinarization
+using LandValue, ..poly2D, Clipper, ArchGDAL, PyCall, PyPlot, Images, ImageBinarization, DataFrames
 
 
 
@@ -54,7 +54,7 @@ function plotPolyshape2D(ps::GeomObject, color::String="red", alpha::Float64=1.0
         ax.set_aspect("equal")
         ax.grid("on")
 
-        polygon = patch.Polygon(V_i, true, color=color, alpha=alpha)
+        polygon = patch.Polygon(V_i, closed=true, color=color, alpha=alpha)
         ax.add_patch(polygon)
 
     end
@@ -968,41 +968,112 @@ end
 
 
 ########################################################################
-#              Funciones en base a Devices - Clipper                   #
+#              Funciones en base a Clipper                   #
 ########################################################################
-
-function clipper2polyshape(poly)::PolyShape
-    numRegiones = length(poly)
-    ps_out = PolyShape([], numRegiones)
-
-    for k = 1:numRegiones
-        poly_k = poly[k].p
-        numVertices_k = length(poly_k)
-        V_k = fill(0.0, numVertices_k, 2)
-        for i = 1:numVertices_k
-            V_k[i, 1] = poly_k[i][1]
-            V_k[i, 2] = poly_k[i][2]
-        end
-        ps_out.Vertices = push!(ps_out.Vertices, V_k)
-    end
-    ps_out.NumRegions = length(ps_out.Vertices)
-    return ps_out
-end
 
 
 function polyshape2clipper(ps::PolyShape)
     n = ps.NumRegions
-    poly_out = Array{Devices.Polygon{Float64},1}()
+    magnitude = 6
+    sigdigits = 8
+    vec_path = Vector{Vector{Clipper.IntPoint}}()
     for k = 1:n
+        path_k = Vector{Clipper.IntPoint}()
         V_k = ps.Vertices[k]
-        largo_k = size(V_k, 1)
-        poly_k = Devices.Polygon([Devices.Point(V_k[i, 1], V_k[i, 2]) for i = 1:largo_k])
-        push!(poly_out, poly_k)
+        for j in eachindex(V_k[:,1])
+            push!(path_k, Clipper.IntPoint(V_k[j,1], V_k[j,2], magnitude, sigdigits))
+        end
+        push!(vec_path, path_k)
     end
-    return poly_out
+    return vec_path
+end
+function clipper2polyshape(vec_path::Vector{Vector{IntPoint}})
+    n = length(vec_path)
+    magnitude = 6
+    sigdigits = 8
+    V = []
+    for k = 1:n
+        vec_clipper_k = vec_path[k]
+        V_k = zeros(length(vec_clipper_k), 2)
+        for j in eachindex(vec_clipper_k)
+            p_j = vec_clipper_k[j]
+            V_k[j,1], V_k[j,2] = Clipper.tofloat(p_j, magnitude, sigdigits)
+        end
+        push!(V, V_k)
+    end
+    ps = PolyShape(V, n)
+    return ps
+end
+function clipper_op(ct::ClipType, vec_path1::Vector{Vector{IntPoint}}, vec_path2::Vector{Vector{IntPoint}})
+    c = Clipper.Clip()
+    if length(vec_path1) == 1
+        Clipper.add_path!(c, vec_path1[1], Clipper.PolyTypeSubject, true)
+    else
+        vec_path1 = polyShape.clipper_union(vec_path1)
+        Clipper.add_paths!(c, vec_path1, Clipper.PolyTypeSubject, true)
+    end
+    if length(vec_path2) == 1
+        Clipper.add_path!(c, vec_path2[1], Clipper.PolyTypeClip, true)
+    else
+        vec_path2 = polyShape.clipper_union(vec_path2)
+        Clipper.add_paths!(c, vec_path2, Clipper.PolyTypeClip, true)
+    end
+    _, result_paths = Clipper.execute(c, ct, Clipper.PolyFillTypeEvenOdd, Clipper.PolyFillTypeEvenOdd)
+    return result_paths
+end
+function clipper_union(vec_path1::Vector{Vector{IntPoint}}, vec_path2::Vector{Vector{IntPoint}})
+    u_paths = clipper_op(Clipper.ClipTypeUnion, vec_path1, vec_path2)
+    return u_paths
+end
+function clipper_union(vec_paths::Vector{Vector{IntPoint}})
+    num_paths = length(vec_paths)
+    if num_paths >= 2
+        for i = 1:num_paths
+            if i == 1
+                vec_path_u = [deepcopy(vec_paths[1])]
+            else
+                vec_path2 = [deepcopy(vec_paths[i])]
+                vec_path_u = polyShape.clipper_op(Clipper.ClipTypeUnion, vec_path_u, vec_path2)
+            end
+        end
+    else
+        vec_path_u = vec_paths
+    end
+    return vec_path_u
+end
+function clipper_difference(vec_path1::Vector{Vector{IntPoint}}, vec_path2::Vector{Vector{IntPoint}})
+    d_paths = clipper_op(Clipper.ClipTypeDifference, vec_path1, vec_path2)
+    return d_paths
+end
+function clipper_intersection(vec_path1::Vector{Vector{IntPoint}}, vec_path2::Vector{Vector{IntPoint}})
+    i_paths = clipper_op(Clipper.ClipTypeIntersection, vec_path1, vec_path2)
+    return i_paths
+end
+function clipper_offset(vec_path::Vector{Vector{IntPoint}}, delta)
+    delta = convert(Float64, delta)
+    c = Clipper.ClipperOffset()
+    if length(vec_path) == 1
+        Clipper.add_path!(c, vec_path[1], Clipper.JoinTypeMiter, Clipper.EndTypeClosedPolygon)
+    else
+        vec_path = polyShape.clipper_union(vec_path)
+        Clipper.add_paths!(c, vec_path, Clipper.JoinTypeMiter, Clipper.EndTypeClosedPolygon)
+    end
+    o_paths = Clipper.execute(c, delta)
+    return o_paths
+end
+function clipper_scale(x::Real, magnitude::Int = 6, sigdigits::Int = 8)::Int
+    return Int(round(x*10^(sigdigits-magnitude)))
 end
 
 
+function polyUnion(ps_s::PolyShape, ps_c::PolyShape)::PolyShape
+    path_s = polyShape.polyshape2clipper(ps_s)
+    path_c = polyShape.polyshape2clipper(ps_c)
+    result_path = polyShape.clipper_union(path_s, path_c)
+    ps_out = polyShape.clipper2polyshape(result_path)
+
+    return ps_out
+end
 function polyUnion(vec_ps::Vector{PolyShape})::PolyShape
     num_ps = length(vec_ps)
     ps_out = []
@@ -1010,104 +1081,37 @@ function polyUnion(vec_ps::Vector{PolyShape})::PolyShape
         if i == 1
             ps_out = deepcopy(vec_ps[i])
         else
-            ps_out = polyShape.polyUnion(ps_out, vec_ps[i])
+            ps_out = polyShape.polyUnion_(ps_out, vec_ps[i])
         end
     end
-    return ps_out
-end
-function polyUnion(ps_s::PolyShape, ps_c::PolyShape)::PolyShape
-    poly_s = polyshape2clipper(ps_s)
-    poly_c = polyshape2clipper(ps_c)
-    poly_ = Devices.Polygons.clip(Clipper.ClipTypeUnion, poly_s, poly_c)
-    ps_out = clipper2polyshape(poly_)
-
-    return ps_out
-end
-function polyUnion(ps::PolyShape)::PolyShape
-    ps_out = polyShape.polyCopy(ps)
-    numRegiones = ps.NumRegions
-    VV = Array{Array{Float64,2},1}(undef, numRegiones)
-    ps_ = polyShape.subShape(ps, 1)
-    largo_salida = 0
-    largo_vv = 0
-    for i = 1:numRegiones
-        area_ = polyShape.polyArea(ps_)
-        ps_i = polyShape.subShape(ps, i)
-        area_i = polyShape.polyArea(ps_i)
-        ps_union_i = polyShape.polyUnion(ps_, ps_i)
-        if ps_union_i.NumRegions > numRegiones # Mala solucion -> arreglar
-            ps_union_i = PolyShape(ps_union_i.Vertices[1:numRegiones], numRegiones)
-        end
-        area_union_i = polyShape.polyArea(ps_union_i)
-        if area_union_i - (area_ + area_i) < 5
-            for l = 1:length(ps_union_i.Vertices)
-                VV[l] = ps_union_i.Vertices[l]
-            end
-            ps_ = polyShape.polyCopy(ps_union_i)
-            largo_vv = length(ps_.Vertices)
-
-        else
-            VV[largo_vv+1] = ps_i.Vertices[1]
-            ps_ = PolyShape(VV[1:largo_vv+1], largo_vv + 1)
-            largo_vv = length(ps_.Vertices)
-        end
-        largo_salida = largo_vv
-    end
-    ps_out = PolyShape(VV[1:largo_salida], largo_salida)
     return ps_out
 end
 
 
 function polyDifference(ps_s::PolyShape, ps_c::PolyShape)::PolyShape
-    poly_s = polyshape2clipper(ps_s)
-    poly_c = polyshape2clipper(ps_c)
-    poly_ = Devices.Polygons.clip(Clipper.ClipTypeDifference, poly_s, poly_c)
-    ps_out = clipper2polyshape(poly_)
-
+    path_s = polyshape2clipper(ps_s)
+    path_c = polyshape2clipper(ps_c)
+    d_path = polyShape.clipper_difference(path_s, path_c)
+    ps_out = clipper2polyshape(d_path)
     return ps_out
 end
 
 
 function polyIntersect(ps_s::PolyShape, ps_c::PolyShape)::PolyShape
-    n_s = ps_s.NumRegions
-    n_c = ps_c.NumRegions
-    VV = []
-    cont = 0
-    for i = 1:n_s
-        poly_s_i = polyShape.polyshape2clipper(polyShape.subShape(ps_s, i))
-        for j = 1:n_c
-            poly_c_j = polyShape.polyshape2clipper(polyShape.subShape(ps_c, j))
-            poly_ij = Devices.Polygons.clip(Clipper.ClipTypeIntersection, poly_s_i, poly_c_j)
-            ps_ij = polyShape.clipper2polyshape(poly_ij)
-            if polyShape.polyArea(ps_ij) >= 0.01
-                n_ij = ps_ij.NumRegions
-                for k = 1:n_ij
-                    cont += 1
-                    VV = push!(VV, ps_ij.Vertices[k])
-                end
-            end
-        end
-    end
-    ps_out = PolyShape(VV[1:cont], cont)
-    #ps_out = polyShape.polyUnion(ps_out)
+    path_s = polyShape.polyshape2clipper(ps_s)
+    path_c = polyShape.polyshape2clipper(ps_c)
+    i_path = polyShape.clipper_intersection(path_s, path_c)
+    ps_out = polyShape.clipper2polyshape(i_path)
     return ps_out
 end
 
 
 # expande todos los lados en la misma distancia
 function polyExpand(ps::PolyShape, dist::Union{Real,Array{Real,1}})::PolyShape
-    poly = polyShape.polyshape2clipper(ps)
-    poly_ = Devices.Polygons.offset(poly, dist, j=Clipper.JoinTypeMiter, e=Clipper.EndTypeClosedPolygon)
-    ps_out = polyShape.clipper2polyshape(poly_)
-    num_regions = length(poly_)
-    if num_regions == 1
-        V = ps.Vertices[1]
-        V_out = ps_out.Vertices[1]
-        vec_dist_primer = (V_out[:, 1] .- V[1, 1]) .^ 2 .+ (V_out[:, 2] .- V[1, 2]) .^ 2
-        pos_min = argmin(vec_dist_primer)
-        V_out = [V_out[pos_min:end, :]; V_out[1:pos_min-1, :]]
-        ps_out = PolyShape([V_out], 1)
-    end
+    delta = clipper_scale(dist)
+    path = polyShape.polyshape2clipper(ps)
+    path_offset = polyShape.clipper_offset(path, delta)
+    ps_out = polyShape.clipper2polyshape(path_offset)
     return ps_out
 end
 
@@ -2260,6 +2264,28 @@ return ps_out
 end
 
 
+function wkt_repoject(wkt_array::Vector{String}, epsg_source::Int64, epsg_target::Int64)
+    source = ArchGDAL.importEPSG(epsg_source; order=:trad)
+    target = ArchGDAL.importEPSG(epsg_target; order=:trad)
+    transformed_wkts = String[]
+    for i=1:length(wkt_array)
+        wkt = wkt_array[i]
+        ArchGDAL.createcoordtrans(source, target) do transform
+            point = ArchGDAL.fromWKT(wkt)
+            ArchGDAL.transform!(point, transform)
+            append!(transformed_wkts, [ArchGDAL.toWKT(point)])
+        end
+    end
+    return transformed_wkts
+end
+function wkt_repoject(df::DataFrame, geom_col_name::String, epsg_source::Int64, epsg_target::Int64)
+    wkt_array = df[:,geom_col_name]
+    transformed_wkts = polyShape.wkt_repoject(wkt_array, epsg_source, epsg_target)
+    result_df = deepcopy(df)
+    result_df[:,geom_col_name] = transformed_wkts
+    return result_df
+end
+
 
 function polyReproject(ps::PolyShape, dx::Float64, dy::Float64, EPSG_in::Int64, EPSG_out::Int64)
     # transforma un PolyShape de un sistema de proyección a otro
@@ -2468,7 +2494,7 @@ end
 export extraeInfoPoly, largoLadosPoly, isPolyConvex, isPolyInPoly, plotPolyshape2D, plotPolyshape2Din3D, plotPolyshape2DVecin3D,
     polyArea, polyDifference, polyDifference_v2, plotFig, plotScatter3d, polyShape2constraints, polyOrientation, polyUnion, shapeBuffer,
     polyIntersect, polyExpand, plotPolyshape3D, imageWhiteSpaceReduction,
-    polyshape2clipper, clipper2polyshape, shape2geom, geom2shape, astext2polyshape, polyEliminaColineales,
+    shape2geom, geom2shape, astext2polyshape, polyEliminaColineales,
     astext2lineshape, shapeContains, shapeArea, shapeDifference, shapeIntersect, shapeUnion, shapeHull, shapeSimplify, shapeSimplifyTopology, subShape,
     shapeVertex, numVertices, shapeCentroid, partialCentroid, shapeDistance, partialDistance, polyBox, polyRotate, polyReverse, setPolyOrientation,
     minPolyDistance, polyCopy, polyUnique, polyEliminateWithin, pointLineDist, intersectLines, findPolyIntersection, pointDistanceMat, polySimplify,
@@ -2476,8 +2502,9 @@ export extraeInfoPoly, largoLadosPoly, isPolyConvex, isPolyInPoly, plotPolyshape
     polyObtieneCruces, polyExpandSegmentVec, replaceShapeVertex, lineVec2polyShape, polyShape2lineVec, polyShrink,
     ajustaCoordenadas, angleMaxDistRect, extendRectToIntersection, createLine, polyReproject, bisector_direction, angleBetweenLines,
     reverseLine, distanceBetweenPoints, midPointSegment, alphaPointSegment, points2Line, points2Poly, lineLength, isLineLineParallel, distanceBetweenLines,
-    polyProyeccion
-    
+    polyProyeccion, wkt_repoject,
+    polyshape2clipper, clipper2polyshape, clipper_union, clipper_difference, clipper_intersection, clipper_offset,
+    clipper_scale
 end
 
 
