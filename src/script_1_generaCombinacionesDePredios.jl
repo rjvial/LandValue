@@ -389,21 +389,34 @@ end
 query = """
 SELECT codigo_predial_est as codigo_predial, comuna, geom_wkt
 FROM datos_geom_predios
-WHERE comuna = 'vitacura' AND codigo_predial_est > 0
+WHERE comuna = 'vitacura' AND codigo_predial_est > 0 
 """
 df = aws_julia.query_to_dataframe(query, database_name, bucket, athena_output, athena_catalog_name, aws_client)
 
 epsg_source = 4326
-epsg_target = 5361
+epsg_target = 9155 #5361
 geom_col_name = "geom_wkt"
-df_geom_wkt = polyShape.wkt_repoject(df, geom_col_name, epsg_source, epsg_target)
+
+df_geom_wkt = polyShape.wkt_reproject(df, geom_col_name, epsg_source, epsg_target)
 codigo_predial = [151600041700009]
 dx, dy = obtieneDelta(codigo_predial, df_geom_wkt)
-
 ps_predios = polyShape.astext2polyshape(df_geom_wkt.geom_wkt)
 ps_predios = polyShape.ajustaCoordenadas(ps_predios, dx, dy)
 
-polyShape.plotPolyshape2D(ps_predios, "red", 0.1)
+fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_predios, "red", 0.1)
+
+
+query = """
+SELECT codigo_predial_est as codigo_predial, comuna, geom_wkt
+FROM datos_geom_predios
+WHERE comuna = 'vitacura' AND codigo_predial_est = 151600188100029 
+"""
+df_ej = aws_julia.query_to_dataframe(query, database_name, bucket, athena_output, athena_catalog_name, aws_client)
+df_ej_geom_wkt = polyShape.wkt_reproject(df_ej, geom_col_name, epsg_source, epsg_target)
+ps_ej = polyShape.astext2polyshape(df_ej_geom_wkt.geom_wkt)
+ps_ej = polyShape.ajustaCoordenadas(ps_ej, dx, dy)
+fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_ej, "blue", 0.7, fig=fig, ax=ax, ax_mat=ax_mat)
+area_ej = polyShape.polyArea(ps_ej)
 
 # # Limpieza de tablas auxiliares (en caso que existan)
 # query_borra_tablas_aux_str = """DROP TABLE IF EXISTS tabla_combinacion_predios, tabla_predios_chicos, tabla_predios_grandes"""

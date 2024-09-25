@@ -1,38 +1,40 @@
-using LandValue, Clipper#, Devices
+using LandValue, Clipper
 
 
-# ps1 = PolyShape([[0 0; 2 0; 2 2; 0 2],[1 1; 3 1; 3 3; 1 3]],2)
-# ps2 = PolyShape([[4 4; 6 4; 6 6; 4 6],[3 4; 5 4; 5 6; 3 6]],2)
+ps_predio = PolyShape([[24.08  48.02;
+ 10.79  33.14;
+  0.0   16.33;
+ 26.7    0.0;
+ 45.62  29.31;
+ 56.53  41.58;
+ 89.1   61.13;
+ 65.22  83.99]],1)
 
-ps1 = PolyShape([[0 0; 2 0; 2 2; 0 2],[4 4; 6 4; 6 6; 4 6], [1 1; 2 0; 5 7; 4 6]],3)
-ps2 = PolyShape([[1 1; 3 1; 3 3; 1 3],[3 4; 5 4; 5 6; 3 6]],2)
+ fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_predio, "green", 0.05)
 
-delta = -.2
+# vec_id_ps_partial_offset = [2,3,5,6,8]; dist = 10; # vecDist = [-2,-1,-4,-2,-5] #vecDist = [20,10,-4,20,-5]
+# vec_id_ps_partial_offset = [1,2,3,5,8]; dist = 10; # vecDist = [10,20,10,10,20,15]
+# vec_id_ps_partial_offset = [1,2,5,6,7,8]; dist = 10; # vecDist = [10,20,10,10,20,15]
+# vec_id_ps_partial_offset = [1,3,5,7,8]; dist = 10; # vecDist = [20,10,10,20,15] 
+# vec_id_ps_partial_offset = [1,3,5,7]; dist = 10; # vecDist = [20,10,20,15]  
+# vec_id_ps_partial_offset = [1,2,3,4,5,6,7]; dist = 10; # vecDist = [15,10,20,10,10,20,15]
 
-path1 = polyShape.polyshape2clipper(ps1)
-path2 = polyShape.polyshape2clipper(ps2)
+# ps_offset = polyShape.polyOffset(ps_predio, dist)
+# fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_offset, "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
 
-u_path_a = polyShape.clipper_union(path1, path2)
-ps_ua = polyShape.clipper2polyshape(u_path_a)
-fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_ua,"red",.5)
-ps_offset = polyShape.polyExpand(ps_ua, delta)
-polyShape.plotPolyshape2D(ps_offset,"red",.5, fig=fig, ax=ax, ax_mat=ax_mat )
+# ps_out_2 = polyShape.partialPolyOffset(ps_predio, vec_id_ps_partial_offset, dist)
+# fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_out_2, "blue", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
 
-u_path_b = polyShape.clipper_union(path1)
-ps_ub = polyShape.clipper2polyshape(u_path_b)
-fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_ub,"red",.5)
-ps_offset = polyShape.polyExpand(ps_ub, delta)
-polyShape.plotPolyshape2D(ps_offset,"red",.5, fig=fig, ax=ax, ax_mat=ax_mat )
+vec_id_ps_partial_offset = [1,2,3,5,8]; vecDist = 100
 
-d_path = polyShape.clipper_difference(path1, path2)
-ps_d = polyShape.clipper2polyshape(d_path)
-fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_d,"red",.5)
-ps_offset = polyShape.polyExpand(ps_d, delta)
-polyShape.plotPolyshape2D(ps_offset,"red",.5, fig=fig, ax=ax, ax_mat=ax_mat )
+# vec_id_ps_partial_offset = [2,3,5,6,8]; vecDist = [20,10,-4,20,-5]
+# vec_id_ps_partial_offset = [2,3]; vecDist = [20,-5]
+# vec_id_ps_partial_offset = [1,2,3,5,8]; vecDist = [-4,20,-5,10,20]
+# vec_id_ps_partial_offset = [1,2,5,6,7,8]; vecDist = [10,20,10,-4,20,-5]
+# vec_id_ps_partial_offset = [1,3,5,7,8]; vecDist = [20,-4,-5,20,15] 
+# vec_id_ps_partial_offset = [1,3,5,7]; vecDist = [20,-4,20,-5]  
+# vec_id_ps_partial_offset = [1,2,3,4,5,6,7]; vecDist = [15,-5,20,-4,10,20,-5]
 
-i_path = polyShape.clipper_intersection(path1, path2)
-ps_i = polyShape.clipper2polyshape(i_path)
-fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_i,"red",.5)
-ps_offset = polyShape.polyExpand(ps_i, delta)
-polyShape.plotPolyshape2D(ps_offset,"red",.5, fig=fig, ax=ax, ax_mat=ax_mat )
+ps_out_2 = polyShape.partialPolyOffset(ps_predio, vec_id_ps_partial_offset, vecDist)
+fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_out_2, "blue", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
 
