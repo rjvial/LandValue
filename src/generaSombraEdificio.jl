@@ -56,9 +56,9 @@ function generaSombraEdificio(ps_baseEdificio::PolyShape, alt::Float64, ps_publi
         ps_sombraEdif_s = PolyShape([],0)
     end
 
-    ps_sombraEdif_p = polyShape.polyDifference_v2(ps_sombraEdif_p, ps_calles)
-    ps_sombraEdif_o = polyShape.polyDifference_v2(ps_sombraEdif_o, ps_calles)
-    ps_sombraEdif_s = polyShape.polyDifference_v2(ps_sombraEdif_s, ps_calles)
+    ps_sombraEdif_p = polyShape.polyDifference(ps_sombraEdif_p, ps_calles)
+    ps_sombraEdif_o = polyShape.polyDifference(ps_sombraEdif_o, ps_calles)
+    ps_sombraEdif_s = polyShape.polyDifference(ps_sombraEdif_s, ps_calles)
 
     return ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s
 end

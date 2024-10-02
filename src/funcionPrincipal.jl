@@ -54,6 +54,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
     simplify_value = 1.0 #1. #.1
     ps_predio = polyShape.shapeSimplify(ps_predio_db, simplify_value)
     ps_predio = polyShape.polyEliminaColineales(ps_predio)
+
     V_predio = ps_predio.Vertices[1]
     superficieTerreno = sup_terreno_sii[1]
     superficieTerrenoCalc = polyShape.polyArea(ps_predio)
@@ -65,7 +66,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
     # Obtiene predios y calles contenidos en el buffer del predio y ajusta coordenadas
 
 
-    buffer_dist = 140
+    buffer_dist = 70 #140
 
     # Obtiene buffer del predio seleccionado
     display("Obtiene buffer del predio seleccionado")
@@ -106,7 +107,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
     vec_dist = Float64.(vec_edges)
     vec_dist .= -antejardin
     vec_dist[vecSecSinCalle] .= -sepVecinos
-    ps_areaEdif = polyShape.polyExpandSegmentVec(ps_predio, vec_dist)
+    ps_areaEdif = polyShape.partialPolyOffset(ps_predio, vec_edges, vec_dist)
     area_max_region = 0
     id_max = 1
     if ps_areaEdif.NumRegions >= 2
@@ -149,28 +150,28 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         flagSeguir = true
         temp_opt = 0
 
-        # plan_optimizacion = [[3, 0, [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 ,20]]]
-
         # [template, flag_viv_eco, pisos]
+        # ej.: plan_optimizacion = [[3, 0, [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 ,20]]]
+
         set_pisos_true_viv_econ = [3, 4]
         plan_optimizacion = [[0, 1, set_pisos_true_viv_econ]]
         push!(plan_optimizacion, [1, 1, set_pisos_true_viv_econ])
-        push!(plan_optimizacion, [2, 1, set_pisos_true_viv_econ])
-        push!(plan_optimizacion, [3, 1, set_pisos_true_viv_econ])
-        push!(plan_optimizacion, [4, 1, set_pisos_true_viv_econ])
-        push!(plan_optimizacion, [5, 1, set_pisos_true_viv_econ])
-        push!(plan_optimizacion, [6, 1, set_pisos_true_viv_econ])
-        push!(plan_optimizacion, [7, 1, set_pisos_true_viv_econ])
+        # push!(plan_optimizacion, [2, 1, set_pisos_true_viv_econ])
+        # push!(plan_optimizacion, [3, 1, set_pisos_true_viv_econ])
+        # push!(plan_optimizacion, [4, 1, set_pisos_true_viv_econ])
+        # push!(plan_optimizacion, [5, 1, set_pisos_true_viv_econ])
+        # push!(plan_optimizacion, [6, 1, set_pisos_true_viv_econ])
+        # push!(plan_optimizacion, [7, 1, set_pisos_true_viv_econ])
 
-        set_pisos_false_viv_econ = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+        set_pisos_false_viv_econ = collect(5:20) # [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
         push!(plan_optimizacion, [0, 0, set_pisos_false_viv_econ])
         push!(plan_optimizacion, [1, 0, set_pisos_false_viv_econ])
-        push!(plan_optimizacion, [2, 0, set_pisos_false_viv_econ])
-        push!(plan_optimizacion, [3, 0, set_pisos_false_viv_econ])
-        push!(plan_optimizacion, [4, 0, set_pisos_false_viv_econ])
-        push!(plan_optimizacion, [5, 0, set_pisos_false_viv_econ])
-        push!(plan_optimizacion, [6, 0, set_pisos_false_viv_econ])
-        push!(plan_optimizacion, [7, 0, set_pisos_false_viv_econ])
+        # push!(plan_optimizacion, [2, 0, set_pisos_false_viv_econ])
+        # push!(plan_optimizacion, [3, 0, set_pisos_false_viv_econ])
+        # push!(plan_optimizacion, [4, 0, set_pisos_false_viv_econ])
+        # push!(plan_optimizacion, [5, 0, set_pisos_false_viv_econ])
+        # push!(plan_optimizacion, [6, 0, set_pisos_false_viv_econ])
+        # push!(plan_optimizacion, [7, 0, set_pisos_false_viv_econ])
 
         flag_penalizacion_residual = true
         flag_penalizacion_coefOcup = true
@@ -257,9 +258,9 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
 
         # Calcula el volumen y sombra teórica
         vec_altVolteor = collect(0:0.1:50) .* rasante
-        vec_altVolteor = vec_altVolteor[vec_altVolteor.<alturaMax]
+        vec_altVolteor = vec_altVolteor[vec_altVolteor .< alturaMax]
         push!(vec_altVolteor, alturaMax)
-        vec_psVolteor = [polyShape.polyExpand(ps_bruto, -i / rasante) for i in vec_altVolteor]
+        vec_psVolteor = [polyShape.polyOffset(ps_bruto, -i / rasante) for i in vec_altVolteor]
         vec_psVolteor = [polyShape.polyIntersect(vec_psVolteor[i], ps_areaEdif) for i in eachindex(vec_psVolteor)]
 
 
@@ -276,7 +277,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
         vec_altVolConSombra = collect(0:0.5:50) .* rasante_sombra
         vec_altVolConSombra = vec_altVolConSombra[vec_altVolConSombra.<alturaMax]
         push!(vec_altVolConSombra, alturaMax)
-        vec_psVolConSombra = [polyShape.polyExpand(ps_bruto, -i / rasante_sombra) for i in vec_altVolConSombra]
+        vec_psVolConSombra = [polyShape.polyOffset(ps_bruto, -i / rasante_sombra) for i in vec_altVolConSombra]
         vec_psVolConSombra = [polyShape.polyIntersect(vec_psVolConSombra[i], ps_areaEdif) for i in eachindex(vec_psVolConSombra)]
         @time verts_conSombra, vecAlturas_conSombra = generaVol3D(vec_psVolConSombra, vec_altVolConSombra)
 

@@ -25,7 +25,9 @@ ps_predio = PolyShape([[24.08  48.02;
 # ps_out_2 = polyShape.partialPolyOffset(ps_predio, vec_id_ps_partial_offset, dist)
 # fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_out_2, "blue", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
 
-vec_id_ps_partial_offset = [1,2,3,5,8]; vecDist = 100
+# vec_id_ps_partial_offset = [1,3,5,7,8]; vecDist = -14
+
+vec_id_ps_partial_offset = [1,2,8]; vecDist = [11.27-.5, 12.39, 12.97]
 
 # vec_id_ps_partial_offset = [2,3,5,6,8]; vecDist = [20,10,-4,20,-5]
 # vec_id_ps_partial_offset = [2,3]; vecDist = [20,-5]

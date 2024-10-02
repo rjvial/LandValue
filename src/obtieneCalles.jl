@@ -1,89 +1,75 @@
 function obtieneCalles(ps_predio::PolyShape, ps_buffer_predio::PolyShape, ps_predios_buffer::PolyShape, ps_manzanas_buffer::PolyShape)
 
     # Obtiene calles dentro del buffer
-
     ps_predios_buffer_union = polyShape.polyUnion(ps_predios_buffer)
-    # ps_calles = polyShape.polyDifference_v2(ps_buffer_predio, ps_predios_buffer_union)
+    ps_predios_buffer_union = polyShape.polyOffset(polyShape.polyOffset(ps_predios_buffer_union,.1),-.1)
     ps_calles = polyShape.polyDifference(ps_buffer_predio, ps_predios_buffer_union)
 
-
-    # Obtiene espacio público a partir de ps_predio
-    numVertices = size(ps_predio.Vertices[1],1)
-    ps_extend = polyShape.polyCopy(ps_predio)
-    ps_extend = polyShape.polyEliminaColineales(ps_extend)
-
-    vecSecConCalle = Array{Int64,1}()
-
-
-    # Obtiene vector de secciones con calle y vector de ángulos de los bordes del predio
+    # Obtiene vector de secciones del predio con calle 
     ps_buffer_local_predio = polyShape.shapeBuffer(ps_predio, 30, 0)
     ps_calle_predio = polyShape.polyDifference(ps_buffer_local_predio, ps_predios_buffer_union)
     vec_edges_predio, _ = polyShape.polyShape2lineVec(ps_predio)
 
-
-    ps_calle_predio_ = polyShape.shapeBuffer(ps_calle_predio, 2, 0)
-    flag_sec_con_calle = [polyShape.shapeContains(ps_calle_predio_,vec_edges_predio[i]) for i in eachindex(vec_edges_predio)]
-    vecSecConCalle = collect(1:length(vec_edges_predio))
-    vecSecConCalle = vecSecConCalle[flag_sec_con_calle .== 1]
-    ps_calle = polyShape.polyIntersect(ps_calle_predio, polyShape.partialPolyExpand(ps_predio, vecSecConCalle, 30))
-
-    flag = true
-    delta = 10.
-    vecAnchoCalle = delta    
-    while flag
-        delta += .01
-        ps_ancho = polyShape.polyDifference(polyShape.partialPolyExpand(ps_predio, vecSecConCalle, delta), ps_predio)
-        ps_calle_ancho = polyShape.polyDifference(ps_calle, ps_ancho)
-        area_calle_ancho = polyShape.polyArea(ps_calle_ancho)
-        ps_ancho_calle = polyShape.polyDifference(ps_ancho, ps_calle)
-        area_ancho_calle = polyShape.polyArea(ps_ancho_calle)
-        if area_calle_ancho - area_ancho_calle < 0
-            flag = false
-            vecAnchoCalle = delta
+    vec_predio_calle_intersect_ = [polyShape.shapeIntersect(polyShape.shapeBuffer(ps_calle_predio, .4, 0), vec_edges_predio[i]) for i in eachindex(vec_edges_predio)] 
+    vec_predio_calle_intersect = Vector{LineShape}()
+    for j in eachindex(vec_predio_calle_intersect_)
+        if size(vec_predio_calle_intersect_[j].Vertices[1], 1) >= 1
+            push!(vec_predio_calle_intersect, vec_predio_calle_intersect_[j])
+        else
+            push!(vec_predio_calle_intersect, LineShape([[0 0]],0))
+        end
+    end
+    flag_sec_con_calle = [false for i in eachindex(vec_edges_predio)]
+    for j in eachindex(vec_predio_calle_intersect)
+        if size(vec_predio_calle_intersect[j].Vertices[1], 1) >= 2
+            length_line_j = maximum(polyShape.lineLength(vec_predio_calle_intersect[j]))
+            if length_line_j >= 4
+                flag_sec_con_calle[j] = true
+            end
         end
     end
 
+    vecSecConCalle = collect(1:length(vec_edges_predio))
+    vecSecConCalle = vecSecConCalle[flag_sec_con_calle .== 1]
+    ps_calle = polyShape.polyIntersect(ps_calle_predio, polyShape.partialPolyOffset(ps_predio, vecSecConCalle, 30))
 
-    # ######################################################
-    # # Obtiene angulos de los segmentos de predio con calle
-    # vec_angle = polyShape.lineAngle.(vec_edges_predio_con_calle)
-    # vec_mid_edge = polyShape.midPointSegment.(vec_edges_predio_con_calle)
-    # vec_box_aux = [polyShape.polyBox(vec_mid_edge[i], 1., 3., vec_angle[i]) for i in eachindex(vec_mid_edge)]
-    # flag_box_in_calle = [polyShape.shapeContains(ps_calle_predio, vec_box_aux[i]) for i in eachindex(vec_box_aux)]
-    # vec_angle[flag_box_in_calle .== 0] = vec_angle[flag_box_in_calle .== 0] .- pi
-    # vec_box = [polyShape.polyBox(vec_mid_edge[i], 1., 20., vec_angle[i]) for i in eachindex(vec_mid_edge)]
+    vecAnchoCalle = fill(10., length(vecSecConCalle))
+    for i in eachindex(vecSecConCalle)
+        ps_calle_lado_i = polyShape.polyIntersect(ps_calle, polyShape.partialPolyOffset(ps_predio, [vecSecConCalle[i]], [30]))
 
-    # vec_media_calle = []
-    # vec_toda_calle = []
-    # vecAnchoCalle = []
-    # for i in eachindex(vec_box)
-    #     largo_edge_i = polyShape.lineLength(vec_edges_predio_con_calle[i])
-    #     vec_alpha = collect(1:round(largo_edge_i/1) + 1) ./ (round(largo_edge_i/1) + 1)
-    #     vec_points_i = [polyShape.alphaPointSegment(vec_edges_predio_con_calle[i], vec_alpha[j]) for j in eachindex(vec_alpha) ]
-    #     vec_box_prev_i = [polyShape.polyBox(vec_points_i[j], 2., 40., vec_angle[i]) for j in eachindex(vec_points_i)]
-    #     vec_cetroids_i = [polyShape.shapeCentroid(polyShape.polyIntersect(vec_box_prev_i[j], ps_calle_predio)) for j in eachindex(vec_box_prev_i)]
-    #     vec_dist_i = [polyShape.distanceBetweenPoints(vec_cetroids_i[j], vec_points_i[j]) for j in eachindex(vec_cetroids_i)]
-    #     mean_dist_i = sum(vec_dist_i) / length(vec_dist_i)
-    #     vecAnchoCalle = push!(vecAnchoCalle, mean_dist_i * 2)
-    #     vec_box_i = polyShape.polyBox(polyShape.shapeVertex(vec_edges_predio_con_calle[i],1,2), largo_edge_i+0, mean_dist_i, vec_angle[i])
-    #     vec_box_doble_i = polyShape.polyBox(polyShape.shapeVertex(vec_edges_predio_con_calle[i],1,2), largo_edge_i+0, mean_dist_i * 2, vec_angle[i])
-    #     vec_media_calle = push!(vec_media_calle, vec_box_i)
-    #     vec_toda_calle = push!(vec_toda_calle, vec_box_doble_i)
-    # end
-    ######################################################
+        ancho_i = 10
+        delta = .25
+        ps_box_ant = polyShape.line2Box(vec_predio_calle_intersect[vecSecConCalle[i]], ancho_i)
+        area_box_ant = polyShape.shapeArea(ps_box_ant)
+        ps_inter_ant = polyShape.polyIntersect(ps_calle_lado_i, ps_box_ant)
+        area_inter_ant = polyShape.shapeArea(ps_inter_ant)
+        for k = 1:Int(50/delta)
+            ancho_i += delta
+            ps_box = polyShape.line2Box(vec_predio_calle_intersect[vecSecConCalle[i]], ancho_i)
+            area_box = polyShape.shapeArea(ps_box)
+            ps_inter = polyShape.polyIntersect(ps_calle_lado_i, ps_box)
+            area_inter = polyShape.shapeArea(ps_inter)
+            delta_box = area_box - area_box_ant
+            delta_inter = area_inter - area_inter_ant
+            if delta_inter / delta_box < .8 
+                break
+            else
+                area_box_ant = area_box
+                area_inter_ant = area_inter
+            end
+        end
+        vecAnchoCalle[i] = ancho_i
+    end
 
-
-    ps_toda_calle = deepcopy(ps_calle)
-    ps_bruto = polyShape.partialPolyExpand(ps_predio, vecSecConCalle, vecAnchoCalle/2)
-    ps_publico = polyShape.polyExpand(polyShape.polyUnion(ps_predio, ps_toda_calle), 0.1)
+    ps_toda_calle = polyShape.polyDifference(polyShape.partialPolyOffset(ps_predio, vecSecConCalle, vecAnchoCalle), ps_predio)
+    ps_bruto = polyShape.partialPolyOffset(ps_predio, vecSecConCalle, vecAnchoCalle./2)
+    ps_publico = polyShape.polyOffset(polyShape.polyUnion(ps_predio, ps_toda_calle), 0.1)
 
 
     fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_predio, "blue", 0.2)
     fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_calles, "gray", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
     fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_bruto, "green", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
     fig, ax, ax_mat = polyShape.plotPolyshape2D(ps_publico, "green", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
-
-    vecAnchoCalle = ones(length(vecSecConCalle))*vecAnchoCalle
 
     return ps_calles, ps_publico, ps_bruto, vecAnchoCalle, vecSecConCalle
 
