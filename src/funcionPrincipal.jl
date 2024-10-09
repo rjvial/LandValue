@@ -94,8 +94,8 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
     vecSecTodos = collect(1:numLadosPredio)
     vecSecSinCalle = setdiff(vecSecTodos, vecSecConCalle)
 
-    antejardin = 11 # dcn.antejardin[1] #  
-    sepVecinos = 9 # dcn.distanciamiento[1] #     
+    antejardin = dcn.antejardin[1] # 8 # 12 # 
+    sepVecinos = dcn.distanciamiento[1] # 7 # dcn.distanciamiento[1] # 10 # 
     densidadMax = dcn.densidadMax
     maxPisos = round(dcn.maxPisos)
     alturaMax = dcn.alturaMax

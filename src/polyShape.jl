@@ -328,7 +328,6 @@ function plotPolyshape2Din3D(ps::PolyShape, height::Real=0.0, fc::String="blue",
 end
 
 
-
 # Grafica polyshape 3D en espacio 3D.
 function plotPolyshape3D(ps_volteor::PolyShape, matConexionVertices::Array{Float64,2}, vecVertices::Array{Any,1}, fc::String="red", a::Real=0.25; fig::Union{Nothing,PyPlot.Figure}=nothing, ax=nothing, ax_mat=nothing, filestr="none")
     plt = pyimport("matplotlib.pyplot")
@@ -1329,6 +1328,7 @@ function line2Box(ls::LineShape, width::Real, rev::Bool=false)
     
 end
 
+
 function partialPolyOffset(ps::PolyShape, vec_partial_offset_id::Vector{Int}, vec_partial_offset_dist::Vector{T}) where {T<:Real}
 
     function findParallelId(ls_base, vec_ls_comp, distance_side)
@@ -1458,13 +1458,14 @@ function partialPolyOffset(ps::PolyShape, vec_partial_offset_id::Vector{Int}, ve
         start_pt = PointShape(partial_offset_lines[1].Vertices[1][1,:]',1)
         end_pt = PointShape(partial_offset_lines[end].Vertices[1][2,:]',1)
         dist_start_end = polyShape.distanceBetweenPoints(start_pt, end_pt)
-        if dist_start_end > .1
+        if .1 < dist_start_end 
             extended_start_line = polyShape.extendLine(partial_offset_lines[1], dist_start_end*1.2)
             extended_end_line = polyShape.extendLine(partial_offset_lines[end], dist_start_end*1.2)
             intersection_point = polyShape.intersectLines(extended_start_line, extended_end_line)
-            partial_offset_lines[1].Vertices[1][1,:] = intersection_point.Vertices
-            partial_offset_lines[end].Vertices[1][2,:] = intersection_point.Vertices
-
+            if ~isnan(intersection_point.Vertices[1][1, 1])
+                partial_offset_lines[1].Vertices[1][1,:] = intersection_point.Vertices
+                partial_offset_lines[end].Vertices[1][2,:] = intersection_point.Vertices
+            end
         end
 
         output_ps_ = polyShape.lineVec2polyShape(partial_offset_lines, vec_reg)
@@ -1492,7 +1493,7 @@ function partialPolyOffset(ps::PolyShape, vec_partial_offset_id::Vector{Int}, ve
             vec_id_ps_r = [findParallelId(vec_line_offset_min_r[j], vec_line_ps, vec_partial_offset_dist[j]) for j = 1:num_offset_line_r]
             vec_dist_r = copy(vec_todos_offset_dist[vec_id_ps_r])
             delta_r = vec_dist_r .- min_dist
-            ps_offset_r, vec_offset_dist_r = polyShape2offsetPolyShape(ps_offset_min_r, vec_id_offset_r, delta_r)
+            ps_offset_r, _ = polyShape2offsetPolyShape(ps_offset_min_r, vec_id_offset_r, delta_r)
             if r == 1
                 output_ps = deepcopy(ps_offset_r)
             else
@@ -1511,275 +1512,6 @@ function partialPolyOffset(ps::PolyShape, vec_partial_offset_id::Vector{Int}, di
     return ps_out
 end
 
-
-function vecLine2lineShape(ls_1::LineShape, ls_2::LineShape)#::LineShape
-    vec_ls = [ls_1, ls_2]
-    ls_out = polyShape.vecLine2lineShape(vec_ls)
-    return ls_out
-end
-function vecLine2lineShape(line_vec_::Vector{LineShape})
-    function euclidean_distance(p1, p2)
-        return sqrt(sum((p1 .- p2) .^ 2))
-    end
-    function is_connected(l1::LineShape, l2::LineShape)
-        p1 = l1.Vertices[1][1, :]  # First point of l1 (ax, ay)
-        p2 = l1.Vertices[1][2, :]  # Second point of l1 (bx, by)
-        q1 = l2.Vertices[1][1, :]  # First point of l2
-        q2 = l2.Vertices[1][2, :]  # Second point of l2
-        return euclidean_distance(p1, q1) < 0.1 ||
-               euclidean_distance(p1, q2) < 0.1 ||
-               euclidean_distance(p2, q1) < 0.1 ||
-               euclidean_distance(p2, q2) < 0.1
-    end
-
-    line_vec = deepcopy(line_vec_)
-    line_vec = polyShape.orderLineVec(line_vec)
-
-    # line_vec = orderLineVec(line_vec)
-    result = Vector{Vector{LineShape}}()
-    largo_vec = length(line_vec)
-
-    used = falses(largo_vec)
-    for i in 1:largo_vec
-        if !used[i]
-            current_chain = [line_vec[i]]
-            used[i] = true
-
-            # Forward search
-            j = i
-            while true
-                found = false
-                for k in 1:largo_vec
-                    if !used[k] && is_connected(current_chain[end], line_vec[k])
-                        push!(current_chain, line_vec[k])
-                        used[k] = true
-                        j = k
-                        found = true
-                        break
-                    end
-                end
-                !found && break
-            end
-            # Backward search
-            j = i
-            while true
-                found = false
-                for k in 1:largo_vec
-                    if !used[k] && is_connected(line_vec[k], current_chain[1])
-                        pushfirst!(current_chain, line_vec[k])
-                        used[k] = true
-                        j = k
-                        found = true
-                        break
-                    end
-                end
-                !found && break
-            end
-            push!(result, current_chain)
-        end
-    end
-    V = Vector{Matrix}()
-    for k in eachindex(result)
-        V_k = result[k][1].Vertices[1][1, :]'
-        for i in eachindex(result[k])
-            V_ki = result[k][i].Vertices[1][2, :]'
-            V_k = vcat(V_k, V_ki)
-        end
-        push!(V, V_k)
-    end
-    return LineShape(V, length(V))
-end
-
-
-function orderLineVec(vec_edges_::Vector{LineShape})::Vector{LineShape}
-    function euclidean_distance(p1, p2)
-        return sqrt(sum((p1 .- p2) .^ 2))
-    end
-    vec_edges = deepcopy(vec_edges_)
-
-    start_id = findfirst(line -> !any(other -> other.Vertices[1][end, :] == line.Vertices[1][1, :], vec_edges), vec_edges)
-    remaining_id = Set(1:length(vec_edges))
-    delete!(remaining_id, start_id)
-    current_id = start_id
-    vec_result = [vec_edges[current_id]]
-    while !isempty(remaining_id)
-        line_current = vec_edges[current_id]
-        closest_id = collect(remaining_id)[argmin([polyShape.shapeDistance(line_current, vec_edges[i]) for i in remaining_id])]
-        closest_line = vec_edges[closest_id]
-        if polyShape.shapeDistance(line_current, closest_line) > 0.1
-            remaining_id_vec = collect(remaining_id)
-            remaining_start_id = remaining_id_vec[findall(line -> !any(other -> other.Vertices[1][end, :] == line.Vertices[1][1, :], vec_edges[remaining_id_vec]), vec_edges[remaining_id_vec])]
-            closest_id = remaining_start_id[argmin([polyShape.shapeDistance(line_current, vec_edges[i]) for i in remaining_start_id])]
-            closest_line = vec_edges[closest_id]
-        else
-            p_current_end = line_current.Vertices[1][2, :]
-            p_closest_end = closest_line.Vertices[1][2, :]
-            p_closest_start = closest_line.Vertices[1][1, :]
-
-            if euclidean_distance(p_current_end, p_closest_start) > euclidean_distance(p_current_end, p_closest_end)
-                closest_line = polyShape.reverseLine(closest_line)
-                vec_edges[closest_id] = closest_line
-            end
-        end
-        push!(vec_result, closest_line)
-        delete!(remaining_id, closest_id)
-        current_id = closest_id
-    end
-    return vec_result
-end
-
-
-function lineSegmentCompletion(vec_edges_select_::Vector{LineShape}, ps_offset::PolyShape, vec_id_group)
-    function euclidean_distance(p1, p2)
-        return sqrt(sum((p1 .- p2) .^ 2))
-    end
-    function is_same_line(line_select::LineShape, vec_edges::Vector{LineShape})
-        p_selected_start = line_select.Vertices[1][1, :]
-        p_selected_end = line_select.Vertices[1][2, :]
-        pos = 0
-        num_edges = length(vec_edges)
-        for j = 1:num_edges
-            p_j_start = vec_edges[j].Vertices[1][1, :]
-            p_j_end = vec_edges[j].Vertices[1][2, :]
-            if (euclidean_distance(p_selected_start, p_j_start) < 0.1 && euclidean_distance(p_selected_end, p_j_end) < 0.1) ||
-               (euclidean_distance(p_selected_start, p_j_end) < 0.1 && euclidean_distance(p_selected_end, p_j_start) < 0.1)
-                pos = j
-            end
-        end
-        return pos
-    end
-
-    vec_edges_select = deepcopy(vec_edges_select_)
-
-    vec_edges, _ = polyShape.polyShape2lineVec(ps_offset)
-    num_edges = length(vec_edges)
-
-    num_select = maximum(vec_id_group)
-    vec_out = Vector{LineShape}()
-    for k = 1:num_select
-        vec_edges_select_k = deepcopy(vec_edges_select[vec_id_group.==k])
-        vec_edges_select_k = polyShape.orderLineVec(vec_edges_select_k)
-        nk = length(vec_edges_select_k)
-        vec_out_k = Vector{LineShape}()
-        if nk == 1
-            push!(vec_out_k, vec_edges_select_k[1])
-        else
-            for i = 1:nk-1
-                i1 = i
-                i2 = i + 1
-                line_select_k_1 = vec_edges_select_k[i1]
-                line_select_k_2 = vec_edges_select_k[i2]
-                pos_1 = is_same_line(line_select_k_1, vec_edges)
-                pos_2 = is_same_line(line_select_k_2, vec_edges)
-                pos = pos_1
-                vec_aux = Vector{Int}()
-                flag = true
-                while flag
-                    push!(vec_aux, pos)
-                    if pos == pos_2
-                        flag = false
-                    elseif pos == num_edges
-                        pos = 1
-                    else
-                        pos = pos + 1
-                    end
-                end
-                for j in vec_aux
-                    push!(vec_out_k, vec_edges[j])
-                end
-            end
-        end
-
-        len_k = length(vec_out_k)
-        for i = 1:len_k
-            if length(vec_out) == 0
-                push!(vec_out, vec_out_k[i])
-            end
-            if is_same_line(vec_out_k[i], vec_out) == 0
-                push!(vec_out, vec_out_k[i])
-            end
-        end
-    end
-    return vec_out
-end
-
-
-function combineLines2polyShape(line_base_::LineShape, line_comb_::LineShape)::PolyShape
-    line_base = deepcopy(line_base_)
-    line_comb = deepcopy(line_comb_)
-
-    n = line_base.NumLines
-    ps_out = Vector{PolyShape}
-    for k = 1:n
-        line1 = polyShape.subShape(line_base, k)
-        c1 = polyShape.shapeCentroid(line1)
-        min_d12 = 1000
-        min_id = 0
-        for i = 1:n
-            line2 = polyShape.subShape(line_comb, i)
-            c2 = polyShape.shapeCentroid(line2)
-            d12 = polyShape.shapeDistance(c1, c2)
-            if d12 < min_d12
-                min_d12 = d12
-                min_id = i
-            end
-        end
-        line2 = polyShape.subShape(line_comb, min_id)
-
-        e1 = PointShape(line1.Vertices[1][end, :]', 1)
-        s2 = PointShape(line2.Vertices[1][1, :]', 1)
-        e2 = PointShape(line2.Vertices[1][end, :]', 1)
-
-        if polyShape.shapeDistance(e1, s2) > polyShape.shapeDistance(e1, e2)
-            line2 = polyShape.reverseLine(line2)
-        end
-        V = vcat(line1.Vertices[1], line2.Vertices[1])
-
-        ps_k = PolyShape([V], 1)
-        if k == 1
-            ps_out = deepcopy(ps_k)
-        else
-            ps_out = polyShape.polyUnion(ps_out, ps_k)
-        end
-    end
-    return ps_out
-end
-
-
-function findPolyShapeEdgeParallel2lineShape(ls_in::LineShape, ps_out::PolyShape)
-    function euclidean_distance(p1, p2)
-        return sqrt(sum((p1 .- p2) .^ 2))
-    end
-    vec_out, _ = polyShape.polyShape2lineVec(ps_out)
-    num_lines_out = length(vec_out)
-    vec_id_out = []
-    num_lines_in = ls_in.NumLines
-    vec_ls_out = Vector{LineShape}()
-
-    for k = 1:num_lines_in
-        ls_in_k = polyShape.subShape(ls_in, k)
-        vec_in_k = polyShape.lineShape2lineVec(ls_in_k)
-        largo_vec_in_k = size(vec_in_k, 1)
-        vec_in_k = polyShape.orderLineVec(vec_in_k) #######
-        for r = 1:largo_vec_in_k
-            flag_parallel_j = [polyShape.isLineLineParallel(vec_out[j], vec_in_k[r]) || polyShape.isLineLineParallel(polyShape.reverseLine(vec_out[j]), vec_in_k[r]) for j = 1:num_lines_out]
-            if sum(flag_parallel_j) >= 1
-                vec_out_j = vec_out[flag_parallel_j.==1][1]
-                p_j_start = vec_out_j.Vertices[1][1, :]
-                p_j_end = vec_out_j.Vertices[1][2, :]
-                p_r_start = vec_in_k[r].Vertices[1][1, :]
-                p_r_end = vec_in_k[r].Vertices[1][2, :]
-                if euclidean_distance(p_j_start, p_r_end) + euclidean_distance(p_j_end, p_r_start) <
-                   euclidean_distance(p_j_start, p_r_start) + euclidean_distance(p_j_end, p_r_end)
-                    vec_out_j = polyShape.reverseLine(vec_out_j)
-                end
-                push!(vec_ls_out, vec_out_j)
-                push!(vec_id_out, k)
-            end
-        end
-    end
-    return vec_ls_out, Int.(vec_id_out)
-end
 
 ############################################################################
 ############################################################################
@@ -2340,31 +2072,6 @@ function pointDistanceMat(p1::PointShape, p2::PointShape)::Array{Float64,2}
 end
 
 
-function polyEliminaRepetidos(ps::PolyShape, tol::Float64=0.1)::PolyShape
-    ps_ = polyShape.polyCopy(ps)
-    numVertices_ = size(ps_.Vertices[1], 1)
-    vec_flag_ = fill(1, numVertices_)
-    points_ = polyShape.shapeVertex(ps_)
-    for i = 1:numVertices_
-        if i == numVertices_
-            ip = 1
-        else
-            ip = i + 1
-        end
-        p = polyShape.subShape(points_, i)
-        p_p = polyShape.subShape(points_, ip)
-        dist = polyShape.shapeDistance(p, p_p)
-        if dist <= tol
-            vec_flag_[i] = 0
-        end
-    end
-    V_ = copy(ps_.Vertices[1][vec_flag_.==1, :])
-    ps_out = PolyShape([V_], 1)
-
-    return ps_out
-end
-
-
 function createLine(point1::PointShape, point2::PointShape)::LineShape
     v_1 = point1.Vertices[:]'
     v_2 = point2.Vertices[:]'
@@ -2457,36 +2164,6 @@ function polyEliminaColineales(ps::PolyShape, tol::Float64=0.001, topoFlag::Bool
 end
 
 
-function polyEliminaSpikes(ps::PolyShape)::PolyShape
-
-    area_ps = polyShape.polyArea(ps)
-    V = copy(ps.Vertices[1])
-    numPoints = size(V, 1)
-
-    V_ = copy(ps.Vertices[1])
-
-    for i = 1:numPoints
-        V_i = V_[setdiff(1:numPoints, i), :]
-        area_psi = polyShape.polyArea(PolyShape([V_i], 1))
-
-        if abs(area_ps - area_psi) / area_ps <= 0.001
-            if i == 1
-                V_[1, :] = 0.99 * V[numPoints, :] + 0.01 * V_[1, :]
-            else
-                V_[i, :] = 0.99 * V[i-1, :] + 0.01 * V_[i, :]
-            end
-        end
-    end
-
-    ps_out = PolyShape([V_], 1)
-
-    return ps_out
-
-
-end
-
-
-
 function polyObtieneCruces(ps::PolyShape)
 
     V = copy(ps.Vertices[1])
@@ -2530,104 +2207,6 @@ function polyObtieneCruces(ps::PolyShape)
 end
 
 
-function polyEliminaCrucesComplejos(ps::PolyShape)::PolyShape
-
-    cond = true
-    V = copy(ps.Vertices[1])
-    N = size(V, 1)
-
-    ps_ = polyShape.polyCopy(ps)
-
-    V_ = copy(ps_.Vertices[1])
-
-    # Obtiene los puntos de cruce y los guarda en mat_x
-    mat_x, V_x = polyShape.polyObtieneCruces(ps_)
-
-
-    num_cruces = size(mat_x, 1)
-
-    V_a = copy(ps_.Vertices[1])
-    V_b = copy(ps_.Vertices[1])
-    vvv = vcat(1:N, 1:N)
-
-    k = 0
-    while cond
-        k += 1
-        if k <= num_cruces
-            l1_ini = mat_x[k, 1]
-            if l1_ini <= N - 1
-                l1_fin = l1_ini + 1
-            else
-                l1_fin = 1
-            end
-            l2_ini = mat_x[k, 2]
-            if l2_ini <= N - 1
-                l2_fin = l2_ini + 1
-            else
-                l2_fin = 1
-            end
-
-            dist_l2_l1 = l2_ini - l1_ini > 0 ? l2_ini - l1_ini : N - l1_ini + l2_ini
-
-            set_a = vvv[findall(x -> (x >= l2_ini && x <= l2_ini + N - dist_l2_l1), 1:N*2)][2:end-1]
-            V_a[l1_ini, :] = V_x[1, :]' * 0.999 + V[l1_fin, :]' * 0.001
-            V_a[l2_fin, :] = V_x[1, :]' * 0.999 + V[l2_ini, :]' * 0.001
-            V_a[set_a, :] = length(set_a) > 1 ? repeat(V_x[1, :]', length(set_a), 1) : V_x[1, :]'
-
-            set_b = vvv[findall(x -> (x >= l1_ini && x <= l1_ini + dist_l2_l1), 1:N*2)][2:end-1]
-            V_b[l1_fin, :] = V_x[1, :]' * 0.999 + V[l1_ini, :]' * 0.001
-            V_b[l2_ini, :] = V_x[1, :]' * 0.999 + V[l2_fin, :]' * 0.001
-            V_b[set_b, :] = length(set_b) > 1 ? repeat(V_x[1, :]', length(set_b), 1) : V_x[1, :]'
-
-            areaInteseccion_a = polyShape.polyArea(polyShape.polyIntersect(polyShape.PolyShape([V_a], 1), ps))
-            areaInteseccion_b = polyShape.polyArea(polyShape.polyIntersect(polyShape.PolyShape([V_b], 1), ps))
-
-            if areaInteseccion_a > areaInteseccion_b
-                V_ = copy(V_a)
-                ps_ = polyShape.polyEliminaSpikes(PolyShape([V_], 1))
-                cond = false
-            else
-                V_ = copy(V_b)
-                ps_ = polyShape.polyEliminaSpikes(PolyShape([V_], 1))
-                cond = false
-            end
-        else
-            cond = false
-        end
-        ps_ = polyShape.polyEliminaSpikes(PolyShape([V_], 1))
-    end
-
-    return ps_
-
-end
-
-
-function polySimplify(ps::PolyShape)::PolyShape
-
-    numRegiones = ps.NumRegions
-
-    VV = Array{Array{Float64,2},1}(undef, numRegiones)
-    for i = 1:numRegiones
-        ps_i = polyShape.subShape(ps, i)
-
-        # Elimina spikes
-        ps_i = polyShape.polyEliminaSpikes(ps_i)
-
-        # Elimina cruces que forman poligonos complejos
-        ps_i = polyShape.polyEliminaCrucesComplejos(ps_i)
-        V_i = copy(ps_i.Vertices[1])
-
-        VV[i] = V_i
-
-    end
-
-    ps_out = PolyShape(VV, numRegiones)
-
-    return ps_out
-end
-
-
-
 function ajustaCoordenadas(ps::PolyShape)::Tuple{PolyShape,Float64,Float64}
     dx = 10000000
     dy = 10000000
@@ -2667,7 +2246,6 @@ function ajustaCoordenadas(ls::LineShape, dx::Real, dy::Real)
     end
     return ls
 end
-
 
 
 
@@ -3122,13 +2700,15 @@ export extraeInfoPoly, largoLadosPoly, isPolyConvex, isPolyInPoly, plotPolyshape
     shape2geom, geom2shape, astext2polyshape, polyEliminaColineales,
     astext2lineshape, shapeContains, shapeArea, shapeDifference, shapeIntersect, shapeUnion, shapeHull, shapeSimplify, shapeSimplifyTopology, subShape,
     shapeVertex, numVertices, shapeCentroid, partialCentroid, shapeDistance, partialDistance, polyBox, polyRotate, polyReverse, setPolyOrientation,
-    minPolyDistance, polyCopy, polyUnique, polyEliminateWithin, pointLineDist, intersectLines, findPolyIntersection, pointDistanceMat, polySimplify,
-    lineLineDist, parallelLineAtDist, lineAngle, halfspaceSignOfPointToLine, extendLine, polyEliminaRepetidos, polyEliminaSpikes, polyEliminaCrucesComplejos,
+    minPolyDistance, polyCopy, polyUnique, polyEliminateWithin, pointLineDist, intersectLines, findPolyIntersection, pointDistanceMat, 
+    lineLineDist, parallelLineAtDist, lineAngle, halfspaceSignOfPointToLine, extendLine,
     polyObtieneCruces, replaceShapeVertex, lineVec2polyShape, polyShape2lineVec, polyShrink,
     ajustaCoordenadas, angleMaxDistRect, extendRectToIntersection, createLine, polyReproject, bisector_direction, angleBetweenLines,
     reverseLine, distanceBetweenPoints, midPointSegment, alphaPointSegment, points2Line, points2Poly, lineLength, isLineLineParallel, distanceBetweenLines,
     polyProyeccion, wkt_reproject,
     shape2clipper, clipper2shape, clipper_union, clipper_difference, clipper_intersection, clipper_offset,
-    clipper_scale, findPolyShapeEdgeParallel2lineShape, vecLine2lineShape, lineShape2lineVec, lineSegmentCompletion,
-    combineLines2polyShape, orderLineVec, partialPolyOffset, point2lineProjection, perpendicularLine, line2Box
+    clipper_scale, lineShape2lineVec,
+    partialPolyOffset, point2lineProjection, perpendicularLine, line2Box
 end
+
+#polyEliminaSpikes, polyEliminaCrucesComplejos, polySimplify, polyEliminaRepetidos, orderLineVec, 
