@@ -7,7 +7,8 @@ function optimal_lot_selection(C)
     idCombi = collect(1:numCombi)
     m = JuMP.Model(Cbc.Optimizer)
     JuMP.set_optimizer_attribute(m, "ratioGap", 0.001)
-    set_optimizer_attribute(m, "logLevel", 0)
+    JuMP.set_optimizer_attribute(m, "logLevel", 0)
+    JuMP.set_time_limit_sec(m, 1*60.0)
 
     largo_Ck_cero = [length(idCombi[C[:, k].==0]) for k = 1:numLotes] # numero de combis donde el lote k NO participa
     set_lotes = collect(1:numLotes)
@@ -40,6 +41,11 @@ function optimal_lot_selection(C)
     @objective(m, Min, sum(x))
     JuMP.optimize!(m)
 
-    return JuMP.value.(x.data)
+    if termination_status(m) == MOI.OPTIMAL
+        return JuMP.value.(x.data)
+    else
+        return zeros(Int, numLotes)
+    end
+
     
 end
