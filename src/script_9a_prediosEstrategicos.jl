@@ -28,7 +28,6 @@ df_manzanas = DataFrame(manzana_sii = unique_manzanas)
 df_manzanas.predios_estrategicos .= ""
 df_manzanas.num_predios_estrategicos .= 0
 
-# unique_manzanas = [1510500040]
 
 for i_m in eachindex(unique_manzanas)
     df_predios_combis_m = df_predios_combis[df_predios_combis.manzana_sii .== unique_manzanas[i_m], :]
