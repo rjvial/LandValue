@@ -4,7 +4,7 @@ function funcionPrincipal(tipoOptimizacion, codigo_predial::Union{Array{Int64,1}
     # PARTE "1": OBTENCIÓN DE PARÁMETROS         #
     ##############################################
 
-    DotEnv.load("secrets.env")
+    my_env = DotEnv.config("secrets.env")
     conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
 
     conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])

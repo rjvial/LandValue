@@ -1,4 +1,4 @@
-function optimal_lot_selection(C, df)
+function optimal_lot_selection(C, df, tipo_opt="sin_control")
 
     numCombi, numPredios = size(C)
 
@@ -18,9 +18,17 @@ function optimal_lot_selection(C, df)
         z[k in set_predios[largo_Ck_cero.>=1], j in idCombi[C[:, k].==0]], Bin # z_kj = 1 si se selecciona el combi j que exluye el predio k
     end)
 
-    # debe haber al menos un predio x activo en cada combi
-    @constraint(m, sum(x) .>= 1) # debe haber al menos un predio x activo 
-
+    if tipo_opt == "sin_control"
+        # debe haber al menos un predio x activo
+        @constraint(m, sum(x) .>= 1) # debe haber al menos un predio x activo 
+        
+    elseif tipo_opt == "con_control"
+        # debe haber al menos un predio activo en cada combi
+        for j in idCombi # Para cada combi j,
+            @constraint(m, sum(C[j, :] .* x) .>= 1) # debe haber al menos un x activo 
+        end
+    end
+    
     for k in set_predios # Para cada predio k,
         if largo_Ck_cero[k] >= 1  # si existe uno o más combi's en los que el predio k NO participa, 
             @constraint(m, sum(z[k, idCombi[C[:, k].==0]]) >= 1) # al menos uno de estos combi's que excluyen al predio k debe ser seleccionado
@@ -34,7 +42,7 @@ function optimal_lot_selection(C, df)
         end
     end
 
-    @objective(m, Min, sum(x) + sum(x .* df.sup_terreno) / 10^5) # Se busca minimizar el número de predios seleccionados y la suma de las superficies de los predios seleccionados  
+    @objective(m, Min, sum(x) + sum(x .* df.sup_terreno_sii) / 10^5) # Se busca minimizar el número de predios seleccionados y la suma de las superficies de los predios seleccionados  
     JuMP.optimize!(m)
 
     if termination_status(m) == MOI.OPTIMAL

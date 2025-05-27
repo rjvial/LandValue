@@ -8,9 +8,9 @@ codigo_predial = [151600217300030, 151600217300031, 151600217300032, 15160021730
 
 tipoOptimizacion = "volumetrica"
 
-DotEnv.load("secrets.env")
-datos_LandValue = ["landengines_dev", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
-datos_mygis_db = ["gis_data", ENV["USER_AWS"], ENV["PW_AWS"], ENV["HOST_AWS"]]
+my_env = DotEnv.config("secrets.env")
+datos_LandValue = ["landengines_dev", my_env["USER_AWS"], my_env["PW_AWS"], my_env["HOST_AWS"]]
+datos_mygis_db = ["gis_data", my_env["USER_AWS"], my_env["PW_AWS"], my_env["HOST_AWS"]]
 # datos_LandValue = ["landengines_local", "postgres", "", "localhost"]
 # datos_mygis_db = ["gis_data_local", "postgres", "", "localhost"]
 

@@ -2,23 +2,46 @@ module neo4j_julia
 
 using DotEnv, AWS, DataFrames, CSV
 
-function connection(neo4j_host, neo4j_user, neo4j_password)
-    
+function connection(neo4j_host, neo4j_user, neo4j_password, folder, key_pair, ec2_user, public_dns)
+
     conn = Dict(
-    "folder" => "C:\\Users\\rjvia\\.Neo4jDesktop\\relate-data\\dbmss\\dbms-8d2802c9-5882-41ce-a9e4-257030275495\\bin\\cypher-shell.bat",
-    "host" => neo4j_host,
-    "user" => neo4j_user,
-    "password" => neo4j_password
-    )   
+    "neo4j_host" => neo4j_host, #"bolt://localhost:7687",
+    "neo4j_user" => neo4j_user, #"neo4j",
+    "neo4j_password" => neo4j_password, #"x67y1332",
+    "folder" =>  folder, #"/usr/bin/cypher-shell",
+    "key_pair"   => key_pair, #"neo4j-key-pair.pem",
+    "ec2_user"   => ec2_user, #"ec2-user",
+    "public_dns" => public_dns 
+    )
+    
     return conn
 end
 
-function cypher_to_dataframe(query, conn)
-    query = replace(query, "\n" => "")
-    cmd = `$(conn["folder"]) -a $(conn["host"]) --format plain -u $(conn["user"]) -p $(conn["password"]) $(query)`
-    result = read(cmd, String)
-    df = CSV.File(IOBuffer(result)) |> DataFrame
-    rename!(df, Symbol.(replace.(String.(names(df)), " " => "")))
+function cypher_to_dataframe(query::AbstractString, conn::Dict{String,String})
+    # 1) collapse newlines into spaces so your MATCH … RETURN stays one argument
+    # cleaned = replace(query, '\n' => ' ')
+
+    neo4j_host = conn["neo4j_host"]
+    neo4j_user = conn["neo4j_user"]
+    neo4j_password = conn["neo4j_password"]
+    folder = conn["folder"]
+    key_pair = conn["key_pair"]
+    ec2_user = conn["ec2_user"]
+    public_dns = conn["public_dns"]
+
+    # Build the SSH command that runs cypher-shell remotely without encryption
+    ssh_cmd = `ssh -i $key_pair $ec2_user@$public_dns $folder \
+    -a $neo4j_host \
+    --encryption false \
+    -u $neo4j_user -p $neo4j_password \
+    --format plain`
+
+    # Pipe the query and capture output
+    output = read(pipeline(ssh_cmd; stdin=IOBuffer(query)), String)
+
+    io = IOBuffer(output)
+    df = CSV.read(io, DataFrame; normalizenames=true)
+    
     return df
 end
 
