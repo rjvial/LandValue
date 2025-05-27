@@ -1,6 +1,6 @@
 module aws_julia
 
-using DotEnv, AWS, DataFrames, CSV, JSON3, Dates, JSON
+using DotEnv, AWS, DataFrames, CSV, JSON
 
 using AWS: @service
 @service S3

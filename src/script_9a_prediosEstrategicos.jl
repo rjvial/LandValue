@@ -8,7 +8,6 @@ checkpoint_file = "predios_estrategicos_checkpoint.csv"
 my_env = DotEnv.config("secrets.env")
 conn_aws = aws_julia.connection(my_env["AWS_ACCESS_KEY"], my_env["AWS_SECRET_KEY"], my_env["AWS_REGION"])
 
-all_instances = aws_julia.find_ec2_instances(conn_aws)
 instance_info = aws_julia.find_instance_by_name("Neo4j-EC2", conn_aws)
 
 # ── SSH + Remote cypher-shell (no local cypher-shell needed) ─────────────────
@@ -22,20 +21,6 @@ neo4j_user = "neo4j"
 neo4j_password = "x67y1332"
 
 conn_neo4j = neo4j_julia.connection(neo4j_host, neo4j_user, neo4j_password, folder, key_pair, ec2_user, public_dns)
-
-query = """
-MATCH (p:Predio)-[]->(c:Combi)
-RETURN p.codigo_predial AS codigo, p.sup_terreno_sii AS area
-LIMIT 10;
-"""
-
-df = neo4j_julia.cypher_to_dataframe(query, conn_neo4j) 
-
-println("Query output:\n", df)
-
-
-
-
 
 
 num_max_combis = 50 #30
@@ -58,20 +43,14 @@ lista_poi_no_incluir = "['park', 'school', 'bank', 'place_of_worship', 'supermar
 
 query = """
 MATCH (p:Predio)-[]-(c:Combi) 
+WHERE NOT (p)-[:CONFORMA_ANTEPROYECTO]->(:Anteproyecto) 
+AND c.rectangularity >= $(min_rectangularity) 
+OPTIONAL MATCH (pc:Poi_Category)-[]-(:Poi)-[:SE_UBICA_EN_PREDIO]->(p) 
+WHERE NOT pc.poi_category IN $(lista_poi_no_incluir)
 RETURN DISTINCT p.codigo_predial as codigo_predial, p.sup_terreno_sii as sup_terreno_sii 
-LIMIT 10
+ORDER BY codigo_predial
 """
-
-# query = """
-# MATCH (p:Predio)-[]-(c:Combi) 
-# WHERE NOT (p)-[:CONFORMA_ANTEPROYECTO]->(:Anteproyecto) 
-# AND c.rectangularity >= $(min_rectangularity) 
-# OPTIONAL MATCH (pc:Poi_Category)-[]-(:Poi)-[:SE_UBICA_EN_PREDIO]->(p) 
-# WHERE NOT pc.poi_category IN $(lista_poi_no_incluir)
-# RETURN DISTINCT p.codigo_predial as codigo_predial, p.sup_terreno_sii as sup_terreno_sii 
-# ORDER BY codigo_predial
-# """
-df_predios = neo4j_julia.cypher_to_dataframe(query, conn)
+df_predios = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 
 query_predios_combis = """
 MATCH (p:Predio)-[]-(c:Combi) 
@@ -83,7 +62,7 @@ RETURN c.manzent as manzent, c.id_combi as id_combi,
         p.codigo_predial as codigo_predial 
 ORDER BY id_combi, codigo_predial
 """
-df_predios_combis = neo4j_julia.cypher_to_dataframe(query_predios_combis, conn)
+df_predios_combis = neo4j_julia.cypher_to_dataframe(query_predios_combis, conn_neo4j)
 unique_manzanas = sort(unique(df_predios_combis.manzent))
 
 

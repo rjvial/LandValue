@@ -1,3 +1,2 @@
 secrets.env
-landengines_kp.pem
-neo4j-key-pair.pem
+*.pem
