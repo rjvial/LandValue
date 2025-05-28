@@ -1,6 +1,5 @@
 using LandValue, DotEnv, DataFrames, CSV
 
-# fileDir = "C:\\Users\\rjvia\\.Neo4jDesktop\\relate-data\\dbmss\\dbms-8d2802c9-5882-41ce-a9e4-257030275495\\import\\"
 fileDir = "/var/lib/neo4j/import"
 
 checkpoint_file = "predios_estrategicos_checkpoint.csv"
@@ -22,18 +21,12 @@ neo4j_password = "x67y1332"
 
 conn_neo4j = neo4j_julia.connection(neo4j_host, neo4j_user, neo4j_password, folder, key_pair, ec2_user, public_dns)
 
+###############################################################################
+
 
 num_max_combis = 50 #30
 min_rectangularity = 0.92
 
-# Get data from Neo4j
-# lista_poi_no_incluir = "['restaurant', 'park', 'school', 'parking', 'convenience', 'fast_food', 'playground', 'cafe', 
-# 'pharmacy', 'kindergarten', 'bank', 'place_of_worship', 'supermarket', 'sports_centre', 'fuel', 'clinic', 'fountain', 
-# 'garden', 'university', 'pub', 'courthouse', 'library', 'community_centre', 'police', 'department_store', 'theatre', 
-# 'mobile_phone', 'electronics', 'doityourself', 'marketplace', 'fire_station', 'college', 'car_wash', 'hospital', 
-# 'social_facility', 'gas', 'cinema', 'shopping_centre', 'sports_hall', 'townhall', 'stadium', 'dog_park', 'food_court', 
-# 'public_building', 'vehicle_inspection', 'bus_station', 'prison', 'conference_centre', 'golf_course', 'monastery', 
-# 'storage_rental', 'building_materials', 'post_box', 'motorcycle_parking', 'money_transfer', 'casino']"
 
 lista_poi_no_incluir = "['park', 'school', 'bank', 'place_of_worship', 'supermarket', 'sports_centre', 
 'fuel', 'clinic', 'garden', 'university', 'courthouse', 'library', 'police', 
@@ -64,7 +57,7 @@ ORDER BY id_combi, codigo_predial
 """
 df_predios_combis = neo4j_julia.cypher_to_dataframe(query_predios_combis, conn_neo4j)
 unique_manzanas = sort(unique(df_predios_combis.manzent))
-
+num_manzanas = length(unique_manzanas)
 
 # Create a DataFrame to store the results for each manzana.
 df_manzanas = DataFrame(manzent = unique_manzanas)
@@ -116,7 +109,7 @@ for i_m in eachindex(unique_manzanas)
     df_predios_m = filter(row -> row.codigo_predial in unique_codigo_predial_m, df_predios)
     num_combis_m = length(unique_combis_m)
 
-    display("Trabajando en Manzana $(unique_manzanas[i_m]). Num Combis: $(num_combis_m)/$(num_combis_bruto). Num Predios: $(num_codigo_predial_m)/$(num_codigo_predial_bruto)")
+    display("$(i_m)/$(num_manzanas) Trabajando en Manzana $(unique_manzanas[i_m]). Num Combis: $(num_combis_m)/$(num_combis_bruto). Num Predios: $(num_codigo_predial_m)/$(num_codigo_predial_bruto)")
     C_m = zeros(Int, num_combis_m, num_codigo_predial_m)
     for i_c in 1:num_combis_m, i_p in 1:num_codigo_predial_m
         if any((df_predios_combis_m.id_combi .== unique_combis_m[i_c]) .&& 
@@ -150,12 +143,29 @@ for i_m in eachindex(unique_manzanas)
 end
 
 # Write final results.
-final_file = fileDir * "predios_estrategicos.csv"
-CSV.write(final_file, df_manzanas)
-println("Processing complete. Final data saved to ", final_file)
+local_file_name = "predios_estrategicos.csv"
+CSV.write(local_file_name, df_manzanas)
+println("Processing complete. Final data saved to ", local_file_name)
+
+aws_file_name = "kg/$(local_file_name)"
+aws_bucket = "landengines-data"
+
+aws_julia.upload_csv_file_to_s3(conn_aws, aws_bucket, aws_file_name, local_file_name)
 
 # Erase the checkpoint file now that processing is complete.
 if isfile(checkpoint_file)
     rm(checkpoint_file)
     println("Checkpoint file erased.")
 end
+
+
+
+
+# Get data from Neo4j
+# lista_poi_no_incluir = "['restaurant', 'park', 'school', 'parking', 'convenience', 'fast_food', 'playground', 'cafe', 
+# 'pharmacy', 'kindergarten', 'bank', 'place_of_worship', 'supermarket', 'sports_centre', 'fuel', 'clinic', 'fountain', 
+# 'garden', 'university', 'pub', 'courthouse', 'library', 'community_centre', 'police', 'department_store', 'theatre', 
+# 'mobile_phone', 'electronics', 'doityourself', 'marketplace', 'fire_station', 'college', 'car_wash', 'hospital', 
+# 'social_facility', 'gas', 'cinema', 'shopping_centre', 'sports_hall', 'townhall', 'stadium', 'dog_park', 'food_court', 
+# 'public_building', 'vehicle_inspection', 'bus_station', 'prison', 'conference_centre', 'golf_course', 'monastery', 
+# 'storage_rental', 'building_materials', 'post_box', 'motorcycle_parking', 'money_transfer', 'casino']"

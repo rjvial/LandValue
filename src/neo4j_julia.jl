@@ -30,7 +30,7 @@ function cypher_to_dataframe(query::AbstractString, conn::Dict{String,String})
     public_dns = conn["public_dns"]
 
     # Build the SSH command that runs cypher-shell remotely without encryption
-    ssh_cmd = `ssh -i $key_pair $ec2_user@$public_dns $folder \
+    ssh_cmd = `ssh -i $key_pair -o StrictHostKeyChecking=no $ec2_user@$public_dns $folder \
     -a $neo4j_host \
     --encryption false \
     -u $neo4j_user -p $neo4j_password \

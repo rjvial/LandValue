@@ -5,6 +5,7 @@ version = "0.1.0"
 
 [deps]
 AWS = "fbe9abb3-538b-5e4e-ba9e-bc94f4f92ebc"
+AWSS3 = "1c724243-ef5b-51ab-93f4-b0a88ac62a95"
 ArchGDAL = "c9ce4bd3-c3d5-55b8-8973-c0e20141b8c3"
 BlackBoxOptim = "a134a8b2-14d6-55f6-9291-3336d3ab0209"
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
@@ -44,6 +45,7 @@ XLSX = "fdbf4ff8-1666-58a4-91e7-1b58723a45e0"
 
 [compat]
 AWS = "1.92.1"
+AWSS3 = "0.11.4"
 BlackBoxOptim = "0.6.3"
 Dates = "1.11.0"
 Images = "0.26.1"

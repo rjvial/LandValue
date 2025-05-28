@@ -1,7 +1,8 @@
 module aws_julia
 
 using DotEnv, AWS, DataFrames, CSV, JSON
-
+using AWSS3
+using AWS
 using AWS: @service
 @service S3
 @service Athena
@@ -173,13 +174,26 @@ function find_instance_by_name(target_name::String, aws_client)
     error("Instance with name '$target_name' not found.")
 end
 
+
+function upload_csv_file_to_s3(aws_client::AWSConfig, aws_bucket::String, aws_file_name::String, local_file_name::String)
+    # Read the CSV content as a UTF-8 string
+    file_content = open(local_file_name, "r") do io
+        read(io, String)
+    end
+    s3_put(aws_client, aws_bucket, aws_file_name, file_content)
+
+    return true
+end
+
+
 export connection,
        pd_read_s3_csv,
        query_to_dataframe,
        get_execution_response,
        execute_athena_query,
        find_ec2_instances,
-       find_instance_by_name
+       find_instance_by_name,
+       upload_csv_file_to_s3
 end
 
 
