@@ -1,6 +1,5 @@
 using LandValue, DotEnv, DataFrames, CSV
 
-fileDir = "/var/lib/neo4j/import"
 
 checkpoint_file = "predios_estrategicos_checkpoint.csv"
 

@@ -1,6 +1,7 @@
 module polyShape
 
-using LandValue, ..poly2D, Clipper, ArchGDAL, PyCall, PyPlot, Images, ImageBinarization, DataFrames
+using LandValue, ..poly2D, Clipper, ArchGDAL, PyCall, PyPlot,  
+        ImageBinarization, DataFrames, LinearAlgebra, Proj, Combinatorics
 
 
 
@@ -1224,11 +1225,20 @@ end
 function polyIntersect(ps_s_::PolyShape, ps_c_::PolyShape)::PolyShape
     ps_s = deepcopy(ps_s_)
     ps_c = deepcopy(ps_c_)
+    ps_c = polyShape.polyUnion(ps_c)
 
-    path_s = polyShape.shape2clipper(ps_s)
     path_c = polyShape.shape2clipper(ps_c)
-    i_path = polyShape.clipper_intersection(path_s, path_c)
-    ps_out = polyShape.clipper2shape(i_path, PolyShape)
+    vec_V = []
+    for i = 1:ps_s.NumRegions
+        ps_s_i = polyShape.subShape(ps_s, i)
+        path_s_i = polyShape.shape2clipper(ps_s_i)
+        i_path = polyShape.clipper_intersection(path_s_i, path_c)
+        ps_out_i = polyShape.clipper2shape(i_path, PolyShape)
+        for j = 1:ps_out_i.NumRegions
+            push!(vec_V, ps_out_i.Vertices[j])
+        end
+    end
+    ps_out = PolyShape(vec_V, length(vec_V))    
 
     return ps_out
 end
@@ -2689,26 +2699,123 @@ function polyProyeccion(ps, alt, orientacion)
 
 end
 
+
+function reproject_polyshape(ps::PolyShape, EPSG_in = 4326, utm_out = "+proj=utm +zone=19 +south +datum=WGS84")::PolyShape
+    trans = Proj.Transformation("EPSG:$(EPSG_in)", utm_out)
+    transformed_vertices = [
+        hcat([collect(trans(lat, lon)) for (lon, lat) in eachrow(polygon)]...)'
+        for polygon in ps.Vertices
+    ]
+    return PolyShape(transformed_vertices, ps.NumRegions)
+end
+
+
+function poly2Constraints(ps::PolyShape)
+    # Convert a PolyShape to halfspace constraints. Only works for convex or near convex polygons.
+    ps = polyShape.setPolyOrientation(polyShape.shapeHull(ps), 1)
+
+    V = ps.Vertices[1]
+
+    n = size(V, 1)
+    A = zeros(n, 2)
+    b = zeros(n)
+
+    for i in 1:n
+        p1 = V[i, :]
+        p2 = V[mod1(i + 1, n), :]
+
+        # Edge vector from p1 to p2
+        edge = p2 - p1
+
+        # Outward normal (rotate edge 90° clockwise)
+        # For counter-clockwise vertices, this gives outward normal
+        outward_normal = [edge[2], -edge[1]]
+
+        # Normalize
+        outward_normal = outward_normal / norm(outward_normal)
+
+        # For constraint a^T x <= b, we want the normal to point outward
+        # so that points inside satisfy the constraint
+        A[i, :] = outward_normal
+        b[i] = dot(outward_normal, p1)
+    end
+
+    return A, b
+end
+
+function constraints2poly(A, b; tol=1e-10)
+    
+    m, n = size(A)  # m constraints, n variables
+    if n > m
+        error("Underdetermined system: more variables than constraints")
+    end
+        
+    V = [0 0]
+    # Generate all combinations of n constraints from m total constraints
+    for constraint_indices in combinations(1:m, n)
+        # Extract the selected constraint rows
+        A_selected = A[constraint_indices, :]
+        b_selected = b[constraint_indices]
+        
+        # Solve the system A_selected * x = b_selected
+        try
+            if abs(det(A_selected)) > tol  # Check if matrix is invertible
+                x = A_selected \ b_selected
+                
+                # Only keep points that satisfy ALL original constraints
+                if all(A * x .<= b .+ tol)
+                    V = vcat(V, [x[1] x[2]])
+                end
+            end
+        catch
+            # Skip if system is singular or other numerical issues
+            continue
+        end
+    end
+
+    V = copy(V[2:end,:]) 
+    ps_pt = PolyShape([V], 1)
+    ps_out = polyShape.setPolyOrientation(polyShape.shapeHull(ps_pt), 1)
+
+    V_out = ps_out.Vertices[1]
+
+    vec_V = []
+    n = size(V, 1)
+    for i in 1:n
+        p1 = V_out[i, :]'
+        p2 = V_out[mod1(i + 1, n), :]'
+
+        push!(vec_V, [p1[1] p1[2]; p2[1] p2[2]])
+    end
+    ls_out = LineShape(vec_V, length(vec_V))
+    
+    return ps_out, ls_out
+end
+
+
+
+
 ########################################################################
 ########################################################################
 ########################################################################
 
 
-export extraeInfoPoly, largoLadosPoly, isPolyConvex, isPolyInPoly, plotPolyshape2D, plotPolyshape2Din3D, plotPolyshape2DVecin3D,
-    polyArea, polyDifference, polyDifference_v2, plotFig, plotScatter3d, polyShape2constraints, polyOrientation, polyUnion, shapeBuffer,
-    polyIntersect, polyOffset, plotPolyshape3D, imageWhiteSpaceReduction,
-    shape2geom, geom2shape, astext2polyshape, polyEliminaColineales,
-    astext2lineshape, shapeContains, shapeArea, shapeDifference, shapeIntersect, shapeUnion, shapeHull, shapeSimplify, shapeSimplifyTopology, subShape,
-    shapeVertex, numVertices, shapeCentroid, partialCentroid, shapeDistance, partialDistance, polyBox, polyRotate, polyReverse, setPolyOrientation,
-    minPolyDistance, polyCopy, polyUnique, polyEliminateWithin, pointLineDist, intersectLines, findPolyIntersection, pointDistanceMat, 
-    lineLineDist, parallelLineAtDist, lineAngle, halfspaceSignOfPointToLine, extendLine,
+export extraeInfoPoly, largoLadosPoly, isPolyConvex, isPolyInPoly, plotPolyshape2D, plotPolyshape2Din3D, 
+    plotPolyshape2DVecin3D, polyArea, polyDifference, polyDifference_v2, plotFig, plotScatter3d, 
+    polyOrientation, polyUnion, shapeBuffer, polyIntersect, polyOffset, plotPolyshape3D, 
+    imageWhiteSpaceReduction, shape2geom, geom2shape, astext2polyshape, polyEliminaColineales,
+    astext2lineshape, shapeContains, shapeArea, shapeDifference, shapeIntersect, shapeUnion, shapeHull, 
+    shapeSimplify, shapeSimplifyTopology, subShape, shapeVertex, numVertices, shapeCentroid, partialCentroid, 
+    shapeDistance, partialDistance, polyBox, polyRotate, polyReverse, setPolyOrientation, minPolyDistance, 
+    polyCopy, polyUnique, polyEliminateWithin, pointLineDist, intersectLines, findPolyIntersection, 
+    pointDistanceMat, lineLineDist, parallelLineAtDist, lineAngle, halfspaceSignOfPointToLine, extendLine,
     polyObtieneCruces, replaceShapeVertex, lineVec2polyShape, polyShape2lineVec, polyShrink,
     ajustaCoordenadas, angleMaxDistRect, extendRectToIntersection, createLine, polyReproject, bisector_direction, angleBetweenLines,
     reverseLine, distanceBetweenPoints, midPointSegment, alphaPointSegment, points2Line, points2Poly, lineLength, isLineLineParallel, distanceBetweenLines,
-    polyProyeccion, wkt_reproject,
-    shape2clipper, clipper2shape, clipper_union, clipper_difference, clipper_intersection, clipper_offset,
-    clipper_scale, lineShape2lineVec,
-    partialPolyOffset, point2lineProjection, perpendicularLine, line2Box
+    polyProyeccion, wkt_reproject, shape2clipper, clipper2shape, clipper_union, clipper_difference, 
+    clipper_intersection, clipper_offset, clipper_scale, lineShape2lineVec,
+    partialPolyOffset, point2lineProjection, perpendicularLine, line2Box, reproject_polyshape, poly2Constraints,
+    constraints2poly
 end
 
 #polyEliminaSpikes, polyEliminaCrucesComplejos, polySimplify, polyEliminaRepetidos, orderLineVec, 
