@@ -2710,9 +2710,11 @@ function reproject_polyshape(ps::PolyShape, EPSG_in = 4326, utm_out = "+proj=utm
 end
 
 
-function poly2Constraints(ps::PolyShape)
+function poly2Constraints(ps_::PolyShape)
     # Convert a PolyShape to halfspace constraints. Only works for convex or near convex polygons.
-    ps = polyShape.setPolyOrientation(polyShape.shapeHull(ps), 1)
+    v1 = ps_.Vertices[1][1,:]
+    ps = polyShape.setPolyOrientation(polyShape.shapeHull(ps_), 1)
+    ps = polyShape.rotate_to_first_ccw(ps, v1)
 
     V = ps.Vertices[1]
 
@@ -2793,7 +2795,18 @@ function constraints2poly(A, b; tol=1e-10)
 end
 
 
-
+function rotate_to_first_ccw(ps::PolyShape, v1::Vector{Float64})
+    # Ensure vertices are CCW oriented
+    vertices = ps.Vertices[1]
+    vertices = polyShape.setPolyOrientation(PolyShape([vertices], 1), 1).Vertices[1]
+    idx = findfirst(row -> all(row .≈ v1), eachrow(vertices))
+    if isnothing(idx)
+        error("The vertex v1 is not found in the given list.")
+    end
+    rotated_vertices = [vertices[idx:end, :]; vertices[1:idx-1, :]]
+    ps_out = PolyShape([rotated_vertices],1)
+    return ps_out
+end
 
 ########################################################################
 ########################################################################
@@ -2815,7 +2828,7 @@ export extraeInfoPoly, largoLadosPoly, isPolyConvex, isPolyInPoly, plotPolyshape
     polyProyeccion, wkt_reproject, shape2clipper, clipper2shape, clipper_union, clipper_difference, 
     clipper_intersection, clipper_offset, clipper_scale, lineShape2lineVec,
     partialPolyOffset, point2lineProjection, perpendicularLine, line2Box, reproject_polyshape, poly2Constraints,
-    constraints2poly
+    constraints2poly, rotate_to_first_ccw
 end
 
 #polyEliminaSpikes, polyEliminaCrucesComplejos, polySimplify, polyEliminaRepetidos, orderLineVec, 

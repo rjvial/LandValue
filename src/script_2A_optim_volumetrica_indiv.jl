@@ -35,7 +35,7 @@ df_combis = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 
 
 # Problemas con: 200, 300, 400, 600
-codigo_predial = parse.(Int, split(strip(df_combis[10,"list_predios"], ['(', ')']), ';'))
+codigo_predial = parse.(Int, split(strip(df_combis[1,"list_predios"], ['(', ')']), ';'))
 
 
 temp_opt, alturaPiso, xopt, vec_datos, superficieTerreno, superficieTerrenoBruta, status_optim = funcionPrincipal(tipoOptimizacion, codigo_predial, id_, datos_LandValue, datos_mygis_db, []);

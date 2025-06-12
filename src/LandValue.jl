@@ -327,11 +327,12 @@ using JuMP, BlackBoxOptim, NOMAD, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, O
     include("aws_julia.jl")
     include("neo4j_julia.jl")
     include("optimal_box_volume.jl")
+    include("optimal_box_volume_sombra_malo.jl")
 
     export funcionPrincipal, fo_bbo, fo_bbo_e2, fo_nomad, calculaAnguloRotacion, generaSombraEdificio, optiEdificio, displayResults, 
         optim_nomad, optim_bbo, poly2D, polyShape, graphMod, resultConverter, plotBaseEdificio3D, generaVol3D, generaSombraTeor, 
         pg_julia, aws_julia, neo4j_julia, obtieneCalles, generaPoligonoCorte, queryCabida, generaCotas, create_scr, create_edificio_geojson,
-        optimal_pricing, optimal_lot_selection, optimal_box_volume
+        optimal_pricing, optimal_lot_selection, optimal_box_volume, optimal_box_volume_sombra_malo
 
 
 end

@@ -195,8 +195,34 @@ function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, dato
     vec_psVolteor = [polyShape.polyOffset(ps_bruto, -i / rasante) for i in vec_altVolteor]
     vec_psVolteor = [polyShape.polyIntersect(vec_psVolteor[i], ps_areaEdif) for i in eachindex(vec_psVolteor)]
 
+    # Calcula sombra del Volumen Teórico
+    @time ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s = generaSombraTeor(vec_psVolteor, vec_altVolteor, ps_publico, ps_calles)
+
+    areaSombra_p = polyShape.polyArea(ps_sombraVolTeorico_p)
+    areaSombra_o = polyShape.polyArea(ps_sombraVolTeorico_o)
+    areaSombra_s = polyShape.polyArea(ps_sombraVolTeorico_s)
+
+    centroidSombra_p = polyShape.shapeCentroid(ps_sombraVolTeorico_p)
+    centroidSombra_o = polyShape.shapeCentroid(ps_sombraVolTeorico_o)
+    centroidSombra_s = polyShape.shapeCentroid(ps_sombraVolTeorico_s)
+
+    # Calcula el volumen sin restricciones
+    rasante_sombra = Float64(dcn.rasanteSombra)
+    vec_altVolConSombra = collect(0:0.1:50) .* rasante_sombra
+    vec_altVolConSombra = vec_altVolConSombra[vec_altVolConSombra.<alturaMax]
+    push!(vec_altVolConSombra, alturaMax)
+    vec_psVolConSombra = [polyShape.polyOffset(ps_bruto, -i / rasante_sombra) for i in vec_altVolConSombra]
+    vec_psVolConSombra = [polyShape.polyIntersect(vec_psVolConSombra[i], ps_areaEdif) for i in eachindex(vec_psVolConSombra)]
+
+
     alturaPiso = 2.55
-    ps_opt, sup_opt, np_opt = optimal_box_volume(vec_psVolteor, vec_altVolteor, vec_pisos, alturaPiso)
+    max_ocupacion_suelo = 800
+
+    @time ps_base1, ps_base2, np1, np2 = optimal_box_volume(vec_psVolteor, vec_altVolteor, vec_pisos, alturaPiso, max_ocupacion_suelo, false)
+    @time ps_base1, np1 = optimal_box_volume_sombra_malo(vec_psVolConSombra, vec_altVolConSombra, alturaPiso, ps_areaEdif, ps_calles, ps_publico, ps_bruto, areaSombra_p, areaSombra_o, 
+        areaSombra_s, max_ocupacion_suelo, centroidSombra_p, centroidSombra_o, centroidSombra_s, false)
+    ps_base2 = PolyShape([],1)
+    np2 = 0
 
     fpe = FlagPlotEdif3D()
     fpe.predio = true
@@ -209,7 +235,7 @@ function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, dato
     fpe.sombraEdif_p = true
     fpe.sombraEdif_o = true
     fpe.sombraEdif_s = true
-    fig, ax, ax_mat = polyShape.plotBaseEdificio3D(fpe, [np_opt], alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, ps_publico, ps_calles, ps_opt, ps_opt, ps_opt)
-
+    fig, ax, ax_mat = plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra,
+                            ps_publico, ps_calles, ps_base1, ps_base2, np1, np2)
 
 end

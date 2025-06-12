@@ -2,7 +2,7 @@
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "d2add23420d970d00c88cc0deb067917b2721a55"
+project_hash = "71506b499c85467ae396f66637fd2eede2096fe7"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
@@ -1895,6 +1895,26 @@ deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "GMP_jll", "Ip
 git-tree-sha1 = "0553ac229a2038b28b974bf8db59302528b143d2"
 uuid = "e5ac4fe4-a920-5659-9bf8-f9f73e9e79ce"
 version = "900.200.100+1"
+
+[[deps.SCS]]
+deps = ["MathOptInterface", "PrecompileTools", "SCS_jll", "SparseArrays"]
+git-tree-sha1 = "4aed85dec0209d638c241c34160999eaaf07965a"
+uuid = "c946c3f1-0d1f-5ce8-9dea-7daa1f7e2d13"
+version = "2.1.0"
+
+    [deps.SCS.extensions]
+    SCSSCS_GPU_jllExt = ["SCS_GPU_jll"]
+    SCSSCS_MKL_jllExt = ["SCS_MKL_jll"]
+
+    [deps.SCS.weakdeps]
+    SCS_GPU_jll = "af6e375f-46ec-5fa0-b791-491b0dfa44a4"
+    SCS_MKL_jll = "3f2553a9-4106-52be-b7dd-865123654657"
+
+[[deps.SCS_jll]]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LLVMOpenMP_jll", "Libdl", "OpenBLAS32_jll"]
+git-tree-sha1 = "902cc4e42ecca21bbd74babf899b2a5b12add323"
+uuid = "f4f2fc5b-1d94-523c-97ea-2ab488bedf4b"
+version = "3.2.7+0"
 
 [[deps.SHA]]
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
