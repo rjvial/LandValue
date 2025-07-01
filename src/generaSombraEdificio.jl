@@ -1,66 +1,75 @@
-function generaSombraEdificio(ps_baseEdificio::PolyShape, alt::Float64, ps_publico::PolyShape, ps_calles::PolyShape)::Tuple{PolyShape, PolyShape, PolyShape}
-
-    ps_SombraEdif_p = PolyShape([],0)
-    ps_SombraEdif_o = PolyShape([],0)
-    ps_SombraEdif_s = PolyShape([],0)
-    numEdificios = ps_baseEdificio.NumRegions
-    for e = 1:numEdificios
-        V_baseEdif_e = [ps_baseEdificio.Vertices[e] zeros(size(ps_baseEdificio.Vertices[e],1),1); 
-                      ps_baseEdificio.Vertices[e] alt .*ones(size(ps_baseEdificio.Vertices[e],1),1)]
-        numVerticesEdif_e = size(V_baseEdif_e,1)
-        V_SombraEdif_p = V_baseEdif_e[:,1:2]
-        V_SombraEdif_o = V_baseEdif_e[:,1:2]
-        V_SombraEdif_s = V_baseEdif_e[:,1:2]
-        for i = 1:numVerticesEdif_e
-            alt_i = V_baseEdif_e[i,3]
-            V_SombraEdif_p[i,1] = V_SombraEdif_p[i,1] - alt_i / 0.49
-            V_SombraEdif_o[i,1] = V_SombraEdif_o[i,1] + alt_i / 0.49
-            V_SombraEdif_s[i,2] = V_SombraEdif_s[i,2] - alt_i / 1.54
+function generaSombraEdificio(
+    ps_bases::Vector{PolyShape},
+    alts::Vector{Float64},
+    ps_publico::PolyShape,
+    ps_calles::PolyShape
+)
+    # Inner helper for one block
+    function generaSombraBox(ps_baseBox::PolyShape, alt::Float64,
+                              ps_publico::PolyShape, ps_calles::PolyShape)
+        ps_SombraBox_p = PolyShape([],0)
+        ps_SombraBox_o = PolyShape([],0)
+        ps_SombraBox_s = PolyShape([],0)
+        numBoxes = ps_baseBox.NumRegions
+        for e = 1:numBoxes
+            V_base_e = ps_baseBox.Vertices[e]
+            V_baseBox_e = [V_base_e zeros(size(V_base_e,1),1);
+                           V_base_e alt .* ones(size(V_base_e,1),1)]
+            numV = size(V_baseBox_e,1)
+            V_SombraBox_p = V_baseBox_e[:,1:2]
+            V_SombraBox_o = V_baseBox_e[:,1:2]
+            V_SombraBox_s = V_baseBox_e[:,1:2]
+            for i = 1:numV
+                alt_i = V_baseBox_e[i,3]
+                V_SombraBox_p[i,1] -= alt_i / 0.49
+                V_SombraBox_o[i,1] += alt_i / 0.49
+                V_SombraBox_s[i,2] -= alt_i / 1.54
+            end
+            V_SombraBox_p = poly2D.convHull(V_SombraBox_p)
+            V_SombraBox_o = poly2D.convHull(V_SombraBox_o)
+            V_SombraBox_s = poly2D.convHull(V_SombraBox_s)
+            if e == 1
+                push!(ps_SombraBox_p.Vertices, V_SombraBox_p)
+                push!(ps_SombraBox_o.Vertices, V_SombraBox_o)
+                push!(ps_SombraBox_s.Vertices, V_SombraBox_s)
+                ps_SombraBox_p.NumRegions = length(ps_SombraBox_p.Vertices)
+                ps_SombraBox_o.NumRegions = length(ps_SombraBox_o.Vertices)
+                ps_SombraBox_s.NumRegions = length(ps_SombraBox_s.Vertices)
+            else
+                ps_SombraBox_p = polyShape.polyUnion(ps_SombraBox_p, PolyShape([V_SombraBox_p],1))
+                ps_SombraBox_o = polyShape.polyUnion(ps_SombraBox_o, PolyShape([V_SombraBox_o],1))
+                ps_SombraBox_s = polyShape.polyUnion(ps_SombraBox_s, PolyShape([V_SombraBox_s],1))
+            end
         end
+        # Subtract public spaces
+        p_p = polyShape.polyDifference(ps_SombraBox_p, ps_publico)
+        ps_sombraBox_p = length(p_p.Vertices) > 0 ? PolyShape(p_p.Vertices, length(p_p.Vertices)) : PolyShape([],0)
+        p_o = polyShape.polyDifference(ps_SombraBox_o, ps_publico)
+        ps_sombraBox_o = length(p_o.Vertices) > 0 ? PolyShape(p_o.Vertices, length(p_o.Vertices)) : PolyShape([],0)
+        p_s = polyShape.polyDifference(ps_SombraBox_s, ps_publico)
+        ps_sombraBox_s = length(p_s.Vertices) > 0 ? PolyShape(p_s.Vertices, length(p_s.Vertices)) : PolyShape([],0)
+        # Subtract streets
+        ps_sombraBox_p = polyShape.polyDifference(ps_sombraBox_p, ps_calles)
+        ps_sombraBox_o = polyShape.polyDifference(ps_sombraBox_o, ps_calles)
+        ps_sombraBox_s = polyShape.polyDifference(ps_sombraBox_s, ps_calles)
+        return ps_sombraBox_p, ps_sombraBox_o, ps_sombraBox_s
+    end
 
-        V_SombraEdif_p = poly2D.convHull(V_SombraEdif_p)
-        V_SombraEdif_o = poly2D.convHull(V_SombraEdif_o)
-        V_SombraEdif_s = poly2D.convHull(V_SombraEdif_s)
+    # Process first block unconditionally
+    ps1_p, ps1_o, ps1_s = generaSombraBox(ps_bases[1], alts[1], ps_publico, ps_calles)
+    ps_sombraEdif_p = deepcopy(ps1_p)
+    ps_sombraEdif_o = deepcopy(ps1_o)
+    ps_sombraEdif_s = deepcopy(ps1_s)
 
-        if e == 1
-            ps_SombraEdif_p.Vertices = push!(ps_SombraEdif_p.Vertices, V_SombraEdif_p)
-            ps_SombraEdif_o.Vertices = push!(ps_SombraEdif_o.Vertices, V_SombraEdif_o)
-            ps_SombraEdif_s.Vertices = push!(ps_SombraEdif_s.Vertices, V_SombraEdif_s)
-            ps_SombraEdif_p.NumRegions = length(ps_SombraEdif_p.Vertices)
-            ps_SombraEdif_o.NumRegions = length(ps_SombraEdif_o.Vertices)
-            ps_SombraEdif_s.NumRegions = length(ps_SombraEdif_s.Vertices)
-        else
-            ps_SombraEdif_p = polyShape.polyUnion(ps_SombraEdif_p, PolyShape([V_SombraEdif_p],1))
-            ps_SombraEdif_o = polyShape.polyUnion(ps_SombraEdif_o, PolyShape([V_SombraEdif_o],1))
-            ps_SombraEdif_s = polyShape.polyUnion(ps_SombraEdif_s, PolyShape([V_SombraEdif_s],1))
+    # Union shadows of remaining blocks if height ≥ 1
+    for i in 2:length(ps_bases)
+        if alts[i] >= 1
+            psi_p, psi_o, psi_s = generaSombraBox(ps_bases[i], alts[i], ps_publico, ps_calles)
+            ps_sombraEdif_p = polyShape.polyUnion(ps_sombraEdif_p, psi_p)
+            ps_sombraEdif_o = polyShape.polyUnion(ps_sombraEdif_o, psi_o)
+            ps_sombraEdif_s = polyShape.polyUnion(ps_sombraEdif_s, psi_s)
         end
     end
-
-    
-    p_p = polyShape.polyDifference(ps_SombraEdif_p, ps_publico)
-    if length(p_p.Vertices) > 0
-        ps_sombraEdif_p = PolyShape(p_p.Vertices, length(p_p.Vertices))
-    else
-        ps_sombraEdif_p = PolyShape([],0)
-    end
-    p_o = polyShape.polyDifference(ps_SombraEdif_o, ps_publico)
-    if length(p_o.Vertices)>0
-        ps_sombraEdif_o = PolyShape(p_o.Vertices, length(p_o.Vertices))
-    else
-        ps_sombraEdif_o = PolyShape([],0)
-    end
-    p_s = polyShape.polyDifference(ps_SombraEdif_s, ps_publico)
-    if length(p_s.Vertices)>0
-        ps_sombraEdif_s = PolyShape(p_s.Vertices, length(p_s.Vertices))
-    else
-        ps_sombraEdif_s = PolyShape([],0)
-    end
-
-    ps_sombraEdif_p = polyShape.polyDifference(ps_sombraEdif_p, ps_calles)
-    ps_sombraEdif_o = polyShape.polyDifference(ps_sombraEdif_o, ps_calles)
-    ps_sombraEdif_s = polyShape.polyDifference(ps_sombraEdif_s, ps_calles)
 
     return ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s
 end
-
-

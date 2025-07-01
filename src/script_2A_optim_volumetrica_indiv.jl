@@ -25,18 +25,19 @@ id_ = 0
 
 
 
-query = """
-MATCH (p:Predio)-[]-(c:Combi)
-WHERE p.comuna = 'vitacura' 
-RETURN DISTINCT  c.manzent AS manzent, c.id_combi AS id_combi, c.predios AS list_predios
-ORDER BY manzent, id_combi
-"""
-df_combis = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
+# query = """
+# MATCH (p:Predio)-[]-(c:Combi)
+# WHERE p.comuna = 'vitacura' 
+# RETURN DISTINCT  c.manzent AS manzent, c.id_combi AS id_combi, c.predios AS list_predios
+# ORDER BY manzent, id_combi
+# """
+# df_combis = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 
 
-# Problemas con: 200, 300, 400, 600
-codigo_predial = parse.(Int, split(strip(df_combis[1,"list_predios"], ['(', ')']), ';'))
+# # Problemas con: 6, 9, 12, 13, 21
+# codigo_predial = parse.(Int, split(strip(df_combis[22,"list_predios"], ['(', ')']), ';')) #18 ok
 
+codigo_predial = [151600054500004, 151600054500005, 151600054500006, 151600054500010, 151600054500011]
 
 temp_opt, alturaPiso, xopt, vec_datos, superficieTerreno, superficieTerrenoBruta, status_optim = funcionPrincipal(tipoOptimizacion, codigo_predial, id_, datos_LandValue, datos_mygis_db, []);
 

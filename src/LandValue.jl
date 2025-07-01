@@ -157,8 +157,8 @@ using JuMP, BlackBoxOptim, NOMAD, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, O
         supTerraza::Array{Float64,1}
         # numeroDormitorios::Array{Float64,1}
         # numeroBanos::Array{Float64,1}
-        estacionamientosPorViv::Array{Float64,1}
-        bodegasPorViv::Array{Float64,1}
+        estacionamientosPorViv#::Array{Float64,1}
+        bodegasPorViv#::Array{Float64,1}
         Precio_Estimado::Array{Float64,1}
         # precioVenta::Array{Float64,1}
         # maxPorcTipoDepto::Array{Float64,1}
@@ -205,18 +205,7 @@ using JuMP, BlackBoxOptim, NOMAD, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, O
         retornoExigido::Float64
     end
 
-    struct SalidaNormativa
-        maxNumDeptos::Float64
-        maxOcupacion::Float64
-        maxConstructibilidad::Float64
-        maxPisos::Float64
-        maxAltura::Float64
-        minEstacionamientosVendibles::Float64
-        minEstacionamientosVisita::Float64
-        minEstacionamientosDiscapacitados::Float64
-    end
-
-    struct SalidaArquitectonica
+    struct SalidaOptimizacion
         numDeptosTipo::Array{Float64,1}
         numDeptos::Float64
         ocupacion::Float64
@@ -235,61 +224,72 @@ using JuMP, BlackBoxOptim, NOMAD, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, O
         numBodegas::Float64
     end
 
-    struct SalidaTerreno
-        superficieTerreno::Float64
-        superficieBruta::Float64
-        costoTerreno::Float64
-        costoUnitTerreno::Float64
-        costoCorredor::Float64
-        costoDemolicion::Float64
-        otrosTerreno::Float64
-        costoTotalTerreno::Float64
-        costoUnitTerrenoTotal::Float64
-    end
-
-    struct SalidaOptimizacion
+    struct SalidaHolgura
         dualMaxOcupación::Float64
         dualMaxConstructibilidad::Float64
         dualMaxDensidad::Float64
     end
 
+    # struct SalidaNormativa
+    #     maxNumDeptos::Float64
+    #     maxOcupacion::Float64
+    #     maxConstructibilidad::Float64
+    #     maxPisos::Float64
+    #     maxAltura::Float64
+    #     minEstacionamientosVendibles::Float64
+    #     minEstacionamientosVisita::Float64
+    #     minEstacionamientosDiscapacitados::Float64
+    # end
 
-    struct SalidaIndicadores
-        ingresosVentas::Float64
-        costoTotal::Float64
-        margenAntesImpuesto::Float64
-        impuestoRenta::Float64
-        utilidadDespuesImpuesto::Float64
-        rentabilidadTotalBruta::Float64
-        rentabilidadTotalNeta::Float64
-        incidenciaTerreno::Float64
-    end
+    # struct SalidaTerreno
+    #     superficieTerreno::Float64
+    #     superficieBruta::Float64
+    #     costoTerreno::Float64
+    #     costoUnitTerreno::Float64
+    #     costoCorredor::Float64
+    #     costoDemolicion::Float64
+    #     otrosTerreno::Float64
+    #     costoTotalTerreno::Float64
+    #     costoUnitTerrenoTotal::Float64
+    # end
 
-    struct SalidaMonetaria
-        ingresosVentaDeptos::Float64
-        ingresosVentas::Float64
-        costoTerrenoTotal::Float64
-        costoUnitarioTerrenoTotal::Float64
-        costoConstruccion::Float64
-        balanceIva::Float64
-        costoInmobiliario::Float64
-        costosMarketingVentas::Float64
-        costosAdministracion::Float64
-        costosVariosVenta::Float64
-        costosFinancieros::Float64
-        imprevistos::Float64
-        costoTotal::Float64
-    end
 
-    mutable struct ResultadoCabida
-        salidaNormativa::SalidaNormativa
-        salidaArquitectonica::SalidaArquitectonica
-        salidaIndicadores::SalidaIndicadores
-        salidaTerreno::SalidaTerreno
-        salidaMonetaria::SalidaMonetaria
-        salidaOptimizacion::SalidaOptimizacion
-        xopt::Array{Float64,1}
-    end
+    # struct SalidaIndicadores
+    #     ingresosVentas::Float64
+    #     costoTotal::Float64
+    #     margenAntesImpuesto::Float64
+    #     impuestoRenta::Float64
+    #     utilidadDespuesImpuesto::Float64
+    #     rentabilidadTotalBruta::Float64
+    #     rentabilidadTotalNeta::Float64
+    #     incidenciaTerreno::Float64
+    # end
+
+    # struct SalidaMonetaria
+    #     ingresosVentaDeptos::Float64
+    #     ingresosVentas::Float64
+    #     costoTerrenoTotal::Float64
+    #     costoUnitarioTerrenoTotal::Float64
+    #     costoConstruccion::Float64
+    #     balanceIva::Float64
+    #     costoInmobiliario::Float64
+    #     costosMarketingVentas::Float64
+    #     costosAdministracion::Float64
+    #     costosVariosVenta::Float64
+    #     costosFinancieros::Float64
+    #     imprevistos::Float64
+    #     costoTotal::Float64
+    # end
+
+    # mutable struct ResultadoCabida
+    #     salidaNormativa::SalidaNormativa
+    #     salidaArquitectonica::SalidaArquitectonica
+    #     salidaIndicadores::SalidaIndicadores
+    #     salidaTerreno::SalidaTerreno
+    #     salidaMonetaria::SalidaMonetaria
+    #     salidaOptimizacion::SalidaOptimizacion
+    #     xopt::Array{Float64,1}
+    # end
 
 
     export DatosCabidaPredio, DatosCabidaNormativa, DatosCabidaArquitectura, DatosCabidaComercial, DatosCabidaUnit,
@@ -304,7 +304,7 @@ using JuMP, BlackBoxOptim, NOMAD, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, O
     include("fo_nomad.jl")
     include("calculaAnguloRotacion.jl")
     include("generaSombraEdificio.jl")
-    include("optiEdificio.jl")
+    include("opti_deptos_edificio.jl")
     include("displayResults.jl")
     include("plotBaseEdificio3D.jl")
     include("poly2D.jl")
@@ -326,13 +326,16 @@ using JuMP, BlackBoxOptim, NOMAD, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, O
     include("optimal_lot_selection.jl")
     include("aws_julia.jl")
     include("neo4j_julia.jl")
-    include("optimal_box_volume.jl")
-    include("optimal_box_volume_sombra_malo.jl")
+    include("opti_vol_edificio.jl")
+    include("opti_vol_edificio_sombra.jl")
+    include("opti_edificio.jl")
+    include("opti_edificio_sombra.jl")
+    include("opti_vol_estacionamiento.jl")
 
-    export funcionPrincipal, fo_bbo, fo_bbo_e2, fo_nomad, calculaAnguloRotacion, generaSombraEdificio, optiEdificio, displayResults, 
+    export funcionPrincipal, fo_bbo, fo_bbo_e2, fo_nomad, calculaAnguloRotacion, generaSombraEdificio, opti_deptos_edificio, displayResults, 
         optim_nomad, optim_bbo, poly2D, polyShape, graphMod, resultConverter, plotBaseEdificio3D, generaVol3D, generaSombraTeor, 
         pg_julia, aws_julia, neo4j_julia, obtieneCalles, generaPoligonoCorte, queryCabida, generaCotas, create_scr, create_edificio_geojson,
-        optimal_pricing, optimal_lot_selection, optimal_box_volume, optimal_box_volume_sombra_malo
-
+        optimal_pricing, optimal_lot_selection, opti_vol_edificio, opti_vol_edificio_sombra, opti_edificio, opti_edificio_sombra,
+        opti_vol_estacionamiento
 
 end
