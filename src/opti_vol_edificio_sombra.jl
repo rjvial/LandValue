@@ -17,7 +17,7 @@ function opti_vol_edificio_sombra(vec_psVolRasante, vec_altVolRasante, vec_pisos
     # Iterative shadow loop params
     ratio = 5.0
     dist_p=0.0; dist_o=0.0; dist_s=0.0
-    iter=0; max_iter=20
+    iter=0; max_iter=50
     delta_p=-1.0; delta_o=-1.0; delta_s=-1.0
 
     # Storage for best known
@@ -66,7 +66,7 @@ function opti_vol_edificio_sombra(vec_psVolRasante, vec_altVolRasante, vec_pisos
         end
 
         # Update rasante volumes if still violated
-        if minimum((delta_p,delta_o,delta_s)) < 0
+        if minimum((delta_p, delta_o, delta_s)) < 0
             levels = collect(0:0.1:maximum(vec_altVolRasante))*ratio
             levels = filter(x -> x < sum(np_cand)*alturaPiso, levels)
             push!(levels, sum(np_cand)*alturaPiso)
