@@ -9,7 +9,9 @@ function opti_edificio_sombra(dcn, dca, dcp, dcc, superficieTerreno, superficieT
     )
 
     so, sh, status = opti_deptos_edificio(dcn, dca, dcp, dcc, vec_ps_opt, vec_np_opt, superficieTerreno, superficieTerrenoBruto, sup_areaEdif)
-    vec_ps_subte, vec_np_subte = opti_vol_estacionamiento(ps_predio, ps_areaEst, vec_ps_opt, so, dcn)
+    numEst        = so.estacionamientosVendibles + so.estacionamientosVisita
+    numBodegas    = so.numBodegas
+    vec_ps_subte, vec_np_subte = opti_vol_estacionamiento(ps_predio, ps_areaEst, numEst, numBodegas, dcn)
 
-    return so, sh, vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte
+    return vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte
 end
