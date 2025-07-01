@@ -1,4 +1,4 @@
-function opti_deptos_edificio(
+function opti_deptos(
         dcn, dca, dcp, dcc,
         vec_ps_opt, vec_np_opt,
         superficieTerreno::Real, superficieTerrenoBruto::Real,

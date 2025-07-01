@@ -1,4 +1,4 @@
-function opti_edificio_sombra(dcn, dca, dcp, dcc, superficieTerreno, superficieTerrenoBruto, sup_areaEdif, 
+function opti_edificio_depto(dcn, dca, dcp, dcc, superficieTerreno, superficieTerrenoBruto, sup_areaEdif, 
         vec_psVolConSombra, vec_altVolConSombra, vec_pisos, alturaPiso, ps_areaEdif, ps_predio, ps_areaEst, ps_calles, ps_publico, ps_bruto, 
         areaSombra_p, areaSombra_o, areaSombra_s, max_ocupacion_suelo, maxConstruccionSNT, K, 
         centroidSombra_p, centroidSombra_o, centroidSombra_s; ancho_crujia_edificio = ancho_crujia_edificio)
@@ -8,7 +8,7 @@ function opti_edificio_sombra(dcn, dca, dcp, dcc, superficieTerreno, superficieT
         ancho_crujia_edificio = ancho_crujia_edificio
     )
 
-    so, sh, status = opti_deptos_edificio(dcn, dca, dcp, dcc, vec_ps_opt, vec_np_opt, superficieTerreno, superficieTerrenoBruto, sup_areaEdif)
+    so, sh, status = opti_deptos(dcn, dca, dcp, dcc, vec_ps_opt, vec_np_opt, superficieTerreno, superficieTerrenoBruto, sup_areaEdif)
     numEst        = so.estacionamientosVendibles + so.estacionamientosVisita
     numBodegas    = so.numBodegas
     vec_ps_subte, vec_np_subte = opti_vol_estacionamiento(ps_predio, ps_areaEst, numEst, numBodegas, dcn)
