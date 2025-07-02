@@ -8,7 +8,7 @@ function opti_edificio_oficina(alturaPiso, areaSombra_o, areaSombra_p, areaSombr
 
     area_edif = sum(polyShape.polyArea(vec_ps_opt[i]) * vec_np_opt[i] for i in eachindex(vec_ps_opt))
 
-    numEst_vendible        = Int(ceil(2 * area_edif/100))
+    numEst_vendible        = Int(ceil(1 * area_edif/100))
     numEst_visitas        = Int(ceil(numEst_vendible * 0.1))
     numEst   = numEst_vendible + numEst_visitas
     numBodegas    = numEst_vendible

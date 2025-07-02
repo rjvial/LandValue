@@ -46,9 +46,13 @@ function opti_vol_edificio(vec_psVolteor, vec_altVolteor, vec_pisos, alturaPiso,
     V0 = ps0.Vertices[1]
     flag_horizontal = abs(V0[2,1] - V0[1,1]) > abs(V0[2,2] - V0[1,2])
 
+    vecLargoLados, _, _, _ = polyShape.extraeInfoPoly(ps0)
+    max_lado = maximum(vecLargoLados)
+    min_pisos = ancho_crujia_edificio > 0 ? Int(floor(maxConstruccionSNT / (max_lado * ancho_crujia_edificio))) : 1
+
     alt_max   = maximum(vec_altVolteor)
     max_pisos = maximum(vec_pisos)
-    combos    = generate_floor_combinations(vec_pisos, max_pisos, K)
+    combos    = generate_floor_combinations(vec_pisos[vec_pisos .>= min_pisos-1], max_pisos, K)
 
     sup_opt = 0.0
     ps_opt  = [PolyShape([],1) for _ in 1:K]

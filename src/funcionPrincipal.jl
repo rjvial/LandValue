@@ -273,7 +273,7 @@ function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, dato
     vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte = opti_edificio_oficina(alturaPiso, areaSombra_o, areaSombra_p, areaSombra_s, centroidSombra_o, centroidSombra_p, centroidSombra_s, dca, dcc, dcn, dcp, max_ocupacion_suelo, maxConstruccionSNT, ps_areaEdif, ps_areaEst, ps_bruto, ps_calles, ps_predio, ps_publico, sup_areaEdif, superficieTerreno, superficieTerrenoBruto, vec_altVolConSombra, vec_altVolteor, vec_pisos, vec_psVolConSombra, vec_psVolteor; K, ancho_crujia_edificio = ancho_crujia_edificio, flag_sombra = flag_sombra)
     fig, ax, ax_mat = plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, ps_publico, ps_calles, vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte)
 
-    K = 1; ancho_crujia_edificio = 0; flag_sombra = true
+    K = 3; ancho_crujia_edificio = 0; flag_sombra = true
     vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte = opti_edificio_oficina(alturaPiso, areaSombra_o, areaSombra_p, areaSombra_s, centroidSombra_o, centroidSombra_p, centroidSombra_s, dca, dcc, dcn, dcp, max_ocupacion_suelo, maxConstruccionSNT, ps_areaEdif, ps_areaEst, ps_bruto, ps_calles, ps_predio, ps_publico, sup_areaEdif, superficieTerreno, superficieTerrenoBruto, vec_altVolConSombra, vec_altVolteor, vec_pisos, vec_psVolConSombra, vec_psVolteor; K, ancho_crujia_edificio = ancho_crujia_edificio, flag_sombra = flag_sombra)
     fig, ax, ax_mat = plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, ps_publico, ps_calles, vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte)
 
