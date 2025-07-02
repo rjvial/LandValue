@@ -1395,91 +1395,38 @@ function partialPolyOffset(ps::PolyShape, vec_partial_offset_id::Vector{Int}, ve
  
         # Genera polyshape a partir de las lineas del offset sin intersectar
         num_offset_lines = length(nonIntersecting_offset_lines)
-        partial_offset_lines = Vector{LineShape}()
-        vec_reg = Vector{Tuple{Int,Int}}()
-        # Process offset lines
-        flag_last_segment_end = false
+        V_aux = [0 0]
         for i = 1:num_offset_lines
-            cond_inicio = (i == 1)
-            cond_termino = (i == num_offset_lines)
-
-            current_side_index = i
-            next_side_index = cond_inicio ? 2 : cond_termino ? 1 : i + 1
+            current_side_index = i            
+            prev_side_index = mod1(current_side_index - 1, num_offset_lines)
+            next_side_index = mod1(current_side_index + 1, num_offset_lines)
 
             cond_current_side_presente = ~(nonIntersecting_offset_lines[current_side_index].Vertices[1][1,:]' == [0 0] && 
                                             nonIntersecting_offset_lines[current_side_index].Vertices[1][2,:]' == [0 0])
+            cond_prev_side_presente = ~(nonIntersecting_offset_lines[prev_side_index].Vertices[1][1,:]' == [0 0] && 
+                                        nonIntersecting_offset_lines[prev_side_index].Vertices[1][2,:]' == [0 0])
             cond_next_side_presente = ~(nonIntersecting_offset_lines[next_side_index].Vertices[1][1,:]' == [0 0] && 
-                                        nonIntersecting_offset_lines[next_side_index].Vertices[1][2,:]' == [0 0]) ||
-                                        cond_termino
+                                        nonIntersecting_offset_lines[next_side_index].Vertices[1][2,:]' == [0 0])
 
-            if cond_current_side_presente && cond_next_side_presente
-                current_line = deepcopy(nonIntersecting_offset_lines[current_side_index])
-                dist_current = vec_todos_offset_dist_[current_side_index]
-                next_line = deepcopy(nonIntersecting_offset_lines[next_side_index])
-                dist_next = vec_todos_offset_dist_[next_side_index] 
-                if flag_last_segment_end == false 
-                    last_segment_end = current_line.Vertices[1][1, :]'
-                    flag_last_segment_end = true
-                else
-                    last_segment_end = partial_offset_lines[end].Vertices[1][2, :]'
-                end
-                offset_distance_i = dist_current
-                distance_to_next = polyShape.shapeDistance(current_line, next_line)
-                if  0.1 < distance_to_next < abs(dist_next - dist_current) + .1
-                    # Extend current and next lines and find intersection between them
-                    extended_current_line = polyShape.extendLine(current_line, max(distance_to_next, abs(offset_distance_i)) * 1.2)
-                    extended_next_line = polyShape.extendLine(next_line, max(distance_to_next, abs(offset_distance_i)) * 1.2)
-                    intersection_point = polyShape.intersectLines(extended_current_line, extended_next_line)
-                    if isnan(intersection_point.Vertices[1][1, 1]) # If segments don't intersect
-                        if cond_inicio
-                            push!(partial_offset_lines, current_line)
-                        else
-                            # Create a perpendicular line to next_line and find the intersection with extended_current_line
-                            next_line_start_point = PointShape(next_line.Vertices[1][1, :]', 1)
-                            perpendicular_line = polyShape.perpendicularLine(next_line_start_point, next_line, abs(offset_distance_i) * 1.2)
-                            perpendicular_intersection_point = polyShape.intersectLines(extended_current_line, perpendicular_line)
-                            if ~isnan(perpendicular_intersection_point.Vertices[1][1, 1])
-                                last_segment = partial_offset_lines[end]
-                                last_perp_intersection_point = polyShape.intersectLines(last_segment, perpendicular_line)
-                                dist_last_perp = polyShape.pointLineDist(vec_ps_lines[i], last_perp_intersection_point)
-                                if dist_last_perp < offset_distance_i
-                                    current_line = deepcopy(LineShape([vcat(last_perp_intersection_point.Vertices[:]', last_perp_intersection_point.Vertices[:]')], 1))
-                                    partial_offset_lines[end].Vertices[1][2, :] = last_perp_intersection_point.Vertices[:]
-                                else
-                                    current_line = deepcopy(LineShape([vcat(last_segment_end, perpendicular_intersection_point.Vertices[:]')], 1))
-                                end
-                            end
-                            push!(partial_offset_lines, LineShape([vcat(last_segment_end, current_line.Vertices[1][2, :]')], 1))
-                        end
-                        # Project point to line
-                        current_line_end_point = PointShape(current_line.Vertices[1][2, :]', 1)
-                        projected_line_point = polyShape.point2lineProjection(current_line_end_point, next_line)
-                        push!(partial_offset_lines, LineShape([vcat(current_line_end_point.Vertices[:]', projected_line_point.Vertices[1, :]')], 1))
-                    else # If segments intersect
-                        push!(partial_offset_lines, LineShape([vcat(last_segment_end, intersection_point.Vertices[1, :]')], 1))
-                    end
-                elseif cond_inicio
-                    push!(partial_offset_lines, current_line)
-                else
-                    push!(partial_offset_lines, LineShape([vcat(last_segment_end, current_line.Vertices[1][2, :]')], 1))
-                end
+            if cond_current_side_presente && cond_prev_side_presente
+                lin1 = polyShape.extendLine(nonIntersecting_offset_lines[prev_side_index],100)
+                lin2 = polyShape.extendLine(nonIntersecting_offset_lines[current_side_index],100)
+                intersection_point = polyShape.intersectLines(lin1, lin2)
+            elseif cond_current_side_presente && cond_next_side_presente
+                lin1 = polyShape.extendLine(nonIntersecting_offset_lines[current_side_index],100)
+                lin2 = polyShape.extendLine(nonIntersecting_offset_lines[next_side_index],100)
+                intersection_point = polyShape.intersectLines(lin1, lin2)
+            elseif cond_prev_side_presente && cond_next_side_presente
+                lin1 = polyShape.extendLine(nonIntersecting_offset_lines[prev_side_index],100)
+                lin2 = polyShape.extendLine(nonIntersecting_offset_lines[next_side_index],100)
+                intersection_point = polyShape.intersectLines(lin1, lin2)
             end
-        end
-        start_pt = PointShape(partial_offset_lines[1].Vertices[1][1,:]',1)
-        end_pt = PointShape(partial_offset_lines[end].Vertices[1][2,:]',1)
-        dist_start_end = polyShape.distanceBetweenPoints(start_pt, end_pt)
-        if .1 < dist_start_end 
-            extended_start_line = polyShape.extendLine(partial_offset_lines[1], dist_start_end*1.2)
-            extended_end_line = polyShape.extendLine(partial_offset_lines[end], dist_start_end*1.2)
-            intersection_point = polyShape.intersectLines(extended_start_line, extended_end_line)
-            if ~isnan(intersection_point.Vertices[1][1, 1])
-                partial_offset_lines[1].Vertices[1][1,:] = intersection_point.Vertices
-                partial_offset_lines[end].Vertices[1][2,:] = intersection_point.Vertices
-            end
-        end
+            V_aux = [vcat(V_aux[1], intersection_point.Vertices[1, :]')]
 
-        output_ps_ = polyShape.lineVec2polyShape(partial_offset_lines, vec_reg)
-        return output_ps_, vec_todos_offset_dist_
+        end
+        ps_out = PolyShape([V_aux[1][2:end, :]], 1)
+
+        return ps_out, vec_todos_offset_dist_
     end
 
     max_dist = maximum(vec_partial_offset_dist) #-4
