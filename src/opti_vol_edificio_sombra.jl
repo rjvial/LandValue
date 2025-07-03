@@ -1,6 +1,6 @@
 function opti_vol_edificio_sombra(vec_psVolConSombra, vec_altVolConSombra, vec_pisos, alturaPiso, ps_areaEdif, ps_calles, ps_publico, ps_bruto,
         areaSombra_p, areaSombra_o, areaSombra_s, max_ocupacion_suelo, maxConstruccionSNT, K, centroidSombra_p, centroidSombra_o, centroidSombra_s;
-        ancho_crujia_edificio = 0
+        ancho_crujia_min = 0, ancho_crujia_max = 0
     )
 
     # Prepare rasante constraints
@@ -46,8 +46,7 @@ function opti_vol_edificio_sombra(vec_psVolConSombra, vec_altVolConSombra, vec_p
         # Optimize volumes for K stacks
         ps_stack, np_stack = opti_vol_edificio(vec_psVolConSombra, vec_altVolConSombra,
             vec_pisos, alturaPiso, max_ocupacion_suelo, maxConstruccionSNT, K; 
-            ancho_crujia_edificio = ancho_crujia_edificio, flag_reverse = false
-        )
+            ancho_crujia_min = ancho_crujia_min, ancho_crujia_max = ancho_crujia_max)
 
         # Compute cumulative heights once
         cumulative_heights = cumsum(np_stack) .* alturaPiso

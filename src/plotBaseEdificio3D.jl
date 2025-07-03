@@ -6,7 +6,7 @@ function plotBaseEdificio3D(
         vec_psVolConSombra, vec_altVolConSombra,
         ps_publico, ps_calles,
         vec_ps_opt, vec_np_opt,
-        vec_ps_subte, vec_np_subte
+        vec_ps_subte, vec_np_subte, tipo_edificio
     )
 
     # Flags
@@ -40,13 +40,19 @@ function plotBaseEdificio3D(
                 V = base.Vertices[1]
                 nV = size(V,1)
                 # side faces
+                if tipo_edificio == "departamento"
+                    color = "teal"
+                elseif tipo_edificio == "oficina"
+                    color = "darkgray"
+                end
+
                 V_k = [V z_low*ones(nV,1); V z_high*ones(nV,1)]
                 fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(
-                    PolyShape([V_k],1), z_low, "teal", 1.0,
+                    PolyShape([V_k],1), z_low, color, 1.0,
                     fig=fig, ax=ax, ax_mat=ax_mat)
                 # top face
                 fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(
-                    base, z_high, "teal", 1.0,
+                    base, z_high, color, 1.0,
                     fig=fig, ax=ax, ax_mat=ax_mat)
             end
             cum_floors += n_f

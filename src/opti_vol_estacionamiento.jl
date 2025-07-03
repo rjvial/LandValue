@@ -41,22 +41,31 @@ function opti_vol_estacionamiento(ps_predio, ps_areaEst, numEst, numBodegas, dcn
     areaReq       = numEst*dcn.supPorEstacionamiento + numBodegas*dcn.supPorBodega
 
     numSubtes     = ceil(Int, areaReq / areaActualBase)
-    areaLast      = areaReq - (numSubtes - 1)*areaActualBase
-    if areaLast/areaActualBase < 0.5
-        areaLast = areaReq/numSubtes
+    areaLast      = numSubtes > 1 ? areaReq - (numSubtes - 1)*areaActualBase : 0
+    
+    if numSubtes > 1 
+        if areaLast/areaActualBase < 0.5
+            areaLast = areaReq/numSubtes
+            tol_base, iter_base = 0.1, 100
+            ps_baseSubte, _ = find_offset(deepcopy(ps_areaEst), areaLast, tol_base, iter_base)
+        end
+
+
+        # –––––––––– 3) build vector of sub‐polygons ––––––––––
+        vec_ps_subte = [ps_baseSubte for _ in 1:numSubtes]
+        tol_last, iter_last = 0.15, 50
+        ps_ultSubte, _ = find_offset(deepcopy(ps_areaEst), areaLast, tol_last, iter_last)
+        vec_ps_subte[end] = ps_ultSubte
+
+        # –––––––––– 4) indices for optimization ––––––––––
+        vec_np_subte = [-(numSubtes - 1), -1]
+    
+    else
         tol_base, iter_base = 0.1, 100
-        ps_baseSubte, _ = find_offset(deepcopy(ps_areaEst), areaLast, tol_base, iter_base)
+        ps_baseSubte, _ = find_offset(deepcopy(ps_areaEst), areaReq, tol_base, iter_base)
+        vec_ps_subte = [ps_baseSubte]
+        vec_np_subte = [-1]  # Only one sub‐polygon, no optimization needed
     end
-
-
-    # –––––––––– 3) build vector of sub‐polygons ––––––––––
-    vec_ps_subte = [ps_baseSubte for _ in 1:numSubtes]
-    tol_last, iter_last = 0.15, 50
-    ps_ultSubte, _ = find_offset(deepcopy(ps_areaEst), areaLast, tol_last, iter_last)
-    vec_ps_subte[end] = ps_ultSubte
-
-    # –––––––––– 4) indices for optimization ––––––––––
-    vec_np_subte = [-(numSubtes - 1), -1]
 
     return vec_ps_subte, vec_np_subte
 end

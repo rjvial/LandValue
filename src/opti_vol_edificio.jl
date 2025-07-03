@@ -1,5 +1,5 @@
 function opti_vol_edificio(vec_psVolteor, vec_altVolteor, vec_pisos, alturaPiso, max_ocupacion_suelo, maxConstruccionSNT, K;
-                             ancho_crujia_edificio = 0, flag_reverse = false)
+                             ancho_crujia_min = 0, ancho_crujia_max = 0)
 
 
     # Helper to generate all K-length floor combinations summing ≤ max_pisos_total
@@ -48,7 +48,7 @@ function opti_vol_edificio(vec_psVolteor, vec_altVolteor, vec_pisos, alturaPiso,
 
     vecLargoLados, _, _, _ = polyShape.extraeInfoPoly(ps0)
     max_lado = maximum(vecLargoLados)
-    min_pisos = ancho_crujia_edificio > 0 ? Int(floor(maxConstruccionSNT / (max_lado * ancho_crujia_edificio))) : 1
+    min_pisos = ancho_crujia_max > 0 ? Int(floor(maxConstruccionSNT / (max_lado * ancho_crujia_max))) : 1
 
     alt_max   = maximum(vec_altVolteor)
     max_pisos = maximum(vec_pisos)
@@ -58,9 +58,6 @@ function opti_vol_edificio(vec_psVolteor, vec_altVolteor, vec_pisos, alturaPiso,
     ps_opt  = [PolyShape([],1) for _ in 1:K]
     np_opt  = zeros(Int, K)
 
-    if flag_reverse
-        combos = reverse(combos)
-    end
 
     for floors in combos
         if sum(floors) > max_pisos
@@ -93,11 +90,13 @@ function opti_vol_edificio(vec_psVolteor, vec_altVolteor, vec_pisos, alturaPiso,
 
         # Ground constraints for stack 1
         @constraint(model, w[1] * h[1] <= max_ocupacion_suelo)
-        if ancho_crujia_edificio >= 1
+        if ancho_crujia_min >= 1
             if flag_horizontal
-                @constraint(model, h[1] <= ancho_crujia_edificio)
+                @constraint(model, h[1] >= ancho_crujia_min)
+                @constraint(model, h[1] <= ancho_crujia_max)
             else
-                @constraint(model, w[1] <= ancho_crujia_edificio)
+                @constraint(model, w[1] >= ancho_crujia_min)
+                @constraint(model, w[1] <= ancho_crujia_max)
             end
         end
 
