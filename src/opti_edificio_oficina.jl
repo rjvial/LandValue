@@ -1,9 +1,9 @@
 function opti_edificio_oficina(alturaPiso, areaSombra_o, areaSombra_p, areaSombra_s, centroidSombra_o, centroidSombra_p, centroidSombra_s, dcn, max_ocupacion_suelo, maxConstruccionSNT, ps_areaEdif, ps_areaEst, ps_bruto, ps_calles, ps_predio, ps_publico, vec_altVolConSombra, vec_altVolteor, vec_pisos, vec_psVolConSombra, vec_psVolteor; K, ancho_crujia_min = 0, ancho_crujia_max = 0, flag_sombra = false)
 
     if flag_sombra
-        vec_ps_opt, vec_np_opt = opti_vol_edificio_sombra(vec_psVolConSombra, vec_altVolConSombra, vec_pisos, alturaPiso, ps_areaEdif, ps_calles, ps_publico, ps_bruto, areaSombra_p, areaSombra_o, areaSombra_s, max_ocupacion_suelo, maxConstruccionSNT, K, centroidSombra_p, centroidSombra_o, centroidSombra_s, ancho_crujia_min = ancho_crujia_min, ancho_crujia_max = ancho_crujia_max)
+        vec_ps_opt, vec_np_opt = opti_vol_edificio_consombra(vec_psVolConSombra, vec_altVolConSombra, vec_pisos, alturaPiso, ps_areaEdif, ps_calles, ps_publico, ps_bruto, areaSombra_p, areaSombra_o, areaSombra_s, max_ocupacion_suelo, maxConstruccionSNT, K, centroidSombra_p, centroidSombra_o, centroidSombra_s, ancho_crujia_min = ancho_crujia_min, ancho_crujia_max = ancho_crujia_max)
     else
-        vec_ps_opt, vec_np_opt = opti_vol_edificio(vec_psVolteor, vec_altVolteor, vec_pisos, alturaPiso, max_ocupacion_suelo, maxConstruccionSNT, K, ancho_crujia_min = ancho_crujia_min, ancho_crujia_max = ancho_crujia_max)
+        vec_ps_opt, vec_np_opt = opti_vol_edificio_sinsombra(vec_psVolteor, vec_altVolteor, vec_pisos, alturaPiso, max_ocupacion_suelo, maxConstruccionSNT, ps_areaEdif, K, ancho_crujia_min = ancho_crujia_min, ancho_crujia_max = ancho_crujia_max)
     end
 
     area_edif = sum(polyShape.polyArea(vec_ps_opt[i]) * vec_np_opt[i] for i in eachindex(vec_ps_opt))
