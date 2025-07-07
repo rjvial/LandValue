@@ -20,15 +20,15 @@ function opti_vol_edificio_sombra(vec_psVolConSombra, vec_altVolConSombra, vec_p
 
     # Iterative shadow loop params
     iter = 0
-    max_iter = 500  # 50*10 = 500
+    max_iter = 1000  # 50*10 = 500
     delta_p = -1.0
     delta_o = -1.0 
     delta_s = -1.0
     
-    delta_dist = -0.1
+    delta_dist = -0.1*5
 
     # Storage for best known
-    best_ps = [PolyShape([],1) for i in 1:K]
+    best_ps = [PolyShape([],1) for _ in 1:K]
     best_np = zeros(Int, K)
 
     # Pre-allocate variables to avoid repeated allocations
@@ -44,20 +44,14 @@ function opti_vol_edificio_sombra(vec_psVolConSombra, vec_altVolConSombra, vec_p
         iter += 1
 
         # Optimize volumes for K stacks
-        ps_stack, np_stack = opti_vol_edificio(vec_psVolConSombra, vec_altVolConSombra,
-            vec_pisos, alturaPiso, max_ocupacion_suelo, maxConstruccionSNT, K; 
-            ancho_crujia_min = ancho_crujia_min, ancho_crujia_max = ancho_crujia_max)
+        ps_stack, np_stack = opti_vol_edificio(vec_psVolConSombra, vec_altVolConSombra, vec_pisos, alturaPiso, max_ocupacion_suelo, maxConstruccionSNT, K, ancho_crujia_min = ancho_crujia_min, ancho_crujia_max = ancho_crujia_max)
 
+        # println("Iteration: $iter, np_stack: $np_stack")
         # Compute cumulative heights once
-        cumulative_heights = cumsum(np_stack) .* alturaPiso
+        vec_alt_acum = cumsum(np_stack) .* alturaPiso
 
         # Compute shadows cumulatively
-        ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s = generaSombraEdificio(
-            ps_stack,
-            cumulative_heights,
-            ps_publico,
-            ps_calles
-        )
+        ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s = generaSombraEdificio(ps_stack, vec_alt_acum, ps_publico, ps_calles)
     
         # Sum actual shadow areas
         area_act_p = polyShape.polyArea(ps_sombraEdif_p)
@@ -86,9 +80,11 @@ function opti_vol_edificio_sombra(vec_psVolConSombra, vec_altVolConSombra, vec_p
             vec_psVolConSombra = [polyShape.polyIntersect(ps, ps_areaEdif_) for ps in vec_psVolConSombra]
         end
 
-        # Store best (copy only when needed - outside the inner if)
-        best_ps .= ps_stack
-        best_np .= np_stack
+        # Store best
+        best_ps = deepcopy(ps_stack)
+        best_np = deepcopy(np_stack)
+
+        # fig, ax, ax_mat = plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, ps_publico, ps_calles, best_ps, best_np, vec_ps_subte, vec_np_subte, tipo_edificio)
     end
 
     return best_ps, best_np

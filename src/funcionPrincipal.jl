@@ -224,9 +224,7 @@ function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, dato
     vec_pisos = collect(default_min_pisos:maxPisos)
     
     # Calcula el Volumen Teórico
-    vec_altVolteor = collect(0:0.1:50) .* rasante
-    vec_altVolteor = vec_altVolteor[vec_altVolteor .< alturaMax]
-    push!(vec_altVolteor, alturaMax)
+    vec_altVolteor = collect(0:0.5:alturaMax)
     vec_psVolteor = [polyShape.polyOffset(ps_bruto, -i / rasante) for i in vec_altVolteor]
     vec_psVolteor = [polyShape.polyIntersect(vec_psVolteor[i], ps_areaEdif) for i in eachindex(vec_psVolteor)]
 
@@ -243,15 +241,13 @@ function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, dato
 
     # Calcula el volumen sin restricciones
     rasante_sombra = Float64(dcn.rasanteSombra)
-    vec_altVolConSombra = collect(0:0.1:50) .* rasante_sombra
-    vec_altVolConSombra = vec_altVolConSombra[vec_altVolConSombra .< alturaMax]
-    push!(vec_altVolConSombra, alturaMax)
-    vec_psVolConSombra = [polyShape.polyOffset(ps_bruto, -i / rasante_sombra) for i in vec_altVolConSombra]
+    vec_altVolConSombra = collect(0:0.5:alturaMax)
+    vec_psVolConSombra = [polyShape.polyOffset(ps_predio, - alt/rasante_sombra) for alt in vec_altVolConSombra]
     vec_psVolConSombra = [polyShape.polyIntersect(vec_psVolConSombra[i], ps_areaEdif) for i in eachindex(vec_psVolConSombra)]
 
 
     alturaPiso = 2.55
-    max_ocupacion_suelo = 1000 # dcn.coefOcupacion > 0 ? dcn.coefOcupacion * superficieTerreno : sup_areaEdif
+    max_ocupacion_suelo = 1.0*1000 # dcn.coefOcupacion > 0 ? dcn.coefOcupacion * superficieTerreno : sup_areaEdif
     max_constructibilidad = superficieTerreno * dcn.coefConstructibilidad * (1 + 0.3 * dcp.fusionTerrenos) 
     maxConstruccionSNT = max_constructibilidad * .95 + max_constructibilidad * 0.10 + max_constructibilidad * 0.20 # Sup Terraza + Areas comunes
                        # Sup Interior                + Sup Terrazas                 + Areas comunes
