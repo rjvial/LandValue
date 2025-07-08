@@ -1,7 +1,7 @@
 function opti_vol_edificio(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_ocupacion_suelo, maxConstruccionSNT, K;
                              ancho_crujia_min = 0, ancho_crujia_max = 0)
 
-    # Orientation of the lot
+    # Orientación del predio
     ps0 = vec_psVolteor[1]
     V0 = ps0.Vertices[1]
     flag_horizontal = abs(V0[2,1] - V0[1,1]) > abs(V0[2,2] - V0[1,2])
@@ -33,7 +33,7 @@ function opti_vol_edificio(vec_psVolteor, vec_altVolteor, floors, alturaPiso, ma
         end)
     end
 
-    # Ground constraints for stack 1
+    # Restricciones de ocupación de suelo y ancho crujía
     @constraint(model, w[1] * h[1] <= max_ocupacion_suelo)
     if ancho_crujia_min >= 1
         if flag_horizontal
@@ -52,7 +52,7 @@ function opti_vol_edificio(vec_psVolteor, vec_altVolteor, floors, alturaPiso, ma
     end
 
     num_pisos_acum = 0
-    # Buildable-area constraints per stack
+    # Restricciones de confinamiento al volúmen teórico
     for stack in 1:K
         n_f = floors[stack]
         num_pisos_acum += n_f
@@ -75,6 +75,7 @@ function opti_vol_edificio(vec_psVolteor, vec_altVolteor, floors, alturaPiso, ma
     # Restriccion de constructibilidad
     @constraint(model, sum(w[stack] * h[stack] * floors[stack] for stack in 1:K) <= maxConstruccionSNT)
 
+    # Función Objetivo
     @objective(model, Max, sum(w[stack] * h[stack] * floors[stack] for stack in 1:K))
     optimize!(model)
 
