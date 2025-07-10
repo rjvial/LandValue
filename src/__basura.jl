@@ -14,7 +14,7 @@ neo4j_host = "bolt://localhost:7687"
 neo4j_user = "neo4j"
 neo4j_password = "x67y1332"
 
-conn_neo4j = neo4j_julia.connection(neo4j_host, neo4j_user, neo4j_password, folder, key_pair, ec2_user, public_dns)
+conn_neo4j_jlv = neo4j_julia.connection(neo4j_host, neo4j_user, neo4j_password, folder, key_pair, ec2_user, public_dns)
 
 query = """
 MATCH (p:Predio {codigo_predial:'151600045900036'})
@@ -42,7 +42,7 @@ RETURN
   cond.nombre_requerimiento  AS nombre_req_condicional;
 """
 
-df = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
+df = neo4j_julia.cypher_to_dataframe(query, conn_neo4j_jlv)
 
 #  "variante_norm_id"
 #  "nombre_variante"

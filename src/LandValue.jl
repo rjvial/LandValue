@@ -333,11 +333,12 @@ using JuMP, BlackBoxOptim, NOMAD, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, O
     include("opti_edificio_depto.jl")
     include("opti_vol_estacionamiento.jl")
     include("generate_stack_vector.jl")
+    include("expression_converter.jl")
 
     export funcionPrincipal, fo_bbo, fo_bbo_e2, fo_nomad, calculaAnguloRotacion, generaSombraEdificio, opti_deptos, displayResults, 
         optim_nomad, optim_bbo, poly2D, polyShape, graphMod, resultConverter, plotBaseEdificio3D, generaVol3D, generaSombraTeor, 
         pg_julia, aws_julia, neo4j_julia, obtieneCalles, generaPoligonoCorte, queryCabida, generaCotas, create_scr, create_edificio_geojson,
         optimal_pricing, optimal_lot_selection, opti_vol_edificio, opti_vol_edificio_consombra, opti_vol_edificio_sinsombra, 
-        opti_edificio_oficina, opti_edificio_depto, opti_vol_estacionamiento, generate_stack_vector
+        opti_edificio_oficina, opti_edificio_depto, opti_vol_estacionamiento, generate_stack_vector, expression_converter
 
 end

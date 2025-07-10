@@ -2,7 +2,6 @@ function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, dato
 
     my_env = DotEnv.config("secrets.env")
     conn_LandValue = pg_julia.connection(datos_LandValue[1], datos_LandValue[2], datos_LandValue[3], datos_LandValue[4])
-    conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
     
     conn_aws = aws_julia.connection(my_env["AWS_ACCESS_KEY"], my_env["AWS_SECRET_KEY"], my_env["AWS_REGION"])
     
@@ -35,11 +34,80 @@ function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, dato
     end
 
     codPredialStr = replace(replace(string(codigo_predial), "[" => "("), "]" => ")")
+    n_predios = length(codigo_predial)
 
-    # Obtiene desde la base de datos los parametros del predio
-    display("Obtiene desde la base de datos los parametros del predio")
-    @time dcn, _, _ = queryCabida.query_datos_predio(conn_mygis_db, "vitacura", codPredialStr)
+    # Obtiene los parametros del predio
+    display("Obtiene los parametros del predio")
 
+    query = """
+    MATCH (p:Predio {codigo_predial:'$(codigo_predial[1])'})
+    MATCH (p)-[:PERTENECE_A|PERTENECE_A_USO]->(z)
+    OPTIONAL MATCH (z)-[:TIENE_VARIANTE_NORMATIVA]->(vn)
+    OPTIONAL MATCH (vn)-[:TIENE_REQ_NORMATIVO]->(r:Requerimiento_Normativo)
+    OPTIONAL MATCH (r)-[:TIENE_REQ_CONDICIONAL]->(rc:Requerimiento_Condicional)
+    WITH
+    vn, r, collect(rc) AS condiciones
+    WITH
+    vn, r, CASE WHEN condiciones = [] THEN [null] ELSE condiciones END AS condiciones
+    UNWIND condiciones AS cond
+    RETURN
+    vn.variante_norm_id        AS variante_norm_id,
+    vn.nombre                  AS nombre_variante,
+    r.requerimiento_norm_id    AS requerimiento_norm_id,
+    r.nombre_requerimiento     AS nombre_requerimiento,
+    r.valor                    AS valor,
+    r.unidad                   AS unidad,
+    r.tipo_restriccion         AS tipo_restriccion,
+    cond.requerimiento_cond_id AS requerimiento_cond_id,
+    cond.unidad                AS unidad_condicional,
+    cond.parametro_formula     AS parametro_formula,
+    cond.formula               AS formula,
+    cond.nombre_requerimiento  AS nombre_req_condicional;
+    """
+    df_normativa = neo4j_julia.cypher_to_dataframe(query, conn_neo4j_jlv)
+    lista_requerimientos = sort(unique(skipmissing(df_normativa[!, :nombre_requerimiento])))
+
+
+    dict_sin_parametros = Dict{String,Any}()
+    dict_con_parametros = Dict{String,NamedTuple{(:valor, :parametro_formula, :formula),Tuple{String,String,String}}}()
+
+    for r in lista_requerimientos
+        # 1) filter down to the matching row
+        mask = 
+        (df_normativa[!, :nombre_variante] .== "dfl_2") .&
+        (df_normativa[!, :nombre_requerimiento] .== r)
+        df_mask = df_normativa[mask, [:valor, :parametro_formula, :formula]]
+
+        # 2) if there's at least one row for this requisito
+        if size(df_mask, 1) ≥ 1
+            valor_str      = strip(df_mask[1, :valor])
+            parametros_str = strip(df_mask[1, :parametro_formula])
+            formula_str    = strip(df_mask[1, :formula])
+
+            if parametros_str == "NULL"
+                # ───────── sin parámetros ─────────
+                chosen = valor_str != "NULL" ? valor_str : formula_str
+                parsed = tryparse(Float64, String(chosen))
+                dict_sin_parametros[r] = parsed === nothing ? String(chosen) : parsed
+
+            elseif valor_str == "NULL"
+                # ───────── con parámetros ─────────
+                dict_con_parametros[r] = (
+                    valor = "",
+                    parametro_formula = String(parametros_str),
+                    formula           = String(formula_str)
+                )
+            else
+                dict_con_parametros[r] = (
+                    valor = String(valor_str),
+                    parametro_formula = String(parametros_str),
+                    formula           = String(formula_str)
+                )
+            end
+        end
+    end
+
+    dcn = DatosCabidaNormativa()
     dcn.rasanteSombra = 5.0
     dcn.flagDensidadBruta = true
     dcn.estacionamientosPorViv = 1.0
@@ -51,25 +119,27 @@ function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, dato
     dcn.flagCambioEstPorBicicleta = true
     dcn.maxSubte = 7.0
     dcn.coefOcupacionEst = 0.7
-    dcn.sepEstMin = 1.5
+    dcn.sepEstMin = dict_sin_parametros["subterraneo_antejardin"]
     dcn.reduccionEstPorDistMetro = false
 
     dcn.distanciamiento = 6 #3 #
-    dcn.antejardin = 7 #4 #
-    dcn.rasante = 1.7320508075688767
-    dcn.alturaMax = 10 * 2.55 #17.5
-    dcn.maxPisos = 10
-    dcn.coefOcupacion = .4
-    dcn.supPredialMin = 800
-    dcn.densidadMax = 360*4
-    dcn.coefConstructibilidad = 2
+    dcn.antejardin = dict_sin_parametros["antejardin"] #7 #4 #
+    dcn.rasante = tan(dict_sin_parametros["rasante"]*pi/180) #1.7320508075688767
+    dcn.alturaMax = dict_sin_parametros["altura_max"] #10 * 2.55 #17.5
+    dcn.maxPisos = dict_sin_parametros["n_pisos"]
+    dcn.coefOcupacion = dict_sin_parametros["coeficiente_de_ocupacion_de_suelo"] #.4
+    dcn.supPredialMin = dict_sin_parametros["subdivision_predial_minima"]#800
+    dcn.densidadMax = dict_sin_parametros["densidad_maxima_bruta"] #360*4
+    coeficiente_de_constructibilidad = parse(Float64, dict_con_parametros["coeficiente_de_constructibilidad"][1])
+    expr = Meta.parse(expression_converter.parse_python_expression( dict_con_parametros["coeficiente_de_constructibilidad"][3]))
+    dcn.coefConstructibilidad = eval(expr)
 
 
     dcc = DatosCabidaComercial()
     # dcc.tipoUnidad = 
-    dcc.supInterior = [25, 65, 85, 120]
-    dcc.supTerraza = [10, 20, 30, 40]
-    dcc.supDeptoUtil = dcc.supTerraza .+ 0.5 * dcc.supTerraza
+    dcc.supInterior = [25, 65, 85, 120, 240]
+    dcc.supTerraza = [10, 20, 30, 40, 40]
+    dcc.supDeptoUtil = dcc.supInterior .+ 0.5 * dcc.supTerraza
     dcc.estacionamientosPorViv = 1.5 #2
     dcc.bodegasPorViv = 1
 
@@ -198,8 +268,7 @@ function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, dato
     vecSecSinCalle = setdiff(vecSecTodos, vecSecConCalle)
 
     antejardin = dcn.antejardin[1] # 8 # 12 # 
-    sepVecinos = dcn.distanciamiento[1] # 7 # dcn.distanciamiento[1] # 10 # 
-    # densidadMax = dcn.densidadMax
+    sepVecinos = dcn.distanciamiento[1] # 7 #  10 # 
     maxPisos = round(dcn.maxPisos)
     alturaMax = dcn.alturaMax
     rasante = dcn.rasante
@@ -210,7 +279,6 @@ function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, dato
     vec_dist .= -antejardin
     vec_dist[vecSecSinCalle] .= -sepVecinos
     ps_areaEdif = polyShape.partialPolyOffset(ps_predio, vec_edges, vec_dist)
-
     sup_areaEdif = polyShape.polyArea(ps_areaEdif)
 
     vec_dist = Float64.(vec_edges)
@@ -251,8 +319,8 @@ function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, dato
 
 
     alturaPiso = 2.55
-    max_ocupacion_suelo = 1.0*1000 # dcn.coefOcupacion > 0 ? dcn.coefOcupacion * superficieTerreno : sup_areaEdif
-    max_constructibilidad = superficieTerreno * dcn.coefConstructibilidad * (1 + 0.3 * dcp.fusionTerrenos) 
+    max_ocupacion_suelo = superficieTerreno * dcn.coefOcupacion
+    max_constructibilidad = superficieTerreno * dcn.coefConstructibilidad  
     maxConstruccionSNT = max_constructibilidad * .95 + max_constructibilidad * 0.10 + max_constructibilidad * 0.20 # Sup Terraza + Areas comunes
                        # Sup Interior                + Sup Terrazas                 + Areas comunes
 
@@ -278,11 +346,11 @@ function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, dato
     fig, ax, ax_mat = plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, ps_publico, ps_calles, vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, tipo_edificio)
 
 
-    K = 3; ancho_crujia_min = 12; ancho_crujia_max = 18; flag_sombra = false
+    K = 2; ancho_crujia_min = 12; ancho_crujia_max = 18; flag_sombra = false
     vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, tipo_edificio, max_sol = opti_edificio_depto(alturaPiso, areaSombra_o, areaSombra_p, areaSombra_s, centroidSombra_o, centroidSombra_p, centroidSombra_s, dca, dcc, dcn, dcp, max_ocupacion_suelo, maxConstruccionSNT, ps_areaEdif, ps_areaEst, ps_bruto, ps_calles, ps_predio, ps_publico, sup_areaEdif, superficieTerreno, superficieTerrenoBruto, vec_altVolConSombra, vec_altVolteor, vec_pisos, vec_psVolConSombra, vec_psVolteor; K, ancho_crujia_min = ancho_crujia_min, ancho_crujia_max = ancho_crujia_max, flag_sombra = flag_sombra)
     fig, ax, ax_mat = plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, ps_publico, ps_calles, vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, tipo_edificio)
     
-    K = 3; ancho_crujia_min = 12; ancho_crujia_max = 18; flag_sombra = true
+    K = 1; ancho_crujia_min = 12; ancho_crujia_max = 18; flag_sombra = true
     vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, tipo_edificio, max_sol = opti_edificio_depto(alturaPiso, areaSombra_o, areaSombra_p, areaSombra_s, centroidSombra_o, centroidSombra_p, centroidSombra_s, dca, dcc, dcn, dcp, max_ocupacion_suelo, maxConstruccionSNT, ps_areaEdif, ps_areaEst, ps_bruto, ps_calles, ps_predio, ps_publico, sup_areaEdif, superficieTerreno, superficieTerrenoBruto, vec_altVolConSombra, vec_altVolteor, vec_pisos, vec_psVolConSombra, vec_psVolteor; K, ancho_crujia_min = ancho_crujia_min, ancho_crujia_max = ancho_crujia_max, flag_sombra = flag_sombra)
     fig, ax, ax_mat = plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, ps_publico, ps_calles, vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, tipo_edificio)
 

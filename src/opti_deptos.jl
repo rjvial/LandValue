@@ -86,7 +86,7 @@ function opti_deptos(
         sum(numDeptos) <= maxDeptos
         
         # common area minima
-        supComunPrimerPiso >= 0.35 * supUtil / num_pisos #minSupComunPrimerPiso
+        # supComunPrimerPiso >= 0.35 * supUtil / num_pisos #minSupComunPrimerPiso
         supComunPisosSup   >= 0.15 * supUtil  #minSupComunPisosSup
         supComun           <= 0.2 * supUtil
 
