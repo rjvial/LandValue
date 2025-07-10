@@ -5,19 +5,22 @@ function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, dato
     conn_mygis_db = pg_julia.connection(datos_mygis_db[1], datos_mygis_db[2], datos_mygis_db[3], datos_mygis_db[4])
     
     conn_aws = aws_julia.connection(my_env["AWS_ACCESS_KEY"], my_env["AWS_SECRET_KEY"], my_env["AWS_REGION"])
-    instance_info = aws_julia.find_instance_by_name("Neo4j-EC2", conn_aws)
+    
 
-    key_pair   = "neo4j-key-pair.pem"
     ec2_user   = "ec2-user"
-    public_dns = instance_info["dnsName"]
-
+    key_pair   = "neo4j-key-pair.pem"
     folder = "/usr/bin/cypher-shell"
     neo4j_host = "bolt://localhost:7687"
     neo4j_user = "neo4j"
     neo4j_password = "x67y1332"
 
+    instance_info = aws_julia.find_instance_by_name("Neo4j-EC2", conn_aws)
+    public_dns = instance_info["dnsName"]
     conn_neo4j = neo4j_julia.connection(neo4j_host, neo4j_user, neo4j_password, folder, key_pair, ec2_user, public_dns)
 
+    instance_info = aws_julia.find_instance_by_name("Neo4j-EC2_JLV", conn_aws)
+    public_dns = instance_info["dnsName"]
+    conn_neo4j_jlv = neo4j_julia.connection(neo4j_host, neo4j_user, neo4j_password, folder, key_pair, ec2_user, public_dns)
 
     ##############################################
     # PARTE "1": OBTENCIÓN DE PARÁMETROS         #
@@ -35,7 +38,7 @@ function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, dato
 
     # Obtiene desde la base de datos los parametros del predio
     display("Obtiene desde la base de datos los parametros del predio")
-    @time dcn, sup_terreno_sii, ps_predio_db = queryCabida.query_datos_predio(conn_mygis_db, "vitacura", codPredialStr)
+    @time dcn, _, _ = queryCabida.query_datos_predio(conn_mygis_db, "vitacura", codPredialStr)
 
     dcn.rasanteSombra = 5.0
     dcn.flagDensidadBruta = true
@@ -80,10 +83,11 @@ function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, dato
     query = """
         MATCH (gp:Geom_Predio)-[]-(p:Predio)
         WHERE p.codigo_predial IN $quoted_list
-        RETURN DISTINCT p.codigo_predial AS codigo_predial, gp.geom_wkt AS geom_wkt
+        RETURN DISTINCT p.codigo_predial AS codigo_predial, p.sup_terreno_sii AS sup_terreno_sii, gp.geom_wkt AS geom_wkt
         ORDER BY codigo_predial
     """
     df_predios = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
+    sup_terreno_sii = sum(df_predios[!,"sup_terreno_sii"])
     ps_predio_db = polyShape.astext2polyshape(df_predios[:, "geom_wkt"])
     ps_predio_db = polyShape.setPolyOrientation(ps_predio_db,1)
     ps_predio_db = polyShape.reproject_polyshape(ps_predio_db)
