@@ -299,9 +299,6 @@ using JuMP, BlackBoxOptim, NOMAD, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, O
 
 
     include("funcionPrincipal.jl")
-    include("fo_bbo.jl")
-    include("fo_bbo_e2.jl")
-    include("fo_nomad.jl")
     include("calculaAnguloRotacion.jl")
     include("generaSombraEdificio.jl")
     include("opti_deptos.jl")
@@ -310,8 +307,6 @@ using JuMP, BlackBoxOptim, NOMAD, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, O
     include("poly2D.jl")
     include("polyShape.jl")
     include("graphMod.jl")
-    include("optim_nomad.jl")
-    include("optim_bbo.jl")
     include("resultConverter.jl")
     include("generaVol3D.jl")
     include("generaSombraTeor.jl")
@@ -326,19 +321,17 @@ using JuMP, BlackBoxOptim, NOMAD, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, O
     include("optimal_lot_selection.jl")
     include("aws_julia.jl")
     include("neo4j_julia.jl")
+    include("quad_opti_vol.jl")
     include("opti_vol_edificio.jl")
-    include("opti_vol_edificio_consombra.jl")
-    include("opti_vol_edificio_sinsombra.jl")
-    include("opti_edificio_oficina.jl")
-    include("opti_edificio_depto.jl")
+    include("opti_edificio.jl")
     include("opti_vol_estacionamiento.jl")
     include("generate_stack_vector.jl")
     include("expression_converter.jl")
 
-    export funcionPrincipal, fo_bbo, fo_bbo_e2, fo_nomad, calculaAnguloRotacion, generaSombraEdificio, opti_deptos, displayResults, 
-        optim_nomad, optim_bbo, poly2D, polyShape, graphMod, resultConverter, plotBaseEdificio3D, generaVol3D, generaSombraTeor, 
+    export funcionPrincipal, calculaAnguloRotacion, generaSombraEdificio, opti_deptos, displayResults, 
+        poly2D, polyShape, graphMod, resultConverter, plotBaseEdificio3D, generaVol3D, generaSombraTeor, 
         pg_julia, aws_julia, neo4j_julia, obtieneCalles, generaPoligonoCorte, queryCabida, generaCotas, create_scr, create_edificio_geojson,
-        optimal_pricing, optimal_lot_selection, opti_vol_edificio, opti_vol_edificio_consombra, opti_vol_edificio_sinsombra, 
-        opti_edificio_oficina, opti_edificio_depto, opti_vol_estacionamiento, generate_stack_vector, expression_converter
+        optimal_pricing, optimal_lot_selection, quad_opti_vol, opti_vol_edificio, 
+        opti_edificio, opti_vol_estacionamiento, generate_stack_vector, expression_converter
 
 end

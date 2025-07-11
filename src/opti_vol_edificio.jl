@@ -1,105 +1,156 @@
-function opti_vol_edificio(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_ocupacion_suelo, maxConstruccionSNT, K;
-                             ancho_crujia_min = 0, ancho_crujia_max = 0)
+function opti_vol_edificio(vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, vec_pisos, alturaPiso, ps_areaEdif, ps_calles, ps_publico, ps_bruto,
+        areaSombra_p, areaSombra_o, areaSombra_s, max_ocupacion_suelo, maxConstruccionSNT, K, centroidSombra_p, centroidSombra_o, centroidSombra_s;
+        ancho_crujia_min = 0, ancho_crujia_max = 0, flag_sombra = false)
 
-    # Orientación del predio
-    ps0 = vec_psVolteor[1]
-    V0 = ps0.Vertices[1]
-    flag_horizontal = abs(V0[2,1] - V0[1,1]) > abs(V0[2,2] - V0[1,2])
 
-    ps_opt  = [PolyShape([],1) for _ in 1:K]
-    np_opt  = zeros(Int, K)
+    vecLargoLados, _, _, _ = polyShape.extraeInfoPoly(ps_areaEdif)
+    max_lado = maximum(vecLargoLados)
+    max_pisos = maximum(vec_pisos)
+    min_pisos = ancho_crujia_max > 0 ? min(max_pisos-2, Int(floor(maxConstruccionSNT / (max_lado * ancho_crujia_max)))) : max_pisos - 2
 
-    model = Model(optimizer_with_attributes(Ipopt.Optimizer, "sb" => "yes"))
-    set_silent(model)
+    local ps_stack, np_stack
 
-    # Global position and rotation
-    @variable(model, x1)
-    @variable(model, y1)
-    @variable(model, c)
-    @variable(model, s)
-    @constraint(model, c^2 + s^2 == 1)
+    if flag_sombra
+        max_iter = 1000  # 50*10 = 500
+        delta_dist = -0.1*5
 
-    # Footprint sizes
-    @variables(model, begin
-        w[stack = 1:K] >= 0
-        h[stack = 1:K] >= 0
-    end)
+        # Prepare rasante constraints
+        A0, b0 = polyShape.poly2Constraints(ps_areaEdif)
 
-    # Offsets for stacks above ground
-    if K > 1
-        @variables(model, begin
-            dx[stack = 2:K] >= 0
-            dy[stack = 2:K] >= 0
-        end)
-    end
+        # Identify edges for shadow adjustments (pre-compute matrix operations)
+        vec_edges = collect(1:length(b0))
+        A0_p = A0 * centroidSombra_p.Vertices'
+        A0_o = A0 * centroidSombra_o.Vertices'
+        A0_s = A0 * centroidSombra_s.Vertices'
 
-    # Restricciones de ocupación de suelo y ancho crujía
-    @constraint(model, w[1] * h[1] <= max_ocupacion_suelo)
-    if ancho_crujia_min >= 1
-        if flag_horizontal
-            @constraint(model, h[1] >= ancho_crujia_min)
-            @constraint(model, h[1] <= ancho_crujia_max)
-        else
-            @constraint(model, w[1] >= ancho_crujia_min)
-            @constraint(model, w[1] <= ancho_crujia_max)
-        end
-    end
+        edges_p = vec_edges[A0_p .>= b0]
+        edges_o = vec_edges[A0_o .>= b0]
+        edges_s = vec_edges[A0_s .>= b0]
 
-    # Nesting constraints for above stacks
-    for stack in 2:K
-        @constraint(model, dx[stack] + w[stack] <= w[stack - 1])
-        @constraint(model, dy[stack] + h[stack] <= h[stack - 1])
-    end
+        # Storage for best known
+        best_ps = [PolyShape([],1) for _ in 1:K]
+        best_np = zeros(Int, K)
 
-    num_pisos_acum = 0
-    # Restricciones de confinamiento al volúmen teórico
-    for stack in 1:K
-        n_f = floors[stack]
-        num_pisos_acum += n_f
-        altura_corte_stack = num_pisos_acum * alturaPiso #min(num_pisos_acum * alturaPiso, alt_max)
-        psC = generaPoligonoCorte(altura_corte_stack, vec_psVolteor, vec_altVolteor)
-        A, b = polyShape.poly2Constraints(psC)
+        # Pre-allocate variables to avoid repeated allocations
+        local ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s
+        local area_act_p, area_act_o, area_act_s
+        local delta_min
 
-        # Define local rectangle corners
-        ox = stack > 1 ? dx[stack] : 0
-        oy = stack > 1 ? dy[stack] : 0
-        stack_corners = [[ox, oy], [ox + w[stack], oy], [ox + w[stack], oy + h[stack]], [ox, oy + h[stack]]]
+        # Small epsilon for area comparison
+        eps_area = 1e-10
+        max_sol = 0
+        flag_continue = true
+        
+        vec_stacks = []
+        for pisos in min_pisos:max_pisos
 
-        for corner in stack_corners, row in eachindex(A[:,1])
-            xg = x1 + c * corner[1] - s * corner[2]
-            yg = y1 + s * corner[1] + c * corner[2]
-            @constraint(model, A[row,1] * xg + A[row,2] * yg <= b[row])
-        end
-    end
-
-    # Restriccion de constructibilidad
-    @constraint(model, sum(w[stack] * h[stack] * floors[stack] for stack in 1:K) <= maxConstruccionSNT)
-
-    # Función Objetivo
-    @objective(model, Max, sum(w[stack] * h[stack] * floors[stack] for stack in 1:K))
-    optimize!(model)
-
-    if termination_status(model) in (MOI.LOCALLY_SOLVED, MOI.OPTIMAL, MOI.ALMOST_LOCALLY_SOLVED, MOI.ALMOST_OPTIMAL)
-        objective_val = objective_value(model)
-
-        for stack in 1:K
-            ox = stack > 1 ? value(dx[stack]) : 0
-            oy = stack > 1 ? value(dy[stack]) : 0
-            coords = Float64[]
-            for (px, py) in ((ox, oy), (ox + value(w[stack]), oy),
-                                (ox + value(w[stack]), oy + value(h[stack])), (ox, oy + value(h[stack])))
-                gx = value(x1) + value(c) * px - value(s) * py
-                gy = value(y1) + value(s) * px + value(c) * py
-                append!(coords, [gx, gy])
+            vec_stacks_p = generate_stack_vector(pisos, K)
+            if pisos == min_pisos
+                vec_stacks = vec_stacks_p
+            else
+                vec_stacks = vcat(vec_stacks, vec_stacks_p)
             end
-            mat = reshape(coords, 2, 4)'  # 4×2 matrix
-            ps_opt[stack] = PolyShape([mat], 1)
-            np_opt[stack] = floors[stack]
+        end
+        vec_stacks = [v for v in vec_stacks if v[1] ≥ max_pisos - K]
+
+        iter_c = 0
+        piso_aux = 0
+        while flag_continue
+            iter_c += 1
+            c = vec_stacks[iter_c]
+
+            if piso_aux < sum(c)
+                piso_aux = sum(c)
+                
+            else
+            end
+
+            ps_areaEdif_ = deepcopy(ps_areaEdif)
+
+            # Iterative shadow loop params
+            delta_p = -1.0
+            delta_o = -1.0 
+            delta_s = -1.0
+
+            vec_psVolConSombra_ = deepcopy(vec_psVolConSombra)
+            iter = 0
+            while iter < max_iter && min(delta_p, delta_o, delta_s) < 0
+                iter += 1
+
+                try
+                    # Optimize volumes for K stacks
+                    ps_stack, np_stack, objective_val = quad_opti_vol(vec_psVolConSombra_, vec_altVolConSombra, c, alturaPiso, max_ocupacion_suelo, maxConstruccionSNT, K, ancho_crujia_min = ancho_crujia_min, ancho_crujia_max = ancho_crujia_max)
+                    
+                    # Compute cumulative heights once
+                    vec_alt_acum = cumsum(np_stack) .* alturaPiso
+
+                    # Compute shadows cumulatively
+                    ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s = generaSombraEdificio(ps_stack, vec_alt_acum, ps_publico, ps_calles)
+                
+                    # Sum actual shadow areas
+                    area_act_p = polyShape.polyArea(ps_sombraEdif_p)
+                    area_act_o = polyShape.polyArea(ps_sombraEdif_o)
+                    area_act_s = polyShape.polyArea(ps_sombraEdif_s)
+
+                    # Compute ratios more efficiently (avoid repeated comparisons)
+                    delta_p = area_act_p > eps_area ? areaSombra_p / area_act_p - 1 : 1.0
+                    delta_o = area_act_o > eps_area ? areaSombra_o / area_act_o - 1 : 1.0
+                    delta_s = area_act_s > eps_area ? areaSombra_s / area_act_s - 1 : 1.0
+
+                    # Find minimum delta more efficiently
+                    delta_min = min(delta_p, delta_o, delta_s)
+
+                    # Adjust buildable footprint on worst violation (simplified logic)
+                    if delta_min < 0
+                        if delta_p == delta_min
+                            ps_areaEdif_ = polyShape.partialPolyOffset(ps_areaEdif_, edges_p, delta_dist)
+                        elseif delta_o == delta_min
+                            ps_areaEdif_ = polyShape.partialPolyOffset(ps_areaEdif_, edges_o, delta_dist)
+                        else  # delta_s == delta_min
+                            ps_areaEdif_ = polyShape.partialPolyOffset(ps_areaEdif_, edges_s, delta_dist)
+                        end
+
+                        # Update rasante volumes (moved inside if block for efficiency)
+                        vec_psVolConSombra_ = [polyShape.polyIntersect(ps, ps_areaEdif_) for ps in vec_psVolConSombra_]
+
+                    elseif objective_val > max_sol
+                        # Store best
+                        max_sol = objective_val
+                        best_ps = deepcopy(ps_stack)
+                        best_np = deepcopy(np_stack)
+                    end
+
+                catch  
+                    objective_val = 0
+                end
+
+            end
+
+            if max_sol >= 0.99 * maxConstruccionSNT || iter_c == length(vec_stacks)
+                flag_continue = false
+            end
         end
     else
-        objective_val = 0.0
+            # Storage for best known
+        best_ps = [PolyShape([],1) for _ in 1:K]
+        best_np = zeros(Int, K)
+
+        max_sol = 0
+        for pisos in min_pisos:max_pisos
+            vec_stacks = generate_stack_vector(pisos, K)
+            for c in vec_stacks
+                ps_stack, np_stack, objective_val = quad_opti_vol(vec_psVolteor, vec_altVolteor, c, alturaPiso, max_ocupacion_suelo, maxConstruccionSNT, K, ancho_crujia_min = ancho_crujia_min, ancho_crujia_max = ancho_crujia_max)
+                if objective_val > max_sol
+                    # Store best
+                    max_sol = objective_val
+                    best_ps = deepcopy(ps_stack)
+                    best_np = deepcopy(np_stack)
+                end
+            end
+        end
+
     end
 
-
-    return ps_opt, np_opt, objective_val
+    return best_ps, best_np, max_sol
 end
+
