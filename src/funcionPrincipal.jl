@@ -33,7 +33,6 @@ function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, dato
         setproperty!(dca, field_s, value_)
     end
 
-    n_predios = length(codigo_predial)
 
     # Obtiene los parametros del predio
     display("Obtiene los parametros del predio")
@@ -69,7 +68,7 @@ function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, dato
 
 
     dict_sin_parametros = Dict{String,Any}()
-    dict_con_parametros = Dict{String,NamedTuple{(:valor, :parametro_formula, :formula),Tuple{String,String,String}}}()
+    dict_con_parametros = Dict{String, NamedTuple{(:valor, :parametro_formula, :formula),Tuple{String,String,String}}}()
 
     for r in lista_requerimientos
         # 1) filter down to the matching row
@@ -107,7 +106,6 @@ function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, dato
         end
     end
 
-    dict_distanciamiento = dict_con_parametros["distanciamiento"]
 
     dcn = DatosCabidaNormativa()
     dcn.rasanteSombra = 5.0
@@ -132,6 +130,7 @@ function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, dato
     dcn.coefOcupacion = dict_sin_parametros["coeficiente_de_ocupacion_de_suelo"] #.4
     dcn.supPredialMin = dict_sin_parametros["subdivision_predial_minima"]#800
     dcn.densidadMax = dict_sin_parametros["densidad_maxima_bruta"] #360*4
+    n_predios = length(codigo_predial)
     coeficiente_de_constructibilidad = parse(Float64, dict_con_parametros["coeficiente_de_constructibilidad"][1])
     expr = Meta.parse(expression_converter.parse_python_expression( dict_con_parametros["coeficiente_de_constructibilidad"][3]))
     dcn.coefConstructibilidad = eval(expr)
@@ -292,20 +291,20 @@ function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, dato
 
 
     K = 3; ancho_crujia_min = 0; ancho_crujia_max = 0; flag_sombra = false; tipo_edificio = "oficina"
-    vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, max_sol, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra = opti_edificio(alturaPiso, sup_terreno_sii, vecSecTodos, vecSecSinCalle, dict_con_parametros, dcn, dca, dcp, dcc, ps_bruto, ps_calles, ps_predio, ps_publico, vec_pisos, K, ancho_crujia_min = ancho_crujia_min, ancho_crujia_max = ancho_crujia_max, flag_sombra = flag_sombra, tipo_edificio = tipo_edificio)
+    vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, max_sol, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra = opti_edificio(alturaPiso, sup_terreno_sii, vecSecTodos, vecSecSinCalle, dict_con_parametros, dcn, dca, dcp, dcc, ps_bruto, ps_calles, ps_predio, ps_publico, vec_pisos, K, ancho_crujia_min, ancho_crujia_max, flag_sombra, tipo_edificio)
     fig, ax, ax_mat = plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, ps_publico, ps_calles, vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, tipo_edificio)
 
     K = 3; ancho_crujia_min = 0; ancho_crujia_max = 0; flag_sombra = true; tipo_edificio = "oficina"
-    vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, max_sol, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra = opti_edificio(alturaPiso, sup_terreno_sii, vecSecTodos, vecSecSinCalle, dict_con_parametros, dcn, dca, dcp, dcc, ps_bruto, ps_calles, ps_predio, ps_publico, vec_pisos, K, ancho_crujia_min = ancho_crujia_min, ancho_crujia_max = ancho_crujia_max, flag_sombra = flag_sombra, tipo_edificio = tipo_edificio)
+    vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, max_sol, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra = opti_edificio(alturaPiso, sup_terreno_sii, vecSecTodos, vecSecSinCalle, dict_con_parametros, dcn, dca, dcp, dcc, ps_bruto, ps_calles, ps_predio, ps_publico, vec_pisos, K, ancho_crujia_min, ancho_crujia_max, flag_sombra, tipo_edificio)
     fig, ax, ax_mat = plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, ps_publico, ps_calles, vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, tipo_edificio)
 
 
     K = 2; ancho_crujia_min = 12; ancho_crujia_max = 18; flag_sombra = false; tipo_edificio = "departamento"
-    vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, max_sol, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra = opti_edificio(alturaPiso, sup_terreno_sii, vecSecTodos, vecSecSinCalle, dict_con_parametros, dcn, dca, dcp, dcc, ps_bruto, ps_calles, ps_predio, ps_publico, vec_pisos, K, ancho_crujia_min = ancho_crujia_min, ancho_crujia_max = ancho_crujia_max, flag_sombra = flag_sombra, tipo_edificio = tipo_edificio)
+    vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, max_sol, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra = opti_edificio(alturaPiso, sup_terreno_sii, vecSecTodos, vecSecSinCalle, dict_con_parametros, dcn, dca, dcp, dcc, ps_bruto, ps_calles, ps_predio, ps_publico, vec_pisos, K, ancho_crujia_min, ancho_crujia_max, flag_sombra, tipo_edificio)
     fig, ax, ax_mat = plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, ps_publico, ps_calles, vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, tipo_edificio)
     
-    K = 1; ancho_crujia_min = 12; ancho_crujia_max = 18; flag_sombra = true; tipo_edificio = "departamento"
-    vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, max_sol, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra = opti_edificio(alturaPiso, sup_terreno_sii, vecSecTodos, vecSecSinCalle, dict_con_parametros, dcn, dca, dcp, dcc, ps_bruto, ps_calles, ps_predio, ps_publico, vec_pisos, K, ancho_crujia_min = ancho_crujia_min, ancho_crujia_max = ancho_crujia_max, flag_sombra = flag_sombra, tipo_edificio = tipo_edificio)
+    K = 3; ancho_crujia_min = 12; ancho_crujia_max = 18; flag_sombra = true; tipo_edificio = "departamento"
+    vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, max_sol, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra = opti_edificio(alturaPiso, sup_terreno_sii, vecSecTodos, vecSecSinCalle, dict_con_parametros, dcn, dca, dcp, dcc, ps_bruto, ps_calles, ps_predio, ps_publico, vec_pisos, K, ancho_crujia_min, ancho_crujia_max, flag_sombra, tipo_edificio)
     fig, ax, ax_mat = plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, ps_publico, ps_calles, vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, tipo_edificio)
 
 

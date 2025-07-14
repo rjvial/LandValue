@@ -1,5 +1,4 @@
-function quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_ocupacion_suelo, maxConstruccionSNT, K;
-                             ancho_crujia_min = 0, ancho_crujia_max = 0)
+function quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_ocupacion_suelo, maxConstruccionSNT, K, ancho_crujia_min, ancho_crujia_max)
 
     # Orientación del predio
     ps0 = vec_psVolteor[1]

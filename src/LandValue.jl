@@ -301,7 +301,7 @@ using JuMP, BlackBoxOptim, NOMAD, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, O
     include("funcionPrincipal.jl")
     include("calculaAnguloRotacion.jl")
     include("generaSombraEdificio.jl")
-    include("opti_deptos.jl")
+    include("opti_edificio_deptos.jl")
     include("displayResults.jl")
     include("plotBaseEdificio3D.jl")
     include("poly2D.jl")
@@ -322,16 +322,16 @@ using JuMP, BlackBoxOptim, NOMAD, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, O
     include("aws_julia.jl")
     include("neo4j_julia.jl")
     include("quad_opti_vol.jl")
-    include("opti_vol_edificio.jl")
+    include("opti_edificio_vol.jl")
     include("opti_edificio.jl")
     include("opti_vol_estacionamiento.jl")
     include("generate_stack_vector.jl")
     include("expression_converter.jl")
 
-    export funcionPrincipal, calculaAnguloRotacion, generaSombraEdificio, opti_deptos, displayResults, 
+    export funcionPrincipal, calculaAnguloRotacion, generaSombraEdificio, opti_edificio_deptos, displayResults, 
         poly2D, polyShape, graphMod, resultConverter, plotBaseEdificio3D, generaVol3D, generaSombraTeor, 
         pg_julia, aws_julia, neo4j_julia, obtieneCalles, generaPoligonoCorte, queryCabida, generaCotas, create_scr, create_edificio_geojson,
-        optimal_pricing, optimal_lot_selection, quad_opti_vol, opti_vol_edificio, 
+        optimal_pricing, optimal_lot_selection, quad_opti_vol, opti_edificio_vol, 
         opti_edificio, opti_vol_estacionamiento, generate_stack_vector, expression_converter
 
 end

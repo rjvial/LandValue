@@ -1,8 +1,7 @@
-function opti_deptos(
+function opti_edificio_deptos(
         dcn, dca, dcp, dcc,
         vec_ps_opt, vec_np_opt,
-        superficieTerreno::Real, superficieTerrenoBruto::Real,
-        sup_areaEdif::Real
+        superficieTerreno::Real, superficieTerrenoBruto::Real
     )
     # Base areas
     K = length(vec_ps_opt) # num stacks
@@ -15,7 +14,7 @@ function opti_deptos(
     num_pisos_regulares = num_pisos - 1         # Pisos regulares (sin primer piso)
 
     # Occupation and constructibility
-    maxOcupacion = dcn.coefOcupacion > 0 ? dcn.coefOcupacion * superficieTerreno : sup_areaEdif
+    maxOcupacion = dcn.coefOcupacion * superficieTerreno
     maxConstruct = superficieTerreno * dcn.coefConstructibilidad * (1 + 0.3 * dcp.fusionTerrenos)
 
     # Variants and area matrices
@@ -99,9 +98,7 @@ function opti_deptos(
 
     end)
 
-    # @objective(m, Max, sum((1 / matSupUtil[u,v]) * numDeptos[u,v]  for u=1:numTipos, v=1:numVariantes))
     @objective(m, Max, supUtil)
-
     optimize!(m)
 
     # gather results

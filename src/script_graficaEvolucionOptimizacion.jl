@@ -139,7 +139,7 @@ let
 
 
     # Calcula matriz V_areaEdif asociada a los vértices del area de edificación
-    display("Establece el área de edificación")
+    # display("Establece el área de edificación")
 
     vec_edges_predio = polyShape.polyShape2lineVec(ps_predio)
     numLadosPredio = length(vec_edges_predio)
