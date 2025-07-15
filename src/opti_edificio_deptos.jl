@@ -1,5 +1,6 @@
 function opti_edificio_deptos(
-        dcn, dca, dcp, dcc,
+        coefConstructibilidad, densidadMax, maxOcupacion, 
+        dca, dcp, dcc, 
         vec_ps_opt, vec_np_opt,
         superficieTerreno::Real, superficieTerrenoBruto::Real, flag_dfl2
     )
@@ -9,14 +10,14 @@ function opti_edificio_deptos(
     vec_areaBasal = [polyShape.polyArea(ps) for ps in vec_ps_opt]
 
     # Density and max deptos
-    superficieDensidad = dcn.flagDensidadBruta ? superficieTerrenoBruto : superficieTerreno
-    maxDeptos = floor(dcn.densidadMax / 4 * superficieDensidad / 10000)
+    flagDensidadBruta = true
+    superficieDensidad = flagDensidadBruta ? superficieTerrenoBruto : superficieTerreno
+    maxDeptos = floor(densidadMax / 4 * superficieDensidad / 10000)
     num_pisos = sum(vec_np_opt)
     num_pisos_regulares = num_pisos - 1         # Pisos regulares (sin primer piso)
 
     # Occupation and constructibility
-    maxOcupacion = dcn.coefOcupacion * superficieTerreno
-    maxConstruct = superficieTerreno * dcn.coefConstructibilidad * (1 + 0.3 * dcp.fusionTerrenos)
+    maxConstruct = superficieTerreno * coefConstructibilidad * (1 + 0.3 * dcp.fusionTerrenos)
 
     # Variants and area matrices
     numTipos = length(dcc.supDeptoUtil)
@@ -116,10 +117,6 @@ function opti_edificio_deptos(
 
         # parking
         totalDeptos = sum(value.(numDeptos))
-        est_viv     = dcc.estacionamientosPorViv * totalDeptos
-        est_vis     = est_viv * dcn.porcAdicEstacVisitas
-        est_disc    = totalDeptos <= 20 ? 1 : totalDeptos <= 50 ? 2 : totalDeptos <= 200 ? 3 : totalDeptos <= 400 ? 4 : totalDeptos <= 500 ? 5 : 0.01*totalDeptos
-        bodegas     = totalDeptos * dcc.bodegasPorViv
 
         so = SalidaOptimizacion(
             value.(numDeptos)[:],
@@ -128,16 +125,12 @@ function opti_edificio_deptos(
             superficieUtil,
             sum(vec_np_opt), sum(vec_np_opt)*dca.alturaPiso,
             value(supInterior), value(supTerraza), value(supComun),
-            value(supEdif), vec_areaBasal[1], est_viv, est_vis, est_disc, 0, bodegas
+            value(supEdif), vec_areaBasal[1], 0, 0, 0, 0, 0
         )
-        sh = SalidaHolgura(
-            maxOcupacion - vec_areaBasal[1],
-            maxConstruct - superficieUtil,
-            maxDeptos - totalDeptos
-        )
+
         deptosTipo = value.(numDeptos)[:]
     else
-        so, sh, deptosTipo = nothing, nothing, Int[]
+        so, deptosTipo = nothing, Int[]
     end
 
     display("SupEdifTotal = " * string(round(JuMP.value(supEdifTotal), digits=1)))
@@ -184,7 +177,7 @@ function opti_edificio_deptos(
     print("\n")
     print("")
 
-    return so, sh, deptosTipo
+    return so, deptosTipo
 end
 
 

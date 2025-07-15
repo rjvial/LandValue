@@ -1,4 +1,4 @@
-function opti_edificio(alturaPiso, sup_terreno_sii, vecSecTodos, vecSecSinCalle, dict_con_parametros, dcn, dca, dcp, dcc, ps_bruto, ps_calles, ps_predio, ps_publico, vec_pisos, K, ancho_crujia_min, ancho_crujia_max, flag_sombra, flag_dfl2, tipo_edificio)
+function opti_edificio(n_predios, alturaPiso, sup_terreno_sii, vecSecTodos, vecSecSinCalle, dict_sin_parametros, dict_con_parametros, dca, dcp, dcc, ps_bruto, ps_calles, ps_predio, ps_publico, K, ancho_crujia_min, ancho_crujia_max, flag_sombra, flag_dfl2, tipo_edificio)
 
 
     # display("Establece el área de edificación")
@@ -6,19 +6,32 @@ function opti_edificio(alturaPiso, sup_terreno_sii, vecSecTodos, vecSecSinCalle,
     superficieTerreno = sup_terreno_sii
     superficieTerrenoBruto = polyShape.polyArea(ps_bruto)
 
+    ocupacion_suelo = dict_sin_parametros["coeficiente_de_ocupacion_de_suelo"]
+    max_ocupacion_suelo = superficieTerreno * ocupacion_suelo
 
-    max_ocupacion_suelo = superficieTerreno * dcn.coefOcupacion
-    max_constructibilidad = superficieTerreno * dcn.coefConstructibilidad  
+
+    coeficiente_de_constructibilidad = parse(Float64, dict_con_parametros["coeficiente_de_constructibilidad"][1])
+    expr_str = expression_converter.parse_python_expression(dict_con_parametros["coeficiente_de_constructibilidad"][3])
+    expr_str = replace(expr_str, "n_predios" => n_predios)
+    expr_str = replace(expr_str, "coeficiente_de_constructibilidad" => coeficiente_de_constructibilidad)
+    coefConstructibilidad = eval(Meta.parse(expr_str))
+    max_constructibilidad = superficieTerreno * coefConstructibilidad
     maxConstruccionSNT = max_constructibilidad * .95 + max_constructibilidad * 0.10 + max_constructibilidad * 0.20 # Sup Terraza + Areas comunes
                        # Sup Interior                + Sup Terrazas                 + Areas comunes
 
 
-    vec_ps_opt, vec_np_opt, max_sol, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, ps_areaEst = opti_edificio_vol(vecSecTodos, vecSecSinCalle, dcn, dict_con_parametros, vec_pisos, alturaPiso, ps_predio, ps_calles, ps_publico, ps_bruto, max_ocupacion_suelo, maxConstruccionSNT, K, ancho_crujia_min, ancho_crujia_max, flag_sombra)
+    maxPisos = dict_sin_parametros["n_pisos"]
+    default_min_pisos = maxPisos-2
+    vec_pisos = collect(default_min_pisos:maxPisos)
 
+    vec_ps_opt, vec_np_opt, max_sol, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, ps_areaEst = opti_edificio_vol(vecSecTodos, vecSecSinCalle, dict_sin_parametros, dict_con_parametros, vec_pisos, alturaPiso, ps_predio, ps_calles, ps_publico, ps_bruto, max_ocupacion_suelo, maxConstruccionSNT, K, ancho_crujia_min, ancho_crujia_max, flag_sombra)
 
     
     if tipo_edificio == "departamento"
-        so, sh, status = opti_edificio_deptos(dcn, dca, dcp, dcc, vec_ps_opt, vec_np_opt, superficieTerreno, superficieTerrenoBruto, flag_dfl2)
+        
+        densidadMax = dict_sin_parametros["densidad_maxima_bruta"]
+        maxOcupacion = dict_sin_parametros["coeficiente_de_ocupacion_de_suelo"] * superficieTerreno
+        so, status = opti_edificio_deptos(coefConstructibilidad, densidadMax, maxOcupacion, dca, dcp, dcc, vec_ps_opt, vec_np_opt, superficieTerreno, superficieTerrenoBruto, flag_dfl2)
         
         cabida_sup_deptos = string(dcc.supDeptoUtil)
         cabida_num_deptos = string(so.numDeptosTipo)
@@ -78,7 +91,10 @@ function opti_edificio(alturaPiso, sup_terreno_sii, vecSecTodos, vecSecSinCalle,
     expr_str = replace(expr_str, "carga_ocupacion" => string(100))
     estacionamientos_bicicletas = Float64(eval(Meta.parse(expr_str)))
 
-    vec_ps_subte, vec_np_subte = opti_vol_estacionamiento(ps_predio, ps_areaEst, numEst, numBodegas, dcn)
+    supPorEstacionamiento = 30.0
+    supPorBodega = 5.0
+    coefOcupacionEst = 0.7
+    vec_ps_subte, vec_np_subte = opti_vol_estacionamiento(ps_predio, ps_areaEst, numEst, numBodegas, coefOcupacionEst, supPorEstacionamiento, supPorBodega)
 
     return vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, max_sol, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra
 end

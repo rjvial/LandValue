@@ -1,5 +1,12 @@
-function opti_edificio_vol(vecSecTodos, vecSecSinCalle, dcn, dict_con_parametros, vec_pisos, alturaPiso, ps_predio, ps_calles, ps_publico, ps_bruto,
+function opti_edificio_vol(vecSecTodos, vecSecSinCalle, dict_sin_parametros, dict_con_parametros, vec_pisos, alturaPiso, ps_predio, ps_calles, ps_publico, ps_bruto,
         max_ocupacion_suelo, maxConstruccionSNT, K, ancho_crujia_min, ancho_crujia_max, flag_sombra)
+
+
+    antejardin = dict_sin_parametros["antejardin"] # 8 # 12 # 
+    alturaMax = dict_sin_parametros["altura_max"]
+    rasante = tan(dict_sin_parametros["rasante"]*pi/180)
+    rasante_sombra = 5.0
+    sepEstMin = dict_sin_parametros["subterraneo_antejardin"]
 
     min_pisos = minimum(vec_pisos)
     max_pisos = maximum(vec_pisos)
@@ -51,7 +58,6 @@ function opti_edificio_vol(vecSecTodos, vecSecSinCalle, dcn, dict_con_parametros
         if pisos_aux < sum(c) # Cuando aumenta el numero de pisos
             pisos_aux = sum(c)
 
-            antejardin = dcn.antejardin[1] # 8 # 12 # 
             n_pisos = sum(c) 
             altura = n_pisos * alturaPiso
             expr_str = dict_con_parametros["distanciamiento"][3]
@@ -59,9 +65,6 @@ function opti_edificio_vol(vecSecTodos, vecSecSinCalle, dcn, dict_con_parametros
             expr_str = replace(expr_str, "altura"  => string(altura))
             expr_str = replace(expr_str, "n_pisos" => string(n_pisos))
             sepVecinos = eval(Meta.parse(expr_str))
-
-            alturaMax = dcn.alturaMax
-            rasante = dcn.rasante
 
             vec_dist = Float64.(copy(vecSecTodos))
             vec_dist .= -antejardin
@@ -99,7 +102,6 @@ function opti_edificio_vol(vecSecTodos, vecSecSinCalle, dcn, dict_con_parametros
                 edges_s = vec_edges[A0_s .>= b0]
 
                 # Calcula el volumen sin restricciones
-                rasante_sombra = 5.0
                 vec_altVolConSombra = collect(0:0.5:alturaMax)
                 vec_psVolConSombra = [polyShape.polyOffset(ps_predio, - alt/rasante_sombra) for alt in vec_altVolConSombra]
                 vec_psVolConSombra = [polyShape.polyIntersect(vec_psVolConSombra[i], ps_areaEdif) for i in eachindex(vec_psVolConSombra)]
@@ -182,7 +184,6 @@ function opti_edificio_vol(vecSecTodos, vecSecSinCalle, dcn, dict_con_parametros
                 best_vec_altVolteor = deepcopy(vec_altVolteor)
                 best_vec_psVolteor = deepcopy(vec_psVolteor)
 
-                rasante_sombra = 5.0
                 best_vec_altVolConSombra = collect(0:0.5:alturaMax)
                 best_vec_psVolConSombra = [polyShape.polyOffset(ps_predio, - alt/rasante_sombra) for alt in best_vec_altVolConSombra]
                 best_vec_psVolConSombra = [polyShape.polyIntersect(best_vec_psVolConSombra[i], ps_areaEdif) for i in eachindex(best_vec_altVolConSombra)]
@@ -214,10 +215,11 @@ function opti_edificio_vol(vecSecTodos, vecSecSinCalle, dcn, dict_con_parametros
 
     end
 
-    antejardin = dcn.antejardin[1]
     vec_dist = Float64.(copy(vecSecTodos))
     vec_dist .= -antejardin
-    vec_dist[vecSecSinCalle] .= -dcn.sepEstMin
+
+
+    vec_dist[vecSecSinCalle] .= -sepEstMin
     ps_areaEst = polyShape.partialPolyOffset(ps_predio, vecSecTodos, vec_dist)
 
     return best_ps, best_np, max_sol, best_vec_psVolteor, best_vec_altVolteor, best_vec_psVolConSombra, best_vec_altVolConSombra, ps_areaEst
