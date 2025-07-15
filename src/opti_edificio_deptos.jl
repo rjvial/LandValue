@@ -1,8 +1,9 @@
 function opti_edificio_deptos(
         dcn, dca, dcp, dcc,
         vec_ps_opt, vec_np_opt,
-        superficieTerreno::Real, superficieTerrenoBruto::Real
+        superficieTerreno::Real, superficieTerrenoBruto::Real, flag_dfl2
     )
+
     # Base areas
     K = length(vec_ps_opt) # num stacks
     vec_areaBasal = [polyShape.polyArea(ps) for ps in vec_ps_opt]
@@ -18,12 +19,10 @@ function opti_edificio_deptos(
     maxConstruct = superficieTerreno * dcn.coefConstructibilidad * (1 + 0.3 * dcp.fusionTerrenos)
 
     # Variants and area matrices
-    variantes = [.87, .9, 1.0, 1.1, 1.15]
-    numVariantes = length(variantes)
     numTipos = length(dcc.supDeptoUtil)
-    matSupUtil    = dcc.supDeptoUtil * variantes'
-    matSupTerraza = matSupUtil .* 0.1
-    matSupInterior= matSupUtil .- 0.5 * matSupTerraza
+    vecSupUtil    = dcc.supDeptoUtil 
+    vecSupTerraza = vecSupUtil .* 0.1
+    vecSupInterior= vecSupUtil .- 0.5 * vecSupTerraza
 
     # Total built footprint (for common areas minimums)
     supEdifTotal = sum(vec_areaBasal[i] *vec_np_opt[i] for i in 1:K)
@@ -35,66 +34,67 @@ function opti_edificio_deptos(
 
     @variables(m, begin
         # choose at most one variant per type
-        z[u=1:numTipos, v=1:numVariantes], Bin
+        z[u=1:numTipos], Bin
         # group counts (2 dpts per group)
-        y_primerPiso[u=1:numTipos, v=1:numVariantes] >= 0, Int
-        y_PisosSup[u=1:numTipos, v=1:numVariantes] >= 0, Int
+        y_primerPiso[u=1:numTipos] >= 0, Int
+        y_PisosSup[u=1:numTipos] >= 0, Int
         # deptos per type+variant
-        numDeptosPrimerPiso[u=1:numTipos, v=1:numVariantes] >= 0, Int
-        numDeptosPorPisoSup[u=1:numTipos, v=1:numVariantes] >= 0, Int
+        numDeptosPrimerPiso[u=1:numTipos] >= 0, Int
+        numDeptosPorPisoSup[u=1:numTipos] >= 0, Int
         # common areas
         supComunPrimerPiso >= 0
         supComunPisosSup   >= 0
+        descuento_dfl2     >= 0
     end)
 
     # expressions
-    @expression(m, supUtilPrimerPiso,    sum(matSupUtil[u,v]    * numDeptosPrimerPiso[u,v] for u=1:numTipos, v=1:numVariantes))
-    @expression(m, supUtilPisosSup,      sum(matSupUtil[u,v]    * numDeptosPorPisoSup[u,v] * num_pisos_regulares for u=1:numTipos, v=1:numVariantes))
-    @expression(m, supTerrazaPrimerPiso, sum(matSupTerraza[u,v] * numDeptosPrimerPiso[u,v] for u=1:numTipos, v=1:numVariantes))
-    @expression(m, supTerrazaPisosSup,   sum(matSupTerraza[u,v] * numDeptosPorPisoSup[u,v] * num_pisos_regulares for u=1:numTipos, v=1:numVariantes))
-    @expression(m, supInteriorPrimerPiso,sum(matSupInterior[u,v]* numDeptosPrimerPiso[u,v] for u=1:numTipos, v=1:numVariantes))
-    @expression(m, supInteriorPisosSup,  sum(matSupInterior[u,v]* numDeptosPorPisoSup[u,v] * num_pisos_regulares for u=1:numTipos, v=1:numVariantes))
+    @expression(m, supUtilPrimerPiso,    sum(vecSupUtil[u]    * numDeptosPrimerPiso[u] for u=1:numTipos))
+    @expression(m, supUtilPisosSup,      sum(vecSupUtil[u]    * numDeptosPorPisoSup[u] * num_pisos_regulares for u=1:numTipos))
+    @expression(m, supTerrazaPrimerPiso, sum(vecSupTerraza[u] * numDeptosPrimerPiso[u] for u=1:numTipos))
+    @expression(m, supTerrazaPisosSup,   sum(vecSupTerraza[u] * numDeptosPorPisoSup[u] * num_pisos_regulares for u=1:numTipos))
+    @expression(m, supInteriorPrimerPiso,sum(vecSupInterior[u]* numDeptosPrimerPiso[u] for u=1:numTipos))
+    @expression(m, supInteriorPisosSup,  sum(vecSupInterior[u]* numDeptosPorPisoSup[u] * num_pisos_regulares for u=1:numTipos))
 
     @expression(m, supUtil,     supUtilPrimerPiso    + supUtilPisosSup)
     @expression(m, supComun,    supComunPrimerPiso   + supComunPisosSup)
     @expression(m, supTerraza,  supTerrazaPrimerPiso + supTerrazaPisosSup)
     @expression(m, supInterior, supInteriorPrimerPiso+ supInteriorPisosSup)
+    
     @expression(m, supEdif,     supComun + supTerraza + supInterior)
     @expression(m, numDeptos,   numDeptosPrimerPiso + numDeptosPorPisoSup * num_pisos_regulares)
 
     # constraints
     @constraints(m, begin
-        # at most one variant per type
-        [u=1:numTipos], sum(z[u,v] for v=1:numVariantes) <= 1
         
         # at least one chosen
         sum(z) >= 1
 
         # numDeptos > 0 solo si se elije la variante y tipo correspondiente
-        [u=1:numTipos,v=1:numVariantes], numDeptos[u,v] <= maxDeptos * z[u,v]
+        [u=1:numTipos], numDeptos[u] <= maxDeptos * z[u]
 
         # Tipo deptos y variante deben estar en numeros pares
-        [u=1:numTipos,v=1:numVariantes], numDeptosPrimerPiso[u,v] == 2 * y_primerPiso[u,v]
-        [u=1:numTipos,v=1:numVariantes], numDeptosPorPisoSup[u,v] == 2 * y_PisosSup[u,v]
+        [u=1:numTipos], numDeptosPrimerPiso[u] == 2 * y_primerPiso[u]
+        [u=1:numTipos], numDeptosPorPisoSup[u] == 2 * y_PisosSup[u]
         
         # group limits
-        [u=1:numTipos,v=1:numVariantes], y_PisosSup[u,v] <= maxDeptos * z[u,v]
-        [u=1:numTipos,v=1:numVariantes], y_primerPiso[u,v] <= y_PisosSup[u,v]
+        [u=1:numTipos], y_PisosSup[u] <= maxDeptos * z[u]
+        [u=1:numTipos], y_primerPiso[u] <= y_PisosSup[u]
                 
         # Max densidad 
         sum(numDeptos) <= maxDeptos
         
-        # common area minima
-        # supComunPrimerPiso >= 0.35 * supUtil / num_pisos #minSupComunPrimerPiso
+        # restricciones de area comun
+        descuento_dfl2 <= flag_dfl2 * 0.2 * supUtil 
+        descuento_dfl2 <= flag_dfl2 * supComun
+        supComunPrimerPiso >= 0.30 * supUtil / num_pisos #minSupComunPrimerPiso
         supComunPisosSup   >= 0.15 * supUtil  #minSupComunPisosSup
-        supComun           <= 0.2 * supUtil
 
-        # area balance
+        # balance de superficie por piso 
         supComunPrimerPiso + supTerrazaPrimerPiso + supInteriorPrimerPiso == vec_areaBasal[1]
         supComunPisosSup   + supTerrazaPisosSup   + supInteriorPisosSup == sum(vec_areaBasal[i] * (i==1 ? vec_np_opt[1]-1 : vec_np_opt[i]) for i=1:K)
         
         # Max constructibilidad
-        supComun + supTerraza + supInterior <= supEdifTotal
+        supUtil + supComun - descuento_dfl2 <= maxConstruct
 
     end)
 
@@ -122,7 +122,7 @@ function opti_edificio_deptos(
         bodegas     = totalDeptos * dcc.bodegasPorViv
 
         so = SalidaOptimizacion(
-            value.(sum(numDeptos, dims=2))[:],
+            value.(numDeptos)[:],
             totalDeptos,
             min(vec_areaBasal[1], maxOcupacion),
             superficieUtil,
@@ -135,7 +135,7 @@ function opti_edificio_deptos(
             maxConstruct - superficieUtil,
             maxDeptos - totalDeptos
         )
-        deptosTipo = value.(sum(numDeptos, dims=2))[:]
+        deptosTipo = value.(numDeptos)[:]
     else
         so, sh, deptosTipo = nothing, nothing, Int[]
     end

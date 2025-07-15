@@ -54,9 +54,11 @@ function opti_edificio_vol(vecSecTodos, vecSecSinCalle, dcn, dict_con_parametros
             antejardin = dcn.antejardin[1] # 8 # 12 # 
             n_pisos = sum(c) 
             altura = n_pisos * alturaPiso
-            dist_str = replace(replace(replace(dict_con_parametros["distanciamiento"][3], "flag_sombra" => flag_sombra), "altura"  => string(altura)), "n_pisos" => string(n_pisos))
-            expr = Meta.parse(dist_str)
-            sepVecinos = eval(expr)
+            expr_str = dict_con_parametros["distanciamiento"][3]
+            expr_str = replace(expr_str, "flag_sombra" => flag_sombra)
+            expr_str = replace(expr_str, "altura"  => string(altura))
+            expr_str = replace(expr_str, "n_pisos" => string(n_pisos))
+            sepVecinos = eval(Meta.parse(expr_str))
 
             alturaMax = dcn.alturaMax
             rasante = dcn.rasante
@@ -97,7 +99,7 @@ function opti_edificio_vol(vecSecTodos, vecSecSinCalle, dcn, dict_con_parametros
                 edges_s = vec_edges[A0_s .>= b0]
 
                 # Calcula el volumen sin restricciones
-                rasante_sombra = Float64(dcn.rasanteSombra)
+                rasante_sombra = 5.0
                 vec_altVolConSombra = collect(0:0.5:alturaMax)
                 vec_psVolConSombra = [polyShape.polyOffset(ps_predio, - alt/rasante_sombra) for alt in vec_altVolConSombra]
                 vec_psVolConSombra = [polyShape.polyIntersect(vec_psVolConSombra[i], ps_areaEdif) for i in eachindex(vec_psVolConSombra)]
@@ -180,7 +182,7 @@ function opti_edificio_vol(vecSecTodos, vecSecSinCalle, dcn, dict_con_parametros
                 best_vec_altVolteor = deepcopy(vec_altVolteor)
                 best_vec_psVolteor = deepcopy(vec_psVolteor)
 
-                rasante_sombra = Float64(dcn.rasanteSombra)
+                rasante_sombra = 5.0
                 best_vec_altVolConSombra = collect(0:0.5:alturaMax)
                 best_vec_psVolConSombra = [polyShape.polyOffset(ps_predio, - alt/rasante_sombra) for alt in best_vec_altVolConSombra]
                 best_vec_psVolConSombra = [polyShape.polyIntersect(best_vec_psVolConSombra[i], ps_areaEdif) for i in eachindex(best_vec_altVolConSombra)]
