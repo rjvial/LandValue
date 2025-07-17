@@ -1,4 +1,4 @@
-function opti_vol_estacionamiento(ps_predio, ps_areaEst, numEst, numBodegas, coefOcupacionEst, supPorEstacionamiento, supPorBodega)
+function opti_vol_estacionamiento(ps_predio, ps_areaEst, estacionamientos_autos_final, estacionamientos_bicicletas_final, numBodegas, coefOcupacionEst, supPorEstacionamiento, supPorBicicleta, supPorBodega)
     # –––––––––– helper to find the right offset via bisection ––––––––––
     function find_offset(orig_ps, target_area, tol, maxiter;
                          init_low = -100.0, init_high = 100.0)
@@ -38,7 +38,7 @@ function opti_vol_estacionamiento(ps_predio, ps_areaEst, numEst, numBodegas, coe
     areaActualBase = polyShape.polyArea(ps_baseSubte)
 
     # –––––––––– 2) compute how many tiles & last‐tile target area ––––––––––
-    areaReq       = numEst*supPorEstacionamiento + numBodegas*supPorBodega
+    areaReq       = estacionamientos_autos_final*supPorEstacionamiento + estacionamientos_bicicletas_final*supPorBicicleta + numBodegas*supPorBodega
 
     numSubtes     = ceil(Int, areaReq / areaActualBase)
     areaLast      = numSubtes > 1 ? areaReq - (numSubtes - 1)*areaActualBase : 0

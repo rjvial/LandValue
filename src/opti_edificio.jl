@@ -21,7 +21,7 @@ function opti_edificio(n_predios, alturaPiso, sup_terreno_sii, vecSecTodos, vecS
 
 
     maxPisos = dict_sin_parametros["n_pisos"]
-    default_min_pisos = maxPisos-2
+    default_min_pisos = maxPisos - 2
     vec_pisos = collect(default_min_pisos:maxPisos)
 
     vec_ps_opt, vec_np_opt, max_sol, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, ps_areaEst = opti_edificio_vol(vecSecTodos, vecSecSinCalle, dict_sin_parametros, dict_con_parametros, vec_pisos, alturaPiso, ps_predio, ps_calles, ps_publico, ps_bruto, max_ocupacion_suelo, maxConstruccionSNT, K, ancho_crujia_min, ancho_crujia_max, flag_sombra)
@@ -31,30 +31,14 @@ function opti_edificio(n_predios, alturaPiso, sup_terreno_sii, vecSecTodos, vecS
         
         densidadMax = dict_sin_parametros["densidad_maxima_bruta"]
         maxOcupacion = dict_sin_parametros["coeficiente_de_ocupacion_de_suelo"] * superficieTerreno
-        so, status = opti_edificio_deptos(coefConstructibilidad, densidadMax, maxOcupacion, dca, dcp, dcc, vec_ps_opt, vec_np_opt, superficieTerreno, superficieTerrenoBruto, flag_dfl2)
+        dict_edificio_deptos = opti_edificio_deptos(coefConstructibilidad, densidadMax, maxOcupacion, dca, dcp, dcc, vec_ps_opt, vec_np_opt, superficieTerreno, superficieTerrenoBruto, flag_dfl2)
         
         cabida_sup_deptos = string(dcc.supDeptoUtil)
-        cabida_num_deptos = string(so.numDeptosTipo)
+        cabida_num_deptos = string(dict_edificio_deptos["numDeptosTipo"])
         cabida_sup_comercio = string(0)
         cabida_num_comercio = string(0)
         cabida_sup_oficinas = string(0)
         cabida_num_oficinas = string(0)
-        expr_str = expression_converter.parse_python_expression(dict_con_parametros["estacionamientos_autos"][3])
-        expr_str = replace(expr_str, "cabida_sup_deptos" => cabida_sup_deptos)
-        expr_str = replace(expr_str, "cabida_num_deptos" => cabida_num_deptos)
-        expr_str = replace(expr_str, "cabida_sup_comercio" => cabida_sup_comercio)
-        expr_str = replace(expr_str, "cabida_num_comercio" => cabida_num_comercio)
-        expr_str = replace(expr_str, "cabida_sup_oficinas" => cabida_sup_oficinas)
-        expr_str = replace(expr_str, "cabida_num_oficinas" => cabida_num_oficinas)
-        dict_estacionamientos = eval(Meta.parse(expr_str))
-        estacionamientos_autos_vivienda = Float64(dict_estacionamientos["estacionamientos_autos_vivienda"])
-
-        expr_str = expression_converter.parse_python_expression(dict_con_parametros["estacionamientos_visitas"][3])
-        expr_str = replace(expr_str, "estacionamientos_autos_vivienda" => string(estacionamientos_autos_vivienda))
-        estacionamientos_visitas = Float64(eval(Meta.parse(expr_str)))
-
-        numEst = estacionamientos_autos_vivienda + estacionamientos_visitas
-        numBodegas = sum(so.numDeptosTipo)
     else
         area_edif = sum(polyShape.polyArea(vec_ps_opt[i]) * vec_np_opt[i] for i in eachindex(vec_ps_opt))
 
@@ -64,37 +48,102 @@ function opti_edificio(n_predios, alturaPiso, sup_terreno_sii, vecSecTodos, vecS
         cabida_num_comercio = string(0)
         cabida_sup_oficinas = string(100)
         cabida_num_oficinas = string(ceil(area_edif/100))
-        expr_str = expression_converter.parse_python_expression(dict_con_parametros["estacionamientos_autos"][3])
-        expr_str = replace(expr_str, "cabida_sup_deptos" => cabida_sup_deptos)
-        expr_str = replace(expr_str, "cabida_num_deptos" => cabida_num_deptos)
-        expr_str = replace(expr_str, "cabida_sup_comercio" => cabida_sup_comercio)
-        expr_str = replace(expr_str, "cabida_num_comercio" => cabida_num_comercio)
-        expr_str = replace(expr_str, "cabida_sup_oficinas" => cabida_sup_oficinas)
-        expr_str = replace(expr_str, "cabida_num_oficinas" => cabida_num_oficinas)
-        dict_estacionamientos = eval(Meta.parse(expr_str))
-        estacionamientos_autos_oficina = Float64(dict_estacionamientos["estacionamientos_autos_oficina"])
-
-        expr_str = expression_converter.parse_python_expression(dict_con_parametros["estacionamientos_visitas"][3])
-        expr_str = replace(expr_str, "estacionamientos_autos_vivienda" => string(estacionamientos_autos_oficina))
-        estacionamientos_visitas = Float64(eval(Meta.parse(expr_str)))
-
-        numEst = estacionamientos_autos_oficina + estacionamientos_visitas
-        numBodegas = ceil(0.2 * estacionamientos_autos_oficina)
     end
+
+    expr_str = expression_converter.parse_python_expression(dict_con_parametros["estacionamientos_autos"][3])
+    expr_str = replace(expr_str, "cabida_sup_deptos" => cabida_sup_deptos)
+    expr_str = replace(expr_str, "cabida_num_deptos" => cabida_num_deptos)
+    expr_str = replace(expr_str, "cabida_sup_comercio" => cabida_sup_comercio)
+    expr_str = replace(expr_str, "cabida_num_comercio" => cabida_num_comercio)
+    expr_str = replace(expr_str, "cabida_sup_oficinas" => cabida_sup_oficinas)
+    expr_str = replace(expr_str, "cabida_num_oficinas" => cabida_num_oficinas)
+    dict_estacionamientos = eval(Meta.parse(expr_str))
+    estacionamientos_autos_oficina = Float64(dict_estacionamientos["estacionamientos_autos_oficina"])
+    estacionamientos_autos_vivienda = Float64(dict_estacionamientos["estacionamientos_autos_vivienda"])
+    estacionamientos_autos_comercio = Float64(dict_estacionamientos["estacionamientos_autos_comercio"])
+    estacionamientos_autos = estacionamientos_autos_oficina + estacionamientos_autos_vivienda + estacionamientos_autos_comercio
+    
+    expr_str = expression_converter.parse_python_expression(dict_con_parametros["estacionamientos_visitas"][3])
+    expr_str = replace(expr_str, "estacionamientos_autos_vivienda" => string(estacionamientos_autos_vivienda))
+    estacionamientos_visitas = Float64(eval(Meta.parse(expr_str)))
+
+    numEst = estacionamientos_autos + estacionamientos_visitas
+    numBodegas = tipo_edificio == "departamento" ? sum(dict_edificio_deptos["numDeptosTipo"]) : ceil(0.2*numEst)
 
     expr_str = expression_converter.parse_python_expression(dict_con_parametros["estacionamientos_discapacitados"][3])    
     expr_str = replace(expr_str, "estacionamientos_autos" => string(numEst))
     estacionamientos_discapacitados = Float64(eval(Meta.parse(expr_str)))
 
+    carga_ocupacion = 100
     expr_str = expression_converter.parse_python_expression(dict_con_parametros["estacionamientos_bicicletas"][3])    
-    expr_str = replace(expr_str, "estacionamientos_autos + estacionamientos_visitas" => string(numEst))
-    expr_str = replace(expr_str, "carga_ocupacion" => string(100))
+    expr_str = replace(expr_str, "estacionamientos_autos" => string(estacionamientos_autos))
+    expr_str = replace(expr_str, "estacionamientos_visitas" => string(estacionamientos_visitas))
+    expr_str = replace(expr_str, "carga_ocupacion" => string(carga_ocupacion))
     estacionamientos_bicicletas = Float64(eval(Meta.parse(expr_str)))
+
+    distancia_al_metro = 3000
+    expr_str = expression_converter.parse_python_expression(dict_con_parametros["descuento_estacionamientos_x_metro"][3])
+    expr_str = replace(expr_str, "estacionamientos_autos_vivienda" => string(estacionamientos_autos_vivienda))
+    expr_str = replace(expr_str, "estacionamientos_autos_comercio" => string(estacionamientos_autos_comercio))
+    expr_str = replace(expr_str, "estacionamientos_autos_oficina" => string(estacionamientos_autos_oficina))
+    expr_str = replace(expr_str, "distancia_al_metro" => string(distancia_al_metro))
+    descuento_estacionamientos_x_metro = Float64(eval(Meta.parse(expr_str)))
+
+    expr_str = expression_converter.parse_python_expression(dict_con_parametros["descuento_estacionamientos_x_bici"][3])
+    expr_str = replace(expr_str, "estacionamientos_autos" => string(estacionamientos_autos))
+    expr_str = replace(expr_str, "estacionamientos_visitas" => string(estacionamientos_visitas))
+    expr_str = replace(expr_str, "descuento_estacionamientos_x_metro" => string(descuento_estacionamientos_x_metro))
+    expr_str = replace(expr_str, "estacionamientos_bicicletas" => string(estacionamientos_bicicletas))
+    dict_descuento_estacionamientos_x_bici = eval(Meta.parse(expr_str))
+    descuento_estacionamientos_x_bici_t1 = Float64(dict_descuento_estacionamientos_x_bici["descuento_estacionamientos_x_bici_t1"])
+    descuento_estacionamientos_x_bici_t2 = Float64(dict_descuento_estacionamientos_x_bici["descuento_estacionamientos_x_bici_t2"])
+    descuento_estacionamientos_x_bici = Float64(dict_descuento_estacionamientos_x_bici["descuento_estacionamientos_x_bici"])
+
+    expr_str = expression_converter.parse_python_expression(dict_con_parametros["aumento_bici_x_descuento_estacionamientos"][3])
+    expr_str = replace(expr_str, "descuento_estacionamientos_x_bici_t2" => string(descuento_estacionamientos_x_bici_t2))
+    aumento_bici_x_descuento_estacionamientos = eval(Meta.parse(expr_str))
+
+    estacionamientos_autos_final = estacionamientos_autos + estacionamientos_visitas - descuento_estacionamientos_x_metro - descuento_estacionamientos_x_bici
+    estacionamientos_bicicletas_final = estacionamientos_bicicletas + aumento_bici_x_descuento_estacionamientos
 
     supPorEstacionamiento = 30.0
     supPorBodega = 5.0
+    supPorBicicleta = supPorEstacionamiento / 5
     coefOcupacionEst = 0.7
-    vec_ps_subte, vec_np_subte = opti_vol_estacionamiento(ps_predio, ps_areaEst, numEst, numBodegas, coefOcupacionEst, supPorEstacionamiento, supPorBodega)
+    vec_ps_subte, vec_np_subte = opti_vol_estacionamiento(ps_predio, ps_areaEst, estacionamientos_autos_final, estacionamientos_bicicletas_final, numBodegas, coefOcupacionEst, supPorEstacionamiento, supPorBicicleta, supPorBodega)
 
-    return vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, max_sol, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra
+    dict_resultados = Dict(
+    "tipo_edificio" => tipo_edificio,
+    "sup_edificada_snt" => max_sol,
+    "vec_ps_opt" => vec_ps_opt,
+    "vec_np_opt" => vec_np_opt,
+    "vec_ps_subte" => vec_ps_subte, 
+    "vec_np_subte" => vec_np_subte,
+    "vec_psVolteor" => vec_psVolteor,
+    "vec_altVolteor" => vec_altVolteor,
+    "vec_psVolConSombra" => vec_psVolConSombra, 
+    "vec_altVolConSombra" => vec_altVolConSombra,
+    "cabida_sup_deptos" => cabida_sup_deptos,
+    "cabida_num_deptos" => cabida_num_deptos,
+    "cabida_sup_comercio" => cabida_sup_comercio,
+    "cabida_num_comercio" => cabida_num_comercio,
+    "cabida_sup_oficinas" => cabida_sup_oficinas,
+    "cabida_num_oficinas" => cabida_num_oficinas,
+    "estacionamientos_autos_oficina" => estacionamientos_autos_oficina,
+    "estacionamientos_autos_vivienda" => estacionamientos_autos_vivienda,
+    "estacionamientos_autos_comercio" => estacionamientos_autos_comercio,
+    "estacionamientos_autos" => estacionamientos_autos_oficina + estacionamientos_autos_vivienda + estacionamientos_autos_comercio,
+    "estacionamientos_discapacitados" => estacionamientos_discapacitados,
+    "estacionamientos_bicicletas" => estacionamientos_bicicletas,
+    "descuento_estacionamientos_x_metro" => descuento_estacionamientos_x_metro,
+    "descuento_estacionamientos_x_bici_t1" => descuento_estacionamientos_x_bici_t1,
+    "descuento_estacionamientos_x_bici_t2" => descuento_estacionamientos_x_bici_t2,
+    "descuento_estacionamientos_x_bici" => descuento_estacionamientos_x_bici,
+    "aumento_bici_x_descuento_estacionamientos" => aumento_bici_x_descuento_estacionamientos,
+    "estacionamientos_autos_final" => estacionamientos_autos_final,
+    "estacionamientos_bicicletas_final" => estacionamientos_bicicletas_final,
+    "dict_edificio_deptos" => tipo_edificio == "departamento" ? dict_edificio_deptos : 0
+    )
+
+    return dict_resultados
 end

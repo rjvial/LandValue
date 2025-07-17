@@ -1,29 +1,6 @@
 using LandValue, JLD2
 
-
-
-# dcn = datosCabidaNormativa(5, # SEPMIN (m): max(4, separación mínima deslindes) OGUC 2.6.3
-#                      5, # ANTEJARDIN (m) 
-#                      2.75, # RASANTE (m de altura / m de separación)
-#                      60, # 24, #ALTURAMAX (m)
-#                      30, # 9, #MAXPISOS (unidades)
-#                      .7, # COEFOCUPACION (m2 / m2 de terreno)
-#                      1000, # SUBPREDIALMIN (m2)
-#                      2500, # DENSIDADMAX (Habitantes / 10000 m2 de terreno bruto)
-#                      true, # FLAGDENSIDADBRUTA
-#                      4, # COEFCONSTRUCTIBILIDAD (m2 / m2 de terreno)
-#                      [.5, 1, 1, 1], # ESTACIONAMIENTOSPORVIV (unidades / departamento)
-#                      .15, # PORCADICESTACVISITAS (unidades / estacionamiento vendible)
-#                      34, # SUPPORESTACIONAMIENTO (m2 / Estacionamiento)
-#                      .5, # ESTBICICLETAPORVIV (unidades / estacionamientos totales)
-#                      3, # BICICLETASPOREST 
-#                      true, # FLAGCAMBIOESTPORBICICLETA
-#                      10, # MAXSUBTE (unidades)
-#                      .8, # COEFOCUPACIONEST (m2 / superficieTerreno)
-#                      7, # SEPESTMIN (m)
-#                      0 # REDUCCIONESTPORDISTMETRO
-#                      );
-     
+    
 dca = datosCabidaArquitectura(2.55, # 2.625, # ALTURAPISO (m / piso)
                          .2, # PORCSUPCOMUN (m2 / m2 útil)
                          .05, # PORCTERRAZA (m2 / m2 útil)

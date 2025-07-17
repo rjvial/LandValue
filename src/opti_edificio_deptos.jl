@@ -118,19 +118,9 @@ function opti_edificio_deptos(
         # parking
         totalDeptos = sum(value.(numDeptos))
 
-        so = SalidaOptimizacion(
-            value.(numDeptos)[:],
-            totalDeptos,
-            min(vec_areaBasal[1], maxOcupacion),
-            superficieUtil,
-            sum(vec_np_opt), sum(vec_np_opt)*dca.alturaPiso,
-            value(supInterior), value(supTerraza), value(supComun),
-            value(supEdif), vec_areaBasal[1], 0, 0, 0, 0, 0
-        )
-
         deptosTipo = value.(numDeptos)[:]
     else
-        so, deptosTipo = nothing, Int[]
+        deptosTipo = Int[]
     end
 
     display("SupEdifTotal = " * string(round(JuMP.value(supEdifTotal), digits=1)))
@@ -177,7 +167,24 @@ function opti_edificio_deptos(
     print("\n")
     print("")
 
-    return so, deptosTipo
+    dict_edificio_deptos = Dict(
+    "supUtil" => value(supUtil),
+    "supUtilPrimerPiso" => value(supUtilPrimerPiso),
+    "supUtilPisosSup" => value(supUtilPisosSup),
+    "supComunPrimerPiso" => value(supComun),
+    "supComunPrimerPiso" => value(supComunPrimerPiso),
+    "supComunPisosSup" => value(supComunPisosSup),
+    "supTerraza" => value(supTerraza),
+    "supTerrazaPrimerPiso" => value(supTerrazaPrimerPiso),
+    "supTerrazaPisosSup" => value(supTerrazaPisosSup),
+    "supInterior" => value(supInterior),
+    "supInteriorPrimerPiso" => value(supInteriorPrimerPiso),
+    "supInteriorPisosSup" => value(supInteriorPisosSup),
+    "numDeptosTipo" => value.(numDeptos)[:],
+    "numDeptos" => value(totalDeptos)
+    )
+
+    return dict_edificio_deptos
 end
 
 

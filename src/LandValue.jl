@@ -175,35 +175,10 @@ using JuMP, BlackBoxOptim, NOMAD, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, O
         retornoExigido::Float64
     end
 
-    struct SalidaOptimizacion
-        numDeptosTipo::Array{Float64,1}
-        numDeptos::Float64
-        ocupacion::Float64
-        constructibilidad::Float64
-        numPisos::Float64
-        altura::Float64
-        superficieInterior::Float64
-        superficieTerraza::Float64
-        superficieComun::Float64
-        superficieEdificadaSNT::Float64
-        superficiePorPiso::Float64
-        estacionamientosVendibles::Float64
-        estacionamientosVisita::Float64
-        numEstacionamientos::Float64
-        numBicicleteros::Float64
-        numBodegas::Float64
-    end
-
-    struct SalidaHolgura
-        dualMaxOcupación::Float64
-        dualMaxConstructibilidad::Float64
-        dualMaxDensidad::Float64
-    end
-
     
     export DatosCabidaPredio, DatosCabidaNormativa, DatosCabidaArquitectura, DatosCabidaComercial, DatosCabidaUnit,
             DatosCabidaRentabilidad, SalidaArquitectonica, SalidaIndicadores, SalidaMonetaria,
-            SalidaTerreno, SalidaOptimizacion, SalidaNormativa, GeomObject, PosDimGeom, PolyShape, LineShape, PointShape, 
+            SalidaTerreno, GeomObject, PosDimGeom, PolyShape, LineShape, PointShape, 
             FlagPlotEdif3D, ResultadoCabida
 
 
