@@ -31,7 +31,7 @@ function opti_edificio(n_predios, alturaPiso, sup_terreno_sii, vecSecTodos, vecS
         
         densidadMax = dict_sin_parametros["densidad_maxima_bruta"]
         maxOcupacion = dict_sin_parametros["coeficiente_de_ocupacion_de_suelo"] * superficieTerreno
-        dict_edificio_deptos = opti_edificio_deptos(coefConstructibilidad, densidadMax, maxOcupacion, dca, dcp, dcc, vec_ps_opt, vec_np_opt, superficieTerreno, superficieTerrenoBruto, flag_dfl2)
+        dict_edificio_deptos = opti_edificio_deptos(coefConstructibilidad, densidadMax, dcp, dcc, vec_ps_opt, vec_np_opt, superficieTerreno, superficieTerrenoBruto, flag_dfl2)
         
         cabida_sup_deptos = string(dcc.supDeptoUtil)
         cabida_num_deptos = string(dict_edificio_deptos["numDeptosTipo"])
@@ -133,6 +133,7 @@ function opti_edificio(n_predios, alturaPiso, sup_terreno_sii, vecSecTodos, vecS
     "estacionamientos_autos_vivienda" => estacionamientos_autos_vivienda,
     "estacionamientos_autos_comercio" => estacionamientos_autos_comercio,
     "estacionamientos_autos" => estacionamientos_autos_oficina + estacionamientos_autos_vivienda + estacionamientos_autos_comercio,
+    "estacionamientos_visitas" => estacionamientos_visitas,
     "estacionamientos_discapacitados" => estacionamientos_discapacitados,
     "estacionamientos_bicicletas" => estacionamientos_bicicletas,
     "descuento_estacionamientos_x_metro" => descuento_estacionamientos_x_metro,
@@ -142,6 +143,7 @@ function opti_edificio(n_predios, alturaPiso, sup_terreno_sii, vecSecTodos, vecS
     "aumento_bici_x_descuento_estacionamientos" => aumento_bici_x_descuento_estacionamientos,
     "estacionamientos_autos_final" => estacionamientos_autos_final,
     "estacionamientos_bicicletas_final" => estacionamientos_bicicletas_final,
+    "bodegas" => numBodegas,
     "dict_edificio_deptos" => tipo_edificio == "departamento" ? dict_edificio_deptos : 0
     )
 

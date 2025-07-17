@@ -1,6 +1,5 @@
 function opti_edificio_deptos(
-        coefConstructibilidad, densidadMax, maxOcupacion, 
-        dca, dcp, dcc, 
+        coefConstructibilidad, densidadMax, dcp, dcc, 
         vec_ps_opt, vec_np_opt,
         superficieTerreno::Real, superficieTerrenoBruto::Real, flag_dfl2
     )
@@ -134,26 +133,26 @@ function opti_edificio_deptos(
     display(
         "SupComun = " *
         string(round(superficieComunPrimerPiso, digits=1)) * " | " *
-        string(round(superficieComunPisosSup,  digits=1)) * " | " *
-        string(round(superficieComun,          digits=1))
+        string(round(superficieComunPisosSup, digits=1)) * " | " *
+        string(round(superficieComun, digits=1))
     )
     display(
         "SupTerraza = " *
         string(round(superficieTerrazaPrimerPiso, digits=1)) * " | " *
-        string(round(superficieTerrazaPisosSup,    digits=1)) * " | " *
-        string(round(superficieTerraza,            digits=1))
+        string(round(superficieTerrazaPisosSup, digits=1)) * " | " *
+        string(round(superficieTerraza, digits=1))
     )
     display(
         "SupInterior = " *
         string(round(superficieInteriorPrimerPiso, digits=1)) * " | " *
-        string(round(superficieInteriorPisosSup,    digits=1)) * " | " *
-        string(round(superficieInterior,            digits=1))
+        string(round(superficieInteriorPisosSup, digits=1)) * " | " *
+        string(round(superficieInterior, digits=1))
     )
     display(
         "Total = " *
         string(round(superficieComunPrimerPiso+superficieTerrazaPrimerPiso+superficieInteriorPrimerPiso, digits=1)) * " | " *
-        string(round(superficieComunPisosSup+superficieTerrazaPisosSup+superficieInteriorPisosSup,    digits=1)) * " | " *
-        string(round(superficieComun+superficieTerraza+superficieInterior,            digits=1))
+        string(round(superficieComunPisosSup+superficieTerrazaPisosSup+superficieInteriorPisosSup, digits=1)) * " | " *
+        string(round(superficieComun+superficieTerraza+superficieInterior, digits=1))
     )
 
     display("Total = " * string(round(superficieComun+superficieTerraza+superficieInterior, digits=1)))
