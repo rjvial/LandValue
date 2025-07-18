@@ -60,10 +60,12 @@ function opti_edificio_vol(vecSecTodos, vecSecSinCalle, dict_sin_parametros, dic
 
             n_pisos = sum(c) 
             altura = n_pisos * alturaPiso
+            distanciamiento = dict_con_parametros["distanciamiento"][1]
             expr_str = dict_con_parametros["distanciamiento"][3]
             expr_str = replace(expr_str, "flag_sombra" => flag_sombra)
             expr_str = replace(expr_str, "altura"  => string(altura))
             expr_str = replace(expr_str, "n_pisos" => string(n_pisos))
+            expr_str = replace(expr_str, "distanciamiento" => string(distanciamiento))
             sepVecinos = eval(Meta.parse(expr_str))
 
             vec_dist = Float64.(copy(vecSecTodos))

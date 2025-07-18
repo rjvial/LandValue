@@ -17,10 +17,6 @@ function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, dato
     public_dns = instance_info["dnsName"]
     conn_neo4j = neo4j_julia.connection(neo4j_host, neo4j_user, neo4j_password, folder, key_pair, ec2_user, public_dns)
 
-    instance_info = aws_julia.find_instance_by_name("Neo4j-EC2_JLV", conn_aws)
-    public_dns = instance_info["dnsName"]
-    conn_neo4j_jlv = neo4j_julia.connection(neo4j_host, neo4j_user, neo4j_password, folder, key_pair, ec2_user, public_dns)
-
     ##############################################
     # PARTE "1": OBTENCIÓN DE PARÁMETROS         #
     ##############################################
@@ -38,32 +34,24 @@ function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, dato
     display("Obtiene los parametros del predio")
     codPredialStr = replace(replace(string(codigo_predial), "[" => "("), "]" => ")")
     
+
     query = """
-    MATCH (p:Predio {codigo_predial:'$(codigo_predial[1])'})
-    MATCH (p)-[:PERTENECE_A|PERTENECE_A_USO]->(z)
-    OPTIONAL MATCH (z)-[:TIENE_VARIANTE_NORMATIVA]->(vn)
-    OPTIONAL MATCH (vn)-[:TIENE_REQ_NORMATIVO]->(r:Requerimiento_Normativo)
-    OPTIONAL MATCH (r)-[:TIENE_REQ_CONDICIONAL]->(rc:Requerimiento_Condicional)
-    WITH
-    vn, r, collect(rc) AS condiciones
-    WITH
-    vn, r, CASE WHEN condiciones = [] THEN [null] ELSE condiciones END AS condiciones
-    UNWIND condiciones AS cond
+    MATCH (p:Predio)-[:SE_UBICA_EN_ZONA]->(z:Zona_Edificacion)-[:TIENE_REQUERIMIENTO]->(r:Requerimiento_Edificacion)
+    WHERE p.codigo_predial = '$(codigo_predial[1])'
     RETURN
-    vn.variante_norm_id        AS variante_norm_id,
-    vn.nombre                  AS nombre_variante,
-    r.requerimiento_norm_id    AS requerimiento_norm_id,
+    r.id_requerimiento_edificacion AS id_requerimiento_edificacion,
+    r.id_zona_edificacion        AS id_zona_edificacion,
+    r.nombre_variante           AS nombre_variante,
     r.nombre_requerimiento     AS nombre_requerimiento,
     r.valor                    AS valor,
     r.unidad                   AS unidad,
     r.tipo_restriccion         AS tipo_restriccion,
-    cond.requerimiento_cond_id AS requerimiento_cond_id,
-    cond.unidad                AS unidad_condicional,
-    cond.parametro_formula     AS parametro_formula,
-    cond.formula               AS formula,
-    cond.nombre_requerimiento  AS nombre_req_condicional;
+    r.unidad_condicional    AS unidad_condicional,
+    r.parametro_formula     AS parametro_formula,
+    r.formula               AS formula,
+    r.nombre_requerimiento  AS nombre_req_condicional;
     """
-    df_normativa = neo4j_julia.cypher_to_dataframe(query, conn_neo4j_jlv)
+    df_normativa = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
     lista_requerimientos = sort(unique(skipmissing(df_normativa[!, :nombre_requerimiento])))
 
 
