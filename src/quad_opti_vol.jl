@@ -1,4 +1,4 @@
-function quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_ocupacion_suelo, maxConstruccionSNT, K, ancho_crujia_min, ancho_crujia_max)
+function quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_ocupacion_suelo, losaSNT, K, ancho_crujia_min, ancho_crujia_max)
 
     # Orientación del predio
     ps0 = vec_psVolteor[1]
@@ -72,7 +72,7 @@ function quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_oc
     end
 
     # Restriccion de constructibilidad
-    @constraint(model, sum(w[stack] * h[stack] * floors[stack] for stack in 1:K) <= maxConstruccionSNT)
+    @constraint(model, sum(w[stack] * h[stack] * floors[stack] for stack in 1:K) <= losaSNT)
 
     # Función Objetivo
     @objective(model, Max, sum(w[stack] * h[stack] * floors[stack] for stack in 1:K))
