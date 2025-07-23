@@ -2,7 +2,8 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
 
 
     tipo_edificio = dict_arquitectura["tipo_edificio"]
-    flag_dfl2 = dict_arquitectura["flag_dfl2"]
+    variante_str = dict_arquitectura["variante_normativa"]
+    flag_dfl2 = variante_str == "dfl_2" ? true : false
 
     superficieTerreno = dict_geom["sup_terreno_sii"]
     superficieTerrenoBruto = polyShape.polyArea(dict_geom["ps_bruto"])
@@ -10,7 +11,6 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
     ocupacion_suelo = dict_requerimientos["coeficiente_de_ocupacion_de_suelo"]
     max_ocupacion_suelo = superficieTerreno * ocupacion_suelo
 
-    # flag_fusionTerrenos = dict_geom["n_predios"] >= 2 ? true : false
 
     coeficiente_de_constructibilidad = parse(Float64, dict_requerimientos["coeficiente_de_constructibilidad"][1])
     expr_str = expression_converter.parse_python_expression(dict_requerimientos["coeficiente_de_constructibilidad"][3])
@@ -32,7 +32,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
     if tipo_edificio == "departamento"
         
         densidadMax = dict_requerimientos["densidad_maxima_bruta"]
-        maxOcupacion = dict_requerimientos["coeficiente_de_ocupacion_de_suelo"] * superficieTerreno
+        # maxOcupacion = dict_requerimientos["coeficiente_de_ocupacion_de_suelo"] * superficieTerreno
         dict_edificio_deptos = opti_edificio_deptos(dict_arquitectura, coefConstructibilidad, densidadMax, vec_ps_opt, vec_np_opt, superficieTerreno, superficieTerrenoBruto, flag_dfl2)
 
         cabida_sup_deptos = string(dict_arquitectura["supDeptoUtil"])

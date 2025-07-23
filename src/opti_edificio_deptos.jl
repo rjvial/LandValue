@@ -101,10 +101,7 @@ function opti_edificio_deptos(dict_arquitectura, coefConstructibilidad, densidad
         superficieComunPisosSup   = value(supComunPisosSup)
         superficieTerrazaPisosSup = value(supTerrazaPisosSup)
         superficieInteriorPisosSup = value(supInteriorPisosSup) 
-
-        # parking
         totalDeptos = sum(value.(numDeptos))
-
         deptosTipo = value.(numDeptos)[:]
     else
         deptosTipo = Int[]

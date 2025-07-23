@@ -1,18 +1,5 @@
-function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, datos_LandValue, datos_mygis_db, datos)
+function funcionPrincipal(conn_neo4j, codigo_predial, dict_arquitectura)
 
-    my_env = DotEnv.config("secrets.env")    
-    conn_aws = aws_julia.connection(my_env["AWS_ACCESS_KEY"], my_env["AWS_SECRET_KEY"], my_env["AWS_REGION"])
-    
-    ec2_user   = "ec2-user"
-    key_pair   = "neo4j-key-pair.pem"
-    folder = "/usr/bin/cypher-shell"
-    neo4j_host = "bolt://localhost:7687"
-    neo4j_user = "neo4j"
-    neo4j_password = "x67y1332"
-
-    instance_info = aws_julia.find_instance_by_name("Neo4j-EC2", conn_aws)
-    public_dns = instance_info["dnsName"]
-    conn_neo4j = neo4j_julia.connection(neo4j_host, neo4j_user, neo4j_password, folder, key_pair, ec2_user, public_dns)
 
     ##############################################
     # PARTE "1": OBTENCIÓN DE PARÁMETROS         #
@@ -44,10 +31,8 @@ function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, dato
 
     dict_requerimientos = Dict{String,Any}()
 
-    variante_str = "dfl_2"
-    if variante_str == "dfl_2"
-        flag_dfl2 = true    
-    end
+    variante_str = dict_arquitectura["variante_normativa"]
+    flag_dfl2 = variante_str == "dfl_2" ? true : false
     
     for r in lista_requerimientos
         # 1) filter down to the matching row
@@ -191,22 +176,6 @@ function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, dato
     # Calcula matriz V_areaEdif asociada a los vértices del area de edificación
 
     n_predios = length(codigo_predial)
-    alturaPiso = 2.55
-    supInterior = [25, 65, 85, 120, 240]
-    supTerraza = [10, 20, 30, 40, 40]
-    supDeptoUtil = supInterior .+ 0.5 * supTerraza
-
-    fpe = FlagPlotEdif3D()
-    fpe.predio = true
-    fpe.volTeorico = true
-    fpe.volConSombra = true
-    fpe.edif = true
-    fpe.sombraVolTeorico_p = true
-    fpe.sombraVolTeorico_o = true
-    fpe.sombraVolTeorico_s = true
-    fpe.sombraEdif_p = true
-    fpe.sombraEdif_o = true
-    fpe.sombraEdif_s = true
 
 
     # K = 3; ancho_crujia_min = 0; ancho_crujia_max = 0; flag_sombra = false; tipo_edificio = "oficina"
@@ -230,50 +199,9 @@ function funcionPrincipal(codigo_predial::Union{Array{Int64,1},Int64}, id_, dato
         "sup_terreno_sii" => sup_terreno_sii
     )
 
-    K = 1; ancho_crujia_min = 8; ancho_crujia_max = 18; flag_sombra = false; tipo_edificio = "departamento"
-    dict_arquitectura = Dict(
-        "alturaPiso" => alturaPiso,
-        "K" => K, # numero de pilas o stacks
-        "ancho_crujia_min" => ancho_crujia_min,
-        "ancho_crujia_max" => ancho_crujia_max,
-        "flag_dfl2" => flag_dfl2,
-        "tipo_edificio" => "departamento",
-        "flag_sombra" => flag_sombra,
-        "supInterior" => supInterior,
-        "supTerraza" => supTerraza,
-        "supDeptoUtil" => supDeptoUtil,
-        "supPorEstacionamiento" => 30,
-        "supPorBodega" => 5,
-        "supPorBicicleta" => 4,
-        "coefSupComunPrimerPiso" => 0.4,
-        "coefSupComunPisosSup" => 0.1,
-    )
     dict_resultados = opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
-    fig, ax, ax_mat = plotBaseEdificio3D(fpe, dict_arquitectura["alturaPiso"], ps_predio, dict_resultados["vec_psVolteor"], dict_resultados["vec_altVolteor"], dict_resultados["vec_psVolConSombra"], dict_resultados["vec_altVolConSombra"], ps_publico, ps_calles, dict_resultados["vec_ps_opt"], dict_resultados["vec_np_opt"], dict_resultados["vec_ps_subte"], dict_resultados["vec_np_subte"], dict_resultados["tipo_edificio"])
 
-
-    K = 1; ancho_crujia_min = 8; ancho_crujia_max = 18; flag_sombra = true; tipo_edificio = "departamento"
-    dict_arquitectura = Dict(
-        "alturaPiso" => alturaPiso,
-        "K" => K,
-        "ancho_crujia_min" => ancho_crujia_min,
-        "ancho_crujia_max" => ancho_crujia_max,
-        "flag_dfl2" => flag_dfl2,
-        "tipo_edificio" => "departamento",
-        "flag_sombra" => flag_sombra,
-        "supInterior" => supInterior,
-        "supTerraza" => supTerraza,
-        "supDeptoUtil" => supDeptoUtil,
-        "supPorEstacionamiento" => 30,
-        "supPorBodega" => 5,
-        "supPorBicicleta" => 4,
-        "coefSupComunPrimerPiso" => 0.4,
-        "coefSupComunPisosSup" => 0.1,
-    )
-    dict_resultados = opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
-    fig, ax, ax_mat = plotBaseEdificio3D(fpe, dict_arquitectura["alturaPiso"], ps_predio, dict_resultados["vec_psVolteor"], dict_resultados["vec_altVolteor"], dict_resultados["vec_psVolConSombra"], dict_resultados["vec_altVolConSombra"], ps_publico, ps_calles, dict_resultados["vec_ps_opt"], dict_resultados["vec_np_opt"], dict_resultados["vec_ps_subte"], dict_resultados["vec_np_subte"], dict_resultados["tipo_edificio"])
-
-
+    return dict_resultados, dict_arquitectura, dict_geom
 end
 
 
