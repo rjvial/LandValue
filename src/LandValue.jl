@@ -1,6 +1,6 @@
 module LandValue
 
-using JuMP, BlackBoxOptim, NOMAD, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, Optim
+using JuMP, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, Optim, OrderedCollections
             # NonconvexBayesian, NonconvexIpopt, NonconvexNLopt, Distributions    
     
 
@@ -182,7 +182,7 @@ using JuMP, BlackBoxOptim, NOMAD, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, O
             FlagPlotEdif3D, ResultadoCabida
 
 
-    include("funcionPrincipal.jl")
+    include("obtiene_requerimientos_normativos.jl")
     include("calculaAnguloRotacion.jl")
     include("generaSombraEdificio.jl")
     include("opti_edificio_deptos.jl")
@@ -210,11 +210,12 @@ using JuMP, BlackBoxOptim, NOMAD, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, O
     include("opti_vol_estacionamiento.jl")
     include("generate_stack_vector.jl")
     include("expression_converter.jl")
+    include("obtiene_geometrias_codigo_predial.jl")
 
-    export funcionPrincipal, calculaAnguloRotacion, generaSombraEdificio, opti_edificio_deptos, displayResults, 
+    export obtiene_requerimientos_normativos, calculaAnguloRotacion, generaSombraEdificio, opti_edificio_deptos, displayResults, 
         poly2D, polyShape, graphMod, resultConverter, plotBaseEdificio3D, generaVol3D, generaSombraTeor, 
         pg_julia, aws_julia, neo4j_julia, obtieneCalles, generaPoligonoCorte, generaCotas, create_scr, create_edificio_geojson,
         optimal_pricing, optimal_lot_selection, quad_opti_vol, opti_edificio_vol, 
-        opti_edificio, opti_vol_estacionamiento, generate_stack_vector, expression_converter
+        opti_edificio, opti_vol_estacionamiento, generate_stack_vector, expression_converter, obtiene_geometrias_codigo_predial
 
 end

@@ -1,24 +1,21 @@
-function opti_edificio_deptos(dict_arquitectura, coefConstructibilidad, densidadMax, vec_ps_opt, vec_np_opt, superficieTerreno, superficieTerrenoBruto, flag_dfl2)
+function opti_edificio_deptos(dict_arquitectura, max_ocupacion_suelo, max_constructibilidad, max_deptos, vec_ps_opt, vec_np_opt, flag_dfl2, sup_patio_vivienda_economica)
 
     # Base areas
     K = length(vec_ps_opt) # num stacks
     vec_areaBasal = [polyShape.polyArea(ps) for ps in vec_ps_opt]
 
-    # Density and max deptos
-    flagDensidadBruta = true
-    superficieDensidad = flagDensidadBruta ? superficieTerrenoBruto : superficieTerreno
-    maxDeptos = floor(densidadMax / 4 * superficieDensidad / 10000)
+
     num_pisos = sum(vec_np_opt)
     num_pisos_regulares = num_pisos - 1 # Pisos regulares (sin primer piso)
 
-    # Occupation and constructibility
-    maxConstruct = superficieTerreno * coefConstructibilidad
 
     # Variants and area matrices
-    numTipos = length(dict_arquitectura["supDeptoUtil"])
-    vecSupUtil    = dict_arquitectura["supDeptoUtil"]
-    vecSupTerraza = vecSupUtil .* 0.1
-    vecSupInterior= vecSupUtil .- 0.5 * vecSupTerraza
+    numTipos = length(dict_arquitectura["vecSupUtil"])
+    vecSupUtil    = dict_arquitectura["vecSupUtil"]
+    vecSupTerraza = dict_arquitectura["vecSupTerraza"]
+    vecSupInterior= dict_arquitectura["vecSupInterior"]
+
+    vec_dfl_2 = [vecSupUtil[i] <= 140 ? 1 : 0 for i in 1:numTipos]
 
     # Total built footprint (for common areas minimums)
     supEdifTotal = sum(vec_areaBasal[i] * vec_np_opt[i] for i in 1:K)
@@ -56,11 +53,9 @@ function opti_edificio_deptos(dict_arquitectura, coefConstructibilidad, densidad
 
     # constraints
     @constraints(m, begin
-        # numDeptos > 0 solo si se elije la variante y tipo correspondiente
-        [u=1:numTipos], numDeptos[u] <= maxDeptos
-                
+
         # Max densidad 
-        sum(numDeptos) <= maxDeptos
+        sum(numDeptos) <= max_deptos
         
         # restricciones de area comun
         descuento_dfl2 <= flag_dfl2 * 0.2 * supUtil 
@@ -72,11 +67,20 @@ function opti_edificio_deptos(dict_arquitectura, coefConstructibilidad, densidad
         # balance de superficie por piso 
         supComunPrimerPiso + supTerrazaPrimerPiso + supInteriorPrimerPiso <= vec_areaBasal[1]
         supComunPisosSup + supTerrazaPisosSup + supInteriorPisosSup <= sum(vec_areaBasal[k] * (k==1 ? vec_np_opt[k]-1 : vec_np_opt[k]) for k=1:K)
-        
+
+        supComunPrimerPiso + supTerrazaPrimerPiso + supInteriorPrimerPiso <= max_ocupacion_suelo - sum(numDeptos) * sup_patio_vivienda_economica 
+
         # Max constructibilidad
-        supUtil + supComun - descuento_dfl2 <= maxConstruct
+        supUtil + supComun - descuento_dfl2 <= max_constructibilidad
 
     end)
+
+    # numDeptos > 0 solo si se elije la variante y tipo correspondiente
+    if flag_dfl2 || sup_patio_vivienda_economica > 0
+        @constraint(m, [u=1:numTipos], numDeptos[u] <= vec_dfl_2[u] * max_deptos)
+    else
+        @constraint(m, [u=1:numTipos], numDeptos[u] <= max_deptos)
+    end
 
     @objective(m, Max, supUtil)
     optimize!(m)
@@ -151,7 +155,7 @@ function opti_edificio_deptos(dict_arquitectura, coefConstructibilidad, densidad
     print("\n")
     print("")
 
-    dict_edificio_deptos = Dict(
+    dict_edificio_deptos = OrderedDict(
     "supUtil" => value(supUtil),
     "supUtilPrimerPiso" => value(supUtilPrimerPiso),
     "supUtilPisosSup" => value(supUtilPisosSup),

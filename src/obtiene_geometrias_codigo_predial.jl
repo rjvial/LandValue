@@ -1,77 +1,4 @@
-function funcionPrincipal(conn_neo4j, codigo_predial, dict_arquitectura)
-
-
-    ##############################################
-    # PARTE "1": OBTENCIÓN DE PARÁMETROS         #
-    ##############################################
-
-
-    # Obtiene los parametros del predio
-    display("Obtiene los parametros del predio")
-
-    query = """
-    MATCH (p:Predio)-[:SE_UBICA_EN_ZONA]->(z:Zona_Edificacion)-[:TIENE_REQUERIMIENTO]->(r:Requerimiento_Edificacion)
-    WHERE p.codigo_predial = '$(codigo_predial[1])'
-    RETURN
-    r.id_requerimiento_edificacion AS id_requerimiento_edificacion,
-    r.id_zona_edificacion        AS id_zona_edificacion,
-    r.nombre_variante           AS nombre_variante,
-    r.nombre_requerimiento     AS nombre_requerimiento,
-    r.valor                    AS valor,
-    r.unidad                   AS unidad,
-    r.tipo_restriccion         AS tipo_restriccion,
-    r.unidad_condicional    AS unidad_condicional,
-    r.parametro_formula     AS parametro_formula,
-    r.formula               AS formula,
-    r.nombre_requerimiento  AS nombre_req_condicional;
-    """
-    df_normativa = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-    lista_requerimientos = sort(unique(skipmissing(df_normativa[!, :nombre_requerimiento])))
-
-
-    dict_requerimientos = Dict{String,Any}()
-
-    variante_str = dict_arquitectura["variante_normativa"]
-    flag_dfl2 = variante_str == "dfl_2" ? true : false
-    
-    for r in lista_requerimientos
-        # 1) filter down to the matching row
-        mask = 
-        (df_normativa[!, :nombre_variante] .== variante_str) .&
-        (df_normativa[!, :nombre_requerimiento] .== r)
-        df_mask = df_normativa[mask, [:valor, :parametro_formula, :formula]]
-
-        # 2) if there's at least one row for this requisito
-        if size(df_mask, 1) ≥ 1
-            valor_str      = strip(df_mask[1, :valor])
-            parametros_str = strip(df_mask[1, :parametro_formula])
-            formula_str    = strip(df_mask[1, :formula])
-
-            if parametros_str == "NULL"
-                # ───────── sin parámetros ─────────
-                chosen = valor_str != "NULL" ? valor_str : formula_str
-                parsed = tryparse(Float64, String(chosen))
-                dict_requerimientos[r] = parsed === nothing ? String(chosen) : parsed
-
-            elseif valor_str == "NULL"
-                # ───────── con parámetros ─────────
-                dict_requerimientos[r] = (
-                    "",
-                    String(parametros_str),
-                    String(formula_str)
-                )
-            else
-                dict_requerimientos[r] = (
-                    String(valor_str),
-                    String(parametros_str),
-                    String(formula_str)
-                )
-            end
-        end
-    end
-
-    dict_requerimientos["rasante_sombra"] = 5.0
-
+function obtiene_geometrias_codigo_predial(codigo_predial, conn_neo4j)
     # Obtiene desde Neo4j las geometrias de los predios
     display("Obtiene desde Neo4j las geometrias de los predios")
 
@@ -171,20 +98,7 @@ function funcionPrincipal(conn_neo4j, codigo_predial, dict_arquitectura)
     display("Obtención de calles dentro del buffer")
     @time ps_calles_intra_buffer = polyShape.polyIntersect(ps_calles, ps_buffer_predio)
 
-####################################################################################
-
-    # Calcula matriz V_areaEdif asociada a los vértices del area de edificación
-
     n_predios = length(codigo_predial)
-
-
-    # K = 3; ancho_crujia_min = 0; ancho_crujia_max = 0; flag_sombra = false; tipo_edificio = "oficina"
-    # dict_resultados = opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
-    # fig, ax, ax_mat = plotBaseEdificio3D(fpe, dict_arquitectura["alturaPiso"], ps_predio, dict_resultados["vec_psVolteor"], dict_resultados["vec_altVolteor"], dict_resultados["vec_psVolConSombra"], dict_resultados["vec_altVolConSombra"], ps_publico, ps_calles, dict_resultados["vec_ps_opt"], dict_resultados["vec_np_opt"], dict_resultados["vec_ps_subte"], dict_resultados["vec_np_subte"], dict_resultados["tipo_edificio"])
-
-    # K = 3; ancho_crujia_min = 0; ancho_crujia_max = 0; flag_sombra = true; tipo_edificio = "oficina"
-    # dict_resultados = opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
-    # fig, ax, ax_mat = plotBaseEdificio3D(fpe, dict_arquitectura["alturaPiso"], ps_predio, dict_resultados["vec_psVolteor"], dict_resultados["vec_altVolteor"], dict_resultados["vec_psVolConSombra"], dict_resultados["vec_altVolConSombra"], ps_publico, ps_calles, dict_resultados["vec_ps_opt"], dict_resultados["vec_np_opt"], dict_resultados["vec_ps_subte"], dict_resultados["vec_np_subte"], dict_resultados["tipo_edificio"])
 
     dict_geom = Dict(
         "ps_predio" => ps_predio,
@@ -199,10 +113,7 @@ function funcionPrincipal(conn_neo4j, codigo_predial, dict_arquitectura)
         "sup_terreno_sii" => sup_terreno_sii
     )
 
-    dict_resultados = opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
+    return dict_geom
 
-    return dict_resultados, dict_arquitectura, dict_geom
 end
-
-
 

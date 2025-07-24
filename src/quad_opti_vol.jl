@@ -1,9 +1,28 @@
-function quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_ocupacion_suelo, losaSNT, K, ancho_crujia_min, ancho_crujia_max)
+function quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_ocupacion_suelo, max_losa_snt, K, ancho_crujia_min, ancho_crujia_max)
+
+    
+    function polygon_orientation(vertices)
+        x_coords = vertices[:, 1]
+        y_coords = vertices[:, 2]
+        
+        width = maximum(x_coords) - minimum(x_coords)
+        height = maximum(y_coords) - minimum(y_coords)
+        
+        if isapprox(width, height, rtol=0.1)  # 10% tolerance for "square"
+            return :square
+        elseif width > height
+            return :horizontal
+        else
+            return :vertical
+        end
+    end
+
 
     # Orientación del predio
     ps0 = vec_psVolteor[1]
     V0 = ps0.Vertices[1]
-    flag_horizontal = abs(V0[2,1] - V0[1,1]) > abs(V0[2,2] - V0[1,2])
+    V0_orientation = polygon_orientation(V0)
+
 
     ps_opt  = [PolyShape([],1) for _ in 1:K]
     np_opt  = zeros(Int, K)
@@ -35,12 +54,17 @@ function quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_oc
     # Restricciones de ocupación de suelo y ancho crujía
     @constraint(model, w[1] * h[1] <= max_ocupacion_suelo)
     if ancho_crujia_min >= 1
-        if flag_horizontal
+        if V0_orientation == :horizontal
             @constraint(model, h[1] >= ancho_crujia_min)
             @constraint(model, h[1] <= ancho_crujia_max)
-        else
+            @constraint(model, w[1] >= 1.4 * h[1])
+        elseif V0_orientation == :vertical
             @constraint(model, w[1] >= ancho_crujia_min)
             @constraint(model, w[1] <= ancho_crujia_max)
+            @constraint(model, h[1] >= 1.4 * w[1])
+        elseif V0_orientation == :square
+            @constraint(model, h[1] >= ancho_crujia_min)
+            @constraint(model, h[1] <= ancho_crujia_max)
         end
     end
 
@@ -72,7 +96,7 @@ function quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_oc
     end
 
     # Restriccion de constructibilidad
-    @constraint(model, sum(w[stack] * h[stack] * floors[stack] for stack in 1:K) <= losaSNT)
+    @constraint(model, sum(w[stack] * h[stack] * floors[stack] for stack in 1:K) <= max_losa_snt)
 
     # Función Objetivo
     @objective(model, Max, sum(w[stack] * h[stack] * floors[stack] for stack in 1:K))

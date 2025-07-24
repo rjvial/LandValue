@@ -1,4 +1,4 @@
-function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, vec_pisos, max_ocupacion_suelo, losaSNT)
+function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, vec_pisos, max_ocupacion_suelo, max_losa_snt)
 
     ps_predio = dict_geom["ps_predio"]
     ps_calles = dict_geom["ps_calles"]
@@ -7,19 +7,19 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
     vecSecTodos = dict_geom["vecSecTodos"]
     vecSecSinCalle = dict_geom["vecSecSinCalle"]
 
-
     alturaPiso = dict_arquitectura["alturaPiso"]
     K = dict_arquitectura["K"]
     ancho_crujia_min = dict_arquitectura["ancho_crujia_min"]
     ancho_crujia_max = dict_arquitectura["ancho_crujia_max"]
     flag_sombra = dict_arquitectura["flag_sombra"]
-
+    flag_vano = dict_arquitectura["flag_vano"]
 
     antejardin = dict_requerimientos["antejardin"] # 8 # 12 # 
     alturaMax = dict_requerimientos["altura_max"]
     rasante = tan(dict_requerimientos["rasante"]*pi/180)
-    rasante_sombra = dict_requerimientos["rasante_sombra"]
+
     sepEstMin = dict_requerimientos["subterraneo_antejardin"]
+    rasante_sombra = dict_requerimientos["rasante_sombra"]
 
     min_pisos = minimum(vec_pisos)
     max_pisos = maximum(vec_pisos)
@@ -73,11 +73,12 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
 
             altura = n_pisos * alturaPiso
             distanciamiento = dict_requerimientos["distanciamiento"][1]
-            expr_str = dict_requerimientos["distanciamiento"][3]
-            expr_str = replace(expr_str, "flag_sombra" => flag_sombra)
+            expr_str = expression_converter.parse_python_expression(dict_requerimientos["distanciamiento"][3])
+            expr_str = replace(expr_str, "flag_sombra" => false) # Nunca se usa sombra para el cálculo del distanciamiento
             expr_str = replace(expr_str, "altura"  => string(altura))
             expr_str = replace(expr_str, "n_pisos" => string(n_pisos))
             expr_str = replace(expr_str, "distanciamiento" => string(distanciamiento))
+            expr_str = replace(expr_str, "flag_vano" => string(flag_vano))
             sepVecinos = eval(Meta.parse(expr_str))
 
             vec_dist = Float64.(copy(vecSecTodos))
@@ -138,7 +139,7 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
 
                 try
                     # Optimize volumes for K stacks
-                    ps_stack, np_stack, objective_val = quad_opti_vol(vec_psVolConSombra_, vec_altVolConSombra, floors, alturaPiso, max_ocupacion_suelo, losaSNT, K, ancho_crujia_min, ancho_crujia_max)
+                    ps_stack, np_stack, objective_val = quad_opti_vol(vec_psVolConSombra_, vec_altVolConSombra, floors, alturaPiso, max_ocupacion_suelo, max_losa_snt, K, ancho_crujia_min, ancho_crujia_max)
 
                     # Compute cumulative heights once
                     vec_alt_acum = cumsum(np_stack) .* alturaPiso
@@ -189,7 +190,7 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
             end
 
         else
-            ps_stack, np_stack, objective_val = quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_ocupacion_suelo, losaSNT, K, ancho_crujia_min, ancho_crujia_max)
+            ps_stack, np_stack, objective_val = quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_ocupacion_suelo, max_losa_snt, K, ancho_crujia_min, ancho_crujia_max)
             if objective_val > max_sol
                 # Store best
                 max_sol = objective_val
@@ -205,7 +206,7 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
             end
         end
 
-        if max_sol >= 0.99 * losaSNT || iter_floors == length(vec_stacks)
+        if max_sol >= 0.99 * max_losa_snt || iter_floors == length(vec_stacks)
             flag_continue = false
         end
     
@@ -217,7 +218,7 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
         for pisos in min_pisos:max_pisos
             # vec_stacks = generate_stack_vector(pisos, K)
             for floors in vec_stacks
-                ps_stack, np_stack, objective_val = quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_ocupacion_suelo, losaSNT, K, ancho_crujia_min, ancho_crujia_max)
+                ps_stack, np_stack, objective_val = quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_ocupacion_suelo, max_losa_snt, K, ancho_crujia_min, ancho_crujia_max)
                 if objective_val > max_sol
                     # Store best
                     max_sol = objective_val
