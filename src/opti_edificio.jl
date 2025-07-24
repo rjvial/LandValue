@@ -124,9 +124,14 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
     supPorEstacionamiento = dict_arquitectura["supPorEstacionamiento"]
     supPorBodega = dict_arquitectura["supPorBodega"]
     supPorBicicleta = dict_arquitectura["supPorBicicleta"]
+
+    areaReq       = estacionamientos_autos_final * supPorEstacionamiento + 
+                    estacionamientos_bicicletas_final * supPorBicicleta + 
+                    numBodegas * supPorBodega
+
     coefOcupacionEst = 1 #0.7
     ps_predio = dict_geom["ps_predio"]
-    vec_ps_subte, vec_np_subte = opti_vol_estacionamiento(ps_predio, ps_areaEst, estacionamientos_autos_final, estacionamientos_bicicletas_final, numBodegas, coefOcupacionEst, supPorEstacionamiento, supPorBicicleta, supPorBodega)
+    vec_ps_subte, vec_np_subte = opti_vol_estacionamiento(ps_predio, ps_areaEst, coefOcupacionEst, areaReq)
 
     dict_resultados = OrderedDict(
     "tipo_edificio" => tipo_edificio,

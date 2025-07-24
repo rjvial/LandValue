@@ -232,8 +232,6 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
 
     vec_dist = Float64.(copy(vecSecTodos))
     vec_dist .= -antejardin
-
-
     vec_dist[vecSecSinCalle] .= -sepEstMin
     ps_areaEst = polyShape.partialPolyOffset(ps_predio, vecSecTodos, vec_dist)
 

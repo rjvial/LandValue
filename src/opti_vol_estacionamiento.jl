@@ -1,4 +1,5 @@
-function opti_vol_estacionamiento(ps_predio, ps_areaEst, estacionamientos_autos_final, estacionamientos_bicicletas_final, numBodegas, coefOcupacionEst, supPorEstacionamiento, supPorBicicleta, supPorBodega)
+function opti_vol_estacionamiento(ps_predio, ps_areaEst, coefOcupacionEst, areaReq)
+
     # –––––––––– helper to find the right offset via bisection ––––––––––
     function find_offset(orig_ps, target_area, tol, maxiter;
                          init_low = -100.0, init_high = 100.0)
@@ -28,7 +29,6 @@ function opti_vol_estacionamiento(ps_predio, ps_areaEst, estacionamientos_autos_
         (polyShape.polyOffset(orig_ps, best_d), best_d)
     end
 
-    # –––––––––– 1) base‐parcel offset ––––––––––
     areaPredio     = polyShape.polyArea(ps_predio)
     max_ocup       = coefOcupacionEst * areaPredio
     areaBasalEst   = min(polyShape.polyArea(ps_areaEst), max_ocup)
@@ -37,27 +37,21 @@ function opti_vol_estacionamiento(ps_predio, ps_areaEst, estacionamientos_autos_
     ps_baseSubte, _ = find_offset(deepcopy(ps_areaEst), areaBasalEst, tol_base, iter_base)
     areaActualBase = polyShape.polyArea(ps_baseSubte)
 
-    # –––––––––– 2) compute how many tiles & last‐tile target area ––––––––––
-    areaReq       = estacionamientos_autos_final*supPorEstacionamiento + estacionamientos_bicicletas_final*supPorBicicleta + numBodegas*supPorBodega
-
     numSubtes     = ceil(Int, areaReq / areaActualBase)
-    areaLast      = numSubtes > 1 ? areaReq - (numSubtes - 1)*areaActualBase : 0
-    
-    if numSubtes > 1 
-        if areaLast/areaActualBase < 0.5
-            areaLast = areaReq/numSubtes
+    areaLast      = numSubtes > 1 ? areaReq - (numSubtes - 1) * areaActualBase : 0
+
+    if numSubtes > 1
+        if areaLast / areaActualBase < 0.5
+            areaLast = areaReq / numSubtes
             tol_base, iter_base = 0.1, 100
             ps_baseSubte, _ = find_offset(deepcopy(ps_areaEst), areaLast, tol_base, iter_base)
         end
 
-
-        # –––––––––– 3) build vector of sub‐polygons ––––––––––
         vec_ps_subte = [ps_baseSubte for _ in 1:numSubtes]
         tol_last, iter_last = 0.15, 50
         ps_ultSubte, _ = find_offset(deepcopy(ps_areaEst), areaLast, tol_last, iter_last)
         vec_ps_subte[end] = ps_ultSubte
 
-        # –––––––––– 4) indices for optimization ––––––––––
         vec_np_subte = [-(numSubtes - 1), -1]
     
     else
