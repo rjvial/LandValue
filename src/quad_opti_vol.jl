@@ -11,9 +11,9 @@ function quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_oc
         if isapprox(width, height, rtol=0.1)  # 10% tolerance for "square"
             return :square
         elseif width > height
-            return :horizontal
+            return :horizontal, width, height
         else
-            return :vertical
+            return :vertical, width, height
         end
     end
 
@@ -21,7 +21,7 @@ function quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_oc
     # Orientación del predio
     ps0 = vec_psVolteor[1]
     V0 = ps0.Vertices[1]
-    V0_orientation = polygon_orientation(V0)
+    V0_orientation, width, height = polygon_orientation(V0)
 
 
     ps_opt  = [PolyShape([],1) for _ in 1:K]
@@ -38,10 +38,20 @@ function quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_oc
     @constraint(model, c^2 + s^2 == 1)
 
     # Footprint sizes
-    @variables(model, begin
-        w[stack = 1:K] >= 0
-        h[stack = 1:K] >= 0
-    end)
+
+    if V0_orientation == :horizontal
+        @variables(model, begin
+            w[stack = 1:K] >= 0, (start = ancho_crujia_min)
+            h[stack = 1:K] >= 0, (start = width - 2)
+        end)
+    elseif V0_orientation == :vertical
+        @variables(model, begin
+            w[stack = 1:K] >= 0, (start = height - 2)
+            h[stack = 1:K] >= 0, (start = ancho_crujia_min)
+        end)
+    end
+
+
 
     # Offsets for stacks above ground
     if K > 1
@@ -81,6 +91,7 @@ function quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_oc
         num_pisos_acum += n_f
         altura_corte_stack = num_pisos_acum * alturaPiso #min(num_pisos_acum * alturaPiso, alt_max)
         psC = generaPoligonoCorte(altura_corte_stack, vec_psVolteor, vec_altVolteor)
+        psC = polyShape.shapeHull(psC)
         A, b = polyShape.poly2Constraints(psC)
 
         # Define local rectangle corners

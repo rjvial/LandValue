@@ -14,29 +14,47 @@ neo4j_password = "x67y1332"
 conn_neo4j = neo4j_julia.connection(neo4j_host, neo4j_user, neo4j_password, folder, key_pair, ec2_user, public_dns)
 
 
+sup_combi_sii_min = 800;    sup_combi_sii_max = 4000
+length_min_combi = 38;      length_max_combi = 120
+width_min_combi = 20;       width_max_combi = 65
+length_to_width_min = 1;    length_to_width_max = 5.0
+rectangularity_min = 0.95;  rectangularity_max = 1
+convexity_min = 0.95;       convexity_max = 1
+num_predios_min = 1;        num_predios_max = 12
+
+
 query = """
 MATCH (p:Predio)-[]-(c:Combi)
-RETURN DISTINCT  c.manzent AS manzent, c.id_combi AS id_combi, c.predios AS list_predios
+WHERE c.length >= $length_min_combi AND c.length <= $length_max_combi
+AND c.width >= $width_min_combi AND c.width <= $width_max_combi
+AND c.length_to_width >= $length_to_width_min AND c.length_to_width <= $length_to_width_max
+AND c.rectangularity >= $rectangularity_min AND c.rectangularity <= $rectangularity_max
+AND c.convexity >= $convexity_min AND c.convexity <= $convexity_max
+AND c.sup_combi_sii >= $sup_combi_sii_min AND c.sup_combi_sii <= $sup_combi_sii_max
+AND c.num_predios >= $num_predios_min AND c.num_predios <= $num_predios_max
+RETURN DISTINCT  c.manzent AS manzent, c.id_combi AS id_combi, c.predios AS list_predios, 
+c.rectangularity AS rectangularity, c.convexity AS convexity, c.length AS length, c.width AS  width
 ORDER BY manzent, id_combi
 """
 df_combis = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-codigo_predial = parse.(Int, split(strip(df_combis[1,"list_predios"], ['(', ')']), ';')) #18 ok
+codigo_predial = parse.(Int, split(strip(df_combis[103,"list_predios"], ['(', ')']), ';')) #18 ok
 # con problemas: 10, 100, 200
-
 
 dict_geom = obtiene_geometrias_codigo_predial(codigo_predial, conn_neo4j)
 
-# K = 3; ancho_crujia_min = 0; ancho_crujia_max = 0; flag_sombra = false; tipo_edificio = "oficina"
-# K = 3; ancho_crujia_min = 0; ancho_crujia_max = 0; flag_sombra = true; tipo_edificio = "oficina"
-K = 1; ancho_crujia_min = 8; ancho_crujia_max = 18; flag_sombra = false; tipo_edificio = "departamento"
-# K = 1; ancho_crujia_min = 8; ancho_crujia_max = 18; flag_sombra = true; tipo_edificio = "departamento"
+
+println("###########################################")
+println("Caso base")
+println("###########################################")
+
+# Caso base
 dict_arquitectura = OrderedDict(
     "alturaPiso" => 2.55,
-    "K" => K,
-    "ancho_crujia_min" => ancho_crujia_min,
-    "ancho_crujia_max" => ancho_crujia_max,
-    "tipo_edificio" => tipo_edificio,
-    "flag_sombra" => flag_sombra,
+    "K" => 1,
+    "ancho_crujia_min" => 8,
+    "ancho_crujia_max" => 18,
+    "tipo_edificio" => "departamento",
+    "flag_sombra" => true,
     "flag_vano" => false,
     "vecSupInterior" => [25, 65, 85, 120, 240],
     "vecSupTerraza" => [10, 20, 30, 40, 40],
@@ -44,14 +62,79 @@ dict_arquitectura = OrderedDict(
     "supPorEstacionamiento" => 30,
     "supPorBodega" => 5,
     "supPorBicicleta" => 4,
-    "coefSupComunPrimerPiso" => 0.4,
-    "coefSupComunPisosSup" => 0.1,
-    "variante_normativa" => "dfl_2" #"vivienda_economica" #
+    "coefSupComunPrimerPiso" => 0.10,
+    "coefSupComunPisosSup" => 0.05,
+    "coefSupComun" => 0.1,
+    "variante_normativa" => "base" #"dfl_2" #"vivienda_economica" #  
 )
-
 dict_requerimientos = obtiene_requerimientos_normativos(codigo_predial, dict_arquitectura["variante_normativa"], conn_neo4j);
+if length(dict_requerimientos) > 5
+    dict_resultados, dict_proyecto_vs_normativa = opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
+    display(dict_proyecto_vs_normativa);
+end
 
-dict_resultados, dict_proyecto_vs_normativa = opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
+
+println("###########################################")
+println("Caso dfl_2")
+println("###########################################")
+
+# Caso dfl_2
+dict_arquitectura = OrderedDict(
+    "alturaPiso" => 2.55,
+    "K" => 1,
+    "ancho_crujia_min" => 8,
+    "ancho_crujia_max" => 18,
+    "tipo_edificio" => "departamento",
+    "flag_sombra" => true,
+    "flag_vano" => false,
+    "vecSupInterior" => [25, 65, 85, 120, 240],
+    "vecSupTerraza" => [10, 20, 30, 40, 40],
+    "vecSupUtil" => [30, 75, 100, 140, 260],
+    "supPorEstacionamiento" => 30,
+    "supPorBodega" => 5,
+    "supPorBicicleta" => 4,
+    "coefSupComunPrimerPiso" => 0.10,
+    "coefSupComunPisosSup" => 0.05,
+    "coefSupComun" => 0.1,
+    "variante_normativa" => "dfl_2" #"vivienda_economica" # "base" # 
+)
+dict_requerimientos = obtiene_requerimientos_normativos(codigo_predial, dict_arquitectura["variante_normativa"], conn_neo4j);
+if length(dict_requerimientos) > 5
+    dict_resultados, dict_proyecto_vs_normativa = opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
+    display(dict_proyecto_vs_normativa);
+end
+
+
+println("###########################################################")
+println("Caso vivienda económica")
+println("###########################################################")
+
+# Caso vivienda_economica 
+dict_arquitectura = OrderedDict(
+    "alturaPiso" => 2.55,
+    "K" => 1,
+    "ancho_crujia_min" => 8,
+    "ancho_crujia_max" => 18,
+    "tipo_edificio" => "departamento",
+    "flag_sombra" => true,
+    "flag_vano" => false,
+    "vecSupInterior" => [25, 65, 85, 120, 240],
+    "vecSupTerraza" => [10, 20, 30, 40, 40],
+    "vecSupUtil" => [30, 75, 100, 140, 260],
+    "supPorEstacionamiento" => 30,
+    "supPorBodega" => 5,
+    "supPorBicicleta" => 4,
+    "coefSupComunPrimerPiso" => 0.10,
+    "coefSupComunPisosSup" => 0.05,
+    "coefSupComun" => 0.1,
+    "variante_normativa" => "vivienda_economica" #"dfl_2" # "base" # 
+)
+dict_requerimientos = obtiene_requerimientos_normativos(codigo_predial, dict_arquitectura["variante_normativa"], conn_neo4j);
+if length(dict_requerimientos) > 5
+    dict_resultados, dict_proyecto_vs_normativa = opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
+    display(dict_proyecto_vs_normativa);
+end
+
 
 fpe = FlagPlotEdif3D()
 fpe.predio = true
