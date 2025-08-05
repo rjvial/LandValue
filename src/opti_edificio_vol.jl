@@ -153,56 +153,51 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
             while iter < max_iter && min(delta_p, delta_o, delta_s) < 0
                 iter += 1
 
-                # try
-                    # Optimize volumes for K stacks
-                    ps_stack, np_stack, objective_val = quad_opti_vol(vec_psVolConSombra_, vec_altVolConSombra, floors, alturaPiso, max_ocupacion_suelo, max_losa_snt, K, ancho_crujia_min, ancho_crujia_max)
+                # Optimize volumes for K stacks
+                ps_stack, np_stack, objective_val = quad_opti_vol(vec_psVolConSombra_, vec_altVolConSombra, floors, alturaPiso, max_ocupacion_suelo, max_losa_snt, K, ancho_crujia_min, ancho_crujia_max)
 
-                    # Compute cumulative heights once
-                    vec_alt_acum = cumsum(np_stack) .* alturaPiso
+                # Compute cumulative heights once
+                vec_alt_acum = cumsum(np_stack) .* alturaPiso
 
-                    # Compute shadows cumulatively
-                    ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s = generaSombraEdificio(ps_stack, vec_alt_acum, ps_publico, ps_calles)
-                
-                    # Sum actual shadow areas
-                    area_act_p = polyShape.polyArea(ps_sombraEdif_p)
-                    area_act_o = polyShape.polyArea(ps_sombraEdif_o)
-                    area_act_s = polyShape.polyArea(ps_sombraEdif_s)
+                # Compute shadows cumulatively
+                ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s = generaSombraEdificio(ps_stack, vec_alt_acum, ps_publico, ps_calles)
+            
+                # Sum actual shadow areas
+                area_act_p = polyShape.polyArea(ps_sombraEdif_p)
+                area_act_o = polyShape.polyArea(ps_sombraEdif_o)
+                area_act_s = polyShape.polyArea(ps_sombraEdif_s)
 
-                    # Compute ratios more efficiently (avoid repeated comparisons)
-                    delta_p = delta_p == 1000 ? 1000 : area_act_p > eps_area ? areaSombra_p / area_act_p - 1 : 1.0
-                    delta_o = delta_o == 1000 ? 1000 : area_act_o > eps_area ? areaSombra_o / area_act_o - 1 : 1.0
-                    delta_s = delta_s == 1000 ? 1000 : area_act_s > eps_area ? areaSombra_s / area_act_s - 1 : 1.0
+                # Compute ratios more efficiently (avoid repeated comparisons)
+                delta_p = delta_p == 1000 ? 1000 : area_act_p > eps_area ? areaSombra_p / area_act_p - 1 : 1.0
+                delta_o = delta_o == 1000 ? 1000 : area_act_o > eps_area ? areaSombra_o / area_act_o - 1 : 1.0
+                delta_s = delta_s == 1000 ? 1000 : area_act_s > eps_area ? areaSombra_s / area_act_s - 1 : 1.0
 
-                    # Find minimum delta more efficiently
-                    delta_min = min(delta_p, delta_o, delta_s)
+                # Find minimum delta more efficiently
+                delta_min = min(delta_p, delta_o, delta_s)
 
-                    # Adjust buildable footprint on worst violation (simplified logic)
-                    if delta_min < 0
-                        if delta_p == delta_min
-                            ps_areaEdif_ = polyShape.partialPolyOffset(ps_areaEdif_, edges_p, delta_dist)
-                        elseif delta_o == delta_min
-                            ps_areaEdif_ = polyShape.partialPolyOffset(ps_areaEdif_, edges_o, delta_dist)
-                        else  # delta_s == delta_min
-                            ps_areaEdif_ = polyShape.partialPolyOffset(ps_areaEdif_, edges_s, delta_dist)
-                        end
-
-                        # Update rasante volumes (moved inside if block for efficiency)
-                        vec_psVolConSombra_ = [polyShape.polyIntersect(ps, ps_areaEdif_) for ps in vec_psVolConSombra_]
-
-                    elseif objective_val > max_sol
-                        # Store best
-                        max_sol = objective_val
-                        best_ps = deepcopy(ps_stack)
-                        best_np = deepcopy(np_stack)
-                        best_vec_altVolteor = deepcopy(vec_altVolteor)
-                        best_vec_psVolteor = deepcopy(vec_psVolteor)
-                        best_vec_altVolConSombra = deepcopy(vec_altVolConSombra)
-                        best_vec_psVolConSombra  = deepcopy(vec_psVolConSombra)
+                # Adjust buildable footprint on worst violation (simplified logic)
+                if delta_min < 0
+                    if delta_p == delta_min
+                        ps_areaEdif_ = polyShape.partialPolyOffset(ps_areaEdif_, edges_p, delta_dist)
+                    elseif delta_o == delta_min
+                        ps_areaEdif_ = polyShape.partialPolyOffset(ps_areaEdif_, edges_o, delta_dist)
+                    else  # delta_s == delta_min
+                        ps_areaEdif_ = polyShape.partialPolyOffset(ps_areaEdif_, edges_s, delta_dist)
                     end
 
-                # catch  
-                #     objective_val = 0
-                # end
+                    # Update rasante volumes (moved inside if block for efficiency)
+                    vec_psVolConSombra_ = [polyShape.polyIntersect(ps, ps_areaEdif_) for ps in vec_psVolConSombra_]
+
+                elseif objective_val > max_sol
+                    # Store best
+                    max_sol = objective_val
+                    best_ps = deepcopy(ps_stack)
+                    best_np = deepcopy(np_stack)
+                    best_vec_altVolteor = deepcopy(vec_altVolteor)
+                    best_vec_psVolteor = deepcopy(vec_psVolteor)
+                    best_vec_altVolConSombra = deepcopy(vec_altVolConSombra)
+                    best_vec_psVolConSombra  = deepcopy(vec_psVolConSombra)
+                end
             end
 
         else

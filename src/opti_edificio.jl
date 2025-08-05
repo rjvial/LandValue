@@ -8,11 +8,6 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
     superficieTerreno = dict_geom["sup_terreno_sii"]
     superficieTerrenoBruto = polyShape.polyArea(dict_geom["ps_bruto"])
 
-    # Ocupación de Suelo
-    ocupacion_suelo = dict_requerimientos["coeficiente_de_ocupacion_de_suelo"]
-    max_ocupacion_suelo = superficieTerreno * ocupacion_suelo
-    sup_patio_vivienda_economica = flag_economica ? dict_requerimientos["superficice_min_patio_x_depto"] : 0
-
     # Constructibilidad
     if typeof(dict_requerimientos["coeficiente_de_constructibilidad"][1]) == Float64
         coefConstructibilidad = dict_requerimientos["coeficiente_de_constructibilidad"][1]
@@ -41,6 +36,12 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
     max_deptos = flagDensidadBruta ? floor(max_densidad / 4 * superficieDensidad / 10000) :
                                        floor(max_densidad / 4 * superficieDensidad / 10000)
 
+    # Ocupación de Suelo
+    sup_patio_vivienda_economica = flag_economica ? dict_requerimientos["superficice_min_patio_x_depto"] : 0
+    ocupacion_suelo = dict_requerimientos["coeficiente_de_ocupacion_de_suelo"]
+    max_ocupacion_suelo = flag_economica ? superficieTerreno - max_deptos * sup_patio_vivienda_economica : superficieTerreno * ocupacion_suelo
+
+
     vec_ps_opt, vec_np_opt, max_sol, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra = opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, vec_pisos, max_ocupacion_suelo, max_losa_snt)
     
     # fpe = FlagPlotEdif3D()
@@ -60,13 +61,6 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
     if tipo_edificio == "departamento"
 
         dict_edificio_deptos = opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_deptos, vec_ps_opt, vec_np_opt, flag_dfl2, sup_patio_vivienda_economica, superficieTerreno)
-
-        if flag_economica
-            ocupacion_de_suelo_economica = superficieTerreno - dict_edificio_deptos["numDeptos"] * sup_patio_vivienda_economica
-            if ocupacion_de_suelo_economica <= polyShape.polyArea(vec_ps_opt[1])
-                vec_ps_opt, vec_np_opt, max_sol, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra = opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, vec_pisos, ocupacion_de_suelo_economica, max_losa_snt)
-            end
-        end
 
         cabida_sup_deptos = string(dict_arquitectura["vecSupUtil"])
         cabida_num_deptos = string(dict_edificio_deptos["numDeptosTipo"])
@@ -206,7 +200,8 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
         "ocupacion_suelo_proyecto" => polyShape.polyArea(vec_ps_opt[1]),
         "ocupacion_suelo_normativa" => flag_economica ? superficieTerreno - sum(eval(Meta.parse(cabida_num_deptos))) * sup_patio_vivienda_economica : max_ocupacion_suelo,
         "pisos_proyecto" => sum(vec_np_opt[i] for i in eachindex(vec_ps_opt)),
-        "pisos_normativa" => dict_requerimientos["n_pisos"]
+        "pisos_normativa" => dict_requerimientos["n_pisos"],
+        "supNoUtilizada" => dict_edificio_deptos["supNoUtilizada"]
         )
 
     return dict_resultados, dict_proyecto_vs_normativa

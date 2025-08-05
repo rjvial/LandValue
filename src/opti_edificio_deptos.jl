@@ -32,11 +32,10 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
         supComunPrimerPiso >= 0
         supComunPisosSup   >= 0
         descuento_dfl2     >= 0
+        supNoUtilizada     >= 0
     end)
 
     # expressions
-    @expression(m, supComun, supComunPrimerPiso + supComunPisosSup)
-
     @expression(m, supUtilPrimerPiso,    sum(vecSupUtil[u]    * numDeptosPrimerPiso[u] for u=1:numTipos))
     @expression(m, supUtilPisosSup,      sum(vecSupUtil[u]    * numDeptosPorPisoSup[u] * num_pisos_regulares for u=1:numTipos))
     @expression(m, supUtil, supUtilPrimerPiso + supUtilPisosSup)
@@ -49,14 +48,12 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
     @expression(m, supInteriorPisosSup,  sum(vecSupInterior[u]* numDeptosPorPisoSup[u] * num_pisos_regulares for u=1:numTipos))
     @expression(m, supInterior, supInteriorPrimerPiso + supInteriorPisosSup)
 
+    @expression(m, supComun, supComunPrimerPiso + supComunPisosSup)
+
     @expression(m, numDeptos,   numDeptosPrimerPiso + numDeptosPorPisoSup * num_pisos_regulares)
 
     # Max densidad
-    if flag_dfl2 || (sup_patio_vivienda_economica > 0)
-        @constraint(m, sum(numDeptos) == max_deptos)
-    else
-        @constraint(m, sum(numDeptos) <= max_deptos)
-    end
+    @constraint(m, sum(numDeptos) == max_deptos)
 
     # restricciones de area comun
     @constraint(m, descuento_dfl2 <= flag_dfl2 * 0.2 * supUtil)
@@ -64,29 +61,24 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
     @constraint(m, supComunPrimerPiso >= dict_arquitectura["coefSupComunPrimerPiso"] * supUtilPrimerPiso) #minSupComunPrimerPiso
     @constraint(m, supComunPisosSup   >= dict_arquitectura["coefSupComunPisosSup"] * supUtilPisosSup)  #minSupComunPisosSup
     @constraint(m, supComun           >= dict_arquitectura["coefSupComun"] * supUtil)
+    @constraint(m, supComun           <= .25 * supUtil)
 
 
     if sup_patio_vivienda_economica > 0
         # Max ocupacion de suelo
         @constraint(m, supComunPrimerPiso + supTerrazaPrimerPiso + supInteriorPrimerPiso <= superficieTerreno - sum(numDeptos) * sup_patio_vivienda_economica)
         @constraint(m, supComunPisosSup + supTerrazaPisosSup + supInteriorPisosSup <= (superficieTerreno - sum(numDeptos) * sup_patio_vivienda_economica) * num_pisos_regulares)
-        # Max constructibilidad
-        @constraint(m, supUtil + supComun - descuento_dfl2 == max_constructibilidad)
-    
-    elseif flag_dfl2
-        # Max ocupacion de suelo
-        @constraint(m, supComunPrimerPiso + supTerrazaPrimerPiso + supInteriorPrimerPiso <= vec_areaBasal[1])
-        @constraint(m, supComunPisosSup + supTerrazaPisosSup + supInteriorPisosSup <= sum(vec_areaBasal[k] * (k==1 ? vec_np_opt[k]-1 : vec_np_opt[k]) for k=1:K))
-        # Max constructibilidad
-        @constraint(m, supUtil + supComun - descuento_dfl2 == max_constructibilidad)
-
     else
         # Max ocupacion de suelo
         @constraint(m, supComunPrimerPiso + supTerrazaPrimerPiso + supInteriorPrimerPiso <= vec_areaBasal[1])
         @constraint(m, supComunPisosSup + supTerrazaPisosSup + supInteriorPisosSup <= sum(vec_areaBasal[k] * (k==1 ? vec_np_opt[k]-1 : vec_np_opt[k]) for k=1:K))
-        # Max constructibilidad
-        @constraint(m, supUtil + supComun - descuento_dfl2 <= max_constructibilidad)
     end
+
+    # Max constructibilidad
+    @constraint(m, supUtil + supComun - descuento_dfl2 <= max_constructibilidad)
+
+    @constraint(m, supNoUtilizada + supComun + supTerraza + supInterior == sum(vec_areaBasal[k] * vec_np_opt[k] for k=1:K))
+
 
     if flag_dfl2 || (sup_patio_vivienda_economica > 0)
         @constraint(m, [u=1:numTipos], numDeptos[u] <= vec_dfl_2[u] * max_deptos)
@@ -111,6 +103,10 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
         superficieComun    = value(supComun)
         superficieTerraza  = value(supTerraza)
         superficieInterior = value(supInterior)
+        superficieNoUtilizada     = value(supNoUtilizada)
+        descuento_dfl2     = value(descuento_dfl2)
+        superficieUtilPrimerPiso = value(supUtilPrimerPiso)
+        superficieUtilPisosSup   = value(supUtilPisosSup)
         superficieComunPrimerPiso = value(supComunPrimerPiso)
         superficieTerrazaPrimerPiso = value(supTerrazaPrimerPiso)   
         superficieInteriorPrimerPiso = value(supInteriorPrimerPiso)
@@ -168,24 +164,24 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
     print("")
 
     dict_edificio_deptos = OrderedDict(
-    "supUtil" => value(supUtil),
-    "supUtilPrimerPiso" => value(supUtilPrimerPiso),
-    "supUtilPisosSup" => value(supUtilPisosSup),
-    "supComun" => value(supComun),
-    "supComunPrimerPiso" => value(supComunPrimerPiso),
-    "supComunPisosSup" => value(supComunPisosSup),
-    "supTerraza" => value(supTerraza),
-    "supTerrazaPrimerPiso" => value(supTerrazaPrimerPiso),
-    "supTerrazaPisosSup" => value(supTerrazaPisosSup),
-    "supInterior" => value(supInterior),
-    "supInteriorPrimerPiso" => value(supInteriorPrimerPiso),
-    "supInteriorPisosSup" => value(supInteriorPisosSup),
-    "descuento_dfl2" => value(descuento_dfl2),
-    "numDeptosTipo" => value.(numDeptos)[:],
-    "numDeptos" => value(totalDeptos)
+    "supUtil" => superficieUtil,
+    "supUtilPrimerPiso" => superficieUtilPrimerPiso,
+    "supUtilPisosSup" => superficieUtilPisosSup,
+    "supComun" => superficieComun,
+    "supComunPrimerPiso" => superficieComunPrimerPiso,
+    "supComunPisosSup" => superficieComunPisosSup,
+    "supTerraza" => superficieTerraza,
+    "supTerrazaPrimerPiso" => superficieTerrazaPrimerPiso,
+    "supTerrazaPisosSup" => superficieTerrazaPisosSup,
+    "supInterior" => superficieInterior,
+    "supInteriorPrimerPiso" => superficieInteriorPrimerPiso,
+    "supInteriorPisosSup" => superficieInteriorPisosSup,
+    "descuento_dfl2" => descuento_dfl2,
+    "supNoUtilizada" => superficieNoUtilizada,
+    "numDeptosTipo" => deptosTipo,
+    "numDeptos" => totalDeptos
     )
 
     return dict_edificio_deptos
 end
-
 

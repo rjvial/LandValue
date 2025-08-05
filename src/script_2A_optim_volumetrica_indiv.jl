@@ -37,8 +37,8 @@ c.rectangularity AS rectangularity, c.convexity AS convexity, c.length AS length
 ORDER BY manzent, id_combi
 """
 df_combis = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-codigo_predial = parse.(Int, split(strip(df_combis[103,"list_predios"], ['(', ')']), ';')) #18 ok
-# con problemas: 10, 100, 200
+codigo_predial = parse.(Int, split(strip(df_combis[1103,"list_predios"], ['(', ')']), ';')) #18 ok
+# con problemas: 803, 903, 1003, 1103
 
 dict_geom = obtiene_geometrias_codigo_predial(codigo_predial, conn_neo4j)
 
@@ -54,7 +54,7 @@ dict_arquitectura = OrderedDict(
     "ancho_crujia_min" => 8,
     "ancho_crujia_max" => 18,
     "tipo_edificio" => "departamento",
-    "flag_sombra" => true,
+    "flag_sombra" => false, # true,
     "flag_vano" => false,
     "vecSupInterior" => [25, 65, 85, 120, 240],
     "vecSupTerraza" => [10, 20, 30, 40, 40],
@@ -85,7 +85,7 @@ dict_arquitectura = OrderedDict(
     "ancho_crujia_min" => 8,
     "ancho_crujia_max" => 18,
     "tipo_edificio" => "departamento",
-    "flag_sombra" => true,
+    "flag_sombra" => false, # true,
     "flag_vano" => false,
     "vecSupInterior" => [25, 65, 85, 120, 240],
     "vecSupTerraza" => [10, 20, 30, 40, 40],
@@ -116,7 +116,7 @@ dict_arquitectura = OrderedDict(
     "ancho_crujia_min" => 8,
     "ancho_crujia_max" => 18,
     "tipo_edificio" => "departamento",
-    "flag_sombra" => true,
+    "flag_sombra" => false, # true,
     "flag_vano" => false,
     "vecSupInterior" => [25, 65, 85, 120, 240],
     "vecSupTerraza" => [10, 20, 30, 40, 40],
@@ -150,4 +150,3 @@ fpe.sombraEdif_s = true
 
 fig, ax, ax_mat = plotBaseEdificio3D(fpe, dict_arquitectura["alturaPiso"], dict_geom["ps_predio"], dict_resultados["vec_psVolteor"], dict_resultados["vec_altVolteor"], dict_resultados["vec_psVolConSombra"], dict_resultados["vec_altVolConSombra"], dict_geom["ps_publico"], dict_geom["ps_calles"], dict_resultados["vec_ps_opt"], dict_resultados["vec_np_opt"], dict_resultados["vec_ps_subte"], dict_resultados["vec_np_subte"], dict_resultados["tipo_edificio"])
 
-display(dict_proyecto_vs_normativa)
