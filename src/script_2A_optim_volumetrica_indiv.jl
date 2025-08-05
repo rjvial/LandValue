@@ -38,7 +38,7 @@ ORDER BY manzent, id_combi
 """
 df_combis = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 codigo_predial = parse.(Int, split(strip(df_combis[1103,"list_predios"], ['(', ')']), ';')) #18 ok
-# con problemas: 803, 903, 1003, 1103
+# con problemas: 603(con rasante), 803, 1003
 
 dict_geom = obtiene_geometrias_codigo_predial(codigo_predial, conn_neo4j)
 
@@ -54,7 +54,7 @@ dict_arquitectura = OrderedDict(
     "ancho_crujia_min" => 8,
     "ancho_crujia_max" => 18,
     "tipo_edificio" => "departamento",
-    "flag_sombra" => false, # true,
+    "flag_sombra" => true, #false, # 
     "flag_vano" => false,
     "vecSupInterior" => [25, 65, 85, 120, 240],
     "vecSupTerraza" => [10, 20, 30, 40, 40],
@@ -85,7 +85,7 @@ dict_arquitectura = OrderedDict(
     "ancho_crujia_min" => 8,
     "ancho_crujia_max" => 18,
     "tipo_edificio" => "departamento",
-    "flag_sombra" => false, # true,
+    "flag_sombra" => true, # false,
     "flag_vano" => false,
     "vecSupInterior" => [25, 65, 85, 120, 240],
     "vecSupTerraza" => [10, 20, 30, 40, 40],
@@ -116,7 +116,7 @@ dict_arquitectura = OrderedDict(
     "ancho_crujia_min" => 8,
     "ancho_crujia_max" => 18,
     "tipo_edificio" => "departamento",
-    "flag_sombra" => false, # true,
+    "flag_sombra" => true, # false,
     "flag_vano" => false,
     "vecSupInterior" => [25, 65, 85, 120, 240],
     "vecSupTerraza" => [10, 20, 30, 40, 40],

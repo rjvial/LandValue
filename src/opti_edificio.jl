@@ -148,7 +148,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
     vec_dist = Float64.(copy(vecSecTodos))
     vec_dist .= -dict_requerimientos["subterraneo_antejardin"]
     vec_dist[vecSecSinCalle] .= -dict_requerimientos["subterraneo_distanciamiento"]
-    ps_predio = dict_geom["ps_predio"]
+    ps_predio = deepcopy(dict_geom["ps_predio"])
     ps_areaEst = polyShape.partialPolyOffset(ps_predio, vecSecTodos, vec_dist)
     coefOcupacionEst = 1 #0.7
     vec_ps_subte, vec_np_subte = opti_vol_estacionamiento(ps_predio, ps_areaEst, coefOcupacionEst, areaReq)

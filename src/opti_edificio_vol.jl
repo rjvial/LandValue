@@ -51,7 +51,6 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
     # Small epsilon for area comparison
     eps_area = 1e-10
     max_sol = 0
-    flag_continue = true
     
     vec_stacks_ = []
     for pisos in min_pisos:max_pisos
@@ -65,6 +64,7 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
     end
     vec_stacks = [v for v in vec_stacks_ if v[1] ≥ max_pisos - 2]
 
+    flag_continue = true
     iter_floors = 0
     pisos_aux = 0
     while flag_continue
@@ -90,11 +90,14 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
             vec_dist[vecSecSinCalle] .= -sepVecinos
             ps_areaEdif = polyShape.partialPolyOffset(ps_predio, vecSecTodos, vec_dist)
 
+            if polyShape.polyArea(ps_areaEdif) < 50
+                flag_continue = false
+                continue
+            end
             # Calcula el Volumen Teórico
             vec_altVolteor = collect(0:0.5:alturaMax)
             vec_psVolteor = [polyShape.polyOffset(ps_bruto, -i / rasante) for i in vec_altVolteor]
             vec_psVolteor = [polyShape.polyIntersect(vec_psVolteor[i], ps_areaEdif) for i in eachindex(vec_psVolteor)]
-
 
             if flag_sombra == true 
                 # Prepare rasante constraints
@@ -114,7 +117,6 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
                 A0_p = A0 * centroidSombra_p.Vertices'
                 edges_p = vec_edges[A0_p .>= b0]
 
-
                 areaSombra_o = polyShape.polyArea(ps_sombraVolTeorico_o)
                 if areaSombra_o < eps_area
                     flag_o = false
@@ -122,7 +124,6 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
                 centroidSombra_o = polyShape.shapeCentroid(ps_sombraVolTeorico_o)
                 A0_o = A0 * centroidSombra_o.Vertices'
                 edges_o = vec_edges[A0_o .>= b0]
-
 
                 areaSombra_s = polyShape.polyArea(ps_sombraVolTeorico_s)
                 if areaSombra_s < eps_area
@@ -137,7 +138,6 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
                 vec_psVolConSombra = [polyShape.polyOffset(ps_predio, - alt/rasante_sombra) for alt in vec_altVolConSombra]
                 vec_psVolConSombra = [polyShape.polyIntersect(vec_psVolConSombra[i], ps_areaEdif) for i in eachindex(vec_psVolConSombra)]
             end
-
         end
 
         if flag_sombra == true
@@ -213,14 +213,12 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
                 best_vec_altVolConSombra = collect(0:0.5:alturaMax)
                 best_vec_psVolConSombra = [polyShape.polyOffset(ps_predio, - alt/rasante_sombra) for alt in best_vec_altVolConSombra]
                 best_vec_psVolConSombra = [polyShape.polyIntersect(best_vec_psVolConSombra[i], ps_areaEdif) for i in eachindex(best_vec_altVolConSombra)]
-
             end
         end
 
         if max_sol >= 0.99 * max_losa_snt || iter_floors == length(vec_stacks)
             flag_continue = false
         end
-
     end
 
 
