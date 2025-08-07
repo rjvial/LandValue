@@ -25,9 +25,9 @@ function generaSombraEdificio(
                 V_SombraBox_o[i,1] += alt_i / 0.49
                 V_SombraBox_s[i,2] -= alt_i / 1.54
             end
-            V_SombraBox_p = poly2D.convHull(V_SombraBox_p)
-            V_SombraBox_o = poly2D.convHull(V_SombraBox_o)
-            V_SombraBox_s = poly2D.convHull(V_SombraBox_s)
+            V_SombraBox_p = polyShape.convHull(V_SombraBox_p)
+            V_SombraBox_o = polyShape.convHull(V_SombraBox_o)
+            V_SombraBox_s = polyShape.convHull(V_SombraBox_s)
             if e == 1
                 push!(ps_SombraBox_p.Vertices, V_SombraBox_p)
                 push!(ps_SombraBox_o.Vertices, V_SombraBox_o)

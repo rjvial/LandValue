@@ -1,6 +1,6 @@
 module polyShape
 
-using LandValue, ..poly2D, Clipper, ArchGDAL, PyCall, PyPlot,  
+using LandValue, Clipper, ArchGDAL, PyCall, PyPlot, LazySets,
         ImageBinarization, DataFrames, LinearAlgebra, Proj, Combinatorics
 
 
@@ -511,7 +511,6 @@ function plotPolyshape3D(verts, fc::String="red", a::Real=0.25; fig::Union{Nothi
     fig, ax, ax_mat
 
 end
-
 
 
 function imageWhiteSpaceReduction(infileStr, outfileStr)
@@ -1327,6 +1326,19 @@ end
 ########################### Funciones Especiales ###########################
 ############################################################################
 
+
+function convHull(V::Array{Float64,2})::Array{Float64,2}
+
+    n = size(V,1)
+    v = [[V[i,1], V[i,2]] for i=1:n]
+    ch_v = LazySets.convex_hull(v)
+
+    V_out = [0 0]; for i in eachindex(ch_v); V_out=[V_out; ch_v[i]']; end; V_out = V_out[2:end,:]
+
+    return V_out
+end
+
+
 function line2Box(ls::LineShape, width::Real, rev::Bool=false)
     V_ls = ls.Vertices[1]
     dx = polyShape.lineLength(ls)
@@ -1601,12 +1613,60 @@ end
 
 
 function isPolyConvex(ps::PolyShape)::Bool
+
+    function checkConvex(V::Array{Float64,2})::Bool
+        size(V, 1) < 3 && return true
+        size(V, 2) != 2 && throw(ArgumentError("Input must be an Nx2 array of 2D points"))
+        
+        numPoints = size(V, 1)
+        numPoints < 3 && return true
+        
+        # For triangles, always convex
+        numPoints == 3 && return true
+        
+        px, py = V[:, 1], V[:, 2]
+        
+        # Calculate cross product sign for first edge pair
+        v1 = [px[end] - px[end-1], py[end] - py[end-1]]
+        v2 = [px[1] - px[end], py[1] - py[end]]
+        cross_product = v1[1] * v2[2] - v1[2] * v2[1]
+        
+        # Skip if vectors are colinear (zero cross product)
+        if abs(cross_product) < 1e-12
+            reference_sign = 0
+        else
+            reference_sign = sign(cross_product)
+        end
+        
+        # Check all subsequent edge pairs
+        for i = 1:numPoints-1
+            v1 = v2
+            v2 = [px[mod1(i+1, numPoints)] - px[i], py[mod1(i+1, numPoints)] - py[i]]
+            cross_product = v1[1] * v2[2] - v1[2] * v2[1]
+            
+            # Skip colinear vectors
+            abs(cross_product) < 1e-12 && continue
+            
+            current_sign = sign(cross_product)
+            
+            # Set reference sign if not yet set
+            if reference_sign == 0
+                reference_sign = current_sign
+            elseif current_sign != reference_sign
+                return false
+            end
+        end
+        
+        return true
+    end
+
+
     # Given a set of points determine if they form a convex polygon
     numRegiones = ps.NumRegions
     isConvexVec = fill(false, numRegiones)
     for j = 1:numRegiones
         V_j = ps.Vertices[j]
-        isConvexVec[j] = poly2D.checkConvex(V_j)
+        isConvexVec[j] = checkConvex(V_j)
     end
     return isConvexVec
 end
@@ -1688,7 +1748,7 @@ end
 
 
 function polyRotate(ps::PolyShape, angulo::Real, cr)::PolyShape
-    R = poly2D.rotationMatrix(angulo)
+    R = [cos(angulo) -sin(angulo); sin(angulo) cos(angulo)]
     V = ps.Vertices[1]
     numVertices = size(V, 1)
     V_aux = [vec(R * (V[i, 1:2] - cr) + cr) for i in 1:numVertices]
@@ -1700,9 +1760,28 @@ end
 
 
 function polyArea(ps::PolyShape; sep_flag::Bool=false)::Union{Float64,Array{Float64,1}}
+    function polygonArea(V::Array{Float64,2})::Float64
+        isempty(V) && return 0.0
+        size(V, 2) != 2 && throw(ArgumentError("Input must be an Nx2 array of 2D points"))
+        size(V, 1) < 3 && return 0.0
+        
+        x, y = V[:, 1], V[:, 2]
+        numPoints = length(x)
+        
+        area = 0.0
+        j = numPoints
+        
+        for i = 1:numPoints
+            area += (x[j] + x[i]) * (y[j] - y[i])
+            j = i
+        end
+        
+        return abs(area / 2)
+    end
+
     numRegions = ps.NumRegions
     if numRegions >= 1
-        vecArea = [poly2D.polyArea(ps.Vertices[i]) for i = 1:numRegions]
+        vecArea = [polygonArea(ps.Vertices[i]) for i = 1:numRegions]
         if sep_flag
             out = vecArea
         else
@@ -1908,7 +1987,8 @@ function pointLineDist(l::LineShape, p::PointShape)::Float64
     # Obtiene la distacia entre un punto a una línea
     V_line = l.Vertices[1]
     V_point = p.Vertices
-    dist = poly2D.distPointLine(V_point[:], V_line[1, :], V_line[2, :])
+    q, p1, p2 = V_point[:], V_line[1, :], V_line[2, :]
+    dist = sqrt(sum( ((q-p1) - ((q-p1)'*(p2-p1)) / ((p2-p1)'*(p2-p1)) * (p2-p1) ).^2))
     return dist
 end
 
@@ -1946,10 +2026,39 @@ end
 function lineLineDist(l1::LineShape, l2::LineShape)::Float64
     # Distance of line l2 to line l1
     V1 = l1.Vertices[1]
-    q = l2.Vertices[1][1, :] * 0.5 + l2.Vertices[1][2, :] * 0.5
+    V2 = l2.Vertices[1]
+    
+    # Get midpoint of line l2
+    q = (V2[1, :] + V2[2, :]) / 2
     p = PointShape([q[1] q[2]], 1)
-    d = poly2D.distPointLine(q, V1[1, :], V1[2, :])
-    s = halfspaceSignOfPointToLine(l1, p)
+    
+    # Calculate point-to-line distance using vector math
+    # Line from p1 to p2, point q
+    p1, p2 = V1[1, :], V1[2, :]
+    
+    # Vector from p1 to p2 (line direction)
+    line_vec = p2 - p1
+    
+    # Vector from p1 to point q
+    point_vec = q - p1
+    
+    # Project point_vec onto line_vec
+    line_length_sq = sum(line_vec .^ 2)
+    
+    if line_length_sq < 1e-12
+        # Line has zero length, distance is just point-to-point
+        d = sqrt(sum((q - p1) .^ 2))
+    else
+        # Calculate perpendicular distance
+        projection_scalar = sum(point_vec .* line_vec) / line_length_sq
+        projection = projection_scalar * line_vec
+        perpendicular = point_vec - projection
+        d = sqrt(sum(perpendicular .^ 2))
+    end
+    
+    # Get sign from halfspace function
+    s = polyShape.halfspaceSignOfPointToLine(l1, p)
+    
     return s * d
 end
 
@@ -1957,25 +2066,102 @@ end
 
 function parallelLineAtDist(l::LineShape, d::Real)::LineShape
     V = l.Vertices[1]
-    line = poly2D.createLine(V[1, :], V[2, :])
-    vec_out = poly2D.parallelLine(line, d)
-    x1 = vec_out[1]
-    y1 = vec_out[2]
-    x2 = vec_out[1] + vec_out[3]
-    y2 = vec_out[2] + vec_out[4]
-    l_out = LineShape([[x1 y1; x2 y2]], 1)
-
+    p1, p2 = V[1, :], V[2, :]
+    
+    # Calculate direction vector of the line
+    dir_vec = p2 - p1
+    
+    # Calculate perpendicular vector (rotate 90 degrees counterclockwise)
+    perp_vec = [-dir_vec[2], dir_vec[1]]
+    
+    # Normalize perpendicular vector
+    perp_length = sqrt(perp_vec[1]^2 + perp_vec[2]^2)
+    if perp_length > 0
+        perp_unit = perp_vec / perp_length
+    else
+        throw(ArgumentError("Line has zero length"))
+    end
+    
+    # Calculate offset points
+    offset = d * perp_unit
+    new_p1 = p1 + offset
+    new_p2 = p2 + offset
+    
+    l_out = LineShape([[new_p1[1] new_p1[2]; new_p2[1] new_p2[2]]], 1)
+    
     return l_out
 end
 
 
 
 function intersectLines(l1::LineShape, l2::LineShape)::PointShape
+
+    function intersectEdges(edge1, edge2)
+
+        x1_ini  = edge1[1];
+        y1_ini  = edge1[2];
+        x1_fin  = edge1[3];
+        y1_fin  = edge1[4];
+        dx1 = x1_fin - x1_ini;
+        dy1 = y1_fin - y1_ini;
+        m1 = dy1 / dx1;
+
+        x2_ini  = edge2[1];
+        y2_ini  = edge2[2];
+        x2_fin  = edge2[3];
+        y2_fin  = edge2[4];
+        dx2 = x2_fin - x2_ini;
+        dy2 = y2_fin - y2_ini;
+        m2 = dy2 / dx2;
+
+        min_e1_x = min(x1_ini,x1_fin)
+        min_e2_x = min(x2_ini,x2_fin)
+        max_e1_x = max(x1_ini,x1_fin)
+        max_e2_x = max(x2_ini,x2_fin)
+
+        min_e1_y = min(y1_ini,y1_fin)
+        min_e2_y = min(y2_ini,y2_fin)
+        max_e1_y = max(y1_ini,y1_fin)
+        max_e2_y = max(y2_ini,y2_fin)
+
+        # tolerance for precision
+        tol = 1e-3; #1e-14; 
+
+        # initialize result array
+        x0  = 0;
+        y0  = 0;
+
+        # indices of parallel edges
+        par = abs(m1 - m2) < tol;
+
+        # Parallel edges have no intersection -> return [NaN NaN]
+        if par
+            x0 = NaN;
+            y0 = NaN;
+        end
+
+        # Process non parallel cases
+
+        # compute intersection points of supporting lines
+        delta = dx2 * dy1 - dx1 * dy2;
+        x0 = ((y2_ini - y1_ini) * dx1 * dx2 + x1_ini * dy1 * dx2 - x2_ini * dy2 * dx1) / delta;
+        y0 = ((x2_ini - x1_ini) * dy1 * dy2 + y1_ini * dx1 * dy2 - y2_ini * dx2 * dy1) / -delta;
+
+        if  x0 < min_e1_x-tol || x0 < min_e2_x-tol || x0 > max_e1_x+tol || x0 > max_e2_x+tol || 
+            y0 < min_e1_y-tol || y0 < min_e2_y-tol || y0 > max_e1_y+tol || y0 > max_e2_y+tol
+            point = [NaN NaN];
+        else
+            point = [x0 y0];    
+        end
+
+    end
+
+
     V_line1 = l1.Vertices[1]
     V_line2 = l2.Vertices[1]
     edge1 = [V_line1[1, :]' V_line1[2, :]']
     edge2 = [V_line2[1, :]' V_line2[2, :]']
-    vec_point = poly2D.intersectEdges(edge1, edge2)
+    vec_point = intersectEdges(edge1, edge2)
     p = PointShape(vec_point, 1)
     return p
 end
@@ -2015,11 +2201,79 @@ end
 function findPolyIntersection(ps1::PolyShape, ps2::PolyShape)
     V1 = ps1.Vertices[1]
     V2 = ps2.Vertices[1]
-    res = poly2D.intersectPoly2d(V1, V2)
-    edges1 = res[:, 1]
-    edges2 = res[:, 2]
-    p = PointShape(res[:, 3:4], length(edges1))
-    return edges1, edges2, p
+    
+    # Close polygons by adding first point at end
+    V1_closed = [V1; V1[1, :]']
+    V2_closed = [V2; V2[1, :]']
+    N1 = size(V1_closed, 1)
+    N2 = size(V2_closed, 1)
+    
+    # Initialize result arrays
+    edge_indices1 = Int64[]
+    edge_indices2 = Int64[]
+    intersection_points = zeros(Float64, 0, 2)
+    
+    # Loop over all edge pairs
+    for n1 = 1:N1-1
+        for n2 = 1:N2-1
+            # Define edges as [x1_start, y1_start, x1_end, y1_end]
+            e1 = [V1_closed[n1, 1], V1_closed[n1, 2], V1_closed[n1+1, 1], V1_closed[n1+1, 2]]
+            e2 = [V2_closed[n2, 1], V2_closed[n2, 2], V2_closed[n2+1, 1], V2_closed[n2+1, 2]]
+            
+            # Calculate intersection using line-line intersection
+            p_int = intersectTwoEdges(e1, e2)
+            
+            # Check if intersection is valid (not NaN)
+            if !isnan(p_int[1]) && !isnan(p_int[2])
+                push!(edge_indices1, n1)
+                push!(edge_indices2, n2)
+                intersection_points = [intersection_points; p_int']
+            end
+        end
+    end
+    
+    # Create PointShape from intersection points
+    if size(intersection_points, 1) > 0
+        p = PointShape(intersection_points, size(intersection_points, 1))
+    else
+        p = PointShape(zeros(Float64, 0, 2), 0)
+    end
+    
+    return edge_indices1, edge_indices2, p
+end
+
+function intersectTwoEdges(edge1::Vector{Float64}, edge2::Vector{Float64})::Vector{Float64}
+    x1_ini, y1_ini, x1_fin, y1_fin = edge1
+    x2_ini, y2_ini, x2_fin, y2_fin = edge2
+    
+    dx1 = x1_fin - x1_ini
+    dy1 = y1_fin - y1_ini
+    dx2 = x2_fin - x2_ini
+    dy2 = y2_fin - y2_ini
+    
+    # Check for parallel lines
+    denom = dx1 * dy2 - dx2 * dy1
+    tol = 1e-12
+    
+    if abs(denom) < tol
+        return [NaN, NaN]  # Parallel lines
+    end
+    
+    # Calculate intersection point of infinite lines
+    dx = x2_ini - x1_ini
+    dy = y2_ini - y1_ini
+    
+    t1 = (dx2 * dy - dy2 * dx) / denom
+    t2 = (dx1 * dy - dy1 * dx) / denom
+    
+    # Check if intersection is within both line segments
+    if t1 >= -tol && t1 <= 1 + tol && t2 >= -tol && t2 <= 1 + tol
+        x_int = x1_ini + t1 * dx1
+        y_int = y1_ini + t1 * dy1
+        return [x_int, y_int]
+    else
+        return [NaN, NaN]  # Intersection outside segments
+    end
 end
 
 
@@ -2775,7 +3029,7 @@ export extraeInfoPoly, largoLadosPoly, isPolyConvex, isPolyInPoly, plotPolyshape
     polyProyeccion, wkt_reproject, shape2clipper, clipper2shape, clipper_union, clipper_difference, 
     clipper_intersection, clipper_offset, clipper_scale, lineShape2lineVec,
     partialPolyOffset, point2lineProjection, perpendicularLine, line2Box, reproject_polyshape, poly2Constraints,
-    constraints2poly, rotate_to_first_ccw
+    constraints2poly, rotate_to_first_ccw, convHull
 end
 
 #polyEliminaSpikes, polyEliminaCrucesComplejos, polySimplify, polyEliminaRepetidos, orderLineVec, 

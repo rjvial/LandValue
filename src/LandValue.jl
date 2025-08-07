@@ -183,12 +183,9 @@ using JuMP, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, Optim, OrderedCollectio
 
 
     include("obtiene_requerimientos_normativos.jl")
-    include("calculaAnguloRotacion.jl")
     include("generaSombraEdificio.jl")
     include("opti_edificio_deptos.jl")
-    include("displayResults.jl")
     include("plotBaseEdificio3D.jl")
-    include("poly2D.jl")
     include("polyShape.jl")
     include("graphMod.jl")
     include("resultConverter.jl")
@@ -197,7 +194,6 @@ using JuMP, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, Optim, OrderedCollectio
     include("pg_julia.jl")
     include("obtieneCalles.jl")
     include("generaPoligonoCorte.jl")
-    include("generaCotas.jl")
     include("create_scr.jl")
     include("create_edificio_geojson.jl")
     include("optimal_pricing.jl")
@@ -209,14 +205,13 @@ using JuMP, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, Optim, OrderedCollectio
     include("opti_edificio_vol.jl")
     include("opti_edificio.jl")
     include("opti_vol_estacionamiento.jl")
-    include("generate_stack_vector.jl")
     include("expression_converter.jl")
     include("obtiene_geometrias_codigo_predial.jl")
 
-    export obtiene_requerimientos_normativos, calculaAnguloRotacion, generaSombraEdificio, opti_edificio_deptos, displayResults, 
-        poly2D, polyShape, graphMod, resultConverter, plotBaseEdificio3D, generaVol3D, generaSombraTeor, 
-        pg_julia, aws_julia, neo4j_julia, obtieneCalles, generaPoligonoCorte, generaCotas, create_scr, create_edificio_geojson,
+    export obtiene_requerimientos_normativos, generaSombraEdificio, opti_edificio_deptos, 
+        polyShape, graphMod, resultConverter, plotBaseEdificio3D, generaVol3D, generaSombraTeor, 
+        pg_julia, aws_julia, neo4j_julia, obtieneCalles, generaPoligonoCorte, create_scr, create_edificio_geojson,
         optimal_pricing, optimal_lot_selection, quad_opti_vol, quad_opti_sol_ini, opti_edificio_vol, 
-        opti_edificio, opti_vol_estacionamiento, generate_stack_vector, expression_converter, obtiene_geometrias_codigo_predial
+        opti_edificio, opti_vol_estacionamiento, expression_converter, obtiene_geometrias_codigo_predial
 
 end
