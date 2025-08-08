@@ -59,7 +59,7 @@ function process_shadow_direction(shadow_poly, constraint_matrix, constraint_vec
     is_active = area >= EPS_AREA
     
     constraint_edges = if is_active
-        centroid = polyShape.shapeCentroid(shadow_poly)
+        centroid = polyGdal.shapeCentroid(shadow_poly)
         constraint_values = constraint_matrix * centroid.Vertices'
         edges[constraint_values .>= constraint_vector]
     else

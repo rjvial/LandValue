@@ -51,7 +51,7 @@ intersections = []
 
 # Convert street segments to polyshapes once
 println("Converting street segments to polyshapes...")
-ps_segmentos = polyShape.astext2polyshape(df_semento_calle[:, "geom_wkt"])
+ps_segmentos = polyGdal.astext2polyshape(df_semento_calle[:, "geom_wkt"])
 ps_segmentos = polyShape.setPolyOrientation(ps_segmentos, 1)
 ps_segmentos = polyShape.reproject_polyshape(ps_segmentos)
 
@@ -65,12 +65,12 @@ for (i, row) in enumerate(eachrow(df_predios))
     
     try
         # Convert predio to polyshape
-        ps_predio = polyShape.astext2polyshape([predio_wkt])
+        ps_predio = polyGdal.astext2polyshape([predio_wkt])
         ps_predio = polyShape.setPolyOrientation(ps_predio, 1)
         ps_predio = polyShape.reproject_polyshape(ps_predio)
         
         # Create 30-meter buffer around predio
-        ps_buffer = polyShape.shapeBuffer(ps_predio, 30.0, 30)
+        ps_buffer = polyGdal.shapeBuffer(ps_predio, 30.0, 30)
         
         # Check intersection with each street segment
         # j=1; seg_row = eachrow(df_semento_calle)[j]

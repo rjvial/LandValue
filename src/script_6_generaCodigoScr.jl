@@ -72,7 +72,7 @@ for r in rowSet
 
         buffer_dist_ = min(140, 2.7474774194546216 * xopt[1] * alturaPiso)
 
-        ps_buffer_predio_ = polyShape.shapeBuffer(ps_predio, buffer_dist_, 20)
+        ps_buffer_predio_ = polyGdal.shapeBuffer(ps_predio, buffer_dist_, 20)
         ps_predios_intra_buffer_ = polyShape.polyIntersect(ps_predios_intra_buffer, ps_buffer_predio_)
         ps_manzanas_intra_buffer_ = polyShape.polyIntersect(ps_manzanas_intra_buffer, ps_buffer_predio_)
 

@@ -24,7 +24,7 @@ function generaVol3D(vec_psVolteor, vec_altVolteor)
                     mid_point = polyShape.midPointSegment(line)
                     if line.NumLines >= 1
                         dist_ij = polyShape.distanceBetweenLines(line, line_ij)
-                        if dist_ij < min_dist && polyShape.isLineLineParallel(line, line_ij) && polyShape.shapeDistance(mid_point, mid_point_ij) <= 5
+                        if dist_ij < min_dist && polyShape.isLineLineParallel(line, line_ij) && polyGdal.shapeDistance(mid_point, mid_point_ij) <= 5
                             min_dist = dist_ij
                             min_pos = l
                         end

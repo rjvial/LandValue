@@ -11,13 +11,13 @@ function obtiene_geometrias_codigo_predial(codigo_predial, conn_neo4j)
     """
     df_predios = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
     sup_terreno_sii = sum(df_predios[!,"sup_terreno_sii"])
-    ps_predio_db = polyShape.astext2polyshape(df_predios[:, "geom_wkt"])
+    ps_predio_db = polyGdal.astext2polyshape(df_predios[:, "geom_wkt"])
     ps_predio_db = polyShape.setPolyOrientation(ps_predio_db,1)
     ps_predio_db = polyShape.reproject_polyshape(ps_predio_db)
     ps_predio_db, dx, dy = polyShape.ajustaCoordenadas(ps_predio_db)
     ps_predio_db = polyShape.polyUnion(ps_predio_db)
     simplify_value = 1.0 #1. #.1
-    ps_predio = polyShape.shapeSimplify(ps_predio_db, simplify_value)
+    ps_predio = polyGdal.shapeSimplify(ps_predio_db, simplify_value)
     ps_predio = polyShape.polyEliminaColineales(ps_predio)
 
 
@@ -29,7 +29,7 @@ function obtiene_geometrias_codigo_predial(codigo_predial, conn_neo4j)
 
     # Obtiene buffer del predio seleccionado
     display("Obtiene buffer del predio seleccionado")
-    ps_buffer_predio = polyShape.shapeBuffer(ps_predio, buffer_dist, 30)
+    ps_buffer_predio = polyGdal.shapeBuffer(ps_predio, buffer_dist, 30)
 
     # Obtiene predios contenidos en el buffer del predio y ajusta coordenadas
     display("Obtiene predios contenidos en el buffer del predio y ajusta coordenadas")
@@ -43,7 +43,7 @@ function obtiene_geometrias_codigo_predial(codigo_predial, conn_neo4j)
     RETURN DISTINCT gp.geom_wkt AS geom_wkt
     """
     df_predios_manzanas_vecinas = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-    ps_predios_manzanas_vecinas = polyShape.astext2polyshape(df_predios_manzanas_vecinas[:, "geom_wkt"])
+    ps_predios_manzanas_vecinas = polyGdal.astext2polyshape(df_predios_manzanas_vecinas[:, "geom_wkt"])
     ps_predios_manzanas_vecinas = polyShape.setPolyOrientation(ps_predios_manzanas_vecinas,1)
     ps_predios_manzanas_vecinas = polyShape.reproject_polyshape(ps_predios_manzanas_vecinas)
     ps_predios_manzanas_vecinas = polyShape.ajustaCoordenadas(ps_predios_manzanas_vecinas, dx, dy)
@@ -58,7 +58,7 @@ function obtiene_geometrias_codigo_predial(codigo_predial, conn_neo4j)
     RETURN poi.geom_wkt AS geom_wkt
     """
     df_areas_verdes = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-    ps_areas_verdes = polyShape.astext2polyshape(df_areas_verdes[:, "geom_wkt"])
+    ps_areas_verdes = polyGdal.astext2polyshape(df_areas_verdes[:, "geom_wkt"])
     ps_areas_verdes = polyShape.setPolyOrientation(ps_areas_verdes,1)
     ps_areas_verdes = polyShape.reproject_polyshape(ps_areas_verdes)
     ps_areas_verdes = polyShape.ajustaCoordenadas(ps_areas_verdes, dx, dy)
@@ -77,7 +77,7 @@ function obtiene_geometrias_codigo_predial(codigo_predial, conn_neo4j)
     RETURN DISTINCT m2.geom_wkt AS geom_wkt
     """
     df_manzanas_vecinas = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-    ps_manzanas_vecinas = polyShape.astext2polyshape(df_manzanas_vecinas[:, "geom_wkt"])
+    ps_manzanas_vecinas = polyGdal.astext2polyshape(df_manzanas_vecinas[:, "geom_wkt"])
     ps_manzanas_vecinas = polyShape.setPolyOrientation(ps_manzanas_vecinas,1)
     ps_manzanas_vecinas = polyShape.reproject_polyshape(ps_manzanas_vecinas)
     ps_manzanas_vecinas = polyShape.ajustaCoordenadas(ps_manzanas_vecinas, dx, dy)

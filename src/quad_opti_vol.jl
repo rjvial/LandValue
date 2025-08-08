@@ -137,7 +137,7 @@ function add_volume_constraints!(model, K, floors, alturaPiso, vec_psVolteor, ve
         
         # Generate cutting polygon and constraints
         psC = generaPoligonoCorte(altura_corte_stack, vec_psVolteor, vec_altVolteor)
-        psC = polyShape.shapeHull(psC)
+        psC = polyGdal.shapeHull(psC)
         A, b = polyShape.poly2Constraints(psC)
         
         # Define stack corner offsets

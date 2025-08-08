@@ -112,7 +112,7 @@ Adds polygon confinement constraints to the model.
 function add_polygon_constraints_ini!(model, ps_constraint::PolyShape)
     try
         # Get constraint matrix from polygon
-        psC_hull = polyShape.shapeHull(ps_constraint)
+        psC_hull = polyGdal.shapeHull(ps_constraint)
         A, b = polyShape.poly2Constraints(psC_hull)
         
         # Get model variables
