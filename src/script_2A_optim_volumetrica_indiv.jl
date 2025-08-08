@@ -37,7 +37,7 @@ c.rectangularity AS rectangularity, c.convexity AS convexity, c.length AS length
 ORDER BY manzent, id_combi
 """
 df_combis = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-codigo_predial = parse.(Int, split(strip(df_combis[101,"list_predios"], ['(', ')']), ';')) #18 ok
+codigo_predial = parse.(Int, split(strip(df_combis[333,"list_predios"], ['(', ')']), ';')) #18 ok
 # con problemas: 201, 401, 501, 603(con rasante), 803, 1001, 1003, 1101 
 
 dict_geom = obtiene_geometrias_codigo_predial(codigo_predial, conn_neo4j)

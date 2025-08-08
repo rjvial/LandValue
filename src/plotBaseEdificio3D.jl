@@ -23,7 +23,7 @@ function plotBaseEdificio3D(
 
     # plot predio
     if f_predio
-        fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_predio, 0.0, "green", 0.3,
+        fig, ax, ax_mat = polyPlot.plotPolyshape2Din3D(ps_predio, 0.0, "green", 0.3,
             fig=fig, ax=ax, ax_mat=ax_mat)
     end
 
@@ -47,11 +47,11 @@ function plotBaseEdificio3D(
                 end
 
                 V_k = [V z_low*ones(nV,1); V z_high*ones(nV,1)]
-                fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(
+                fig, ax, ax_mat = polyPlot.plotPolyshape2Din3D(
                     PolyShape([V_k],1), z_low, color, 1.0,
                     fig=fig, ax=ax, ax_mat=ax_mat)
                 # top face
-                fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(
+                fig, ax, ax_mat = polyPlot.plotPolyshape2Din3D(
                     base, z_high, color, 1.0,
                     fig=fig, ax=ax, ax_mat=ax_mat)
             end
@@ -71,11 +71,11 @@ function plotBaseEdificio3D(
                 nV = size(V,1)
                 # side faces
                 V_k = [V z_low*ones(nV,1); V z_high*ones(nV,1)]
-                fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(
+                fig, ax, ax_mat = polyPlot.plotPolyshape2Din3D(
                     PolyShape([V_k],1), z_low, "black", .2,
                     fig=fig, ax=ax, ax_mat=ax_mat)
                 # top face
-                fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(
+                fig, ax, ax_mat = polyPlot.plotPolyshape2Din3D(
                     base, z_high, "black", .2,
                     fig=fig, ax=ax, ax_mat=ax_mat)
             end
@@ -89,15 +89,15 @@ function plotBaseEdificio3D(
         ps_p, ps_o, ps_s = generaSombraTeor(vec_psVolteor, vec_altVolteor,
                                            ps_publico, ps_calles)
         if f_st_p
-            fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_p, 0, "gold", 0.3,
+            fig, ax, ax_mat = polyPlot.plotPolyshape2Din3D(ps_p, 0, "gold", 0.3,
                 fig=fig, ax=ax, ax_mat=ax_mat)
         end
         if f_st_o
-            fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_o, 0, "gold", 0.3,
+            fig, ax, ax_mat = polyPlot.plotPolyshape2Din3D(ps_o, 0, "gold", 0.3,
                 fig=fig, ax=ax, ax_mat=ax_mat)
         end
         if f_st_s
-            fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_s, 0, "gold", 0.3,
+            fig, ax, ax_mat = polyPlot.plotPolyshape2Din3D(ps_s, 0, "gold", 0.3,
                 fig=fig, ax=ax, ax_mat=ax_mat)
         end
     end
@@ -106,18 +106,18 @@ function plotBaseEdificio3D(
     ps_p, ps_o, ps_s = generaSombraEdificio(vec_ps_opt, cumsum(vec_np_opt).*alturaPiso, ps_publico, ps_calles)
     vec_sombra = [ps_p, ps_o, ps_s]
     for ps_sombra in vec_sombra 
-        fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(
+        fig, ax, ax_mat = polyPlot.plotPolyshape2Din3D(
             ps_sombra, 0, "red", 0.25,
             fig=fig, ax=ax, ax_mat=ax_mat)
     end
 
     # theoretical and shadowed volume outlines
     if f_volTeorico
-        fig, ax, ax_mat = polyShape.plotPolyshape2DVecin3D(
+        fig, ax, ax_mat = polyPlot.plotPolyshape2DVecin3D(
             vec_psVolteor, vec_altVolteor, "red", 0.001,
             fig=fig, ax=ax, ax_mat=ax_mat,
             edge_color="red", line_width=0.05)
-        fig, ax, ax_mat = polyShape.plotPolyshape2DVecin3D(
+        fig, ax, ax_mat = polyPlot.plotPolyshape2DVecin3D(
             vec_psVolConSombra, vec_altVolConSombra, "gray", 0.01,
             fig=fig, ax=ax, ax_mat=ax_mat,
             edge_color="gray", line_width=0.1)

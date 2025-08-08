@@ -67,7 +67,7 @@ for r in rowSet
     filestr = "C:/Users/rjvia/.julia/dev/qgis_env/aux_files/codigos_scr/codigo_scr_vitacura_" * string(r) * ".scr"
 
     if conn == conn_LandValue
-        fig, ax, ax_mat = polyShape.plotBaseEdificio3D(fpe, xopt, alturaPiso, ps_predio, ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico, 
+        fig, ax, ax_mat = polyPlot.plotBaseEdificio3D(fpe, xopt, alturaPiso, ps_predio, ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico, 
                                                 ps_volConSombra, matConexionVertices_conSombra, vecVertices_conSombra, ps_publico, ps_calles, ps_base, ps_baseSeparada);
 
         buffer_dist_ = min(140, 2.7474774194546216 * xopt[1] * alturaPiso)
@@ -76,9 +76,9 @@ for r in rowSet
         ps_predios_intra_buffer_ = polyShape.polyIntersect(ps_predios_intra_buffer, ps_buffer_predio_)
         ps_manzanas_intra_buffer_ = polyShape.polyIntersect(ps_manzanas_intra_buffer, ps_buffer_predio_)
 
-        fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_predios_intra_buffer_, 0.0, "green", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
-        fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_manzanas_intra_buffer_, 0.0, "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
-        fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_buffer_predio_, 0.0, "gray", 0.15, fig=fig, ax=ax, ax_mat=ax_mat)
+        fig, ax, ax_mat = polyPlot.plotPolyshape2Din3D(ps_predios_intra_buffer_, 0.0, "green", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+        fig, ax, ax_mat = polyPlot.plotPolyshape2Din3D(ps_manzanas_intra_buffer_, 0.0, "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+        fig, ax, ax_mat = polyPlot.plotPolyshape2Din3D(ps_buffer_predio_, 0.0, "gray", 0.15, fig=fig, ax=ax, ax_mat=ax_mat)
 
         create_scr(xopt, ps_predio, ps_base, alturaPiso, ps_volTeorico, matConexionVertices_volTeorico, vecVertices_volTeorico, filestr) 
         

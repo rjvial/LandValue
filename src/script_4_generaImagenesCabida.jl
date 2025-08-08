@@ -84,16 +84,16 @@ for r in rowSet
         ps_predios_intra_buffer_ = polyShape.polyIntersect(ps_predios_intra_buffer, ps_buffer_predio_)
         ps_manzanas_intra_buffer_ = polyShape.polyIntersect(ps_manzanas_intra_buffer, ps_buffer_predio_)
 
-        fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_predios_intra_buffer_, 0.0, "green", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
-        fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_manzanas_intra_buffer_, 0.0, "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
-        fig, ax, ax_mat = polyShape.plotPolyshape2Din3D(ps_buffer_predio_, 0.0, "gray", 0.15, fig=fig, ax=ax, ax_mat=ax_mat, filestr=filestr)
+        fig, ax, ax_mat = polyPlot.plotPolyshape2Din3D(ps_predios_intra_buffer_, 0.0, "green", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+        fig, ax, ax_mat = polyPlot.plotPolyshape2Din3D(ps_manzanas_intra_buffer_, 0.0, "red", 0.1, fig=fig, ax=ax, ax_mat=ax_mat)
+        fig, ax, ax_mat = polyPlot.plotPolyshape2Din3D(ps_buffer_predio_, 0.0, "gray", 0.15, fig=fig, ax=ax, ax_mat=ax_mat, filestr=filestr)
 
         close("all")
 
         infileStr = "C:\\Users\\rjvia\\Documents\\Land_engines_code\\Julia\\imagenes_cabidas\\____cabida_vitacura_" * string(r) * ".png"
         outfileStr = "C:\\Users\\rjvia\\Documents\\Land_engines_code\\Julia\\imagenes_cabidas\\cabida_vitacura_" * string(r) * ".png"
 
-        polyShape.imageWhiteSpaceReduction(infileStr, outfileStr)
+        polyPlot.imageWhiteSpaceReduction(infileStr, outfileStr)
 
         aux_str = "C:/Users/rjvia/Documents/Land_engines_code/Julia/imagenes_cabidas/cabida_vitacura_" * string(df_resultados_r[1, "id"]) * ".png"
         executeStr = "UPDATE tabla_resultados_cabidas SET dir_image_file = \'" * aux_str * "\', id = " * string(df_resultados_r[1, "id"]) * " WHERE combi_predios = \'" * df_resultados_r[1, "combi_predios"] * "\'"
