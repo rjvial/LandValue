@@ -2,7 +2,7 @@ function obtieneCalles(ps_predio::PolyShape, ps_buffer_predio::PolyShape, ps_pre
 
     # Obtiene calles dentro del buffer
     ps_predios_buffer_union = polyShape.polyUnion(ps_predios_buffer)
-    ps_predios_buffer_union = polyShape.polyOffset(polyShape.polyOffset(ps_predios_buffer_union,.1),-.1)
+    ps_predios_buffer_union = polyClipper.polyOffset(polyClipper.polyOffset(ps_predios_buffer_union,.1),-.1)
     ps_calles = polyShape.polyDifference(ps_buffer_predio, ps_predios_buffer_union)
 
     # Obtiene vector de secciones del predio con calle 
@@ -63,7 +63,7 @@ function obtieneCalles(ps_predio::PolyShape, ps_buffer_predio::PolyShape, ps_pre
 
     ps_toda_calle = polyShape.polyDifference(polyShape.partialPolyOffset(ps_predio, vecSecConCalle, vecAnchoCalle), ps_predio)
     ps_bruto = polyShape.partialPolyOffset(ps_predio, vecSecConCalle, vecAnchoCalle./2)
-    ps_publico = polyShape.polyOffset(polyShape.polyUnion(ps_predio, ps_toda_calle), 0.1)
+    ps_publico = polyClipper.polyOffset(polyShape.polyUnion(ps_predio, ps_toda_calle), 0.1)
 
 
     fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_predio, "blue", 0.2)

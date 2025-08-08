@@ -42,7 +42,7 @@ function calculate_theoretical_volumes(ps_bruto, ps_areaEdif, altura_max, rasant
     # Pre-calculate offset polygons for better performance
     Threads.@threads for i in 1:n_alts
         alt = vec_altVolteor[i]
-        offset_poly = polyShape.polyOffset(ps_bruto, -alt / rasante)
+        offset_poly = polyClipper.polyOffset(ps_bruto, -alt / rasante)
         vec_psVolteor[i] = polyShape.polyIntersect(offset_poly, ps_areaEdif)
     end
     
@@ -197,7 +197,7 @@ function calculate_shadow_volumes(ps_predio, ps_areaEdif, altura_max, rasante_so
     
     Threads.@threads for i in eachindex(vec_altVolConSombra)
         alt = vec_altVolConSombra[i]
-        offset_poly = polyShape.polyOffset(ps_predio, -alt / rasante_sombra)
+        offset_poly = polyClipper.polyOffset(ps_predio, -alt / rasante_sombra)
         vec_psVolConSombra[i] = polyShape.polyIntersect(offset_poly, ps_areaEdif)
     end
     

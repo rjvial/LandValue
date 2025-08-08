@@ -63,8 +63,8 @@ function _find_optimal_offset(orig_ps::PolyShape, target_area::Float64;
     low, high = init_bounds
     
     # Validate bounds can bracket the target
-    area_low = polyShape.polyArea(polyShape.polyOffset(orig_ps, low))
-    area_high = polyShape.polyArea(polyShape.polyOffset(orig_ps, high))
+    area_low = polyShape.polyArea(polyClipper.polyOffset(orig_ps, low))
+    area_high = polyShape.polyArea(polyClipper.polyOffset(orig_ps, high))
     
     if !(area_low < target_area < area_high)
         throw(ArgumentError("Cannot bracket target area $target_area. Got bounds: [$area_low, $area_high]. Adjust init_bounds."))
@@ -75,7 +75,7 @@ function _find_optimal_offset(orig_ps::PolyShape, target_area::Float64;
     
     for i in 1:maxiter
         mid = (low + high) / 2
-        area_mid = polyShape.polyArea(polyShape.polyOffset(orig_ps, mid))
+        area_mid = polyShape.polyArea(polyClipper.polyOffset(orig_ps, mid))
         error = area_mid - target_area
         
         if abs(error) ≤ tol
@@ -92,10 +92,10 @@ function _find_optimal_offset(orig_ps::PolyShape, target_area::Float64;
     end
     
     if !converged
-        @warn "Bisection did not converge after $maxiter iterations. Final error: $(abs(polyShape.polyArea(polyShape.polyOffset(orig_ps, best_offset)) - target_area))"
+        @warn "Bisection did not converge after $maxiter iterations. Final error: $(abs(polyShape.polyArea(polyClipper.polyOffset(orig_ps, best_offset)) - target_area))"
     end
     
-    return polyShape.polyOffset(orig_ps, best_offset), best_offset
+    return polyClipper.polyOffset(orig_ps, best_offset), best_offset
 end
 
 """
