@@ -314,7 +314,7 @@ function plotPolyshape2Din3D(ps::PolyShape, height::Real=0.0, fc::String="blue",
     ax_mat = [min_ax max_ax]
 
     # if line_width > 0.
-    #     ls_vec = polyShape.polyShape2lineVec(ps)
+    #     ls_vec = polyShape.shape2vector(ps)
     #     fig, ax, ax_mat = polyPlot.plotPolyshape2DVecin3D(ls_vec, height *ones(size(ls_vec)), fc, a, fig=fig, ax=ax, ax_mat=ax_mat, line_width=line_width, line_end=3)
     # end
 
