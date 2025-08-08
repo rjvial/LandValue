@@ -160,7 +160,7 @@ function partialPolyOffset(ps::PolyShape, vec_partial_offset_id::Vector{Int}, ve
         # Encuentra el id del segmento de vec_ls_comp paralelo al segmento ls_base
         parallel_id = findall(x -> x == 1, [polyShape.isLineLineParallel(ls_base, vec_ls_comp[j]) for j in eachindex(vec_ls_comp)])
         if length(parallel_id) >= 2
-            dist_offset = abs.([polyShape.lineLineDist(ls_base, vec_ls_comp[j]) for j in eachindex(vec_ls_comp)][parallel_id])
+            dist_offset = abs.([polyShape.calculateDistance(ls_base, vec_ls_comp[j]) for j in eachindex(vec_ls_comp)][parallel_id])
             parallel_id = parallel_id[argmin(abs.(dist_offset .- abs(distance_side)))]
         elseif length(parallel_id) == 1
             parallel_id = parallel_id[1]
@@ -170,7 +170,7 @@ function partialPolyOffset(ps::PolyShape, vec_partial_offset_id::Vector{Int}, ve
 
     function polyShape2offsetPolyShape(ps, vec_partial_offset_id, vec_partial_offset_dist)
         # Genera vector de lineas offset en los lados vec_partial_offset_id y a la distancia vec_partial_offset_dist
-        vec_ps_lines, _ = polyShape.polyShape2lineVec(ps)
+        vec_ps_lines, _ = polyShape.shape2vector(ps)
         num_ps_lines = length(vec_ps_lines)
 
         # Initialize distance vector
@@ -183,7 +183,7 @@ function partialPolyOffset(ps::PolyShape, vec_partial_offset_id::Vector{Int}, ve
 
         vec_offsets_lines = []
         for i in eachindex(vec_ps_offsets)
-            vec_offsets_lines_i, _ = polyShape.polyShape2lineVec(vec_ps_offsets[i])
+            vec_offsets_lines_i, _ = polyShape.shape2vector(vec_ps_offsets[i])
             push!(vec_offsets_lines, vec_offsets_lines_i)
         end
     
@@ -224,16 +224,16 @@ function partialPolyOffset(ps::PolyShape, vec_partial_offset_id::Vector{Int}, ve
                                         nonIntersecting_offset_lines[next_side_index].Vertices[1][2,:]' == [0 0])
 
             if cond_current_side_presente && cond_prev_side_presente
-                lin1 = polyShape.extendLine(nonIntersecting_offset_lines[prev_side_index],100)
-                lin2 = polyShape.extendLine(nonIntersecting_offset_lines[current_side_index],100)
+                lin1 = polyShape.transformLine(nonIntersecting_offset_lines[prev_side_index], :extend, 100)
+                lin2 = polyShape.transformLine(nonIntersecting_offset_lines[current_side_index], :extend, 100)
                 intersection_point = polyShape.intersectLines(lin1, lin2)
             elseif cond_current_side_presente && cond_next_side_presente
-                lin1 = polyShape.extendLine(nonIntersecting_offset_lines[current_side_index],100)
-                lin2 = polyShape.extendLine(nonIntersecting_offset_lines[next_side_index],100)
+                lin1 = polyShape.transformLine(nonIntersecting_offset_lines[current_side_index], :extend, 100)
+                lin2 = polyShape.transformLine(nonIntersecting_offset_lines[next_side_index], :extend, 100)
                 intersection_point = polyShape.intersectLines(lin1, lin2)
             elseif cond_prev_side_presente && cond_next_side_presente
-                lin1 = polyShape.extendLine(nonIntersecting_offset_lines[prev_side_index],100)
-                lin2 = polyShape.extendLine(nonIntersecting_offset_lines[next_side_index],100)
+                lin1 = polyShape.transformLine(nonIntersecting_offset_lines[prev_side_index], :extend, 100)
+                lin2 = polyShape.transformLine(nonIntersecting_offset_lines[next_side_index], :extend, 100)
                 intersection_point = polyShape.intersectLines(lin1, lin2)
             end
             V_aux = [vcat(V_aux[1], intersection_point.Vertices[1, :]')]
@@ -248,7 +248,7 @@ function partialPolyOffset(ps::PolyShape, vec_partial_offset_id::Vector{Int}, ve
     ps_offset_max = polyClipper.polyOffset(ps, max_dist)
     num_regions_offset_max = ps_offset_max.NumRegions
     if num_regions_offset_max >= 2
-        vec_line_ps, _ = polyShape.polyShape2lineVec(ps)
+        vec_line_ps, _ = polyShape.shape2vector(ps)
         num_ps_lines = length(vec_line_ps)
         vec_todos_offset_dist = zeros(num_ps_lines)
         vec_todos_offset_dist[vec_partial_offset_id] .= copy(vec_partial_offset_dist)
@@ -259,7 +259,7 @@ function partialPolyOffset(ps::PolyShape, vec_partial_offset_id::Vector{Int}, ve
         output_ps = []
         for r = 1:ps_offset_min.NumRegions
             ps_offset_min_r = polyShape.subShape(ps_offset_min, r)
-            vec_line_offset_min_r, _ = polyShape.polyShape2lineVec(ps_offset_min_r)
+            vec_line_offset_min_r, _ = polyShape.shape2vector(ps_offset_min_r)
             num_offset_line_r = length(vec_line_offset_min_r)
             vec_id_offset_r = [i for i = 1:num_offset_line_r]
             vec_id_ps_r = [findParallelId(vec_line_offset_min_r[j], vec_line_ps, vec_partial_offset_dist[j]) for j = 1:num_offset_line_r]
@@ -732,25 +732,39 @@ function polyCopy(p::PointShape)::PointShape
 end
 
 
-function polyUnique(ps_::PolyShape)::PolyShape
+function cleanPolygon(ps_::PolyShape, method::Symbol)::PolyShape
     ps = polyCopy(ps_)
     numRegions = ps.NumRegions
     V = copy(ps.Vertices)
-    for i = 1:numRegions-1
-        ps_i = polyShape.subShape(ps, i)
-        area_i = polyShape.polyArea(ps_i)
-        for j = i+1:numRegions
-            ps_j = polyShape.subShape(ps, j)
-            area_j = polyShape.polyArea(ps_j)
-            if abs(area_i - area_j) < 1
-                ps_dif = polyShape.polyDifference(ps_i, ps_j)
-                area_dif = polyShape.polyArea(ps_dif)
-                if area_dif < 1
-                    V[i] = [0.0 0.0]
+    
+    if method == :duplicates
+        for i = 1:numRegions-1
+            ps_i = polyShape.subShape(ps, i)
+            area_i = polyShape.polyArea(ps_i)
+            for j = i+1:numRegions
+                ps_j = polyShape.subShape(ps, j)
+                area_j = polyShape.polyArea(ps_j)
+                if abs(area_i - area_j) < 1
+                    ps_dif = polyShape.polyDifference(ps_i, ps_j)
+                    area_dif = polyShape.polyArea(ps_dif)
+                    if area_dif < 1
+                        V[i] = [0.0 0.0]
+                    end
+                end
+            end
+        end
+    elseif method == :contained
+        for i in 1:numRegions
+            ps_i = polyShape.subShape(ps, i)
+            for j in setdiff(1:numRegions, i)
+                ps_j = polyShape.subShape(ps, j)
+                if polyGdal.shapeContains(ps_i, ps_j)
+                    V[j] = [0.0 0.0]
                 end
             end
         end
     end
+    
     V_out = []
     for i = 1:numRegions
         if size(V[i], 1) >= 2
@@ -761,33 +775,11 @@ function polyUnique(ps_::PolyShape)::PolyShape
     return ps_out
 end
 
-
-function polyEliminateWithin(ps_::PolyShape)::PolyShape
-    ps = polyShape.polyCopy(ps_)
-    numRegions = ps.NumRegions
-    V = copy(ps.Vertices)
-    for i in 1:numRegions
-        ps_i = polyShape.subShape(ps, i)
-        for j in setdiff(1:numRegions, i)
-            ps_j = polyShape.subShape(ps, j)
-            if polyGdal.shapeContains(ps_i, ps_j)
-                V[j] = [0.0 0.0]
-            end
-        end
-    end
-    V_out = []
-    for i = 1:numRegions
-        if size(V[i], 1) >= 2
-            V_out = push!(V_out, V[i])
-        end
-    end
-    ps_out = PolyShape(V_out, length(V_out))
-    return ps_out
-end
+polyUnique(ps_::PolyShape) = cleanPolygon(ps_, :duplicates)
+polyEliminateWithin(ps_::PolyShape) = cleanPolygon(ps_, :contained)
 
 
-function pointLineDist(l::LineShape, p::PointShape)::Float64
-    # Obtiene la distacia entre un punto a una línea
+function calculateDistance(l::LineShape, p::PointShape)::Float64
     V_line = l.Vertices[1]
     V_point = p.Vertices
     q, p1, p2 = V_point[:], V_line[1, :], V_line[2, :]
@@ -795,9 +787,49 @@ function pointLineDist(l::LineShape, p::PointShape)::Float64
     return dist
 end
 
+function calculateDistance(l1::LineShape, l2::LineShape)::Float64
+    V1 = l1.Vertices[1]
+    V2 = l2.Vertices[1]
+    
+    q = (V2[1, :] + V2[2, :]) / 2
+    p = PointShape([q[1] q[2]], 1)
+    
+    p1, p2 = V1[1, :], V1[2, :]
+    line_vec = p2 - p1
+    point_vec = q - p1
+    line_length_sq = sum(line_vec .^ 2)
+    
+    if line_length_sq < 1e-12
+        d = sqrt(sum((q - p1) .^ 2))
+    else
+        projection_scalar = sum(point_vec .* line_vec) / line_length_sq
+        projection = projection_scalar * line_vec
+        perpendicular = point_vec - projection
+        d = sqrt(sum(perpendicular .^ 2))
+    end
+    
+    s = polyShape.halfspaceSignOfPointToLine(l1, p)
+    return s * d
+end
+
+function calculateDistance(p1::PointShape, p2::PointShape)::Float64
+    V1 = p1.Vertices[1, :]
+    V2 = p2.Vertices[1, :]
+    dist = sqrt(sum((V1 - V2) .^ 2))
+    return dist
+end
+
+function calculateDistance(l1::LineShape, l2::LineShape, parallel_check::Bool)::Float64
+    if parallel_check && polyShape.isLineLineParallel(l1, l2)
+        p1 = polyShape.midPointSegment(l1)
+        dist = polyShape.calculateDistance(l2, p1)
+    else
+        dist = 10000
+    end
+    return dist
+end
 
 function halfspaceSignOfPointToLine(l::LineShape, p::PointShape)::Int64
-    # Obtiene el signo del subespacio donde se encuentra el punto respecto a la línea
     V = l.Vertices[1]
 
     x0 = V[1, 1]
@@ -824,76 +856,13 @@ function halfspaceSignOfPointToLine(l::LineShape, p::PointShape)::Int64
     return s
 end
 
-
-
-function lineLineDist(l1::LineShape, l2::LineShape)::Float64
-    # Distance of line l2 to line l1
-    V1 = l1.Vertices[1]
-    V2 = l2.Vertices[1]
-    
-    # Get midpoint of line l2
-    q = (V2[1, :] + V2[2, :]) / 2
-    p = PointShape([q[1] q[2]], 1)
-    
-    # Calculate point-to-line distance using vector math
-    # Line from p1 to p2, point q
-    p1, p2 = V1[1, :], V1[2, :]
-    
-    # Vector from p1 to p2 (line direction)
-    line_vec = p2 - p1
-    
-    # Vector from p1 to point q
-    point_vec = q - p1
-    
-    # Project point_vec onto line_vec
-    line_length_sq = sum(line_vec .^ 2)
-    
-    if line_length_sq < 1e-12
-        # Line has zero length, distance is just point-to-point
-        d = sqrt(sum((q - p1) .^ 2))
-    else
-        # Calculate perpendicular distance
-        projection_scalar = sum(point_vec .* line_vec) / line_length_sq
-        projection = projection_scalar * line_vec
-        perpendicular = point_vec - projection
-        d = sqrt(sum(perpendicular .^ 2))
-    end
-    
-    # Get sign from halfspace function
-    s = polyShape.halfspaceSignOfPointToLine(l1, p)
-    
-    return s * d
-end
+pointLineDist(l::LineShape, p::PointShape) = calculateDistance(l, p)
+lineLineDist(l1::LineShape, l2::LineShape) = calculateDistance(l1, l2)
+distanceBetweenPoints(p1::PointShape, p2::PointShape) = calculateDistance(p1, p2)
+distanceBetweenLines(l1::LineShape, l2::LineShape) = calculateDistance(l1, l2, true)
 
 
 
-function parallelLineAtDist(l::LineShape, d::Real)::LineShape
-    V = l.Vertices[1]
-    p1, p2 = V[1, :], V[2, :]
-    
-    # Calculate direction vector of the line
-    dir_vec = p2 - p1
-    
-    # Calculate perpendicular vector (rotate 90 degrees counterclockwise)
-    perp_vec = [-dir_vec[2], dir_vec[1]]
-    
-    # Normalize perpendicular vector
-    perp_length = sqrt(perp_vec[1]^2 + perp_vec[2]^2)
-    if perp_length > 0
-        perp_unit = perp_vec / perp_length
-    else
-        throw(ArgumentError("Line has zero length"))
-    end
-    
-    # Calculate offset points
-    offset = d * perp_unit
-    new_p1 = p1 + offset
-    new_p2 = p2 + offset
-    
-    l_out = LineShape([[new_p1[1] new_p1[2]; new_p2[1] new_p2[2]]], 1)
-    
-    return l_out
-end
 
 
 
@@ -970,35 +939,70 @@ function intersectLines(l1::LineShape, l2::LineShape)::PointShape
 end
 
 
-function extendLine(l::LineShape, d::Real)::LineShape
-    # Extiende ambas puntas del segmento l en una distancia d
-    V = l.Vertices[1]
-    V_ = copy(V)
-    x1 = V[1, 1]
-    y1 = V[1, 2]
-    x2 = V[2, 1]
-    y2 = V[2, 2]
+function transformLine(l::LineShape, operation::Symbol, params...)::LineShape
+    if operation == :extend
+        d = params[1]
+        V = l.Vertices[1]
+        V_ = copy(V)
+        x1 = V[1, 1]
+        y1 = V[1, 2]
+        x2 = V[2, 1]
+        y2 = V[2, 2]
 
-    if abs(x2 - x1) > 10^-12
-        if x2 < x1
-            d = -d
+        if abs(x2 - x1) > 10^-12
+            if x2 < x1
+                d = -d
+            end
+
+            m = (y2 - y1) / (x2 - x1)
+            x1_ = x1 - d / sqrt(m^2 + 1)
+            y1_ = y1 - m * (x1 - x1_)
+            x2_ = x2 + d / sqrt(m^2 + 1)
+            y2_ = y2 + m * (x2_ - x2)
+            V_ = [x1_ y1_; x2_ y2_]
+        else
+            V_ = [x1 y1-d; x2 y2+d]
         end
-
-        m = (y2 - y1) / (x2 - x1)
-        x1_ = x1 - d / sqrt(m^2 + 1)
-        y1_ = y1 - m * (x1 - x1_)
-        x2_ = x2 + d / sqrt(m^2 + 1)
-        y2_ = y2 + m * (x2_ - x2)
-        V_ = [x1_ y1_; x2_ y2_]
-
-    else
-        V_ = [x1 y1-d; x2 y2+d]
-
+        return LineShape([V_], 1)
+        
+    elseif operation == :parallel
+        d = params[1]
+        V = l.Vertices[1]
+        p1, p2 = V[1, :], V[2, :]
+        
+        dir_vec = p2 - p1
+        perp_vec = [-dir_vec[2], dir_vec[1]]
+        perp_length = sqrt(perp_vec[1]^2 + perp_vec[2]^2)
+        if perp_length > 0
+            perp_unit = perp_vec / perp_length
+        else
+            throw(ArgumentError("Line has zero length"))
+        end
+        
+        offset = d * perp_unit
+        new_p1 = p1 + offset
+        new_p2 = p2 + offset
+        
+        return LineShape([[new_p1[1] new_p1[2]; new_p2[1] new_p2[2]]], 1)
+        
+    elseif operation == :reverse
+        numLines = l.NumLines
+        V = l.Vertices
+        V_ = deepcopy(V)
+        for k = 1:numLines
+            V_k = V[k]
+            largo_k = size(V_k, 1)
+            for i = 1:largo_k
+                V_[k][i, :] = [V_k[end-(i-1), 1] V_k[end-(i-1), 2]]
+            end
+        end
+        return LineShape(V_, numLines)
     end
-    l_out = LineShape([V_], 1)
-    return l_out
-
 end
+
+extendLine(l::LineShape, d::Real) = transformLine(l, :extend, d)
+parallelLineAtDist(l::LineShape, d::Real) = transformLine(l, :parallel, d)
+reverseLine(l::LineShape) = transformLine(l, :reverse)
 
 
 function findPolyIntersection(ps1::PolyShape, ps2::PolyShape)
@@ -1336,9 +1340,9 @@ function extendRectToIntersection(pos_x, pos_y, anchoLado, angle, ps, rectType="
         end
         edges1, edges2, p_inter = polyShape.findPolyIntersection(box_ext, ps)
         point_1 = polyShape.subShape(p_inter, 1)
-        dist_1 = polyShape.pointLineDist(edge, point_1)
+        dist_1 = polyShape.calculateDistance(edge, point_1)
         point_2 = polyShape.subShape(p_inter, 2)
-        dist_2 = polyShape.pointLineDist(edge, point_2)
+        dist_2 = polyShape.calculateDistance(edge, point_2)
         buf = 1
         if dist_1 < dist_2
             dist = dist_1 + 1 - buf
@@ -1540,8 +1544,8 @@ function lineVec2polyShape(lineVec::Array{LineShape,1}, reg_vec=[])::PolyShape
             else
                 ix_2 = i + 1
             end
-            l_1 = polyShape.extendLine(lineVec_k[ix_1], 1.0)
-            l_2 = polyShape.extendLine(lineVec_k[ix_2], 1.0)
+            l_1 = polyShape.transformLine(lineVec_k[ix_1], :extend, 1.0)
+            l_2 = polyShape.transformLine(lineVec_k[ix_2], :extend, 1.0)
             point_x_12 = polyGdal.shapeIntersect(l_1, l_2)
             if size(point_x_12.Vertices[1], 1) >= 1
                 V_k[ix_2, :] = point_x_12.Vertices[1, :]'
@@ -1560,7 +1564,7 @@ function lineVec2polyShape(lineVec::Array{LineShape,1}, reg_vec=[])::PolyShape
 end
 
 
-function lineShape2lineVec(ls::LineShape)::Vector{LineShape}
+function shape2vector(ls::LineShape)::Vector{LineShape}
     num_lines = ls.NumLines
     vec_ls = Vector{LineShape}()
     for k = 1:num_lines
@@ -1574,9 +1578,7 @@ function lineShape2lineVec(ls::LineShape)::Vector{LineShape}
     return vec_ls
 end
 
-
-function polyShape2lineVec(ps::PolyShape)
-
+function shape2vector(ps::PolyShape)
     num_regions = ps.NumRegions
     line_vec = Array{LineShape,1}()
     reg_vec = Array{Int,1}()
@@ -1584,7 +1586,6 @@ function polyShape2lineVec(ps::PolyShape)
         V_k = copy(ps.Vertices[k])
         N_k = size(V_k, 1)
 
-        # Obtiene vector de bordes del polígono original
         for i in 1:N_k
             if i < N_k
                 l_i = LineShape([[V_k[i, :]'; V_k[i+1, :]']], 1)
@@ -1594,11 +1595,13 @@ function polyShape2lineVec(ps::PolyShape)
             line_vec = push!(line_vec, l_i)
             reg_vec = push!(reg_vec, k)
         end
-
     end
 
     return line_vec, reg_vec
 end
+
+lineShape2lineVec(ls::LineShape) = shape2vector(ls)
+polyShape2lineVec(ps::PolyShape) = shape2vector(ps)
 
 
 function convertWKTCoordinates(wkt_array::Vector{String}, epsg_source::Int64, epsg_target::Int64)
@@ -1652,20 +1655,6 @@ function transformPolyshapeEPSG(ps::PolyShape, dx::Real, dy::Real, EPSG_in::Int6
 end
 
 
-function reverseLine(ls::LineShape)::LineShape
-    numLines = ls.NumLines
-    V = ls.Vertices
-    V_ = deepcopy(V)
-    for k = 1:numLines
-        V_k = V[k]
-        largo_k = size(V_k, 1)
-        for i = 1:largo_k
-            V_[k][i, :] = [V_k[end-(i-1), 1] V_k[end-(i-1), 2]]
-        end
-    end
-    ls_out = LineShape(V_, numLines)
-    return ls_out
-end
 
 
 # Calculate the bisector direction for a vertex
@@ -1691,12 +1680,6 @@ function bisector_direction(edge1::LineShape, edge2::LineShape)::LineShape
 end
 
 
-function distanceBetweenPoints(p1::PointShape, p2::PointShape)::Float64
-    V1 = p1.Vertices[1, :]
-    V2 = p2.Vertices[1, :]
-    dist = sqrt(sum((V1 - V2) .^ 2))
-    return dist
-end
 
 # Calculate the angle between two edges 
 function angleBetweenLines(edge1, edge2)
@@ -1768,7 +1751,7 @@ function lineLength(l::LineShape)
     for i = 1:numLines
         p1_i = polyShape.shapeVertex(l, i, 1)
         p2_i = polyShape.shapeVertex(l, i, 2)
-        d_12_i = polyShape.distanceBetweenPoints(p1_i, p2_i)
+        d_12_i = polyShape.calculateDistance(p1_i, p2_i)
 
         if numLines > 1
             push!(len, d_12_i)
@@ -1815,15 +1798,6 @@ function isLineLineParallel(l1::LineShape, l2::LineShape)::Bool
 end
 
 
-function distanceBetweenLines(l1::LineShape, l2::LineShape)
-    if polyShape.isLineLineParallel(l1, l2)
-        p1 = polyShape.midPointSegment(l1)
-        dist = polyShape.pointLineDist(l2, p1)
-    else
-        dist = 10000
-    end
-    return dist
-end
 
 
 function projectBuildingShadow(ps, alt, orientacion)
@@ -1973,5 +1947,6 @@ export extraeInfoPoly, largoLadosPoly, isPolyConvex, isPolyInPoly,
     bisector_direction, angleBetweenLines, reverseLine, distanceBetweenPoints, midPointSegment,
     alphaPointSegment, points2Line, points2Poly, lineLength, isLineLineParallel, distanceBetweenLines,
     projectBuildingShadow, convertWKTCoordinates, lineShape2lineVec, partialPolyOffset, point2lineProjection, 
-    perpendicularLine, line2Box, polyshapeToUTM, poly2Constraints, constraints2poly, rotate_to_first_ccw
+    perpendicularLine, line2Box, polyshapeToUTM, poly2Constraints, constraints2poly, rotate_to_first_ccw,
+    calculateDistance, cleanPolygon, shape2vector, transformLine
 end

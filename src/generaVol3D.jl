@@ -2,11 +2,11 @@ function generaVol3D(vec_psVolteor, vec_altVolteor)
 
     # Genera matriz de lineas agrupadas por caras
     num_alturas = length(vec_altVolteor)
-    line_vec_1, reg_vec_1 = polyShape.polyShape2lineVec(vec_psVolteor[1])
+    line_vec_1, reg_vec_1 = polyShape.shape2vector(vec_psVolteor[1])
     mat_lines = fill(LineShape([],0), (num_alturas, length(line_vec_1))) #Array{LineShape,2}(LineShape([],1), num_alturas, length(line_vec_1))
     for i = 1:num_alturas
         vec_psVolteor_i = vec_psVolteor[i]
-        line_vec_i, reg_vec_i = polyShape.polyShape2lineVec(vec_psVolteor_i)
+        line_vec_i, reg_vec_i = polyShape.shape2vector(vec_psVolteor_i)
         num_lines_i = length(line_vec_i)
         if i == 1
             for j = 1:num_lines_i
@@ -23,7 +23,7 @@ function generaVol3D(vec_psVolteor, vec_altVolteor)
                     line = mat_lines[i-1,l]
                     mid_point = polyShape.midPointSegment(line)
                     if line.NumLines >= 1
-                        dist_ij = polyShape.distanceBetweenLines(line, line_ij)
+                        dist_ij = polyShape.calculateDistance(line, line_ij, true)
                         if dist_ij < min_dist && polyShape.isLineLineParallel(line, line_ij) && polyGdal.shapeDistance(mid_point, mid_point_ij) <= 5
                             min_dist = dist_ij
                             min_pos = l
@@ -56,8 +56,8 @@ function generaVol3D(vec_psVolteor, vec_altVolteor)
                 cambio_ant = abs(size_ij - size_ij_ant)
                 cambio_post = abs(size_ij_post - size_ij)
 
-                dist_ant = polyShape.distanceBetweenLines(line_ij_ant, line_ij)
-                dist_post = polyShape.distanceBetweenLines(line_ij, line_ij_post)
+                dist_ant = polyShape.calculateDistance(line_ij_ant, line_ij, true)
+                dist_post = polyShape.calculateDistance(line_ij, line_ij_post, true)
 
                 if abs(cambio_ant - cambio_post) > .1 || abs(dist_ant - dist_post) > .1
                     push!(mat_lineas_principales[j], line_ij)

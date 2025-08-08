@@ -90,7 +90,7 @@ function obtiene_geometrias_codigo_predial(codigo_predial, conn_neo4j)
     @time ps_calles, ps_publico, ps_bruto, vecAnchoCalle, vecSecConCalle = obtieneCalles(ps_predio, ps_buffer_predio, ps_predios_buffer, ps_manzanas_buffer)
 
 
-    vec_edges_predio, aux = polyShape.polyShape2lineVec(ps_predio)
+    vec_edges_predio, aux = polyShape.shape2vector(ps_predio)
     numLadosPredio = length(vec_edges_predio)
     vecSecTodos = collect(1:numLadosPredio)
     vecSecSinCalle = setdiff(vecSecTodos, vecSecConCalle)

@@ -8,7 +8,7 @@ function obtieneCalles(ps_predio::PolyShape, ps_buffer_predio::PolyShape, ps_pre
     # Obtiene vector de secciones del predio con calle 
     ps_buffer_local_predio = polyGdal.shapeBuffer(ps_predio, 30, 0)
     ps_calle_predio = polyShape.polyDifference(ps_buffer_local_predio, ps_predios_buffer_union)
-    vec_edges_predio, _ = polyShape.polyShape2lineVec(ps_predio)
+    vec_edges_predio, _ = polyShape.shape2vector(ps_predio)
 
     vec_predio_calle_intersect_ = [polyGdal.shapeIntersect(polyGdal.shapeBuffer(ps_calle_predio, .4, 0), vec_edges_predio[i]) for i in eachindex(vec_edges_predio)] 
     vec_predio_calle_intersect = Vector{LineShape}()

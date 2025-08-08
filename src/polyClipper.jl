@@ -143,8 +143,8 @@ function polyOffset(ps_::PolyShape, dist::Real)::PolyShape
     path_offset = clipper_offset(path, delta, Clipper.JoinTypeMiter)
     ps_offset = clipper2shape(path_offset, PolyShape)
 
-    vec_line_ps, _ = polyShape.polyShape2lineVec(ps)
-    vec_line_offset, reg_offset = polyShape.polyShape2lineVec(ps_offset)
+    vec_line_ps, _ = polyShape.shape2vector(ps)
+    vec_line_offset, reg_offset = polyShape.shape2vector(ps_offset)
 
     vec_line_offset_final = Vector{LineShape}()
     reg_offset_final = Vector{Int}()
