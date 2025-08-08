@@ -136,6 +136,10 @@ function convHull(V::Array{Float64,2})::Array{Float64,2}
 
     return V_out
 end
+function convHull(ps::PolyShape)::PolyShape
+    hull_vertices = convHull(ps.Vertices[1])
+    return PolyShape([hull_vertices], 1)
+end
 
 
 function line2Box(ls::LineShape, width::Real, rev::Bool=false)
@@ -1355,6 +1359,149 @@ function extendRectToIntersection(pos_x, pos_y, anchoLado, angle, ps, rectType="
 end
 
 
+function polyBoxFromEdge(ps::PolyShape, edge_id::Int, extension_length::Real)::PolyShape
+    V = ps.Vertices[1]
+    num_vertices = size(V, 1)
+    
+    # Get the selected edge vertices
+    p1 = V[edge_id, :]
+    p2_id = edge_id == num_vertices ? 1 : edge_id + 1
+    p2 = V[p2_id, :]
+    
+    # Calculate edge vector and length
+    edge_vector = p2 - p1
+    edge_length = sqrt(sum(edge_vector .^ 2))
+    
+    # Calculate edge angle
+    edge_angle = atan(edge_vector[2], edge_vector[1])
+    
+    # Calculate outward normal (perpendicular vector pointing outside the polygon)
+    perp_vector = [-edge_vector[2], edge_vector[1]]
+    
+    # Determine which direction is "outward" by checking polygon centroid
+    centroid = sum(V, dims=1) / num_vertices
+    edge_midpoint = (p1 + p2) / 2
+    to_centroid = centroid' - edge_midpoint
+    
+    # If perpendicular vector points toward centroid, flip it to point outward
+    if sum(perp_vector .* to_centroid) > 0
+        perp_vector = -perp_vector
+    end
+    
+    # Normalize the perpendicular vector and get outward direction
+    perp_unit = perp_vector / sqrt(sum(perp_vector .^ 2))
+    outward_offset = extension_length * perp_unit
+    
+    # Position the box so the selected edge aligns with one side
+    # Start from p1 and offset outward
+    box_origin = p1 + outward_offset
+    
+    # Use polyBox with the edge length as width, extension_length as height, and edge angle
+    box_out = polyBox(box_origin[1], box_origin[2], edge_length, extension_length, edge_angle)
+    
+    return box_out
+end
+
+
+function minBoundingBox(ps::PolyShape)::PolyShape
+    V = ps.Vertices[1]
+    num_vertices = size(V, 1)
+    
+    # Get convex hull first to reduce computation
+    hull_vertices = convHull(V)
+    hull_ps = PolyShape([hull_vertices], 1)
+    
+    min_area = Inf
+    best_box = PolyShape([], 0)
+    
+    # Test each edge of the convex hull as a potential orientation
+    hull_V = hull_vertices
+    num_hull_vertices = size(hull_V, 1)
+    
+    for i = 1:num_hull_vertices
+        # Get edge vector
+        p1 = hull_V[i, :]
+        p2_id = i == num_hull_vertices ? 1 : i + 1
+        p2 = hull_V[p2_id, :]
+        edge_vector = p2 - p1
+        
+        # Calculate rotation angle for this edge to be horizontal
+        edge_angle = atan(edge_vector[2], edge_vector[1])
+        
+        # Rotate the polygon so this edge becomes horizontal
+        centroid = sum(hull_V, dims=1) / num_hull_vertices
+        rotated_ps = polyRotate(hull_ps, -edge_angle, centroid[:])
+        
+        # Get axis-aligned bounding box of rotated polygon
+        rotated_V = rotated_ps.Vertices[1]
+        min_x = minimum(rotated_V[:, 1])
+        max_x = maximum(rotated_V[:, 1])
+        min_y = minimum(rotated_V[:, 2])
+        max_y = maximum(rotated_V[:, 2])
+        
+        # Calculate dimensions
+        width = max_x - min_x
+        height = max_y - min_y
+        area = width * height
+        
+        # Check if this is the minimum area so far
+        if area < min_area
+            min_area = area
+            
+            # Create the bounding box in the rotated space
+            box_rotated = polyBox(min_x, min_y, width, height)
+            
+            # Rotate the box back to original orientation
+            best_box = polyRotate(box_rotated, edge_angle, centroid[:])
+        end
+    end
+    
+    return best_box
+end
+
+function polyshape2wkt(ps::PolyShape)::String
+    if ps.NumRegions == 0
+        return "POLYGON EMPTY"
+    elseif ps.NumRegions == 1
+        vertices = ps.Vertices[1]
+        if size(vertices, 1) < 3
+            return "POLYGON EMPTY"
+        end
+        
+        wkt_coords = join([string(vertices[i, 1]) * " " * string(vertices[i, 2]) for i in axes(vertices, 1)], ", ")
+        
+        if vertices[1, :] != vertices[end, :]
+            wkt_coords *= ", " * string(vertices[1, 1]) * " " * string(vertices[1, 2])
+        end
+        
+        return "POLYGON((" * wkt_coords * "))"
+    else
+        polygon_parts = String[]
+        
+        for i in eachindex(ps.Vertices)
+            vertices = ps.Vertices[i]
+            if size(vertices, 1) >= 3
+                wkt_coords = join([string(vertices[j, 1]) * " " * string(vertices[j, 2]) for j in axes(vertices, 1)], ", ")
+                
+                if vertices[1, :] != vertices[end, :]
+                    wkt_coords *= ", " * string(vertices[1, 1]) * " " * string(vertices[1, 2])
+                end
+                
+                push!(polygon_parts, "(" * wkt_coords * ")")
+            end
+        end
+        
+        if isempty(polygon_parts)
+            return "MULTIPOLYGON EMPTY"
+        elseif length(polygon_parts) == 1
+            return "POLYGON(" * polygon_parts[1] * ")"
+        else
+            return "MULTIPOLYGON(" * join(["(" * part * ")" for part in polygon_parts], ", ") * ")"
+        end
+    end
+end
+
+
 function replaceShapeVertex(pt::PointShape, id::Int, shape::PosDimGeom)::PosDimGeom
     V = copy(shape.Vertices[1])
     v_pt = copy(pt.Vertices[1, :])
@@ -1454,7 +1601,7 @@ function polyShape2lineVec(ps::PolyShape)
 end
 
 
-function wkt_reproject(wkt_array::Vector{String}, epsg_source::Int64, epsg_target::Int64)
+function convertWKTCoordinates(wkt_array::Vector{String}, epsg_source::Int64, epsg_target::Int64)
     source = ArchGDAL.importEPSG(epsg_source; order=:trad)
     target = ArchGDAL.importEPSG(epsg_target; order=:trad)
     transformed_wkts = String[]
@@ -1468,16 +1615,16 @@ function wkt_reproject(wkt_array::Vector{String}, epsg_source::Int64, epsg_targe
     end
     return transformed_wkts
 end
-function wkt_reproject(df::DataFrame, geom_col_name::String, epsg_source::Int64, epsg_target::Int64)
+function convertWKTCoordinates(df::DataFrame, geom_col_name::String, epsg_source::Int64, epsg_target::Int64)
     wkt_array = convert.(String, df[:, geom_col_name])
-    transformed_wkts = polyShape.wkt_reproject(wkt_array, epsg_source, epsg_target)
+    transformed_wkts = polyShape.convertWKTCoordinates(wkt_array, epsg_source, epsg_target)
     result_df = deepcopy(df)
     result_df[:, geom_col_name] = transformed_wkts
     return result_df
 end
 
 
-function polyReproject(ps::PolyShape, dx::Real, dy::Real, EPSG_in::Int64, EPSG_out::Int64)
+function transformPolyshapeEPSG(ps::PolyShape, dx::Real, dy::Real, EPSG_in::Int64, EPSG_out::Int64)
     # transforma un PolyShape de un sistema de proyección a otro
 
     ps_ = polyShape.polyCopy(ps)
@@ -1679,7 +1826,7 @@ function distanceBetweenLines(l1::LineShape, l2::LineShape)
 end
 
 
-function polyProyeccion(ps, alt, orientacion)
+function projectBuildingShadow(ps, alt, orientacion)
     num_regions = ps.NumRegions
     V = []
     for k = 1:num_regions
@@ -1700,7 +1847,7 @@ function polyProyeccion(ps, alt, orientacion)
 end
 
 
-function reproject_polyshape(ps::PolyShape, EPSG_in = 4326, utm_out = "+proj=utm +zone=19 +south +datum=WGS84")::PolyShape
+function polyshapeToUTM(ps::PolyShape, EPSG_in = 4326, utm_out = "+proj=utm +zone=19 +south +datum=WGS84")::PolyShape
     trans = Proj.Transformation("EPSG:$(EPSG_in)", utm_out)
     transformed_vertices = [
         hcat([collect(trans(lat, lon)) for (lon, lat) in eachrow(polygon)]...)'
@@ -1821,8 +1968,10 @@ export extraeInfoPoly, largoLadosPoly, isPolyConvex, isPolyInPoly,
     polyCopy, polyUnique, polyEliminateWithin, pointLineDist, intersectLines, findPolyIntersection, 
     pointDistanceMat, lineLineDist, parallelLineAtDist, lineAngle, halfspaceSignOfPointToLine, extendLine,
     polyObtieneCruces, replaceShapeVertex, lineVec2polyShape, polyShape2lineVec, polyShrink,
-    ajustaCoordenadas, angleMaxDistRect, extendRectToIntersection, createLine, polyReproject, bisector_direction, angleBetweenLines,
-    reverseLine, distanceBetweenPoints, midPointSegment, alphaPointSegment, points2Line, points2Poly, lineLength, isLineLineParallel, distanceBetweenLines,
-    polyProyeccion, wkt_reproject, lineShape2lineVec, partialPolyOffset, point2lineProjection, perpendicularLine, line2Box, 
-    reproject_polyshape, poly2Constraints, constraints2poly, rotate_to_first_ccw, convHull
+    ajustaCoordenadas, angleMaxDistRect, extendRectToIntersection, polyBoxFromEdge, minBoundingBox, polyshape2wkt,
+    createLine, transformPolyshapeEPSG, convHull,
+    bisector_direction, angleBetweenLines, reverseLine, distanceBetweenPoints, midPointSegment,
+    alphaPointSegment, points2Line, points2Poly, lineLength, isLineLineParallel, distanceBetweenLines,
+    projectBuildingShadow, convertWKTCoordinates, lineShape2lineVec, partialPolyOffset, point2lineProjection, 
+    perpendicularLine, line2Box, polyshapeToUTM, poly2Constraints, constraints2poly, rotate_to_first_ccw
 end

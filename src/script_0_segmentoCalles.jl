@@ -36,6 +36,9 @@ n.nombre_calle AS nombre_calle,
 n.tipo_calle AS tipo_calle
 """
 df_semento_calle = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
+ps_segmentos = polyGdal.astext2polyshape(df_semento_calle[:, "geom_wkt"])
+ps_segmentos = polyShape.setPolyOrientation(ps_segmentos, 1)
+ps_segmentos = polyShape.polyshapeToUTM(ps_segmentos)
 
 
 query = """
@@ -49,51 +52,55 @@ df_predios = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 # Create results array to store intersections
 intersections = []
 
-# Convert street segments to polyshapes once
-println("Converting street segments to polyshapes...")
-ps_segmentos = polyGdal.astext2polyshape(df_semento_calle[:, "geom_wkt"])
-ps_segmentos = polyShape.setPolyOrientation(ps_segmentos, 1)
-ps_segmentos = polyShape.reproject_polyshape(ps_segmentos)
-
 # Loop over all predios
+dist_buffer = 30.0  # Buffer distance in meters
+
 # i=1; row = eachrow(df_predios)[i]
 for (i, row) in enumerate(eachrow(df_predios))
     println("Processing predio $(i)/$(nrow(df_predios)): $(row.codigo_predial)")
     
     predio_wkt = row.geom_wkt
-    codigo_predial = row.codigo_predial
-    
+    codigo_predial = row.codigo_predial    
     try
         # Convert predio to polyshape
-        ps_predio = polyGdal.astext2polyshape([predio_wkt])
-        ps_predio = polyShape.setPolyOrientation(ps_predio, 1)
-        ps_predio = polyShape.reproject_polyshape(ps_predio)
-        
-        # Create 30-meter buffer around predio
-        ps_buffer = polyGdal.shapeBuffer(ps_predio, 30.0, 30)
-        
-        # Check intersection with each street segment
-        # j=1; seg_row = eachrow(df_semento_calle)[j]
-        for (j, seg_row) in enumerate(eachrow(df_semento_calle))
-            seg_id = seg_row.id_segmento_calle
-            
-            try
-                # Check if buffer intersects with street segment
-                intersection = polyShape.polyIntersect(ps_buffer, polyShape.subShape(ps_segmentos, j))
+        ps_predio_i = polyGdal.astext2polyshape([predio_wkt])
+        ps_predio_i = polyShape.setPolyOrientation(ps_predio_i, 1)
+        ps_predio_i = polyShape.polyshapeToUTM(ps_predio_i)
+
+        ps_predio_i = polyShape.setPolyOrientation(ps_predio_i, 1)
+        ps_predio_i, dx, dy = polyShape.ajustaCoordenadas(ps_predio_i)
+
+        ps_hull_i = polyShape.setPolyOrientation(polyShape.convHull(ps_predio_i), 1)
+        side_hull_i = size(ps_hull_i.Vertices[1], 1)
+
+        for edge = 1:side_hull_i
+            ps_i_edge = polyShape.polyBoxFromEdge(ps_hull_i, edge, 30)
+
+             # Check intersection with each street segment
+            # j=1; seg_row = eachrow(df_semento_calle)[j]
+            for (j, seg_row) in enumerate(eachrow(df_semento_calle))
+                seg_id = seg_row.id_segmento_calle
                 
-                # If intersection exists and has vertices
-                if !isempty(intersection.Vertices) && length(intersection.Vertices[1]) > 0
-                    push!(intersections, (
-                        codigo_predial = codigo_predial,
-                        id_segmento_calle = seg_id,
-                        codigo_calle = seg_row.codigo_calle,
-                        nombre_calle = seg_row.nombre_calle,
-                        tipo_calle = seg_row.tipo_calle
-                    ))
+                try
+                    # Check if buffer intersects with street segment
+                    intersection = polyShape.polyIntersect(ps_i_edge, polyShape.subShape(ps_segmentos, j))
+                    
+                    # If intersection exists and has vertices
+                    if !isempty(intersection.Vertices) && length(intersection.Vertices[1]) > 0
+                        push!(intersections, (
+                            codigo_predial = codigo_predial,
+                            id_segmento_calle = seg_id,
+                            codigo_calle = seg_row.codigo_calle,
+                            nombre_calle = seg_row.nombre_calle,
+                            tipo_calle = seg_row.tipo_calle,
+                            geom_wkt = polyshape2wkt(ps_i_edge)
+                        ))
+                    end
+                catch e
+                    println("Error processing intersection for predio $(codigo_predial) and segment $(seg_id): $(e)")
                 end
-            catch e
-                println("Error processing intersection for predio $(codigo_predial) and segment $(seg_id): $(e)")
             end
+
         end
     catch e
         println("Error processing predio $(codigo_predial): $(e)")
@@ -102,11 +109,4 @@ end
 
 # Convert results to DataFrame
 df_intersections = DataFrame(intersections)
-
-println("Found $(nrow(df_intersections)) intersections between predios and street segments")
-println("Sample results:")
-if nrow(df_intersections) > 0
-    println(first(df_intersections, min(5, nrow(df_intersections))))
-else
-    println("No intersections found")
-end
+CSV.write("calles_por_predio.csv", df_intersections)

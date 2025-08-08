@@ -9,9 +9,9 @@ function generaSombraTeor(vec_psVolteor, vec_altVolteor, ps_publico, ps_calles)
 
         ps_Volteor_k = vec_psVolteor[k]
 
-        ps_sombra_p_k = polyShape.polyProyeccion(ps_Volteor_k, vec_altVolteor[k], "p")
-        ps_sombra_o_k = polyShape.polyProyeccion(ps_Volteor_k, vec_altVolteor[k], "o")
-        ps_sombra_s_k = polyShape.polyProyeccion(ps_Volteor_k, vec_altVolteor[k], "s")
+        ps_sombra_p_k = polyShape.projectBuildingShadow(ps_Volteor_k, vec_altVolteor[k], "p")
+        ps_sombra_o_k = polyShape.projectBuildingShadow(ps_Volteor_k, vec_altVolteor[k], "o")
+        ps_sombra_s_k = polyShape.projectBuildingShadow(ps_Volteor_k, vec_altVolteor[k], "s")
 
         if k == 1
             ps_sombraVolTeorico_p = deepcopy(ps_sombra_p_k)

@@ -14,7 +14,7 @@ function create_edificio_geojson(xopt, ps_predio, ps_base, ps_base_primerPiso, p
 
     str_capa = ""
 
-    poly_predio = polyShape.polyReproject(ps_predio_, dx, dy, EPSG_in, EPSG_out)
+    poly_predio = polyShape.transformPolyshapeEPSG(ps_predio_, dx, dy, EPSG_in, EPSG_out)
     str_geom_predio = ArchGDAL.toJSON(poly_predio)
     level_str = 0
     name_str = "\"Predio\""
@@ -37,7 +37,7 @@ function create_edificio_geojson(xopt, ps_predio, ps_base, ps_base_primerPiso, p
     str_capa = str_capa * str_predio
 
 
-    poly_areaEdif = polyShape.polyReproject(ps_areaEdif_, dx, dy, EPSG_in, EPSG_out)
+    poly_areaEdif = polyShape.transformPolyshapeEPSG(ps_areaEdif_, dx, dy, EPSG_in, EPSG_out)
     str_geom_areaEdif = ArchGDAL.toJSON(poly_areaEdif)
     level_str = 0
     name_str = "\"Area Edificación\""
@@ -60,9 +60,9 @@ function create_edificio_geojson(xopt, ps_predio, ps_base, ps_base_primerPiso, p
     str_capa = str_capa * str_areaEdif
 
 
-    poly_base = polyShape.polyReproject(ps_base_, dx, dy, EPSG_in, EPSG_out)
+    poly_base = polyShape.transformPolyshapeEPSG(ps_base_, dx, dy, EPSG_in, EPSG_out)
     str_geom_base = ArchGDAL.toJSON(poly_base)
-    poly_base_primerPiso = polyShape.polyReproject(ps_base_primerPiso_, dx, dy, EPSG_in, EPSG_out)
+    poly_base_primerPiso = polyShape.transformPolyshapeEPSG(ps_base_primerPiso_, dx, dy, EPSG_in, EPSG_out)
     str_geom_base_primerPiso = ArchGDAL.toJSON(poly_base_primerPiso)
 
     for i = 1:numPisos
