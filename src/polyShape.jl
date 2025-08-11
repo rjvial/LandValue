@@ -1733,7 +1733,9 @@ function ajustaCoordenadasInversa(ps::PolyShape, dx::Real, dy::Real)::PolyShape
 end
 
 
-function reprojectPolyshapeEPSG(ps::PolyShape, EPSG_in::Int64, EPSG_out::Int64)::PolyShape
+function polyshape_32719to4326(ps::PolyShape)::PolyShape
+    EPSG_in = 32719
+    EPSG_out = 4326
     ps_ = polyShape.polyCopy(ps)
     source = ArchGDAL.importEPSG(EPSG_in)
     if EPSG_out == 4326
@@ -1759,8 +1761,10 @@ function reprojectPolyshapeEPSG(ps::PolyShape, EPSG_in::Int64, EPSG_out::Int64):
 end
 
 
-function polyshapeToUTM(ps::PolyShape, EPSG_in = 4326, utm_out = "+proj=utm +zone=19 +south +datum=WGS84")::PolyShape
-    trans = Proj.Transformation("EPSG:$(EPSG_in)", utm_out)
+function polyshape_4326to32719(ps::PolyShape)::PolyShape
+    EPSG_in = 4326
+    EPSG_out = 32719
+    trans = Proj.Transformation("EPSG:$(EPSG_in)", "EPSG:$(EPSG_out)")
     transformed_vertices = [
         hcat([collect(trans(lat, lon)) for (lon, lat) in eachrow(polygon)]...)'
         for polygon in ps.Vertices
@@ -1825,5 +1829,5 @@ export isPolyConvex, isPolyInPoly,
     projectBuildingShadow, partialPolyOffset, point2lineProjection, 
     perpendicularLine, line2Box, poly2Constraints, constraints2poly, rotate_to_first_ccw,
     calculateDistance, cleanPolygon, shape2vector, transformLine, polySimplify,
-    ajusteCoordenadasInversa, reprojectPolyshapeEPSG, polyshapeToUTM, polyshape2wkt
+    ajusteCoordenadasInversa, polyshape_32719to4326, polyshape_4326to32719, polyshape2wkt
 end

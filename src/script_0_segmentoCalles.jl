@@ -38,7 +38,7 @@ n.tipo_calle AS tipo_calle
 df_semento_calle = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 ps_segmentos = polyGdal.astext2polyshape(df_semento_calle[:, "geom_wkt"])
 ps_segmentos = polyShape.setPolyOrientation(ps_segmentos, 1)
-ps_segmentos = polyShape.reprojectPolyshapeEPSG(ps_segmentos, 4326, 32719)
+ps_segmentos = polyShape.polyshape_4326to32719(ps_segmentos)
 ps_segmentos, dx, dy = polyShape.ajustaCoordenadas(ps_segmentos)
 
 query = """
@@ -62,7 +62,7 @@ for (i, row) in enumerate(eachrow(df_predios))
     # Convert predio to polyshape
     ps_predio_i = polyGdal.astext2polyshape([predio_wkt])
     ps_predio_i = polyShape.setPolyOrientation(ps_predio_i, 1)
-    ps_predio_i = polyShape.reprojectPolyshapeEPSG(ps_predio_i, 4326, 32719)
+    ps_predio_i = polyShape.polyshape_4326to32719(ps_predio_i)
 
     ps_predio_i = polyShape.setPolyOrientation(ps_predio_i, 1)
     ps_predio_i = polyShape.ajustaCoordenadas(ps_predio_i, dx, dy)
@@ -84,7 +84,7 @@ for (i, row) in enumerate(eachrow(df_predios))
             # If intersection exists and has vertices
             if !isempty(intersection.Vertices) && length(intersection.Vertices[1]) > 0
                 ps_i_edge = polyShape.ajustaCoordenadasInversa(ps_i_edge, dx, dy)
-                ps_i_edge = polyShape.reprojectPolyshapeEPSG(ps_i_edge, 32719, 4326)
+                ps_i_edge = polyShape.polyshape_32719to4326(ps_i_edge)
 
                 push!(intersections, (
                     codigo_predial = codigo_predial,
