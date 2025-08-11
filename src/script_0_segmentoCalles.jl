@@ -89,7 +89,7 @@ for (i, row) in enumerate(eachrow(df_predios))
                     codigo_calle = seg_row.codigo_calle,
                     nombre_calle = seg_row.nombre_calle,
                     tipo_calle = seg_row.tipo_calle,
-                    geom_wkt = polyShape.polyshape2wkt(ps_i_edge)
+                    geom_wkt = polyShape.ArchGDAL.toWKT(polyShape.transformPolyshapeEPSG(ps_i_edge, dx, dy, 32719, 4326))
                 ))
             end
         end

@@ -1470,15 +1470,24 @@ function transformPolyshapeEPSG(ps::PolyShape, dx::Real, dy::Real, EPSG_in::Int6
         x = ps_.Vertices[i][:, 1] .+ dx
         y = ps_.Vertices[i][:, 2] .+ dy
         points = ArchGDAL.createpoint.(x, y)
-        points_ = ArchGDAL.createcoordtrans(source, target) do transform
+        ArchGDAL.createcoordtrans(source, target) do transform
             ArchGDAL.transform!.(points, Ref(transform))
         end
-        for j = 1:length(points_)
-            point_j = polyGdal.geom2shape(points[j])
-            ps_.Vertices[i][j, :] = point_j.Vertices[1, :]
+        for j in eachindex(points)
+            transformed_x = ArchGDAL.getx(points[j], 0)
+            transformed_y = ArchGDAL.gety(points[j], 0)
+            ps_.Vertices[i][j, :] = [transformed_x, transformed_y]
         end
     end
-    poly = polyGdal.shape2geom(ps_)
+    if ps_.NumRegions == 1
+        V_k = ps_.Vertices[1]
+        largo_k = size(V_k, 1)
+        line_k = [(Float64(V_k[i, 1]), Float64(V_k[i, 2])) for i = 1:largo_k]
+        push!(line_k, (Float64(V_k[1, 1]), Float64(V_k[1, 2])))
+        poly = ArchGDAL.createpolygon(line_k)
+    else
+        poly = polyGdal.shape2geom(ps_)
+    end
     return poly
 end
 
