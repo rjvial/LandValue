@@ -1722,9 +1722,7 @@ end
 ########################################################################
 ########################################################################
 
-function transformPolyshapeEPSG(ps::PolyShape, dx::Real, dy::Real, EPSG_in::Int64, EPSG_out::Int64)
-    # transforma un PolyShape de un sistema de proyección a otro
-
+function transformPolyshapeEPSG(ps::PolyShape, dx::Real, dy::Real, EPSG_in::Int64, EPSG_out::Int64)::PolyShape
     ps_ = polyShape.polyCopy(ps)
     source = ArchGDAL.importEPSG(EPSG_in)
     if EPSG_out == 4326
@@ -1746,16 +1744,7 @@ function transformPolyshapeEPSG(ps::PolyShape, dx::Real, dy::Real, EPSG_in::Int6
             ps_.Vertices[i][j, :] = [transformed_x, transformed_y]
         end
     end
-    if ps_.NumRegions == 1
-        V_k = ps_.Vertices[1]
-        largo_k = size(V_k, 1)
-        line_k = [(Float64(V_k[i, 1]), Float64(V_k[i, 2])) for i = 1:largo_k]
-        push!(line_k, (Float64(V_k[1, 1]), Float64(V_k[1, 2])))
-        poly = ArchGDAL.createpolygon(line_k)
-    else
-        poly = polyGdal.shape2geom(ps_)
-    end
-    return poly
+    return ps_
 end
 
 
