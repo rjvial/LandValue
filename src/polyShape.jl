@@ -1289,49 +1289,6 @@ function minBoundingBox(ps::PolyShape)::PolyShape
 end
 
 
-function polyshape2wkt(ps::PolyShape)::String
-    if ps.NumRegions == 0
-        return "POLYGON EMPTY"
-    elseif ps.NumRegions == 1
-        vertices = ps.Vertices[1]
-        if size(vertices, 1) < 3
-            return "POLYGON EMPTY"
-        end
-        
-        wkt_coords = join([string(vertices[i, 1]) * " " * string(vertices[i, 2]) for i in axes(vertices, 1)], ", ")
-        
-        if vertices[1, :] != vertices[end, :]
-            wkt_coords *= ", " * string(vertices[1, 1]) * " " * string(vertices[1, 2])
-        end
-        
-        return "POLYGON((" * wkt_coords * "))"
-    else
-        polygon_parts = String[]
-        
-        for i in eachindex(ps.Vertices)
-            vertices = ps.Vertices[i]
-            if size(vertices, 1) >= 3
-                wkt_coords = join([string(vertices[j, 1]) * " " * string(vertices[j, 2]) for j in axes(vertices, 1)], ", ")
-                
-                if vertices[1, :] != vertices[end, :]
-                    wkt_coords *= ", " * string(vertices[1, 1]) * " " * string(vertices[1, 2])
-                end
-                
-                push!(polygon_parts, "(" * wkt_coords * ")")
-            end
-        end
-        
-        if isempty(polygon_parts)
-            return "MULTIPOLYGON EMPTY"
-        elseif length(polygon_parts) == 1
-            return "POLYGON(" * polygon_parts[1] * ")"
-        else
-            return "MULTIPOLYGON(" * join(["(" * part * ")" for part in polygon_parts], ", ") * ")"
-        end
-    end
-end
-
-
 function replaceShapeVertex(pt::PointShape, id::Int, shape::PosDimGeom)::PosDimGeom
     V = copy(shape.Vertices[1])
     v_pt = copy(pt.Vertices[1, :])
@@ -1423,66 +1380,6 @@ function shape2vector(ps::PolyShape)
     end
 
     return line_vec, reg_vec
-end
-
-
-function convertWKTCoordinates(wkt_array::Vector{String}, epsg_source::Int64, epsg_target::Int64)
-    source = ArchGDAL.importEPSG(epsg_source; order=:trad)
-    target = ArchGDAL.importEPSG(epsg_target; order=:trad)
-    transformed_wkts = String[]
-    for i = 1:length(wkt_array)
-        wkt = wkt_array[i]
-        ArchGDAL.createcoordtrans(source, target) do transform
-            point = ArchGDAL.fromWKT(wkt)
-            ArchGDAL.transform!(point, transform)
-            append!(transformed_wkts, [ArchGDAL.toWKT(point)])
-        end
-    end
-    return transformed_wkts
-end
-function convertWKTCoordinates(df::DataFrame, geom_col_name::String, epsg_source::Int64, epsg_target::Int64)
-    wkt_array = convert.(String, df[:, geom_col_name])
-    transformed_wkts = polyShape.convertWKTCoordinates(wkt_array, epsg_source, epsg_target)
-    result_df = deepcopy(df)
-    result_df[:, geom_col_name] = transformed_wkts
-    return result_df
-end
-
-
-function transformPolyshapeEPSG(ps::PolyShape, dx::Real, dy::Real, EPSG_in::Int64, EPSG_out::Int64)
-    # transforma un PolyShape de un sistema de proyección a otro
-
-    ps_ = polyShape.polyCopy(ps)
-    source = ArchGDAL.importEPSG(EPSG_in)
-    if EPSG_out == 4326
-        target = ArchGDAL.importEPSG(EPSG_out; order=:trad)
-    else
-        target = ArchGDAL.importEPSG(EPSG_out)
-    end
-
-    for i = 1:ps_.NumRegions
-        x = ps_.Vertices[i][:, 1] .+ dx
-        y = ps_.Vertices[i][:, 2] .+ dy
-        points = ArchGDAL.createpoint.(x, y)
-        ArchGDAL.createcoordtrans(source, target) do transform
-            ArchGDAL.transform!.(points, Ref(transform))
-        end
-        for j in eachindex(points)
-            transformed_x = ArchGDAL.getx(points[j], 0)
-            transformed_y = ArchGDAL.gety(points[j], 0)
-            ps_.Vertices[i][j, :] = [transformed_x, transformed_y]
-        end
-    end
-    if ps_.NumRegions == 1
-        V_k = ps_.Vertices[1]
-        largo_k = size(V_k, 1)
-        line_k = [(Float64(V_k[i, 1]), Float64(V_k[i, 2])) for i = 1:largo_k]
-        push!(line_k, (Float64(V_k[1, 1]), Float64(V_k[1, 2])))
-        poly = ArchGDAL.createpolygon(line_k)
-    else
-        poly = polyGdal.shape2geom(ps_)
-    end
-    return poly
 end
 
 
@@ -1645,16 +1542,6 @@ function projectBuildingShadow(ps, alt, orientacion)
 
     return PolyShape(V, length(V))
 
-end
-
-
-function polyshapeToUTM(ps::PolyShape, EPSG_in = 4326, utm_out = "+proj=utm +zone=19 +south +datum=WGS84")::PolyShape
-    trans = Proj.Transformation("EPSG:$(EPSG_in)", utm_out)
-    transformed_vertices = [
-        hcat([collect(trans(lat, lon)) for (lon, lat) in eachrow(polygon)]...)'
-        for polygon in ps.Vertices
-    ]
-    return PolyShape(transformed_vertices, ps.NumRegions)
 end
 
 
@@ -1835,6 +1722,94 @@ end
 ########################################################################
 ########################################################################
 
+function transformPolyshapeEPSG(ps::PolyShape, dx::Real, dy::Real, EPSG_in::Int64, EPSG_out::Int64)
+    # transforma un PolyShape de un sistema de proyección a otro
+
+    ps_ = polyShape.polyCopy(ps)
+    source = ArchGDAL.importEPSG(EPSG_in)
+    if EPSG_out == 4326
+        target = ArchGDAL.importEPSG(EPSG_out; order=:trad)
+    else
+        target = ArchGDAL.importEPSG(EPSG_out)
+    end
+
+    for i = 1:ps_.NumRegions
+        x = ps_.Vertices[i][:, 1] .+ dx
+        y = ps_.Vertices[i][:, 2] .+ dy
+        points = ArchGDAL.createpoint.(x, y)
+        ArchGDAL.createcoordtrans(source, target) do transform
+            ArchGDAL.transform!.(points, Ref(transform))
+        end
+        for j in eachindex(points)
+            transformed_x = ArchGDAL.getx(points[j], 0)
+            transformed_y = ArchGDAL.gety(points[j], 0)
+            ps_.Vertices[i][j, :] = [transformed_x, transformed_y]
+        end
+    end
+    if ps_.NumRegions == 1
+        V_k = ps_.Vertices[1]
+        largo_k = size(V_k, 1)
+        line_k = [(Float64(V_k[i, 1]), Float64(V_k[i, 2])) for i = 1:largo_k]
+        push!(line_k, (Float64(V_k[1, 1]), Float64(V_k[1, 2])))
+        poly = ArchGDAL.createpolygon(line_k)
+    else
+        poly = polyGdal.shape2geom(ps_)
+    end
+    return poly
+end
+
+
+function polyshapeToUTM(ps::PolyShape, EPSG_in = 4326, utm_out = "+proj=utm +zone=19 +south +datum=WGS84")::PolyShape
+    trans = Proj.Transformation("EPSG:$(EPSG_in)", utm_out)
+    transformed_vertices = [
+        hcat([collect(trans(lat, lon)) for (lon, lat) in eachrow(polygon)]...)'
+        for polygon in ps.Vertices
+    ]
+    return PolyShape(transformed_vertices, ps.NumRegions)
+end
+
+
+function polyshape2wkt(ps::PolyShape)::String
+    if ps.NumRegions == 0
+        return "POLYGON EMPTY"
+    elseif ps.NumRegions == 1
+        vertices = ps.Vertices[1]
+        if size(vertices, 1) < 3
+            return "POLYGON EMPTY"
+        end
+        
+        wkt_coords = join([string(vertices[i, 1]) * " " * string(vertices[i, 2]) for i in axes(vertices, 1)], ", ")
+        
+        if vertices[1, :] != vertices[end, :]
+            wkt_coords *= ", " * string(vertices[1, 1]) * " " * string(vertices[1, 2])
+        end
+        
+        return "POLYGON((" * wkt_coords * "))"
+    else
+        polygon_parts = String[]
+        
+        for i in eachindex(ps.Vertices)
+            vertices = ps.Vertices[i]
+            if size(vertices, 1) >= 3
+                wkt_coords = join([string(vertices[j, 1]) * " " * string(vertices[j, 2]) for j in axes(vertices, 1)], ", ")
+                
+                if vertices[1, :] != vertices[end, :]
+                    wkt_coords *= ", " * string(vertices[1, 1]) * " " * string(vertices[1, 2])
+                end
+                
+                push!(polygon_parts, "(" * wkt_coords * ")")
+            end
+        end
+        
+        if isempty(polygon_parts)
+            return "MULTIPOLYGON EMPTY"
+        elseif length(polygon_parts) == 1
+            return "POLYGON(" * polygon_parts[1] * ")"
+        else
+            return "MULTIPOLYGON(" * join(["(" * part * ")" for part in polygon_parts], ", ") * ")"
+        end
+    end
+end
 
 
 export isPolyConvex, isPolyInPoly,  
@@ -1850,5 +1825,5 @@ export isPolyConvex, isPolyInPoly,
     projectBuildingShadow, partialPolyOffset, point2lineProjection, 
     perpendicularLine, line2Box, poly2Constraints, constraints2poly, rotate_to_first_ccw,
     calculateDistance, cleanPolygon, shape2vector, transformLine, polySimplify,
-    transformPolyshapeEPSG, convertWKTCoordinates, polyshapeToUTMv, polyshape2wkt
+    transformPolyshapeEPSG, polyshapeToUTM, polyshape2wkt
 end
