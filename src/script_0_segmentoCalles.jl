@@ -83,13 +83,16 @@ for (i, row) in enumerate(eachrow(df_predios))
             
             # If intersection exists and has vertices
             if !isempty(intersection.Vertices) && length(intersection.Vertices[1]) > 0
+                ps_i_edge = polyShape.ajustaCoordenadasInversa(ps_i_edge, dx, dy)
+                ps_i_edge = polyShape.reprojectPolyshapeEPSG(ps_i_edge, 32719, 4326)
+
                 push!(intersections, (
                     codigo_predial = codigo_predial,
                     id_segmento_calle = seg_id,
                     codigo_calle = seg_row.codigo_calle,
                     nombre_calle = seg_row.nombre_calle,
                     tipo_calle = seg_row.tipo_calle,
-                    geom_wkt = polyShape.polyshape2wkt(polyShape.transformPolyshapeEPSG(ps_i_edge, dx, dy, 32719, 4326))
+                    geom_wkt = polyShape.polyshape2wkt(ps_i_edge)
                 ))
             end
         end

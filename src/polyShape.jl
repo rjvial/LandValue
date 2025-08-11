@@ -1722,7 +1722,18 @@ end
 ########################################################################
 ########################################################################
 
-function transformPolyshapeEPSG(ps::PolyShape, dx::Real, dy::Real, EPSG_in::Int64, EPSG_out::Int64)::PolyShape
+
+function ajustaCoordenadasInversa(ps::PolyShape, dx::Real, dy::Real)::PolyShape
+    ps_ = polyShape.polyCopy(ps)
+    for i = 1:ps_.NumRegions
+        ps_.Vertices[i][:, 1] = ps_.Vertices[i][:, 1] .+ dx
+        ps_.Vertices[i][:, 2] = ps_.Vertices[i][:, 2] .+ dy
+    end
+    return ps_
+end
+
+
+function reprojectPolyshapeEPSG(ps::PolyShape, EPSG_in::Int64, EPSG_out::Int64)::PolyShape
     ps_ = polyShape.polyCopy(ps)
     source = ArchGDAL.importEPSG(EPSG_in)
     if EPSG_out == 4326
@@ -1732,8 +1743,8 @@ function transformPolyshapeEPSG(ps::PolyShape, dx::Real, dy::Real, EPSG_in::Int6
     end
 
     for i = 1:ps_.NumRegions
-        x = ps_.Vertices[i][:, 1] .+ dx
-        y = ps_.Vertices[i][:, 2] .+ dy
+        x = ps_.Vertices[i][:, 1]
+        y = ps_.Vertices[i][:, 2]
         points = ArchGDAL.createpoint.(x, y)
         ArchGDAL.createcoordtrans(source, target) do transform
             ArchGDAL.transform!.(points, Ref(transform))
@@ -1814,5 +1825,5 @@ export isPolyConvex, isPolyInPoly,
     projectBuildingShadow, partialPolyOffset, point2lineProjection, 
     perpendicularLine, line2Box, poly2Constraints, constraints2poly, rotate_to_first_ccw,
     calculateDistance, cleanPolygon, shape2vector, transformLine, polySimplify,
-    transformPolyshapeEPSG, polyshapeToUTM, polyshape2wkt
+    ajusteCoordenadasInversa, reprojectPolyshapeEPSG, polyshapeToUTM, polyshape2wkt
 end
