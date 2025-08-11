@@ -1754,6 +1754,80 @@ function rotate_to_first_ccw(ps::PolyShape, v1::Vector{Float64})
     return ps_out
 end
 
+function polySimplify(ps_::PolyShape, tolerance::Real=0.1)::PolyShape
+    ps = polyShape.polyCopy(ps_)
+    
+    function douglasPeucker(vertices::Array{Float64,2}, tolerance::Real)::Array{Float64,2}
+        n = size(vertices, 1)
+        if n <= 2
+            return vertices
+        end
+        
+        start_point = PointShape(vertices[1, :]', 1)
+        end_point = PointShape(vertices[end, :]', 1)
+        line_segment = polyShape.createLine(start_point, end_point)
+        
+        max_distance = 0.0
+        max_index = 0
+        
+        for i = 2:n-1
+            point = PointShape(vertices[i, :]', 1)
+            distance = abs(polyShape.calculateDistance(line_segment, point))
+            
+            if distance > max_distance
+                max_distance = distance
+                max_index = i
+            end
+        end
+        
+        if max_distance > tolerance && max_index > 0
+            left_vertices = vertices[1:max_index, :]
+            right_vertices = vertices[max_index:end, :]
+            
+            left_simplified = douglasPeucker(left_vertices, tolerance)
+            right_simplified = douglasPeucker(right_vertices, tolerance)
+            
+            simplified = vcat(left_simplified[1:end-1, :], right_simplified)
+        else
+            simplified = vertices[[1, end], :]
+        end
+        
+        return simplified
+    end
+    
+    function simplifyRegion(vertices::Array{Float64,2}, tolerance::Real)::Array{Float64,2}
+        n = size(vertices, 1)
+        if n < 3
+            return vertices
+        end
+        
+        closed_vertices = vcat(vertices, vertices[1, :]')
+        simplified = douglasPeucker(closed_vertices, tolerance)
+        
+        if size(simplified, 1) > 1 && all(simplified[1, :] .≈ simplified[end, :])
+            simplified = simplified[1:end-1, :]
+        end
+        
+        if size(simplified, 1) < 3
+            simplified = polyShape.convHull(vertices)
+        end
+        
+        return simplified
+    end
+    
+    numRegions = ps.NumRegions
+    simplified_vertices = Vector{Matrix{Float64}}()
+    
+    for i = 1:numRegions
+        region_vertices = ps.Vertices[i]
+        simplified_region = simplifyRegion(region_vertices, tolerance)
+        push!(simplified_vertices, simplified_region)
+    end
+    
+    ps_out = PolyShape(simplified_vertices, length(simplified_vertices))
+    return ps_out
+end
+
 ########################################################################
 ########################################################################
 ########################################################################
@@ -1773,5 +1847,5 @@ export isPolyConvex, isPolyInPoly,
     alphaPointSegment, points2Line, points2Poly, lineLength, isLineLineParallel,
     projectBuildingShadow, convertWKTCoordinates, partialPolyOffset, point2lineProjection, 
     perpendicularLine, line2Box, polyshapeToUTM, poly2Constraints, constraints2poly, rotate_to_first_ccw,
-    calculateDistance, cleanPolygon, shape2vector, transformLine
+    calculateDistance, cleanPolygon, shape2vector, transformLine, polySimplify
 end

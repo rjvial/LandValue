@@ -67,7 +67,7 @@ for (i, row) in enumerate(eachrow(df_predios))
     ps_predio_i = polyShape.setPolyOrientation(ps_predio_i, 1)
     ps_predio_i = polyShape.ajustaCoordenadas(ps_predio_i, dx, dy)
 
-    ps_hull_i = polyShape.setPolyOrientation(polyShape.convHull(ps_predio_i), 1)
+    ps_hull_i = polyShape.setPolyOrientation(polyShape.polySimplify(ps_predio_i, 1), 1)
     side_hull_i = size(ps_hull_i.Vertices[1], 1)
 
     for edge = 1:side_hull_i
