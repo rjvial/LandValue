@@ -38,7 +38,7 @@ n.tipo_calle AS tipo_calle
 df_semento_calle = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 ps_segmentos = polyGdal.astext2polyshape(df_semento_calle[:, "geom_wkt"])
 ps_segmentos = polyShape.setPolyOrientation(ps_segmentos, 1)
-ps_segmentos = polyShape.polyshapeToUTM(ps_segmentos)
+ps_segmentos = polyShape.reprojectPolyshapeEPSG(ps_segmentos, 4326, 32719)
 ps_segmentos, dx, dy = polyShape.ajustaCoordenadas(ps_segmentos)
 
 query = """
@@ -62,7 +62,7 @@ for (i, row) in enumerate(eachrow(df_predios))
     # Convert predio to polyshape
     ps_predio_i = polyGdal.astext2polyshape([predio_wkt])
     ps_predio_i = polyShape.setPolyOrientation(ps_predio_i, 1)
-    ps_predio_i = polyShape.polyshapeToUTM(ps_predio_i)
+    ps_predio_i = polyShape.reprojectPolyshapeEPSG(ps_predio_i, 4326, 32719)
 
     ps_predio_i = polyShape.setPolyOrientation(ps_predio_i, 1)
     ps_predio_i = polyShape.ajustaCoordenadas(ps_predio_i, dx, dy)
