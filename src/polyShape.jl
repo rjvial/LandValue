@@ -925,12 +925,6 @@ function intersectTwoEdges(edge1::Vector{Float64}, edge2::Vector{Float64})::Vect
 end
 
 
-function pointDistanceMat(p1::PointShape, p2::PointShape)::Array{Float64,2}
-    distMat = distanceMat(p1.Vertices, p2.Vertices)
-    return distMat
-end
-
-
 function createLine(point1::PointShape, point2::PointShape)::LineShape
     v_1 = point1.Vertices[:]'
     v_2 = point2.Vertices[:]'
@@ -1848,13 +1842,13 @@ export isPolyConvex, isPolyInPoly,
     polyEliminaColineales, subShape, shapeVertex, numVertices,
     polyBox, polyRotate, polyReverse, setPolyOrientation, minPolyDistance, 
     polyCopy, intersectLines, findPolyIntersection, 
-    pointDistanceMat, lineAngle, halfspaceSignOfPointToLine,
+    lineAngle, halfspaceSignOfPointToLine,
     polyObtieneCruces, replaceShapeVertex, lineVec2polyShape, polyShrink,
-    ajustaCoordenadas, angleMaxDistRect, extendRectToIntersection, polyBoxFromEdge, minBoundingBox, polyshape2wkt,
-    createLine, transformPolyshapeEPSG, convHull,
-    bisector_direction, angleBetweenLines, midPointSegment,
+    ajustaCoordenadas, angleMaxDistRect, extendRectToIntersection, polyBoxFromEdge, minBoundingBox,
+    createLine, convHull, bisector_direction, angleBetweenLines, midPointSegment,
     alphaPointSegment, points2Line, points2Poly, lineLength, isLineLineParallel,
-    projectBuildingShadow, convertWKTCoordinates, partialPolyOffset, point2lineProjection, 
-    perpendicularLine, line2Box, polyshapeToUTM, poly2Constraints, constraints2poly, rotate_to_first_ccw,
-    calculateDistance, cleanPolygon, shape2vector, transformLine, polySimplify
+    projectBuildingShadow, partialPolyOffset, point2lineProjection, 
+    perpendicularLine, line2Box, poly2Constraints, constraints2poly, rotate_to_first_ccw,
+    calculateDistance, cleanPolygon, shape2vector, transformLine, polySimplify,
+    transformPolyshapeEPSG, convertWKTCoordinates, polyshapeToUTMv, polyshape2wkt
 end
