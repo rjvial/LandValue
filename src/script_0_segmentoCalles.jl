@@ -43,7 +43,7 @@ ps_segmentos, dx, dy = polyShape.ajustaCoordenadas(ps_segmentos)
 
 query = """
 MATCH (p:Predio)-[:TIENE_GEOM]->(gp:Geom_Predio)
-WHERE p.comuna = '$(comuna)'
+WHERE p.comuna = '$(comuna)' AND p.codigo_predial = '151600010500001'
 RETURN p.codigo_predial AS codigo_predial,
 gp.geom_wkt AS geom_wkt
 """
@@ -79,7 +79,8 @@ for (i, row) in enumerate(eachrow(df_predios))
             seg_id = seg_row.id_segmento_calle
             
             # Check if buffer intersects with street segment
-            intersection = polyShape.polyIntersect(ps_i_edge, polyShape.subShape(ps_segmentos, j))
+            ps_segmento_j = polyShape.subShape(ps_segmentos, j)
+            intersection = polyShape.polyIntersect(ps_i_edge, ps_segmento_j)
             
             # If intersection exists and has vertices
             if !isempty(intersection.Vertices) && length(intersection.Vertices[1]) > 0
@@ -110,4 +111,17 @@ end
 
 # Convert results to DataFrame
 df_intersections = DataFrame(intersections)
+df_intersections = unique(df_intersections)
 CSV.write("calles_por_predio.csv", df_intersections)
+
+
+df_calles = CSV.read("calles_por_predio.csv", DataFrame)
+
+ps_calles_predio = df_calles[df_calles[!, "codigo_predial"] .== 151600010500001, "geom_wkt"]
+
+ps_calles_predio = polyGdal.astext2polyshape(ps_calles_predio)
+ps_calles_predio = polyShape.setPolyOrientation(ps_calles_predio, 1)
+ps_calles_predio = polyShape.polyshape_4326to32719(ps_calles_predio)
+ps_calles_predio, dx, dy = polyShape.ajustaCoordenadas(ps_calles_predio)
+
+

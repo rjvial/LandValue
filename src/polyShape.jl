@@ -2,6 +2,92 @@ module polyShape
 
 using LandValue, ArchGDAL, LazySets, DataFrames, LinearAlgebra, Proj, Combinatorics
 
+# polyShape Function Reference
+# =========================
+#
+# Core Geometry Operations
+# - polyUnion: Merge multiple polygon regions into a single unified polygon
+# - polyDifference: Subtract one polygon from another (boolean difference operation)
+# - polyIntersect: Find the overlapping area between two polygons
+# - polyShrink: Reduce polygon size while maintaining proportional shape using offset ratio
+#
+# Polygon Analysis
+# - polyOrientation: Determine if polygon vertices are oriented clockwise or counterclockwise
+# - polyArea: Calculate the total area of a polygon or areas of individual regions
+# - isPolyConvex: Check if a polygon is convex (no interior angles > 180°)
+# - isPolyInPoly: Test if one polygon is completely contained within another
+# - minPolyDistance: Find minimum distance between vertices of two polygons
+#
+# Shape Construction
+# - polyBox: Create rectangular polygon from position, dimensions, and rotation angle
+# - convHull: Generate convex hull (smallest convex polygon containing all points)
+# - line2Box: Convert line segment to rectangular polygon with specified width
+# - polyBoxFromEdge: Create rectangular extension from a specific polygon edge
+#
+# Shape Manipulation
+# - polyRotate: Rotate polygon by specified angle around a center point
+# - polyReverse: Reverse the order of polygon vertices (flip orientation)
+# - setPolyOrientation: Force polygon to have specific vertex orientation (CW/CCW)
+# - polyCopy: Create deep copy of polygon, line, or point shape
+# - polySimplify: Reduce polygon complexity using Douglas-Peucker algorithm
+#
+# Geometric Utilities
+# - subShape: Extract specific region(s) from multi-region polygon
+# - shapeVertex: Extract specific vertex or all vertices from shape as points
+# - numVertices: Count number of vertices in a polygon region
+# - minBoundingBox: Find minimum area bounding rectangle for polygon
+#
+# Line Operations
+# - lineAngle: Calculate angle(s) of line segments in radians
+# - lineLength: Compute length of line segment(s)
+# - createLine: Create line segment between two points
+# - transformLine: Apply geometric transformations (extend, parallel, reverse) to lines
+# - intersectLines: Find intersection point between two line segments
+# - isLineLineParallel: Check if two lines are parallel within tolerance
+#
+# Advanced Geometry
+# - partialPolyOffset: Create polygon with selective edge offsetting by specified distances
+# - polyEliminaColineales: Remove collinear vertices to simplify polygon shape
+# - findPolyIntersection: Find all intersection points between two polygon boundaries
+# - cleanPolygon: Remove duplicate or contained regions from multi-region polygons
+#
+# Coordinate Systems
+# - ajustaCoordenadas: Translate polygon coordinates by subtracting minimum x,y values
+# - ajustaCoordenadasInversa: Reverse coordinate adjustment by adding back offset values
+# - polyshape_32719to4326: Convert from UTM Zone 19S to WGS84 geographic coordinates
+# - polyshape_4326to32719: Convert from WGS84 geographic to UTM Zone 19S coordinates
+#
+# Distance & Position
+# - calculateDistance: Compute distance between lines, points, or line-to-point
+# - halfspaceSignOfPointToLine: Determine which side of line a point lies on
+# - point2lineProjection: Project point onto line segment (closest point)
+# - perpendicularLine: Create perpendicular line from point at specified distance
+#
+# Complex Analysis
+# - bisector_direction: Calculate angle bisector direction between two line segments
+# - angleBetweenLines: Compute angle between two line segments
+# - midPointSegment: Find midpoint(s) of line segment(s)
+# - alphaPointSegment: Get point at parameter α along line segment (0=start, 1=end)
+#
+# Construction & Conversion
+# - points2Line: Create line segment from two point shapes
+# - points2Poly: Create polygon from sequence of point shapes
+# - lineVec2polyShape: Convert vector of connected line segments to polygon
+# - shape2vector: Break polygon into vector of individual edge line segments
+# - polyshape2wkt: Convert polygon to Well-Known Text string format
+#
+# Specialized Operations
+# - replaceShapeVertex: Replace specific vertex in shape with new point location
+# - reversePath: Reverse order of vertices in coordinate array
+# - intersectTwoEdges: Find intersection between two line segment edges
+# - polyObtieneCruces: Detect self-intersections in polygon boundaries
+# - projectBuildingShadow: Project building shadow based on height and sun orientation
+# - angleMaxDistRect: Find optimal rectangle orientation for maximum distance
+# - extendRectToIntersection: Extend rectangle until it intersects with polygon
+# - poly2Constraints: Convert convex polygon to linear inequality constraints
+# - constraints2poly: Convert linear constraints back to polygon representation
+# - rotate_to_first_ccw: Rotate polygon vertex order to start with specific vertex
+
 
 function polyUnion(ps_::PolyShape)::PolyShape
     ps = deepcopy(ps_)
@@ -1738,11 +1824,7 @@ function polyshape_32719to4326(ps::PolyShape)::PolyShape
     EPSG_out = 4326
     ps_ = polyShape.polyCopy(ps)
     source = ArchGDAL.importEPSG(EPSG_in)
-    if EPSG_out == 4326
-        target = ArchGDAL.importEPSG(EPSG_out; order=:trad)
-    else
-        target = ArchGDAL.importEPSG(EPSG_out)
-    end
+    target = ArchGDAL.importEPSG(EPSG_out; order=:trad)
 
     for i = 1:ps_.NumRegions
         x = ps_.Vertices[i][:, 1]
@@ -1759,8 +1841,6 @@ function polyshape_32719to4326(ps::PolyShape)::PolyShape
     end
     return ps_
 end
-
-
 function polyshape_4326to32719(ps::PolyShape)::PolyShape
     EPSG_in = 4326
     EPSG_out = 32719

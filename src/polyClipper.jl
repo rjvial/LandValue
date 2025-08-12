@@ -2,7 +2,25 @@ module polyClipper
 
 using LandValue, Clipper, LazySets, DataFrames, LinearAlgebra
 
-
+# polyClipper Function Reference
+# ==============================
+#
+# Core Conversion Functions
+# - shape2clipper: Convert polyShape/lineShape to Clipper integer point format
+# - clipper2shape: Convert Clipper integer points back to polyShape/lineShape format
+#
+# Boolean Operations
+# - clipper_op: Perform general boolean operation (union, difference, intersection) on Clipper paths
+# - clipper_union: Merge two or more Clipper polygon paths into single unified path
+# - clipper_difference: Subtract second Clipper path from first path (boolean difference)
+# - clipper_intersection: Find overlapping area between two Clipper paths
+#
+# Offsetting Operations
+# - clipper_offset: Expand or shrink Clipper paths by specified distance with join/end types
+# - polyOffset: High-level polygon offsetting using Clipper with automatic scaling
+#
+# Utility Functions
+# - clipper_scale: Scale real coordinates to integer format for Clipper precision
 
 ########################################################################
 #              Funciones en base a Clipper                   #

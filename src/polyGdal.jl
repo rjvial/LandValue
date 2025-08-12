@@ -2,7 +2,35 @@ module polyGdal
 
 using LandValue, ArchGDAL, DataFrames, LinearAlgebra
 
-
+# polyGdal Function Reference
+# ===========================
+#
+# Core Conversion Functions
+# - geom2shape: Convert GDAL geometry objects to polyShape/lineShape/pointShape format
+# - shape2geom: Convert polyShape/lineShape/pointShape to GDAL geometry objects
+#
+# Geometric Analysis
+# - shapeArea: Calculate area of polygon using GDAL precision algorithms
+# - shapeDistance: Compute minimum distance between two geometry objects
+# - partialDistance: Calculate distance matrix between all vertices of two shapes
+# - shapeContains: Test if first geometry completely contains second geometry
+#
+# Boolean Operations
+# - shapeDifference: Subtract second shape from first using GDAL boolean operations
+# - shapeIntersect: Find intersection between two shapes (returns GeomObject)
+# - shapeUnion: Merge two shapes or unify multi-region shape using GDAL algorithms
+#
+# Geometric Transformations
+# - shapeHull: Generate convex hull using GDAL computational geometry
+# - shapeSimplify: Simplify geometry by removing vertices within tolerance
+# - shapeSimplifyTopology: Topology-preserving simplification with advanced options
+# - shapeBuffer: Create buffer zone around geometry with specified distance and segments
+# - shapeCentroid: Find geometric centroid of shape using GDAL algorithms
+# - partialCentroid: Calculate centroid with partial geometry consideration
+#
+# Format Conversion
+# - astext2polyshape: Parse WKT (Well-Known Text) strings to create polyShape objects
+# - astext2lineshape: Parse WKT strings to create lineShape objects from text or arrays
 
 ########################################################################
 #              Funciones en base a ArchGDAL                            #
