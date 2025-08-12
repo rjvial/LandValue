@@ -1580,16 +1580,27 @@ end
 
 function lineLength(l::LineShape)
     numLines = l.NumLines
+    
+    # Handle empty LineShape
+    if numLines == 0 || (numLines > 0 && isempty(l.Vertices)) || (numLines > 0 && size(l.Vertices[1], 1) == 0)
+        return numLines > 1 ? Float64[] : 0.0
+    end
+    
     len = []
     for i = 1:numLines
-        p1_i = polyShape.shapeVertex(l, i, 1)
-        p2_i = polyShape.shapeVertex(l, i, 2)
-        d_12_i = polyShape.calculateDistance(p1_i, p2_i)
+        # Check if this specific line has vertices
+        if size(l.Vertices[i], 1) < 2
+            line_length = 0.0
+        else
+            p1_i = polyShape.shapeVertex(l, i, 1)
+            p2_i = polyShape.shapeVertex(l, i, 2)
+            line_length = polyShape.calculateDistance(p1_i, p2_i)
+        end
 
         if numLines > 1
-            push!(len, d_12_i)
+            push!(len, line_length)
         else
-            len = d_12_i
+            len = line_length
         end
     end
     return len

@@ -22,30 +22,30 @@ conn_neo4j = neo4j_julia.connection(neo4j_host, neo4j_user, neo4j_password, fold
 
 comuna = "vitacura" 
 
-###############################################################################
+# ###############################################################################
 
 
 # # AND n.id_segmento_calle IN ["305918", "305960"]
-query = """
-MATCH (n:Segmento_Calle) 
-WHERE n.comuna = '$(comuna)' 
-RETURN n.codigo_calle AS codigo_calle,
-n.codigo_comuna AS codigo_comuna,
-n.comuna AS comuna,
-n.geom_wkt AS geom_wkt,
-n.id_segmento_calle AS id_segmento_calle,
-n.nombre_calle AS nombre_calle,
-n.tipo_calle AS tipo_calle
-"""
-df_semento_calle = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-ps_segmentos = polyGdal.astext2shape(df_semento_calle[:, "geom_wkt"])
-ps_segmentos = polyShape.shape_4326to32719(ps_segmentos)
-ps_segmentos, dx, dy = polyShape.ajustaCoordenadas(ps_segmentos)
+# query = """
+# MATCH (n:Segmento_Calle) 
+# WHERE n.comuna = '$(comuna)'
+# RETURN n.codigo_calle AS codigo_calle,
+# n.codigo_comuna AS codigo_comuna,
+# n.comuna AS comuna,
+# n.geom_wkt AS geom_wkt,
+# n.id_segmento_calle AS id_segmento_calle,
+# n.nombre_calle AS nombre_calle,
+# n.tipo_calle AS tipo_calle
+# """
+# df_semento_calle = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
+# ps_segmentos = polyGdal.astext2shape(df_semento_calle[:, "geom_wkt"])
+# ps_segmentos = polyShape.shape_4326to32719(ps_segmentos)
+# ps_segmentos, dx, dy = polyShape.ajustaCoordenadas(ps_segmentos)
 
 # # AND p.codigo_predial = '151600010500001'
 # query = """
 # MATCH (p:Predio)-[:TIENE_GEOM]->(gp:Geom_Predio)
-# WHERE p.comuna = '$(comuna)' 
+# WHERE p.comuna = '$(comuna)' AND p.codigo_predial = '151600010500001'
 # RETURN p.codigo_predial AS codigo_predial,
 # gp.geom_wkt AS geom_wkt
 # """
@@ -76,16 +76,16 @@ ps_segmentos, dx, dy = polyShape.ajustaCoordenadas(ps_segmentos)
 #         ps_i_edge = polyShape.polyBoxFromEdge(ps_hull_i, edge, 30)
 
 #         # Check intersection with each street segment
-#         # j=1; seg_row = eachrow(df_semento_calle)[j]
+#         # j=2; seg_row = eachrow(df_semento_calle)[j]
 #         for (j, seg_row) in enumerate(eachrow(df_semento_calle))
 #             seg_id = seg_row.id_segmento_calle
             
 #             # Check if buffer intersects with street segment
 #             ps_segmento_j = polyShape.subShape(ps_segmentos, j)
-#             ps_intersection = polyShape.polyIntersect(ps_i_edge, ps_segmento_j)
-#             area_interseccion = polyShape.polyArea(ps_intersection)
+#             ps_intersection = polyGdal.shapeIntersect(ps_i_edge, ps_segmento_j)
+#             length_interseccion = polyShape.lineLength(ps_intersection)
 #             # If intersection exists and has vertices
-#             if area_interseccion >= 10 && !isempty(ps_intersection.Vertices) && length(ps_intersection.Vertices[1]) > 0
+#             if length_interseccion >= 1 && !isempty(ps_intersection.Vertices) 
 #                 ps_i_edge = polyShape.ajustaCoordenadasInversa(ps_i_edge, dx, dy)
 #                 ps_i_edge = polyShape.shape_32719to4326(ps_i_edge)
 
