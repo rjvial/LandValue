@@ -29,8 +29,7 @@ using LandValue, ArchGDAL, DataFrames, LinearAlgebra
 # - partialCentroid: Calculate centroid with partial geometry consideration
 #
 # Format Conversion
-# - astext2polyshape: Parse WKT (Well-Known Text) strings to create polyShape objects
-# - astext2lineshape: Parse WKT strings to create lineShape objects from text or arrays
+# - astext2shape: Parse WKT (Well-Known Text) strings to create appropriate geometry objects
 
 ########################################################################
 #              Funciones en base a ArchGDAL                            #
@@ -408,52 +407,80 @@ function partialDistance(shape1::PosDimGeom, shape2::PosDimGeom)::Array{Float64,
 end
 
 
-function astext2polyshape(str)::PolyShape
+function astext2shape(str)::GeomObject
     str = convert.(String, deepcopy(str))
+    
     if isa(str, Array)
-        largo = length(str)
-        ps_out = PolyShape([], 0)
-        V = []
-        for i = 1:largo
-            shape_i = polyGdal.geom2shape(ArchGDAL.fromWKT(str[i]))
-            V_ = shape_i.Vertices[1]
-            push!(V, V_[1:end-1, :])
+        if length(str) == 0
+            error("Empty string array provided")
         end
-        ps_out = PolyShape(V, length(V))
+        
+        # Detect geometry type from first WKT string
+        first_geom = ArchGDAL.fromWKT(str[1])
+        geom_type = ArchGDAL.geomname(first_geom)
+        
+        if startswith(geom_type, "POLYGON") || startswith(geom_type, "MULTI")
+            # Handle as PolyShape
+            V = []
+            for i in eachindex(str)
+                shape_i = polyGdal.geom2shape(ArchGDAL.fromWKT(str[i]))
+                if isa(shape_i, PolyShape)
+                    V_ = shape_i.Vertices[1]
+                    push!(V, V_[1:end-1, :])
+                else
+                    error("Mixed geometry types in array not supported")
+                end
+            end
+            return PolyShape(V, length(V))
+            
+        elseif startswith(geom_type, "LINESTRING")
+            # Handle as LineShape
+            geom_ls = ArchGDAL.createmultilinestring()
+            for i in eachindex(str)
+                shape_i = polyGdal.geom2shape(ArchGDAL.fromWKT(str[i]))
+                if isa(shape_i, LineShape)
+                    V_i = shape_i.Vertices[1]
+                    geom_i = polyGdal.shape2geom(LineShape([V_i], 1))
+                    geom_ls = ArchGDAL.union(geom_ls, geom_i)
+                else
+                    error("Mixed geometry types in array not supported")
+                end
+            end
+            return polyGdal.geom2shape(geom_ls)
+            
+        elseif startswith(geom_type, "POINT")
+            # Handle as PointShape
+            V = []
+            for i in eachindex(str)
+                shape_i = polyGdal.geom2shape(ArchGDAL.fromWKT(str[i]))
+                if isa(shape_i, PointShape)
+                    push!(V, shape_i.Vertices[1, :])
+                else
+                    error("Mixed geometry types in array not supported")
+                end
+            end
+            V_matrix = hcat(V...)'
+            return PointShape(V_matrix, length(str))
+        else
+            error("Unsupported geometry type: $(geom_type)")
+        end
     else
-        shape = polyGdal.geom2shape(ArchGDAL.fromWKT(str))
-        V_ = shape.Vertices[1]
-        V = V_[1:end-1, :]
-        ps_out = PolyShape([V], 1)
+        # Single WKT string
+        geom = ArchGDAL.fromWKT(str)
+        shape = polyGdal.geom2shape(geom)
+        
+        if isa(shape, PolyShape)
+            V_ = shape.Vertices[1]
+            V = V_[1:end-1, :]
+            return PolyShape([V], 1)
+        else
+            return shape
+        end
     end
-
-    return ps_out
 end
 
-
-function astext2lineshape(str::String)::LineShape
-    shape = polyGdal.geom2shape(ArchGDAL.fromWKT(str))
-    V = shape.Vertices[1]
-    ls_out = LineShape([V], 1)
-    return ls_out
-end
-function astext2lineshape(str_array::Array)::LineShape
-    numLines = length(str_array)
-    geom_ls = ArchGDAL.createmultilinestring()
-    for i = 1:numLines
-        str_i = str_array[i]
-        ls_i = polyGdal.astext2lineshape(str_i)
-        V_i = ls_i.Vertices[1]
-        geom_i = polyGdal.shape2geom(LineShape([V_i], 1))
-        geom_ls = ArchGDAL.union(geom_ls, geom_i)
-
-    end
-    ls_out = polyGdal.geom2shape(geom_ls)
-    return ls_out
-end
 
 
 export geom2shape, shape2geom, shapeArea, shapeContains, shapeDifference, shapeIntersect, shapeUnion, shapeHull, shapeSimplify,
-shapeSimplifyTopology, shapeBuffer, shapeCentroid, partialCentroid, shapeDistance, partialDistance, astext2polyshape,
-astext2lineshape
+shapeSimplifyTopology, shapeBuffer, shapeCentroid, partialCentroid, shapeDistance, partialDistance, astext2shape
 end

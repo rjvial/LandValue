@@ -38,7 +38,7 @@ n.nombre_calle AS nombre_calle,
 n.tipo_calle AS tipo_calle
 """
 df_semento_calle = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-ps_segmentos = polyGdal.astext2lineshape(df_semento_calle[:, "geom_wkt"])
+ps_segmentos = polyGdal.astext2shape(df_semento_calle[:, "geom_wkt"])
 ps_segmentos = polyShape.shape_4326to32719(ps_segmentos)
 ps_segmentos, dx, dy = polyShape.ajustaCoordenadas(ps_segmentos)
 
@@ -62,7 +62,7 @@ ps_segmentos, dx, dy = polyShape.ajustaCoordenadas(ps_segmentos)
 #     codigo_predial = row.codigo_predial    
 
 #     # Convert predio to polyshape
-#     ps_predio_i = polyGdal.astext2polyshape([predio_wkt])
+#     ps_predio_i = polyGdal.astext2shape([predio_wkt])
 #     ps_predio_i = polyShape.setPolyOrientation(ps_predio_i, 1)
 #     ps_predio_i = polyShape.shape_4326to32719(ps_predio_i)
 
@@ -125,7 +125,7 @@ df_calles = CSV.read("calles_por_predio.csv", DataFrame)
 
 ps_calles_predio = df_calles[df_calles[!, "codigo_predial"] .== 151600010500001, "geom_wkt"]
 
-ps_calles_predio = polyGdal.astext2polyshape(ps_calles_predio)
+ps_calles_predio = polyGdal.astext2shape(ps_calles_predio)
 ps_calles_predio = polyShape.setPolyOrientation(ps_calles_predio, 1)
 ps_calles_predio = polyShape.shape_4326to32719(ps_calles_predio)
 ps_calles_predio = polyShape.ajustaCoordenadas(ps_calles_predio, dx, dy)
@@ -138,7 +138,7 @@ RETURN p.codigo_predial AS codigo_predial,
 gp.geom_wkt AS geom_wkt
 """
 df_predio = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-ps_predio = polyGdal.astext2polyshape(df_predio[!, "geom_wkt"])
+ps_predio = polyGdal.astext2shape(df_predio[!, "geom_wkt"])
 ps_predio = polyShape.setPolyOrientation(ps_predio, 1)
 ps_predio = polyShape.shape_4326to32719(ps_predio)
 
