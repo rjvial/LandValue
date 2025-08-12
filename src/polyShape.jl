@@ -54,8 +54,8 @@ using LandValue, ArchGDAL, LazySets, DataFrames, LinearAlgebra, Proj, Combinator
 # Coordinate Systems
 # - ajustaCoordenadas: Translate polygon coordinates by subtracting minimum x,y values
 # - ajustaCoordenadasInversa: Reverse coordinate adjustment by adding back offset values
-# - polyshape_32719to4326: Convert from UTM Zone 19S to WGS84 geographic coordinates
-# - polyshape_4326to32719: Convert from WGS84 geographic to UTM Zone 19S coordinates
+# - shape_32719to4326: Convert from UTM Zone 19S to WGS84 geographic coordinates
+# - shape_4326to32719: Convert from WGS84 geographic to UTM Zone 19S coordinates
 #
 # Distance & Position
 # - calculateDistance: Compute distance between lines, points, or line-to-point
@@ -1819,7 +1819,7 @@ function ajustaCoordenadasInversa(ps::PolyShape, dx::Real, dy::Real)::PolyShape
 end
 
 
-function polyshape_32719to4326(ps::PolyShape)::PolyShape
+function shape_32719to4326(ps::PolyShape)::PolyShape
     EPSG_in = 32719
     EPSG_out = 4326
     ps_ = polyShape.polyCopy(ps)
@@ -1841,15 +1841,30 @@ function polyshape_32719to4326(ps::PolyShape)::PolyShape
     end
     return ps_
 end
-function polyshape_4326to32719(ps::PolyShape)::PolyShape
+function shape_4326to32719(geom::T)::T where T <: PosDimGeom
     EPSG_in = 4326
     EPSG_out = 32719
     trans = Proj.Transformation("EPSG:$(EPSG_in)", "EPSG:$(EPSG_out)")
-    transformed_vertices = [
-        hcat([collect(trans(lat, lon)) for (lon, lat) in eachrow(polygon)]...)'
-        for polygon in ps.Vertices
-    ]
-    return PolyShape(transformed_vertices, ps.NumRegions)
+    
+    if isa(geom, PolyShape)
+        transformed_vertices = [
+            hcat([collect(trans(lat, lon)) for (lon, lat) in eachrow(polygon)]...)'
+            for polygon in geom.Vertices
+        ]
+        return PolyShape(transformed_vertices, geom.NumRegions)
+    elseif isa(geom, LineShape)
+        transformed_vertices = [
+            hcat([collect(trans(lat, lon)) for (lon, lat) in eachrow(line)]...)'
+            for line in geom.Vertices
+        ]
+        return LineShape(transformed_vertices, geom.NumLines)
+    elseif isa(geom, PointShape)
+        n_points = size(geom.Vertices, 1)
+        transformed_vertices = hcat([collect(trans(geom.Vertices[i, 2], geom.Vertices[i, 1])) for i in 1:n_points]...)'
+        return PointShape(transformed_vertices, geom.NumPoints)
+    else
+        error("Unsupported geometry type: $(typeof(geom))")
+    end
 end
 
 
@@ -1909,5 +1924,5 @@ export isPolyConvex, isPolyInPoly,
     projectBuildingShadow, partialPolyOffset, point2lineProjection, 
     perpendicularLine, line2Box, poly2Constraints, constraints2poly, rotate_to_first_ccw,
     calculateDistance, cleanPolygon, shape2vector, transformLine, polySimplify,
-    ajusteCoordenadasInversa, polyshape_32719to4326, polyshape_4326to32719, polyshape2wkt
+    ajusteCoordenadasInversa, shape_32719to4326, shape_4326to32719, polyshape2wkt
 end
