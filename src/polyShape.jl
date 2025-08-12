@@ -1176,6 +1176,27 @@ function ajustaCoordenadas(ps::PolyShape, dx::Real, dy::Real)
     end
     return ps
 end
+function ajustaCoordenadas(ls::LineShape)::Tuple{LineShape,Float64,Float64}
+    dx = 10000000
+    dy = 10000000
+    numLines = ls.NumLines
+    for i = 1:numLines
+        V_i = ls.Vertices[i]
+        dx_i = minimum(V_i[:, 1])
+        dy_i = minimum(V_i[:, 2])
+        if dx_i < dx
+            dx = dx_i
+        end
+        if dy_i < dy
+            dy = dy_i
+        end
+    end
+    for i = 1:numLines
+        ls.Vertices[i][:, 1] = ls.Vertices[i][:, 1] .- dx
+        ls.Vertices[i][:, 2] = ls.Vertices[i][:, 2] .- dy
+    end
+    return ls, dx, dy
+end
 function ajustaCoordenadas(ls::LineShape, dx::Real, dy::Real)
     numLines = ls.NumLines
     for i = 1:numLines

@@ -82,10 +82,10 @@ function plotPolyshape2D(ps::Union{PointShape,LineShape}, color::String="red", a
     if ps isa PointShape
         numSectors = ps.NumPoints
         point_width = 0.5
-        ps = shapeBuffer(ps, point_width)
+        ps = polyGdal.shapeBuffer(ps, point_width)
     elseif ps isa LineShape
         numSectors = ps.NumLines
-        ps = shapeBuffer(ps, line_width, line_end)
+        ps = polyGdal.shapeBuffer(ps, line_width, line_end)
     end
 
     patch = PyCall.pyimport("matplotlib.patches")
@@ -153,11 +153,11 @@ end
 
 # Grafica polyshape 2D en espacio 3D a una altura height.
 function plotPolyshape2Din3D(ps::PointShape, height::Real=0.0, fc::String="blue", a::Real=0.25; fig::Union{Nothing,PyPlot.Figure}=nothing, ax=nothing, ax_mat=nothing, line_width::Real=0.5, filestr="none")
-    ps = shapeBuffer(ps, line_width)
+    ps = polyGdal.shapeBuffer(ps, line_width)
     fig, ax, ax_mat = plotPolyshape2Din3D(ps, height, fc, a; fig=fig, ax=ax, ax_mat=ax_mat)
 end
 function plotPolyshape2Din3D(ls::LineShape, height::Real=0.0, fc::String="blue", a::Real=0.25; fig::Union{Nothing,PyPlot.Figure}=nothing, ax=nothing, ax_mat=nothing, line_width::Real=0.5, line_end::Int64=3, filestr="none")
-    ps = shapeBuffer(ls, line_width, line_end)
+    ps = polyGdal.shapeBuffer(ls, line_width, line_end)
     fig, ax, ax_mat = plotPolyshape2Din3D(ps, height, fc, a; fig=fig, ax=ax, ax_mat=ax_mat)
 end
 
