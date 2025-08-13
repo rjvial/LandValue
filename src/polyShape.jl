@@ -1749,11 +1749,11 @@ function constraints2poly(A, b; tol=1e-10)
 end
 
 
-function rotate_to_first_ccw(ps::PolyShape, v1::Vector{Float64})
+function rotate_to_first_ccw(ps::PolyShape, v1::Vector{Float64}, tolerance::Float64=1e-3)
     # Ensure vertices are CCW oriented
     vertices = ps.Vertices[1]
     vertices = polyShape.setPolyOrientation(PolyShape([vertices], 1), 1).Vertices[1]
-    idx = findfirst(row -> all(row .≈ v1), eachrow(vertices))
+    idx = findfirst(row -> all(abs.(row .- v1) .< tolerance), eachrow(vertices))
     if isnothing(idx)
         error("The vertex v1 is not found in the given list.")
     end
@@ -1761,6 +1761,7 @@ function rotate_to_first_ccw(ps::PolyShape, v1::Vector{Float64})
     ps_out = PolyShape([rotated_vertices],1)
     return ps_out
 end
+
 
 function polySimplify(ps_::PolyShape, tolerance::Real=0.1)::PolyShape
     ps = polyShape.polyCopy(ps_)
@@ -1943,6 +1944,45 @@ function polyshape2wkt(ps::PolyShape)::String
 end
 
 
+function dividePoly(ps::PolyShape, common_vertex_id::Int)::Tuple{PolyShape, PolyShape}
+    V = ps.Vertices[1]
+    n = size(V, 1)
+    
+    ini_id = common_vertex_id
+    prev_id = mod1(ini_id - 1, n)
+    post_id = mod1(ini_id + 1, n)
+
+    ps_out_1 = PolyShape([],0) 
+    ps_out_2 = PolyShape([],0) 
+    difArea = 100000
+    for i in setdiff(collect(1:n), [prev_id, ini_id, post_id])
+        end_id = i
+
+        # Create circular indices from ini_id to end_id
+        indices_1 = [mod1(ini_id + j, n) for j in 0:(mod1(end_id - ini_id, n))]
+        V_1 = V[indices_1, :]
+
+        # Create circular indices from end_id to ini_id
+        indices_2 = [mod1(end_id + j, n) for j in 0:(mod1(ini_id - end_id, n))]
+        V_2 = V[indices_2, :]
+
+        ps_1 = PolyShape([V_1],1)
+        ps_2 = PolyShape([V_2],1)
+
+        area_1 = polyShape.polyArea(ps_1)
+        area_2 = polyShape.polyArea(ps_2)
+        difArea_i = abs(area_1 - area_2) 
+        if difArea_i < difArea
+            difArea = difArea_i
+            ps_out_1 = deepcopy(ps_1)
+            ps_out_2 = deepcopy(ps_2)
+        end
+    end
+
+    return ps_out_1, ps_out_2
+end
+
+
 export isPolyConvex, isPolyInPoly,  
     polyArea, polyDifference, polyOrientation, polyUnion, polyIntersect, polyOffset,  
     polyEliminaColineales, subShape, shapeVertex, numVertices,
@@ -1956,5 +1996,5 @@ export isPolyConvex, isPolyInPoly,
     projectBuildingShadow, partialPolyOffset, point2lineProjection, 
     perpendicularLine, line2Box, poly2Constraints, constraints2poly, rotate_to_first_ccw,
     calculateDistance, cleanPolygon, shape2vector, transformLine, polySimplify,
-    ajusteCoordenadasInversa, shape_32719to4326, shape_4326to32719, polyshape2wkt
+    ajusteCoordenadasInversa, shape_32719to4326, shape_4326to32719, polyshape2wkt, dividePoly
 end

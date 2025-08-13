@@ -26,26 +26,26 @@ comuna = "vitacura"
 
 
 # # AND n.id_segmento_calle IN ["305918", "305960"]
-# query = """
-# MATCH (n:Segmento_Calle) 
-# WHERE n.comuna = '$(comuna)'
-# RETURN n.codigo_calle AS codigo_calle,
-# n.codigo_comuna AS codigo_comuna,
-# n.comuna AS comuna,
-# n.geom_wkt AS geom_wkt,
-# n.id_segmento_calle AS id_segmento_calle,
-# n.nombre_calle AS nombre_calle,
-# n.tipo_calle AS tipo_calle
-# """
-# df_semento_calle = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-# ps_segmentos = polyGdal.astext2shape(df_semento_calle[:, "geom_wkt"])
-# ps_segmentos = polyShape.shape_4326to32719(ps_segmentos)
-# ps_segmentos, dx, dy = polyShape.ajustaCoordenadas(ps_segmentos)
+query = """
+MATCH (n:Segmento_Calle) 
+WHERE n.comuna = '$(comuna)'
+RETURN n.codigo_calle AS codigo_calle,
+n.codigo_comuna AS codigo_comuna,
+n.comuna AS comuna,
+n.geom_wkt AS geom_wkt,
+n.id_segmento_calle AS id_segmento_calle,
+n.nombre_calle AS nombre_calle,
+n.tipo_calle AS tipo_calle
+"""
+df_semento_calle = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
+ps_segmentos = polyGdal.astext2shape(df_semento_calle[:, "geom_wkt"])
+ps_segmentos = polyShape.shape_4326to32719(ps_segmentos)
+ps_segmentos, dx, dy = polyShape.ajustaCoordenadas(ps_segmentos)
 
 # # AND p.codigo_predial = '151600010500001'
 # query = """
 # MATCH (p:Predio)-[:TIENE_GEOM]->(gp:Geom_Predio)
-# WHERE p.comuna = '$(comuna)' AND p.codigo_predial = '151600010500001'
+# WHERE p.comuna = '$(comuna)' 
 # RETURN p.codigo_predial AS codigo_predial,
 # gp.geom_wkt AS geom_wkt
 # """
@@ -63,17 +63,16 @@ comuna = "vitacura"
 
 #     # Convert predio to polyshape
 #     ps_predio_i = polyGdal.astext2shape([predio_wkt])
-#     ps_predio_i = polyShape.setPolyOrientation(ps_predio_i, 1)
 #     ps_predio_i = polyShape.shape_4326to32719(ps_predio_i)
-
-#     ps_predio_i = polyShape.setPolyOrientation(ps_predio_i, 1)
 #     ps_predio_i = polyShape.ajustaCoordenadas(ps_predio_i, dx, dy)
+#     ps_predio_i = polyShape.setPolyOrientation(ps_predio_i, 1)
 
 #     ps_hull_i = polyShape.setPolyOrientation(polyShape.polySimplify(ps_predio_i, 1), 1)
 #     side_hull_i = size(ps_hull_i.Vertices[1], 1)
 
 #     for edge = 1:side_hull_i
 #         ps_i_edge = polyShape.polyBoxFromEdge(ps_hull_i, edge, 30)
+#         ps_i_edge = polyShape.rotate_to_first_ccw(ps_i_edge, ps_i_edge.Vertices[1][3,:])
 
 #         # Check intersection with each street segment
 #         # j=2; seg_row = eachrow(df_semento_calle)[j]
@@ -84,8 +83,10 @@ comuna = "vitacura"
 #             ps_segmento_j = polyShape.subShape(ps_segmentos, j)
 #             ps_intersection = polyGdal.shapeIntersect(ps_i_edge, ps_segmento_j)
 #             length_interseccion = polyShape.lineLength(ps_intersection)
+#             # Handle both scalar and vector results from lineLength
+#             total_length = isa(length_interseccion, Vector) ? sum(length_interseccion) : length_interseccion
 #             # If intersection exists and has vertices
-#             if length_interseccion >= 1 && !isempty(ps_intersection.Vertices) 
+#             if total_length >= 1 && !isempty(ps_intersection.Vertices) 
 #                 ps_i_edge = polyShape.ajustaCoordenadasInversa(ps_i_edge, dx, dy)
 #                 ps_i_edge = polyShape.shape_32719to4326(ps_i_edge)
 
@@ -95,7 +96,8 @@ comuna = "vitacura"
 #                     codigo_calle = seg_row.codigo_calle,
 #                     nombre_calle = seg_row.nombre_calle,
 #                     tipo_calle = seg_row.tipo_calle,
-#                     geom_wkt = polyShape.polyshape2wkt(ps_i_edge)
+#                     geom_wkt = polyShape.polyshape2wkt(ps_i_edge),
+#                     edge = "[$(ps_i_edge.Vertices[1][1,1]), $(ps_i_edge.Vertices[1][1,2])]"
 #                 ))
 #             end
 #         end
@@ -134,8 +136,7 @@ ps_calles_predio = polyShape.ajustaCoordenadas(ps_calles_predio, dx, dy)
 query = """
 MATCH (p:Predio)-[:TIENE_GEOM]->(gp:Geom_Predio)
 WHERE p.comuna = '$(comuna)' AND p.codigo_predial = '151600010500001'
-RETURN p.codigo_predial AS codigo_predial,
-gp.geom_wkt AS geom_wkt
+RETURN p.codigo_predial AS codigo_predial, gp.geom_wkt AS geom_wkt
 """
 df_predio = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 ps_predio = polyGdal.astext2shape(df_predio[!, "geom_wkt"])
@@ -144,5 +145,29 @@ ps_predio = polyShape.shape_4326to32719(ps_predio)
 
 ps_predio = polyShape.setPolyOrientation(ps_predio, 1)
 ps_predio = polyShape.ajustaCoordenadas(ps_predio, dx, dy)
+ps_calles_predio_aux = deepcopy(ps_calles_predio)
 
+num_segmentos = ps_calles_predio.NumRegions
+for i = 1:num_segmentos
+    i_prev = mod1(i - 1, num_segmentos)
+    
+    ps_i_prev = polyShape.subShape(ps_calles_predio, i_prev)
+    ps_i = polyShape.subShape(ps_calles_predio, i)
+    start_pt = ps_i.Vertices[1][1,:]
 
+    ps_inter_i_prev = polyShape.polyIntersect(ps_i, ps_i_prev)
+    if isempty(ps_inter_i_prev.Vertices) 
+        ps_i_ext = polyShape.partialPolyOffset(ps_i, [2], 20)
+        ps_i_prev_ext = polyShape.partialPolyOffset(ps_i_prev, [4], 20)
+        ps_ext_inter = polyShape.polyIntersect(ps_i_ext, ps_i_prev_ext)
+        if !isempty(ps_ext_inter.Vertices)
+            ps_ext_inter = polyShape.polyDifference(ps_ext_inter, polyShape.partialPolyOffset(ps_i, [3, 4], [10, 30]))
+            ps_ext_inter = polyShape.polyDifference(ps_ext_inter, polyShape.partialPolyOffset(ps_i_prev, [3, 2], [1, 30]))
+            ps_delta_i_prev, ps_delta_i = polyShape.dividePoly(ps_ext_inter, 1)
+            
+            ps_i = polyShape.polySimplify(polyShape.polyUnion(polyShape.partialPolyOffset(ps_i, [2], 0.1), ps_delta_i))
+            ps_i = polyShape.rotate_to_first_ccw(ps_i, start_pt, 1.0)
+            ps_calles_predio_aux.Vertices[i] = ps_i.Vertices[1]        
+        end
+    end
+end
