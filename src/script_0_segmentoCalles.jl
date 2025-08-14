@@ -22,13 +22,12 @@ conn_neo4j = neo4j_julia.connection(neo4j_host, neo4j_user, neo4j_password, fold
 
 comuna = "vitacura" 
 
-# ###############################################################################
+###############################################################################
 
-
-# # AND n.id_segmento_calle IN ["305918", "305960"]
+# AND n.id_segmento_calle IN ["305729", "305624", "305918"]
 query = """
 MATCH (n:Segmento_Calle) 
-WHERE n.comuna = '$(comuna)'
+WHERE n.comuna = '$(comuna)' AND n.id_segmento_calle IN ["305729", "305624", "305918"]
 RETURN n.codigo_calle AS codigo_calle,
 n.codigo_comuna AS codigo_comuna,
 n.comuna AS comuna,
@@ -42,132 +41,146 @@ ps_segmentos = polyGdal.astext2shape(df_semento_calle[:, "geom_wkt"])
 ps_segmentos = polyShape.shape_4326to32719(ps_segmentos)
 ps_segmentos, dx, dy = polyShape.ajustaCoordenadas(ps_segmentos)
 
+# AND p.codigo_predial = '151600010500006'
+query = """
+MATCH (p:Predio)-[:TIENE_GEOM]->(gp:Geom_Predio)
+WHERE p.comuna = '$(comuna)' AND p.codigo_predial = '151600010500006'
+RETURN p.codigo_predial AS codigo_predial,
+gp.geom_wkt AS geom_wkt
+"""
+df_predios = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
+
+# Create results array to store intersections
+intersections = []
+
+# i=1; row = eachrow(df_predios)[i]
+for (i, row) in enumerate(eachrow(df_predios))
+    println("Processing predio $(i)/$(nrow(df_predios)): $(row.codigo_predial)")
+    
+    predio_wkt = row.geom_wkt
+    codigo_predial = row.codigo_predial    
+
+    # Convert predio to polyshape
+    ps_predio_i = polyGdal.astext2shape([predio_wkt])
+    ps_predio_i = polyShape.shape_4326to32719(ps_predio_i)
+    ps_predio_i = polyShape.ajustaCoordenadas(ps_predio_i, dx, dy)
+    ps_predio_i = polyShape.setPolyOrientation(ps_predio_i, 1)
+
+    ps_hull_i = polyShape.setPolyOrientation(polyShape.polySimplify(ps_predio_i, 1), 1)
+    side_hull_i = size(ps_hull_i.Vertices[1], 1)
+
+    for edge = 1:side_hull_i
+        ps_i_edge = polyShape.polyBoxFromEdge(ps_hull_i, edge, 30)
+        ps_i_edge = polyShape.rotate_to_first_ccw(ps_i_edge, ps_i_edge.Vertices[1][3,:])
+
+        # Check intersection with each street segment
+        # j=3; seg_row = eachrow(df_semento_calle)[j]
+        for (j, seg_row) in enumerate(eachrow(df_semento_calle))
+            seg_id = seg_row.id_segmento_calle
+            
+            # Check if buffer intersects with street segment
+            ps_segmento_j = polyShape.subShape(ps_segmentos, j)
+            ps_intersection = polyGdal.shapeIntersect(ps_i_edge, ps_segmento_j)
+            length_interseccion = polyShape.lineLength(ps_intersection)
+            # Handle both scalar and vector results from lineLength
+            total_length = isa(length_interseccion, Vector) ? sum(length_interseccion) : length_interseccion
+            # If intersection exists and has vertices
+            if total_length >= 1 && !isempty(ps_intersection.Vertices) 
+                ps_i_edge = polyShape.ajustaCoordenadasInversa(ps_i_edge, dx, dy)
+                ps_i_edge = polyShape.shape_32719to4326(ps_i_edge)
+
+                push!(intersections, (
+                    codigo_predial = codigo_predial,
+                    id_segmento_calle = seg_id,
+                    codigo_calle = seg_row.codigo_calle,
+                    nombre_calle = seg_row.nombre_calle,
+                    tipo_calle = seg_row.tipo_calle,
+                    geom_wkt = polyShape.polyshape2wkt(ps_i_edge),
+                    edge = "[$(ps_i_edge.Vertices[1][1,1]), $(ps_i_edge.Vertices[1][1,2])]"
+                ))
+            end
+        end
+
+    end
+    
+    # Save checkpoint every 50 iterations
+    if i % 50 == 0 && !isempty(intersections)
+        println("Saving checkpoint at iteration $(i)...")
+        df_checkpoint = DataFrame(intersections)
+        CSV.write("calles_por_predio.csv", df_checkpoint)
+        println("Checkpoint saved with $(nrow(df_checkpoint)) records")
+    end
+end
+
+# Convert results to DataFrame
+df_intersections = DataFrame(intersections)
+df_intersections = unique(df_intersections)
+CSV.write("calles_por_predio.csv", df_intersections)
+
+
+# # ################################################################################################
+# # ################################################################################################
+
+# # 151600010500001, 151600010500006
+# df_calles = CSV.read("calles_por_predio.csv", DataFrame)
+
+# ps_calles_predio = df_calles[df_calles[!, "codigo_predial"] .== 151600010500006, "geom_wkt"]
+
+# ps_calles_predio = polyGdal.astext2shape(ps_calles_predio)
+# ps_calles_predio = polyShape.setPolyOrientation(ps_calles_predio, 1)
+# ps_calles_predio = polyShape.shape_4326to32719(ps_calles_predio)
+# ps_calles_predio = polyShape.ajustaCoordenadas(ps_calles_predio, dx, dy)
+
 # # AND p.codigo_predial = '151600010500001'
 # query = """
 # MATCH (p:Predio)-[:TIENE_GEOM]->(gp:Geom_Predio)
-# WHERE p.comuna = '$(comuna)' 
-# RETURN p.codigo_predial AS codigo_predial,
-# gp.geom_wkt AS geom_wkt
+# WHERE p.comuna = '$(comuna)' AND p.codigo_predial = '151600010500006'
+# RETURN p.codigo_predial AS codigo_predial, gp.geom_wkt AS geom_wkt
 # """
-# df_predios = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
+# df_predio = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
+# ps_predio = polyGdal.astext2shape(df_predio[!, "geom_wkt"])
+# ps_predio = polyShape.setPolyOrientation(ps_predio, 1)
+# ps_predio = polyShape.shape_4326to32719(ps_predio)
 
-# # Create results array to store intersections
-# intersections = []
+# ps_predio = polyShape.setPolyOrientation(ps_predio, 1)
+# ps_predio = polyShape.ajustaCoordenadas(ps_predio, dx, dy)
 
-# # i=1; row = eachrow(df_predios)[i]
-# for (i, row) in enumerate(eachrow(df_predios))
-#     println("Processing predio $(i)/$(nrow(df_predios)): $(row.codigo_predial)")
-    
-#     predio_wkt = row.geom_wkt
-#     codigo_predial = row.codigo_predial    
+# function refina_segmentos_calle_predio(ps_predio, ps_calles_predio)
 
-#     # Convert predio to polyshape
-#     ps_predio_i = polyGdal.astext2shape([predio_wkt])
-#     ps_predio_i = polyShape.shape_4326to32719(ps_predio_i)
-#     ps_predio_i = polyShape.ajustaCoordenadas(ps_predio_i, dx, dy)
-#     ps_predio_i = polyShape.setPolyOrientation(ps_predio_i, 1)
+#     num_segmentos = ps_calles_predio.NumRegions
+#     vec_ps_aux = [polyShape.subShape(ps_calles_predio, i) for i = 1:num_segmentos]
 
-#     ps_hull_i = polyShape.setPolyOrientation(polyShape.polySimplify(ps_predio_i, 1), 1)
-#     side_hull_i = size(ps_hull_i.Vertices[1], 1)
+#     for i = 1:num_segmentos
+#         i_prev = mod1(i - 1, num_segmentos)
+        
+#         ps_i_prev = polyShape.subShape(ps_calles_predio, i_prev)
+#         ps_i = polyShape.subShape(ps_calles_predio, i)
+#         start_pt = ps_i.Vertices[1][1,:]
 
-#     for edge = 1:side_hull_i
-#         ps_i_edge = polyShape.polyBoxFromEdge(ps_hull_i, edge, 30)
-#         ps_i_edge = polyShape.rotate_to_first_ccw(ps_i_edge, ps_i_edge.Vertices[1][3,:])
+#         ps_inter_i_prev = polyShape.polyIntersect(ps_i, ps_i_prev)
+#         if isempty(ps_inter_i_prev.Vertices) 
+#             ps_i_ext = polyShape.partialPolyOffset(ps_i, [2, 4], 40)
+#             ps_i_prev_ext = polyShape.partialPolyOffset(ps_i_prev, [2, 4], 40)
+#             ps_ext_inter = polyShape.polyIntersect(ps_i_ext, ps_i_prev_ext)
+#             if !isempty(ps_ext_inter.Vertices)
+#                 ps_ext_inter = polyShape.polyDifference(ps_ext_inter, polyShape.partialPolyOffset(ps_i, [3, 4], [10, 40]))
+#                 ps_ext_inter = polyShape.polyDifference(ps_ext_inter, polyShape.partialPolyOffset(ps_i_prev, [2, 3], [40, 10]))
+                
+#                 ps_delta_i_prev, ps_delta_i = polyShape.dividePoly(ps_ext_inter, 1)
 
-#         # Check intersection with each street segment
-#         # j=2; seg_row = eachrow(df_semento_calle)[j]
-#         for (j, seg_row) in enumerate(eachrow(df_semento_calle))
-#             seg_id = seg_row.id_segmento_calle
-            
-#             # Check if buffer intersects with street segment
-#             ps_segmento_j = polyShape.subShape(ps_segmentos, j)
-#             ps_intersection = polyGdal.shapeIntersect(ps_i_edge, ps_segmento_j)
-#             length_interseccion = polyShape.lineLength(ps_intersection)
-#             # Handle both scalar and vector results from lineLength
-#             total_length = isa(length_interseccion, Vector) ? sum(length_interseccion) : length_interseccion
-#             # If intersection exists and has vertices
-#             if total_length >= 1 && !isempty(ps_intersection.Vertices) 
-#                 ps_i_edge = polyShape.ajustaCoordenadasInversa(ps_i_edge, dx, dy)
-#                 ps_i_edge = polyShape.shape_32719to4326(ps_i_edge)
-
-#                 push!(intersections, (
-#                     codigo_predial = codigo_predial,
-#                     id_segmento_calle = seg_id,
-#                     codigo_calle = seg_row.codigo_calle,
-#                     nombre_calle = seg_row.nombre_calle,
-#                     tipo_calle = seg_row.tipo_calle,
-#                     geom_wkt = polyShape.polyshape2wkt(ps_i_edge),
-#                     edge = "[$(ps_i_edge.Vertices[1][1,1]), $(ps_i_edge.Vertices[1][1,2])]"
-#                 ))
+#                 vec_ps_aux[i] = polyShape.polySimplify(polyShape.polyUnion(vec_ps_aux[i], ps_delta_i))
+#                 vec_ps_aux[i_prev] = polyShape.polySimplify(polyShape.polyUnion(vec_ps_aux[i_prev], ps_delta_i_prev))
 #             end
-#         end
+#         else
+#             ps_delta_i_prev, ps_delta_i = polyShape.dividePoly(ps_inter_i_prev, 1)
 
+#             vec_ps_aux[i] = polyShape.polySimplify(polyShape.polyUnion(polyShape.polyDifference(vec_ps_aux[i], ps_inter_i_prev), ps_delta_i))
+#             vec_ps_aux[i_prev] = polyShape.polySimplify(polyShape.polyUnion(polyShape.polyDifference(vec_ps_aux[i_prev], ps_inter_i_prev), ps_delta_i_prev))
+            
+#         end
 #     end
-    
-#     # Save checkpoint every 50 iterations
-#     if i % 50 == 0 && !isempty(intersections)
-#         println("Saving checkpoint at iteration $(i)...")
-#         df_checkpoint = DataFrame(intersections)
-#         CSV.write("calles_por_predio.csv", df_checkpoint)
-#         println("Checkpoint saved with $(nrow(df_checkpoint)) records")
-#     end
+
+#     return vec_ps_aux
 # end
 
-# # Convert results to DataFrame
-# df_intersections = DataFrame(intersections)
-# df_intersections = unique(df_intersections)
-# CSV.write("calles_por_predio.csv", df_intersections)
-
-
-################################################################################################
-################################################################################################
-
-
-df_calles = CSV.read("calles_por_predio.csv", DataFrame)
-
-ps_calles_predio = df_calles[df_calles[!, "codigo_predial"] .== 151600010500001, "geom_wkt"]
-
-ps_calles_predio = polyGdal.astext2shape(ps_calles_predio)
-ps_calles_predio = polyShape.setPolyOrientation(ps_calles_predio, 1)
-ps_calles_predio = polyShape.shape_4326to32719(ps_calles_predio)
-ps_calles_predio = polyShape.ajustaCoordenadas(ps_calles_predio, dx, dy)
-
-# AND p.codigo_predial = '151600010500001'
-query = """
-MATCH (p:Predio)-[:TIENE_GEOM]->(gp:Geom_Predio)
-WHERE p.comuna = '$(comuna)' AND p.codigo_predial = '151600010500001'
-RETURN p.codigo_predial AS codigo_predial, gp.geom_wkt AS geom_wkt
-"""
-df_predio = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-ps_predio = polyGdal.astext2shape(df_predio[!, "geom_wkt"])
-ps_predio = polyShape.setPolyOrientation(ps_predio, 1)
-ps_predio = polyShape.shape_4326to32719(ps_predio)
-
-ps_predio = polyShape.setPolyOrientation(ps_predio, 1)
-ps_predio = polyShape.ajustaCoordenadas(ps_predio, dx, dy)
-ps_calles_predio_aux = deepcopy(ps_calles_predio)
-
-num_segmentos = ps_calles_predio.NumRegions
-for i = 1:num_segmentos
-    i_prev = mod1(i - 1, num_segmentos)
-    
-    ps_i_prev = polyShape.subShape(ps_calles_predio, i_prev)
-    ps_i = polyShape.subShape(ps_calles_predio, i)
-    start_pt = ps_i.Vertices[1][1,:]
-
-    ps_inter_i_prev = polyShape.polyIntersect(ps_i, ps_i_prev)
-    if isempty(ps_inter_i_prev.Vertices) 
-        ps_i_ext = polyShape.partialPolyOffset(ps_i, [2], 20)
-        ps_i_prev_ext = polyShape.partialPolyOffset(ps_i_prev, [4], 20)
-        ps_ext_inter = polyShape.polyIntersect(ps_i_ext, ps_i_prev_ext)
-        if !isempty(ps_ext_inter.Vertices)
-            ps_ext_inter = polyShape.polyDifference(ps_ext_inter, polyShape.partialPolyOffset(ps_i, [3, 4], [10, 30]))
-            ps_ext_inter = polyShape.polyDifference(ps_ext_inter, polyShape.partialPolyOffset(ps_i_prev, [3, 2], [1, 30]))
-            ps_delta_i_prev, ps_delta_i = polyShape.dividePoly(ps_ext_inter, 1)
-            
-            ps_i = polyShape.polySimplify(polyShape.polyUnion(polyShape.partialPolyOffset(ps_i, [2], 0.1), ps_delta_i))
-            ps_i = polyShape.rotate_to_first_ccw(ps_i, start_pt, 1.0)
-            ps_calles_predio_aux.Vertices[i] = ps_i.Vertices[1]        
-        end
-    end
-end
+# vec_ps_aux = refina_segmentos_calle_predio(ps_predio, ps_calles_predio)

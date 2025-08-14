@@ -1766,42 +1766,59 @@ end
 function polySimplify(ps_::PolyShape, tolerance::Real=0.1)::PolyShape
     ps = polyShape.polyCopy(ps_)
     
-    function douglasPeucker(vertices::Array{Float64,2}, tolerance::Real)::Array{Float64,2}
+    function removeSmallImperfections(vertices::Array{Float64,2}, tolerance::Real)::Array{Float64,2}
         n = size(vertices, 1)
-        if n <= 2
+        if n < 4
             return vertices
         end
         
-        start_point = PointShape(vertices[1, :]', 1)
-        end_point = PointShape(vertices[end, :]', 1)
-        line_segment = polyShape.createLine(start_point, end_point)
+        keep_vertex = fill(true, n)
         
-        max_distance = 0.0
-        max_index = 0
-        
-        for i = 2:n-1
-            point = PointShape(vertices[i, :]', 1)
-            distance = abs(polyShape.calculateDistance(line_segment, point))
+        # Remove vertices that create small features
+        for i = 1:n
+            prev_idx = mod1(i - 1, n)
+            next_idx = mod1(i + 1, n)
             
-            if distance > max_distance
-                max_distance = distance
-                max_index = i
+            p_prev = vertices[prev_idx, :]
+            p_curr = vertices[i, :]
+            p_next = vertices[next_idx, :]
+            
+            # Calculate edge lengths
+            edge1_length = sqrt(sum((p_curr - p_prev).^2))
+            edge2_length = sqrt(sum((p_next - p_curr).^2))
+            
+            # Remove vertex if both adjacent edges are very short
+            if edge1_length < tolerance && edge2_length < tolerance
+                keep_vertex[i] = false
+                continue
+            end
+            
+            # Calculate angle at current vertex
+            vec1 = p_prev - p_curr
+            vec2 = p_next - p_curr
+            
+            if sqrt(sum(vec1.^2)) > 1e-10 && sqrt(sum(vec2.^2)) > 1e-10
+                vec1_norm = vec1 / sqrt(sum(vec1.^2))
+                vec2_norm = vec2 / sqrt(sum(vec2.^2))
+                
+                dot_product = clamp(sum(vec1_norm .* vec2_norm), -1.0, 1.0)
+                angle = acos(abs(dot_product))
+                
+                # Remove vertex if angle is very small (nearly collinear) AND edge is short
+                if angle < 0.1 && min(edge1_length, edge2_length) < tolerance * 2
+                    keep_vertex[i] = false
+                end
             end
         end
         
-        if max_distance > tolerance && max_index > 0
-            left_vertices = vertices[1:max_index, :]
-            right_vertices = vertices[max_index:end, :]
-            
-            left_simplified = douglasPeucker(left_vertices, tolerance)
-            right_simplified = douglasPeucker(right_vertices, tolerance)
-            
-            simplified = vcat(left_simplified[1:end-1, :], right_simplified)
-        else
-            simplified = vertices[[1, end], :]
+        # Ensure we keep at least 3 vertices
+        if sum(keep_vertex) < 3
+            # Keep vertices that are furthest apart
+            keep_vertex = fill(false, n)
+            keep_vertex[[1, div(n,3), div(2*n,3)]] .= true
         end
         
-        return simplified
+        return vertices[keep_vertex, :]
     end
     
     function simplifyRegion(vertices::Array{Float64,2}, tolerance::Real)::Array{Float64,2}
@@ -1810,15 +1827,49 @@ function polySimplify(ps_::PolyShape, tolerance::Real=0.1)::PolyShape
             return vertices
         end
         
-        closed_vertices = vcat(vertices, vertices[1, :]')
-        simplified = douglasPeucker(closed_vertices, tolerance)
+        # First pass: remove small imperfections
+        simplified = removeSmallImperfections(vertices, tolerance)
         
-        if size(simplified, 1) > 1 && all(simplified[1, :] .≈ simplified[end, :])
-            simplified = simplified[1:end-1, :]
-        end
-        
-        if size(simplified, 1) < 3
-            simplified = polyShape.convHull(vertices)
+        # Second pass: remove nearly collinear points
+        n_simp = size(simplified, 1)
+        if n_simp >= 4
+            keep_vertex = fill(true, n_simp)
+            
+            for i = 1:n_simp
+                if !keep_vertex[i]
+                    continue
+                end
+                
+                prev_idx = mod1(i - 1, n_simp)
+                next_idx = mod1(i + 1, n_simp)
+                
+                # Skip if adjacent vertices are already marked for removal
+                if !keep_vertex[prev_idx] || !keep_vertex[next_idx]
+                    continue
+                end
+                
+                p_prev = simplified[prev_idx, :]
+                p_curr = simplified[i, :]
+                p_next = simplified[next_idx, :]
+                
+                # Calculate distance from current point to line between prev and next
+                line_start = PointShape(p_prev', 1)
+                line_end = PointShape(p_next', 1)
+                line_seg = polyShape.createLine(line_start, line_end)
+                curr_point = PointShape(p_curr', 1)
+                
+                distance = abs(polyShape.calculateDistance(line_seg, curr_point))
+                
+                # Remove if point is very close to the line (nearly collinear)
+                if distance < tolerance * 0.5
+                    keep_vertex[i] = false
+                end
+            end
+            
+            # Ensure we keep at least 3 vertices
+            if sum(keep_vertex) >= 3
+                simplified = simplified[keep_vertex, :]
+            end
         end
         
         return simplified
