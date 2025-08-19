@@ -1,4 +1,4 @@
-function obtieneCalles(ps_predio::PolyShape, ps_buffer_predio::PolyShape, ps_predios_buffer::PolyShape, ps_manzanas_buffer::PolyShape)
+function obtieneCalles(ps_predio::PolyShape, ps_buffer_predio::PolyShape, ps_predios_buffer::PolyShape)
 
     # Obtiene calles dentro del buffer
     ps_predios_buffer_union = polyShape.polyUnion(ps_predios_buffer)
@@ -10,7 +10,7 @@ function obtieneCalles(ps_predio::PolyShape, ps_buffer_predio::PolyShape, ps_pre
     ps_calle_predio = polyShape.polyDifference(ps_buffer_local_predio, ps_predios_buffer_union)
     vec_edges_predio, _ = polyShape.shape2vector(ps_predio)
 
-    vec_predio_calle_intersect_ = [polyGdal.shapeIntersect(polyGdal.shapeBuffer(ps_calle_predio, .4, 0), vec_edges_predio[i]) for i in eachindex(vec_edges_predio)] 
+    vec_predio_calle_intersect_ = [polyGdal.shapeIntersect(polyGdal.shapeBuffer(ps_calle_predio, .4, 0), vec_edges_predio[i]) for i in eachindex(vec_edges_predio)]
     vec_predio_calle_intersect = Vector{LineShape}()
     for j in eachindex(vec_predio_calle_intersect_)
         if size(vec_predio_calle_intersect_[j].Vertices[1], 1) >= 1

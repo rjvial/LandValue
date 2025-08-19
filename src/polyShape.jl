@@ -1294,15 +1294,17 @@ function extendRectToIntersection(pos_x, pos_y, anchoLado, angle, ps, rectType="
     return dist, box_out
 end
 
-
+# polyBox(pos_x::Real, pos_y::Real, dx::Real, dy::Real=dx, angulo::Real=0.0, cr=[pos_x; pos_y])
 function polyBoxFromEdge(ps::PolyShape, edge_id::Int, extension_length::Real)::PolyShape
     V = ps.Vertices[1]
     num_vertices = size(V, 1)
     
     # Get the selected edge vertices
-    p1 = V[edge_id, :]
-    p2_id = edge_id == num_vertices ? 1 : edge_id + 1
-    p2 = V[p2_id, :]
+    edge_1 = edge_id
+    edge_2 = mod1(edge_1 + 1, num_vertices)
+
+    p1 = V[edge_1, :]
+    p2 = V[edge_2, :]
     
     # Calculate edge vector and length
     edge_vector = p2 - p1
@@ -1310,31 +1312,15 @@ function polyBoxFromEdge(ps::PolyShape, edge_id::Int, extension_length::Real)::P
     
     # Calculate edge angle
     edge_angle = atan(edge_vector[2], edge_vector[1])
-    
-    # Calculate outward normal (perpendicular vector pointing outside the polygon)
-    perp_vector = [-edge_vector[2], edge_vector[1]]
-    
-    # Determine which direction is "outward" by checking polygon centroid
-    centroid = sum(V, dims=1) / num_vertices
-    edge_midpoint = (p1 + p2) / 2
-    to_centroid = centroid' - edge_midpoint
-    
-    # If perpendicular vector points toward centroid, flip it to point outward
-    if sum(perp_vector .* to_centroid) > 0
-        perp_vector = -perp_vector
-    end
-    
-    # Normalize the perpendicular vector and get outward direction
-    perp_unit = perp_vector / sqrt(sum(perp_vector .^ 2))
-    outward_offset = extension_length * perp_unit
-    
-    # Position the box so the selected edge aligns with one side
-    # Start from p1 and offset outward
-    box_origin = p1 + outward_offset
-    
-    # Use polyBox with the edge length as width, extension_length as height, and edge angle
-    box_out = polyBox(box_origin[1], box_origin[2], edge_length, extension_length, edge_angle)
-    
+
+    pos_x = p2[1]
+    pos_y = p2[2]
+    dx = edge_length
+    dy = extension_length
+    angulo = edge_angle - pi
+
+    box_out = polyShape.polyBox(pos_x, pos_y, dx, dy, angulo)
+
     return box_out
 end
 
@@ -1995,42 +1981,111 @@ function polyshape2wkt(ps::PolyShape)::String
 end
 
 
-function dividePoly(ps::PolyShape, common_vertex_id::Int)::Tuple{PolyShape, PolyShape}
+function dividePoly(ps::PolyShape, point::Vector{Float64})::Tuple{PolyShape, PolyShape}
     V = ps.Vertices[1]
     n = size(V, 1)
+    total_area = polyShape.polyArea(ps)
     
-    ini_id = common_vertex_id
-    prev_id = mod1(ini_id - 1, n)
-    post_id = mod1(ini_id + 1, n)
-
-    ps_out_1 = PolyShape([],0) 
-    ps_out_2 = PolyShape([],0) 
-    difArea = 100000
-    for i in setdiff(collect(1:n), [prev_id, ini_id, post_id])
-        end_id = i
-
-        # Create circular indices from ini_id to end_id
-        indices_1 = [mod1(ini_id + j, n) for j in 0:(mod1(end_id - ini_id, n))]
-        V_1 = V[indices_1, :]
-
-        # Create circular indices from end_id to ini_id
-        indices_2 = [mod1(end_id + j, n) for j in 0:(mod1(ini_id - end_id, n))]
-        V_2 = V[indices_2, :]
-
-        ps_1 = PolyShape([V_1],1)
-        ps_2 = PolyShape([V_2],1)
-
-        area_1 = polyShape.polyArea(ps_1)
-        area_2 = polyShape.polyArea(ps_2)
-        difArea_i = abs(area_1 - area_2) 
-        if difArea_i < difArea
-            difArea = difArea_i
-            ps_out_1 = deepcopy(ps_1)
-            ps_out_2 = deepcopy(ps_2)
+    best_poly1 = PolyShape([], 0)
+    best_poly2 = PolyShape([], 0)
+    min_area_diff = Inf
+    
+    # Try all possible ways to divide the polygon by connecting the point to two vertices
+    for i = 1:n
+        for j = i+2:n
+            # Skip adjacent vertices and cases that don't create proper divisions
+            if j - i == n - 1
+                continue
+            end
+            
+            # Create first polygon: point -> vertex i -> vertices i+1 to j -> point
+            V_1_indices = collect(i:j)
+            V_1 = [point'; V[V_1_indices, :]; point']
+            
+            # Create second polygon: point -> vertex j -> vertices j+1 to i (wrapping) -> point
+            if j < n
+                V_2_indices = [collect(j:n); collect(1:i)]
+            else
+                V_2_indices = [n; collect(1:i)]
+            end
+            V_2 = [point'; V[V_2_indices, :]; point']
+            
+            # Remove duplicate consecutive points
+            V_1_clean = unique_consecutive_rows(V_1)
+            V_2_clean = unique_consecutive_rows(V_2)
+            
+            # Create polygons
+            if size(V_1_clean, 1) >= 3 && size(V_2_clean, 1) >= 3
+                poly1 = PolyShape([V_1_clean], 1)
+                poly2 = PolyShape([V_2_clean], 1)
+                
+                area1 = polyShape.polyArea(poly1)
+                area2 = polyShape.polyArea(poly2)
+                area_diff = abs(area1 - area2)
+                
+                # Check if this gives a better (more equal) area split
+                if area_diff < min_area_diff
+                    min_area_diff = area_diff
+                    best_poly1 = deepcopy(poly1)
+                    best_poly2 = deepcopy(poly2)
+                end
+            end
         end
     end
+    
+    # If no valid division found, create a simple division through polygon centroid
+    if min_area_diff == Inf
+        centroid = [sum(V[:, 1])/n, sum(V[:, 2])/n]
+        
+        # Find two vertices that are roughly opposite each other
+        distances_from_centroid = [sqrt(sum((V[i, :] - centroid).^2)) for i = 1:n]
+        max_dist_idx = argmax(distances_from_centroid)
+        
+        # Find vertex roughly opposite to max_dist_idx
+        opposite_idx = mod1(max_dist_idx + div(n, 2), n)
+        
+        # Create division
+        if max_dist_idx < opposite_idx
+            V_1_indices = collect(max_dist_idx:opposite_idx)
+            V_2_indices = [collect(opposite_idx:n); collect(1:max_dist_idx)]
+        else
+            V_1_indices = [collect(max_dist_idx:n); collect(1:opposite_idx)]
+            V_2_indices = collect(opposite_idx:max_dist_idx)
+        end
+        
+        V_1 = [point'; V[V_1_indices, :]; point']
+        V_2 = [point'; V[V_2_indices, :]; point']
+        
+        V_1_clean = unique_consecutive_rows(V_1)
+        V_2_clean = unique_consecutive_rows(V_2)
+        
+        best_poly1 = PolyShape([V_1_clean], 1)
+        best_poly2 = PolyShape([V_2_clean], 1)
+    end
+    
+    return best_poly1, best_poly2
+end
 
-    return ps_out_1, ps_out_2
+function unique_consecutive_rows(V::Matrix{Float64})::Matrix{Float64}
+    if size(V, 1) <= 1
+        return V
+    end
+    
+    result = V[1:1, :]
+    for i = 2:size(V, 1)
+        last_row = result[end, :]
+        current_row = V[i, :]
+        if !isapprox(current_row, last_row, atol=1e-10)
+            result = [result; V[i:i, :]]
+        end
+    end
+    
+    # Remove last point if it's the same as first (close polygon properly)
+    if size(result, 1) > 2 && isapprox(result[1, :], result[end, :], atol=1e-10)
+        result = result[1:end-1, :]
+    end
+    
+    return result
 end
 
 

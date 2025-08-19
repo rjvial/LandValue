@@ -1,13 +1,13 @@
-function obtiene_geometrias_codigo_predial(codigo_predial, conn_neo4j)
+function obtiene_geometrias_codigo_predial(id_combi, conn_neo4j)
     # Obtiene desde Neo4j las geometrias de los predios
     display("Obtiene desde Neo4j las geometrias de los predios")
 
-    quoted_list = "[" * join(["'" * string(c) * "'" for c in codigo_predial], ",") * "]"
     query = """
-        MATCH (gp:Geom_Predio)-[]-(p:Predio)
-        WHERE p.codigo_predial IN $quoted_list
-        RETURN DISTINCT p.codigo_predial AS codigo_predial, p.sup_terreno_sii AS sup_terreno_sii, gp.geom_wkt AS geom_wkt
-        ORDER BY codigo_predial
+        MATCH (c:Combi)
+        WHERE c.id_combi = '$id_combi'
+        RETURN DISTINCT c.id_combi AS id_combi, c.sup_combi_sii AS sup_terreno_sii, 
+                c.geom_combi AS geom_wkt, c.num_predios AS num_predios
+        ORDER BY id_combi
     """
     df_predios = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
     sup_terreno_sii = sum(df_predios[!,"sup_terreno_sii"])
@@ -34,12 +34,12 @@ function obtiene_geometrias_codigo_predial(codigo_predial, conn_neo4j)
     # Obtiene predios contenidos en el buffer del predio y ajusta coordenadas
     display("Obtiene predios contenidos en el buffer del predio y ajusta coordenadas")
     query = """
-    MATCH (p:Predio)-[]-(m:Manzana)
-    WHERE p.codigo_predial IN $quoted_list
+    MATCH (c:Combi)<-[:CONFORMA_COMBI]-(p:Predio)-[:SE_UBICA_EN_MANZANA]->(m:Manzana)
+    WHERE c.id_combi = '$id_combi'
     MATCH (m_:Manzana)-[:ES_VECINA_A]-(m)
     WITH m, m_
     UNWIND [m, m_] AS m2
-    MATCH (gp:Geom_Predio)-[]-(p2:Predio)-[:SE_UBICA_EN_MANZANA]-(m2)
+    MATCH (gp:Geom_Predio)<-[:TIENE_GEOM]-(p2:Predio)-[:SE_UBICA_EN_MANZANA]->(m2)
     RETURN DISTINCT gp.geom_wkt AS geom_wkt
     """
     df_predios_manzanas_vecinas = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
@@ -53,7 +53,7 @@ function obtiene_geometrias_codigo_predial(codigo_predial, conn_neo4j)
     # Obtiene areas verdes en el buffer del predio y ajusta coordenadas
     display("Obtiene areas verdes contenidos en el buffer del predio y ajusta coordenadas")
     query = """
-    MATCH (cat:Poi_Category)-[]-(poi:Poi)
+    MATCH (cat:Poi_Category)<-[:ES_POI_TIPO]-(poi:Poi)
     WHERE cat.poi_category in ['park', 'garden'] AND poi.comuna = 'vitacura'
     RETURN poi.geom_wkt AS geom_wkt
     """
@@ -66,28 +66,12 @@ function obtiene_geometrias_codigo_predial(codigo_predial, conn_neo4j)
 
     ps_predios_buffer = polyShape.polyUnion(ps_predios_buffer, ps_areas_verdes_buffer)
 
-    # Obtiene manzanas contenidas en el buffer del predio
-    display("Obtiene manzanas contenidas en el buffer del predio")
-    query = """
-    MATCH (p:Predio)-[]-(m:Manzana)
-    WHERE p.codigo_predial IN $quoted_list
-    MATCH (m_:Manzana)-[:ES_VECINA_A]-(m)
-    WITH m, m_
-    UNWIND [m, m_] AS m2
-    RETURN DISTINCT m2.geom_wkt AS geom_wkt
-    """
-    df_manzanas_vecinas = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-    ps_manzanas_vecinas = polyGdal.astext2shape(df_manzanas_vecinas[:, "geom_wkt"])
-    ps_manzanas_vecinas = polyShape.setPolyOrientation(ps_manzanas_vecinas,1)
-    ps_manzanas_vecinas = polyShape.shape_4326to32719(ps_manzanas_vecinas)
-    ps_manzanas_vecinas = polyShape.ajustaCoordenadas(ps_manzanas_vecinas, dx, dy)
-    ps_manzanas_buffer = polyShape.polyIntersect(ps_manzanas_vecinas, ps_buffer_predio)
 
-    ps_predios_buffer = polyShape.polyUnion(ps_predios_buffer, ps_areas_verdes_buffer)
+    # Obtiene manzanas contenidas en el buffer del predio
 
 
     display("Obtención del conjunto de calles en el entorno del predio")
-    @time ps_calles, ps_publico, ps_bruto, vecAnchoCalle, vecSecConCalle = obtieneCalles(ps_predio, ps_buffer_predio, ps_predios_buffer, ps_manzanas_buffer)
+    @time ps_calles, ps_publico, ps_bruto, vecAnchoCalle, vecSecConCalle = obtieneCalles(ps_predio, ps_buffer_predio, ps_predios_buffer)
 
 
     vec_edges_predio, aux = polyShape.shape2vector(ps_predio)
@@ -98,14 +82,12 @@ function obtiene_geometrias_codigo_predial(codigo_predial, conn_neo4j)
     display("Obtención de calles dentro del buffer")
     @time ps_calles_intra_buffer = polyShape.polyIntersect(ps_calles, ps_buffer_predio)
 
-    n_predios = length(codigo_predial)
-
     dict_geom = Dict(
         "ps_predio" => ps_predio,
         "ps_calles" => ps_calles,
         "ps_publico" => ps_publico,
         "ps_bruto" => ps_bruto,
-        "n_predios" => n_predios,
+        "n_predios" => df_predios[1,"num_predios"][1],
         "vecSecTodos" => vecSecTodos,
         "vecSecSinCalle" => vecSecSinCalle,
         "vecSecConCalle" => vecSecConCalle,
