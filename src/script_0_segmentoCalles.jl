@@ -20,12 +20,10 @@ conn_neo4j = neo4j_julia.connection(neo4j_host, neo4j_user, neo4j_password, fold
 
 comuna = "vitacura" 
 
-###############################################################################
-
-# AND n.id_segmento_calle IN ["305917", "305918", "305920", "305624", "305956", "305960", "305729"]
+# AND n.id_segmento_calle IN ["305811", "309105"]
 query = """
 MATCH (n:Segmento_Calle) 
-WHERE n.comuna = '$(comuna)'
+WHERE n.comuna = '$(comuna)' 
 RETURN n.codigo_calle AS codigo_calle,
 n.codigo_comuna AS codigo_comuna,
 n.comuna AS comuna,
@@ -40,67 +38,45 @@ ps_segmentos = polyShape.shape_4326to32719(ps_segmentos)
 ps_segmentos, dx, dy = polyShape.ajustaCoordenadas(ps_segmentos)
 
 
-# # 13132041005026_10
-# sup_combi_sii_min = 800;    sup_combi_sii_max = 4000
-# length_min_combi = 38;      length_max_combi = 120
-# width_min_combi = 20;       width_max_combi = 65
-# length_to_width_min = 1;    length_to_width_max = 5.0
-# rectangularity_min = 0.95;  rectangularity_max = 1
-# convexity_min = 0.95;       convexity_max = 1
-# num_predios_min = 1;        num_predios_max = 12
+sup_combi_sii_min = 800;    sup_combi_sii_max = 4000
+length_min_combi = 38;      length_max_combi = 120
+width_min_combi = 20;       width_max_combi = 65
+length_to_width_min = 1;    length_to_width_max = 5.0
+rectangularity_min = 0.95;  rectangularity_max = 1
+convexity_min = 0.95;       convexity_max = 1
+num_predios_min = 1;        num_predios_max = 12
 
+#c.id_combi = '13132011001012_31' AND
+query = """
+MATCH (c:Combi) 
+WHERE
+c.length >= $length_min_combi             AND c.length <= $length_max_combi
+AND c.width >= $width_min_combi                 AND c.width <= $width_max_combi
+AND c.length_to_width >= $length_to_width_min   AND c.length_to_width <= $length_to_width_max
+AND c.rectangularity >= $rectangularity_min     AND c.rectangularity <= $rectangularity_max
+AND c.convexity >= $convexity_min               AND c.convexity <= $convexity_max
+// AND c.sup_combi_sii >= $sup_combi_sii_min       AND c.sup_combi_sii <= $sup_combi_sii_max
+// AND c.num_predios >= $num_predios_min           AND c.num_predios <= $num_predios_max
+RETURN DISTINCT  c.manzent AS manzent, c.id_combi AS id_combi, c.predios AS list_predios, 
+c.rectangularity AS rectangularity, c.convexity AS convexity, c.length AS length, c.width AS width,
+c.geom_combi AS geom_wkt
+ORDER BY manzent, id_combi
+"""
+df_combis = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
+
+# ###############################################################################
 
 # query = """
-# MATCH (c:Combi)
-# WHERE 
-# // c.length >= $length_min_combi             AND c.length <= $length_max_combi
-# // AND c.width >= $width_min_combi                 AND c.width <= $width_max_combi
-# // AND c.length_to_width >= $length_to_width_min   AND c.length_to_width <= $length_to_width_max
-# // AND c.sup_combi_sii >= $sup_combi_sii_min       AND c.sup_combi_sii <= $sup_combi_sii_max
-# // AND c.num_predios >= $num_predios_min           AND c.num_predios <= $num_predios_max
-# c.rectangularity >= $rectangularity_min     AND c.rectangularity <= $rectangularity_max
-# AND c.convexity >= $convexity_min               AND c.convexity <= $convexity_max
-# RETURN DISTINCT  c.manzent AS manzent, c.id_combi AS id_combi, c.predios AS list_predios, 
-# c.rectangularity AS rectangularity, c.convexity AS convexity, c.length AS length, c.width AS width,
-# c.geom_combi AS geom_wkt
-# ORDER BY manzent, id_combi
+#   MATCH (m:Manzana)<-[:SE_UBICA_EN_MANZANA]-(p:Predio)-[:TIENE_GEOM]->(gp:Geom_Predio)
+#   WHERE p.comuna = 'vitacura'
+#   RETURN p.codigo_predial AS codigo_predial, m.manzent AS manzent, gp.geom_wkt AS geom_wkt
 # """
-# df_combis = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-
-
-# # query = """
-# #   MATCH (m:Manzana)-[:SE_UBICA_EN_MANZANA]-(p:Predio)-[:TIENE_GEOM]->(gp:Geom_Predio)
-# #   WHERE p.comuna = 'vitacura'
-# #   RETURN p.codigo_predial AS codigo_predial, m.manzent AS manzent, gp.geom_wkt AS geom_wkt
-# # """
-# # df_predios = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-# # lista_manzanas = unique(df_predios[:,"manzent"])
-
-
-# # query = """
-# #   MATCH (m:Manzana)-[:SE_UBICA_EN_MANZANA]-(p:Predio)
-# #   WHERE p.comuna = 'vitacura'
-# #   WITH m
-# #   OPTIONAL MATCH (m)-[:ES_VECINA_A]-(m1:Manzana)
-# #   RETURN m.manzent AS manzent, apoc.text.join(collect(DISTINCT m1.manzent), ',') AS vecinas
-# # """
-# # df_manzanas_vecinas = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
+# df_predios_manzana = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
+# lista_manzanas = unique(df_predios_manzana[:,"manzent"])
 
 
 # # # Create results array to store intersections
 # intersections = []
-# # vec_predios_union = PolyShape[]
-# # for m in eachindex(lista_manzanas)
-# #     println("Processing manzana $(m)/$(length(lista_manzanas))")    
-# #     df_predios_m = df_predios[df_predios[!,"manzent"] .== lista_manzanas[m], "geom_wkt"]
-# #     ps_predios_m = polyGdal.astext2shape(df_predios_m)
-# #     ps_predios_m = polyShape.shape_4326to32719(ps_predios_m)
-# #     ps_predios_m = polyShape.ajustaCoordenadas(ps_predios_m, dx, dy)
-# #     ps_predios_m = polyShape.setPolyOrientation(ps_predios_m, 1)
-
-# #     push!(vec_predios_union, polyShape.polyUnion(ps_predios_m))
-# # end
-
 
 # # i=1; row = eachrow(df_combis)[i]
 # for (i, row) in enumerate(eachrow(df_combis))
@@ -117,45 +93,29 @@ ps_segmentos, dx, dy = polyShape.ajustaCoordenadas(ps_segmentos)
 #     ps_hull_i = polyShape.setPolyOrientation(polyShape.polySimplify(ps_combi_i, 1), 1)
 #     side_hull_i = size(ps_hull_i.Vertices[1], 1)
 
-#     # manzent_i = df_combis[df_combis[!,"id_combi"] .== id_combi, "manzent"][1]
-#     # df_predios_manzana_i = df_predios[df_predios[!,"manzent"] .== manzent_i, "geom_wkt"]
-#     # ps_predios_manzana_i = polyGdal.astext2shape(df_predios_manzana_i)
-#     # ps_predios_manzana_i = polyShape.shape_4326to32719(ps_predios_manzana_i)
-#     # ps_predios_manzana_i = polyShape.ajustaCoordenadas(ps_predios_manzana_i, dx, dy)
-#     # ps_predios_manzana_i = polyShape.setPolyOrientation(ps_predios_manzana_i, 1)
-
+#     manzent_i = df_combis[df_combis[!,"id_combi"] .== id_combi, "manzent"][1]
+#     df_predios_manzana_i = df_predios_manzana[df_predios_manzana[!,"manzent"] .== manzent_i, "geom_wkt"]
+#     ps_predios_manzana_i = polyGdal.astext2shape(df_predios_manzana_i)
+#     ps_predios_manzana_i = polyShape.shape_4326to32719(ps_predios_manzana_i)
+#     ps_predios_manzana_i = polyShape.ajustaCoordenadas(ps_predios_manzana_i, dx, dy)
+#     ps_predios_manzana_i = polyShape.polyUnion(polyShape.setPolyOrientation(ps_predios_manzana_i, 1))
 
 #     for edge = 1:side_hull_i
-#         box_i_edge = polyShape.polyBoxFromEdge(ps_hull_i, edge, 30)
-#         box_i_edge = polyShape.rotate_to_first_ccw(box_i_edge, box_i_edge.Vertices[1][1,:])
 
-#         # Check intersection with each street segment
-#         # j=1; seg_row = eachrow(df_semento_calle)[j]
-#         for (j, seg_row) in enumerate(eachrow(df_semento_calle))
-#             seg_id = seg_row.id_segmento_calle
-            
-#             # Check if buffer intersects with street segment
-#             ps_segmento_j = polyShape.subShape(ps_segmentos, j)
-#             ps_intersection = polyGdal.shapeIntersect(box_i_edge, ps_segmento_j)
-#             length_interseccion = polyShape.lineLength(ps_intersection)
-#             # Handle both scalar and vector results from lineLength
-#             total_length = isa(length_interseccion, Vector) ? sum(length_interseccion) : length_interseccion
-#             # If intersection exists and has vertices
-#             if total_length >= 1 && !isempty(ps_intersection.Vertices) 
-#                 # box_i_edge_x_predios = polyShape.polyArea(polyShape.polyIntersect(box_i_edge, ps_predios_manzana_i))
+#         if polyShape.polyArea(polyShape.polyIntersect(polyShape.polyBoxFromEdge(ps_hull_i, edge, 5), ps_predios_manzana_i)) <= 3
+#             box_i_edge = polyShape.polyBoxFromEdge(ps_hull_i, edge, 30)
+#             box_i_edge = polyShape.rotate_to_first_ccw(box_i_edge, box_i_edge.Vertices[1][1,:])
+#             # Check intersection with each street segment
+#             # j=1; seg_row = eachrow(df_semento_calle)[j]
+#             for (j, seg_row) in enumerate(eachrow(df_semento_calle))
+#                 seg_id = seg_row.id_segmento_calle
+                
+#                 # Check if buffer intersects with street segment
+#                 ps_segmento_j = polyShape.subShape(ps_segmentos, j)
 
-#                 # if box_i_edge_x_predios < 0.5
-                    
-#                     # manzanas_vecinas_i_edge = df_manzanas_vecinas[df_manzanas_vecinas[:, "manzent"] .== manzent_i, "vecinas"]
-#                     # manzanas_vecinas_i_edge = parse.(Int, split(manzanas_vecinas_i_edge[1], ","))
-
-#                     # df_manzana_vecinas_i_edge = df_predios[in.(df_predios[!,"manzent"], Ref(manzanas_vecinas_i_edge)), "geom_wkt"]
-#                     # ps_manzana_vecinas_i_edge = polyGdal.astext2shape(df_manzana_vecinas_i_edge)
-#                     # ps_manzana_vecinas_i_edge = polyShape.shape_4326to32719(ps_manzana_vecinas_i_edge)
-#                     # ps_manzana_vecinas_i_edge = polyShape.ajustaCoordenadas(ps_manzana_vecinas_i_edge, dx, dy)
-#                     # ps_manzana_vecinas_i_edge = polyShape.setPolyOrientation(ps_manzana_vecinas_i_edge, 1)
-
-#                     # box_i_edge = polyShape.polyDifference(box_i_edge, ps_manzana_vecinas_i_edge)
+#                 flag_touches = polyGdal.shapeTouches(polyShape.partialPolyOffset(box_i_edge,[1],5), ps_segmento_j)
+#                 # If intersection exists and has vertices
+#                 if flag_touches 
 #                     box_i_edge = polyShape.ajustaCoordenadasInversa(box_i_edge, dx, dy)
 #                     box_i_edge = polyShape.shape_32719to4326(box_i_edge)
 
@@ -165,10 +125,12 @@ ps_segmentos, dx, dy = polyShape.ajustaCoordenadas(ps_segmentos)
 #                         codigo_calle = seg_row.codigo_calle,
 #                         nombre_calle = seg_row.nombre_calle,
 #                         tipo_calle = seg_row.tipo_calle,
-#                         geom_wkt = polyShape.polyshape2wkt(box_i_edge),
-#                         edge = "[$(box_i_edge.Vertices[1][1,1]), $(box_i_edge.Vertices[1][1,2])]"
+#                         id_edge = edge,
+#                         num_edges = side_hull_i,
+#                         edge = "[$(box_i_edge.Vertices[1][1,1]), $(box_i_edge.Vertices[1][1,2])]",
+#                         geom_wkt = polyShape.polyshape2wkt(box_i_edge)
 #                     ))
-#                 # end
+#                 end
 #             end
 #         end
 #     end
@@ -188,90 +150,155 @@ ps_segmentos, dx, dy = polyShape.ajustaCoordenadas(ps_segmentos)
 # CSV.write("calles_por_combi.csv", df_intersections)
 
 
-################################################################################################
-################################################################################################
+# ################################################################################################
+# ################################################################################################
 
-# 13132011001009_107 13132011001009_40 13132011001012_110
+
 df_calles = CSV.read("calles_por_combi.csv", DataFrame)
 
-ps_calles_combi = df_calles[df_calles[!, "id_combi"] .== "13132011001004_14", "geom_wkt"]
+function refina_segmentos_calle_combi(id_combi, df_calles, df_combis)
 
-ps_calles_combi = polyGdal.astext2shape(ps_calles_combi)
-ps_calles_combi = polyShape.setPolyOrientation(ps_calles_combi, 1)
-ps_calles_combi = polyShape.shape_4326to32719(ps_calles_combi)
-ps_calles_combi = polyShape.ajustaCoordenadas(ps_calles_combi, dx, dy)
+    df_calles_combi = df_calles[df_calles[!, "id_combi"] .== id_combi, :]
+    ps_calles_combi = df_calles[df_calles[!, "id_combi"] .== id_combi, "geom_wkt"]
+    ps_calles_combi = polyGdal.astext2shape(ps_calles_combi)
+    ps_calles_combi = polyShape.setPolyOrientation(ps_calles_combi, 1)
+    ps_calles_combi = polyShape.shape_4326to32719(ps_calles_combi)
+    ps_calles_combi = polyShape.ajustaCoordenadas(ps_calles_combi, dx, dy)
 
+    num_segmentos = ps_calles_combi.NumRegions
 
-query = """
-MATCH (p:Predio)-[:CONFORMA_COMBI]->(c:Combi)
-WHERE p.comuna = '$(comuna)' AND c.id_combi = '13132011001004_14'
-RETURN DISTINCT c.id_combi AS id_combi, c.geom_combi AS geom_wkt
-"""
-df_combi = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-ps_combi = polyGdal.astext2shape(df_combi[!, "geom_wkt"])
-ps_combi = polyShape.setPolyOrientation(ps_combi, 1)
-ps_combi = polyShape.shape_4326to32719(ps_combi)
+    ps_combi = polyGdal.astext2shape(df_combis[df_combis[!, "id_combi"] .== id_combi, "geom_wkt"])
+    ps_combi = polyShape.setPolyOrientation(ps_combi, 1)
+    ps_combi = polyShape.shape_4326to32719(ps_combi)
+    ps_combi = polyShape.setPolyOrientation(ps_combi, 1)
+    ps_combi = polyShape.ajustaCoordenadas(ps_combi, dx, dy)
+    ps_hull = polyShape.setPolyOrientation(polyShape.polySimplify(ps_combi, 1), 1)
 
-ps_combi = polyShape.setPolyOrientation(ps_combi, 1)
-ps_combi = polyShape.ajustaCoordenadas(ps_combi, dx, dy)
+    ps_calles = PolyShape([], 0)
+    for i = 1:num_segmentos
+        i_prev = mod1(i - 1, num_segmentos)
 
-# function refina_segmentos_calle_combi(ps_combi, ps_calles_combi, i)
-num_segmentos = ps_calles_combi.NumRegions
-vec_ps_aux = [polyShape.subShape(ps_calles_combi, i) for i = 1:num_segmentos]
+        num_edges = df_calles_combi[i, "num_edges"][1]
+        edge_i = df_calles_combi[i, "id_edge"][1]
+        edge_i_prev = df_calles_combi[i_prev, "id_edge"][1]
 
-ps_calles = PolyShape([], 0)
-for i = 1:num_segmentos
-    if i == 1
-        ps_calles = vec_ps_aux[i]
-    else
-        ps_calles = polyClipper.polyOffset(polyShape.polyUnion(polyClipper.polyOffset(ps_calles, 0.1), polyClipper.polyOffset(vec_ps_aux[i], 0.1)), -0.1)
-    end
-end
+        if edge_i_prev == mod1(edge_i - 1, num_edges)
 
-for i = 1:num_segmentos
-    i_prev = mod1(i - 1, num_segmentos)
-    
-    ps_i_prev = polyShape.subShape(ps_calles_combi, i_prev)
-    ps_i = polyShape.subShape(ps_calles_combi, i)
-    start_pt = ps_i.Vertices[1][1,:]
+            ps_i_prev = polyShape.subShape(ps_calles_combi, i_prev)
+            ps_i = polyShape.subShape(ps_calles_combi, i)
 
-    ps_inter_i_prev = polyShape.polyIntersect(ps_i, ps_i_prev)
-    if isempty(ps_inter_i_prev.Vertices) 
-        ps_i_ext = polyShape.partialPolyOffset(ps_i, [2, 4], 40)
-        ps_i_prev_ext = polyShape.partialPolyOffset(ps_i_prev, [2, 4], 40)
-        ps_ext_inter = polyShape.polyIntersect(ps_i_ext, ps_i_prev_ext)
-        if !isempty(ps_ext_inter.Vertices)
-            ps_ext_inter_ = polyShape.polyDifference(ps_ext_inter, polyShape.partialPolyOffset(ps_i, [3, 4], [10, 40]))
-            ps_ext_inter_ = polyShape.polyDifference(ps_ext_inter_, polyShape.partialPolyOffset(ps_i_prev, [2, 3], [40, 10]))
-            
-            if ps_ext_inter_.NumRegions >= 1
-                ps_ext_inter = deepcopy(ps_ext_inter_)
+            ps_inter_i_prev = polyShape.polyIntersect(ps_i, ps_i_prev)
+            if polyShape.polyArea(ps_inter_i_prev) <= 5
+                ps_i_ext = polyShape.polyHasnan(polyShape.partialPolyOffset(ps_i, [2], 40)) ? deepcopy(ps_i) : polyShape.partialPolyOffset(ps_i, [2], 40)
+                ps_i_prev_ext = polyShape.polyHasnan(polyShape.partialPolyOffset(ps_i_prev, [4], 40)) ? deepcopy(ps_i_prev) : polyShape.partialPolyOffset(ps_i_prev, [4], 40)
+                ps_ext_inter = polyShape.polyIntersect(ps_i_ext, ps_i_prev_ext)
+                if !isempty(ps_ext_inter.Vertices)
+                    aux = polyShape.polyHasnan(polyShape.partialPolyOffset(ps_i, [3, 4], [10, 40])) ? deepcopy(ps_i) : polyShape.partialPolyOffset(ps_i, [3, 4], [10, 40])
+                    ps_ext_inter_ = polyShape.polyDifference(ps_ext_inter, aux)
+                    aux = polyShape.polyHasnan(polyShape.partialPolyOffset(ps_i_prev, [2, 3], [40, 10])) ? deepcopy(ps_i_prev) : polyShape.partialPolyOffset(ps_i_prev, [2, 3], [40, 10])
+                    ps_ext_inter_ = polyShape.polyDifference(ps_ext_inter_, aux)
+                    if ps_ext_inter_.NumRegions >= 1
+                        ps_ext_inter = deepcopy(ps_ext_inter_)
+                    end
+
+                    ps_i_aux = polyShape.convHull(PolyShape([[ps_ext_inter.Vertices[1]; ps_i.Vertices[1]]],1))
+                    ps_i_prev_aux = polyShape.convHull(PolyShape([[ps_ext_inter.Vertices[1]; ps_i_prev.Vertices[1]]],1))
+                    ps_x = polyShape.polyUnion(ps_i_aux, ps_i_prev_aux)
+
+                    if i == 1
+                        ps_calles = deepcopy(ps_x)
+                    else
+                        ps_calles = polyShape.polyUnion(ps_calles, ps_x)
+                    end
+                end
+            else
+                if i == 1
+                    ps_calles = deepcopy(ps_inter_i_prev)
+                else
+                    ps_calles = polyShape.polyUnion(ps_calles, ps_inter_i_prev)
+                end
             end
-
-            ps_i_aux = polyShape.convHull(PolyShape([[ps_ext_inter.Vertices[1]; ps_i.Vertices[1]]],1))
-            ps_i_prev_aux = polyShape.convHull(PolyShape([[ps_ext_inter.Vertices[1]; ps_i_prev.Vertices[1]]],1))
-            ps_x = polyShape.polyUnion(ps_i_aux, ps_i_prev_aux)
-            ps_ext_inter = polyShape.polyDifference(polyShape.polyDifference(ps_x, ps_i), ps_i_prev)
-
-            ps_delta_i_prev, ps_delta_i = polyShape.dividePoly(ps_ext_inter, ps_i.Vertices[1][2,:])
-        # ----> Revisar dividePoly: hay casos en que ps_delta_i_prev, ps_delta_i y otros en que ps_delta_i, ps_delta_i_prev
-
-            vec_ps_aux[i] = polyShape.polySimplify(polyShape.polyDifference(polyShape.polyUnion(polyShape.partialPolyOffset(vec_ps_aux[i],[2],.1), ps_delta_i), ps_combi))
-            vec_ps_aux[i_prev] = polyShape.polySimplify(polyShape.polyDifference(polyShape.polyUnion(polyShape.partialPolyOffset(vec_ps_aux[i_prev],[4],.1), ps_delta_i_prev), ps_combi))
         else
-            vec_ps_aux[i] = polyShape.polySimplify(polyShape.polyDifference(vec_ps_aux[i], ps_combi))
-            vec_ps_aux[i_prev] = polyShape.polySimplify(polyShape.polyDifference(vec_ps_aux[i_prev], ps_combi))
+            if i == 1
+                ps_calles = deepcopy(polyShape.subShape(ps_calles_combi, i))
+            else
+                ps_calles = polyShape.polyUnion(ps_calles, polyShape.subShape(ps_calles_combi, i))
+            end
         end
-    else
-        ps_delta_i_prev, ps_delta_i = polyShape.dividePoly(ps_inter_i_prev, ps_i.Vertices[1][1,:])
-
-        vec_ps_aux[i] = polyShape.polySimplify(polyShape.polyUnion(polyShape.polyDifference(vec_ps_aux[i], ps_inter_i_prev), ps_delta_i))
-        vec_ps_aux[i_prev] = polyShape.polySimplify(polyShape.polyUnion(polyShape.polyDifference(vec_ps_aux[i_prev], ps_inter_i_prev), ps_delta_i_prev))
-        
     end
+
+    return ps_calles, ps_combi
 end
 
-    # return vec_ps_aux
-# end
 
-# vec_ps_aux = refina_segmentos_calle_combi(ps_combi, ps_calles_combi, 2)
+data_calles_combis = []
+for (i, row) in enumerate(eachrow(df_combis))
+    println("Processing combi $(i)/$(nrow(df_combis)): $(row.id_combi)")
+
+    try
+        id_combi = row.id_combi
+        ps_calles_i, ps_combi_i = refina_segmentos_calle_combi(id_combi, df_calles, df_combis)
+
+        ps_calles_4326_i = polyShape.ajustaCoordenadasInversa(ps_calles_i, dx, dy)
+        ps_calles_4326_i = polyShape.shape_32719to4326(ps_calles_4326_i)
+
+        ps_combi_4326_i = polyShape.ajustaCoordenadasInversa(ps_combi_i, dx, dy)
+        ps_combi_4326_i = polyShape.shape_32719to4326(ps_combi_4326_i)
+
+        push!(data_calles_combis, (
+            id_combi = id_combi,
+            combi_4326_wkt = ps_combi_4326_i,
+            calles_4326_wkt = ps_calles_4326_i,
+            combi_32719_wkt = ps_combi_i,
+            calles_32719_wkt = ps_calles_i
+        ))
+    catch
+        println("Error processing combi $(i)/$(nrow(df_combis)): $(row.id_combi)")
+    end
+end
+df_calles_combis = DataFrame(data_calles_combis)
+
+
+idx = 33
+id_combi = df_calles_combis[idx, "id_combi"] #"13132041006001_323" #
+ps_combi_32719 = df_calles_combis[df_calles_combis[!, "id_combi"] .== id_combi, "combi_32719_wkt"][1]
+ps_calles_32719 = df_calles_combis[df_calles_combis[!, "id_combi"] .== id_combi, "calles_32719_wkt"][1]
+
+
+# Obtiene predios contenidos en el buffer del predio y ajusta coordenadas
+display("Obtiene predios contenidos en el buffer del predio y ajusta coordenadas")
+query = """
+MATCH (c:Combi)<-[:CONFORMA_COMBI]-(p:Predio)-[:SE_UBICA_EN_MANZANA]->(m:Manzana)
+WHERE c.id_combi = '$id_combi'
+MATCH (m_:Manzana)-[:ES_VECINA_A]-(m)
+WITH m, m_
+UNWIND [m, m_] AS m2
+MATCH (gp:Geom_Predio)<-[:TIENE_GEOM]-(p2:Predio)-[:SE_UBICA_EN_MANZANA]->(m2)
+RETURN DISTINCT gp.geom_wkt AS geom_wkt
+"""
+df_predios_manzanas_vecinas = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
+ps_predios_manzanas_vecinas = polyGdal.astext2shape(df_predios_manzanas_vecinas[:, "geom_wkt"])
+ps_predios_manzanas_vecinas = polyShape.setPolyOrientation(ps_predios_manzanas_vecinas,1)
+ps_predios_manzanas_vecinas = polyShape.shape_4326to32719(ps_predios_manzanas_vecinas)
+ps_predios_manzanas_vecinas = polyShape.ajustaCoordenadas(ps_predios_manzanas_vecinas, dx, dy)
+ps_calles_x = polyShape.polyIntersect(ps_calles_32719, ps_predios_manzanas_vecinas)
+ps_calles = polyShape.polyDifference(ps_calles_32719, ps_calles_x)
+
+
+# Obtiene areas verdes en el buffer del predio y ajusta coordenadas
+display("Obtiene areas verdes contenidos en el buffer del predio y ajusta coordenadas")
+query = """
+MATCH (cat:Poi_Category)<-[:ES_POI_TIPO]-(poi:Poi)
+WHERE cat.poi_category in ['park', 'garden'] AND poi.comuna = 'vitacura'
+RETURN poi.geom_wkt AS geom_wkt
+"""
+df_areas_verdes = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
+ps_areas_verdes = polyGdal.astext2shape(df_areas_verdes[:, "geom_wkt"])
+ps_areas_verdes = polyShape.setPolyOrientation(ps_areas_verdes,1)
+ps_areas_verdes = polyShape.shape_4326to32719(ps_areas_verdes)
+ps_areas_verdes = polyShape.ajustaCoordenadas(ps_areas_verdes, dx, dy)
+ps_calles_x = polyShape.polyIntersect(ps_calles, ps_areas_verdes)
+ps_calles = polyShape.polyDifference(ps_calles, ps_calles_x)
+
+fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_combi_32719, "green", 0.2)
+fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_calles, "blue", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)

@@ -92,13 +92,12 @@ using LandValue, ArchGDAL, LazySets, DataFrames, LinearAlgebra, Proj, Combinator
 function polyUnion(ps_::PolyShape)::PolyShape
     ps = deepcopy(ps_)
     num_regions = ps.NumRegions
-    ps_out = []
-    for i = 1:num_regions
-        if i == 1
-            ps_out = polyShape.subShape(ps, 1)
-        else
-            ps_out = polyShape.polyUnion(ps_out, polyShape.subShape(ps, i))
-        end
+    if num_regions == 0
+        return PolyShape(Vector{Matrix{Float64}}(), 0)
+    end
+    ps_out = polyShape.subShape(ps, 1)
+    for i = 2:num_regions
+        ps_out = polyShape.polyUnion(ps_out, polyShape.subShape(ps, i))
     end
     return ps_out
 end
@@ -106,14 +105,10 @@ function polyUnion(vec_ps_::Vector{PolyShape})::PolyShape
     vec_ps = deepcopy(vec_ps_)
 
     num_ps = length(vec_ps)
-    ps_out = []
-    for i = 1:num_ps
+    ps_out = polyUnion(vec_ps[1])
+    for i = 2:num_ps
         ps_i = polyUnion(vec_ps[i])
-        if i == 1
-            ps_out = deepcopy(ps_i)
-        else
-            ps_out = polyShape.polyUnion(ps_out, ps_i)
-        end
+        ps_out = polyShape.polyUnion(ps_out, ps_i)
     end
     return ps_out
 end
@@ -132,11 +127,39 @@ end
 function polyDifference(ps_s_::PolyShape, ps_c_::PolyShape)::PolyShape
     ps_s = deepcopy(ps_s_)
     ps_c = deepcopy(ps_c_)
+    ps_c = polyShape.polyUnion(ps_c)
 
-    path_s = polyClipper.shape2clipper(ps_s)
+    if ps_c.NumRegions == 0
+        return ps_s
+    end
+
+    ps_c_bounds = [minimum([minimum(region[:, 1]) for region in ps_c.Vertices]),
+                   minimum([minimum(region[:, 2]) for region in ps_c.Vertices]),
+                   maximum([maximum(region[:, 1]) for region in ps_c.Vertices]),
+                   maximum([maximum(region[:, 2]) for region in ps_c.Vertices])]
+    
     path_c = polyClipper.shape2clipper(ps_c)
-    d_path = polyClipper.clipper_difference(path_s, path_c)
-    ps_out = polyClipper.clipper2shape(d_path, PolyShape)
+    vec_V = []
+    for i = 1:ps_s.NumRegions
+        region_bounds = [minimum(ps_s.Vertices[i][:, 1]), minimum(ps_s.Vertices[i][:, 2]), 
+                        maximum(ps_s.Vertices[i][:, 1]), maximum(ps_s.Vertices[i][:, 2])]
+        
+        if region_bounds[1] > ps_c_bounds[3] || region_bounds[3] < ps_c_bounds[1] ||
+           region_bounds[2] > ps_c_bounds[4] || region_bounds[4] < ps_c_bounds[2]
+            push!(vec_V, ps_s.Vertices[i])
+            continue
+        end
+        
+        ps_s_i = polyShape.subShape(ps_s, i)
+        path_s_i = polyClipper.shape2clipper(ps_s_i)
+        d_path = polyClipper.clipper_difference(path_s_i, path_c)
+        ps_out_i = polyClipper.clipper2shape(d_path, PolyShape)
+        for j = 1:ps_out_i.NumRegions
+            push!(vec_V, ps_out_i.Vertices[j])
+        end
+    end
+    ps_out = PolyShape(vec_V, length(vec_V))    
+
     return ps_out
 end
 
@@ -144,17 +167,60 @@ end
 function polyIntersect(ps_s_::PolyShape, ps_c_::PolyShape)::PolyShape
     ps_s = deepcopy(ps_s_)
     ps_c = deepcopy(ps_c_)
-    ps_c = polyShape.polyUnion(ps_c)
-
-    path_c = polyClipper.shape2clipper(ps_c)
+    
+    if ps_s.NumRegions <= 10 && ps_c.NumRegions <= 10
+        ps_c = polyShape.polyUnion(ps_c)
+        path_s = polyClipper.shape2clipper(ps_s)
+        path_c = polyClipper.shape2clipper(ps_c)
+        i_path = polyClipper.clipper_intersection(path_s, path_c)
+        ps_out = polyClipper.clipper2shape(i_path, PolyShape)
+        return ps_out
+    end
+    
+    ps_c_bounds = [minimum([minimum(region[:, 1]) for region in ps_c.Vertices]),
+                   minimum([minimum(region[:, 2]) for region in ps_c.Vertices]),
+                   maximum([maximum(region[:, 1]) for region in ps_c.Vertices]),
+                   maximum([maximum(region[:, 2]) for region in ps_c.Vertices])]
+    
+    c_region_bounds = []
+    for j = 1:ps_c.NumRegions
+        c_bounds = [minimum(ps_c.Vertices[j][:, 1]), minimum(ps_c.Vertices[j][:, 2]), 
+                   maximum(ps_c.Vertices[j][:, 1]), maximum(ps_c.Vertices[j][:, 2])]
+        push!(c_region_bounds, c_bounds)
+    end
+    
     vec_V = []
     for i = 1:ps_s.NumRegions
-        ps_s_i = polyShape.subShape(ps_s, i)
-        path_s_i = polyClipper.shape2clipper(ps_s_i)
-        i_path = polyClipper.clipper_intersection(path_s_i, path_c)
-        ps_out_i = polyClipper.clipper2shape(i_path, PolyShape)
-        for j = 1:ps_out_i.NumRegions
-            push!(vec_V, ps_out_i.Vertices[j])
+        s_region_bounds = [minimum(ps_s.Vertices[i][:, 1]), minimum(ps_s.Vertices[i][:, 2]), 
+                          maximum(ps_s.Vertices[i][:, 1]), maximum(ps_s.Vertices[i][:, 2])]
+        
+        if s_region_bounds[1] > ps_c_bounds[3] || s_region_bounds[3] < ps_c_bounds[1] ||
+           s_region_bounds[2] > ps_c_bounds[4] || s_region_bounds[4] < ps_c_bounds[2]
+            continue
+        end
+        
+        overlapping_c_regions = Int64[]
+        for j = 1:ps_c.NumRegions
+            c_bounds = c_region_bounds[j]
+            if !(s_region_bounds[1] > c_bounds[3] || s_region_bounds[3] < c_bounds[1] ||
+                 s_region_bounds[2] > c_bounds[4] || s_region_bounds[4] < c_bounds[2])
+                push!(overlapping_c_regions, j)
+            end
+        end
+        
+        if !isempty(overlapping_c_regions)
+            ps_s_i = polyShape.subShape(ps_s, i)
+            ps_c_subset = polyShape.subShape(ps_c, overlapping_c_regions)
+            ps_c_subset = polyShape.polyUnion(ps_c_subset)
+            
+            path_s_i = polyClipper.shape2clipper(ps_s_i)
+            path_c_subset = polyClipper.shape2clipper(ps_c_subset)
+            i_path = polyClipper.clipper_intersection(path_s_i, path_c_subset)
+            ps_out_i = polyClipper.clipper2shape(i_path, PolyShape)
+            
+            for k = 1:ps_out_i.NumRegions
+                push!(vec_V, ps_out_i.Vertices[k])
+            end
         end
     end
     ps_out = PolyShape(vec_V, length(vec_V))    
@@ -1758,6 +1824,21 @@ function polySimplify(ps_::PolyShape, tolerance::Real=0.1)::PolyShape
             return vertices
         end
         
+        # First, merge very close consecutive points
+        merged_vertices = [vertices[1, :]]
+        for i = 2:n
+            dist = sqrt(sum((vertices[i, :] - merged_vertices[end]).^2))
+            if dist >= tolerance
+                push!(merged_vertices, vertices[i, :])
+            end
+        end
+        vertices = hcat(merged_vertices...)'
+        n = size(vertices, 1)
+        
+        if n < 4
+            return vertices
+        end
+        
         keep_vertex = fill(true, n)
         
         # Remove vertices that create small features
@@ -2089,6 +2170,16 @@ function unique_consecutive_rows(V::Matrix{Float64})::Matrix{Float64}
 end
 
 
+function polyHasnan(ps::PolyShape)::Bool
+    for region in ps.Vertices
+        if any(isnan.(region))
+            return true
+        end
+    end
+    return false
+end
+
+
 export isPolyConvex, isPolyInPoly,  
     polyArea, polyDifference, polyOrientation, polyUnion, polyIntersect, polyOffset,  
     polyEliminaColineales, subShape, shapeVertex, numVertices,
@@ -2102,5 +2193,6 @@ export isPolyConvex, isPolyInPoly,
     projectBuildingShadow, partialPolyOffset, point2lineProjection, 
     perpendicularLine, line2Box, poly2Constraints, constraints2poly, rotate_to_first_ccw,
     calculateDistance, cleanPolygon, shape2vector, transformLine, polySimplify,
-    ajusteCoordenadasInversa, shape_32719to4326, shape_4326to32719, polyshape2wkt, dividePoly
+    ajusteCoordenadasInversa, shape_32719to4326, shape_4326to32719, polyshape2wkt, dividePoly,
+    polyHasnan
 end

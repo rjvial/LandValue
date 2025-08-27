@@ -192,6 +192,19 @@ function shapeIntersect(shape1::PosDimGeom, shape2::PosDimGeom)::GeomObject
 end
 
 
+function shapeTouches(shape1::PosDimGeom, shape2::PosDimGeom)::Bool
+    try
+        geom1 = polyGdal.shape2geom(shape1)
+        geom2 = polyGdal.shape2geom(shape2)
+        
+        # Use GDAL's built-in intersects method which is much faster
+        return ArchGDAL.intersects(geom1, geom2)
+    catch
+        return false
+    end
+end
+
+
 function shapeUnion(shape1::PosDimGeom, shape2::PosDimGeom)::PosDimGeom # polyUnion es más robusto
     geom1 = polyGdal.shape2geom(shape1)
     geom2 = polyGdal.shape2geom(shape2)
@@ -481,6 +494,7 @@ end
 
 
 
-export geom2shape, shape2geom, shapeArea, shapeContains, shapeDifference, shapeIntersect, shapeUnion, shapeHull, shapeSimplify,
-shapeSimplifyTopology, shapeBuffer, shapeCentroid, partialCentroid, shapeDistance, partialDistance, astext2shape
+export geom2shape, shape2geom, shapeArea, shapeContains, shapeDifference, shapeIntersect, shapeUnion, shapeHull, 
+shapeSimplify, shapeSimplifyTopology, shapeBuffer, shapeCentroid, partialCentroid, shapeDistance, 
+partialDistance, astext2shape, shapeTouches
 end
