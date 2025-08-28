@@ -297,8 +297,15 @@ end
 df_calles_combis = DataFrame(data_calles_combis)
 
 
-
-
-
-# fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_combi_32719, "green", 0.2)
-# fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_calles, "blue", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"combi_ps"][1], "green", 0.2) 
+fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"calles_ps"][1], "blue", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"combi_ps"][2], "green", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"calles_ps"][2], "blue", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"combi_ps"][3], "green", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"calles_ps"][3], "blue", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"combi_ps"][4], "green", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"calles_ps"][4], "blue", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"combi_ps"][5], "green", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"calles_ps"][5], "blue", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"combi_ps"][6], "green", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"calles_ps"][6], "blue", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
