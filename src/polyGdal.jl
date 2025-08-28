@@ -54,8 +54,17 @@ function geom2shape(geom)::GeomObject
         out = PolyShape([], numRegiones)
         for k = 1:numRegiones
             poly_k = ArchGDAL.getgeom(geom, k - 1)
+            if isnothing(poly_k) || ArchGDAL.ngeom(poly_k) == 0
+                continue
+            end
             line_k = ArchGDAL.getgeom(poly_k, 0)
+            if isnothing(line_k)
+                continue
+            end
             numVertices_k = ArchGDAL.ngeom(line_k)
+            if numVertices_k == 0
+                continue
+            end
             V_k = zeros(numVertices_k, 2)
             for i = 1:numVertices_k-1
                 V_k[i, 1] = ArchGDAL.getx(line_k, i - 1)
@@ -70,7 +79,13 @@ function geom2shape(geom)::GeomObject
         out = LineShape([], numLines)
         for k = 1:numLines
             line_k = ArchGDAL.getgeom(geom, k - 1)
+            if isnothing(line_k)
+                continue
+            end
             numVertices_k = ArchGDAL.ngeom(line_k)
+            if numVertices_k == 0
+                continue
+            end
             V_k = fill(0.0, numVertices_k, 2)
             for i = 1:numVertices_k
                 V_k[i, 1] = ArchGDAL.getx(line_k, i - 1)
@@ -83,12 +98,23 @@ function geom2shape(geom)::GeomObject
     elseif ArchGDAL.geomname(geom) == "MULTIPOINT"
         numPoints = ArchGDAL.ngeom(geom)
         V = fill(0.0, numPoints, 2)
+        valid_points = 0
         for i = 1:numPoints
             point_i = ArchGDAL.getgeom(geom, i - 1)
-            V[i, 1] = ArchGDAL.getx(point_i, 0)
-            V[i, 2] = ArchGDAL.gety(point_i, 0)
+            if isnothing(point_i)
+                continue
+            end
+            valid_points += 1
+            V[valid_points, 1] = ArchGDAL.getx(point_i, 0)
+            V[valid_points, 2] = ArchGDAL.gety(point_i, 0)
         end
-        out = PointShape(V, numPoints)
+        if valid_points == 0
+            V = fill(0.0, 1, 2)
+            valid_points = 1
+        else
+            V = V[1:valid_points, :]
+        end
+        out = PointShape(V, valid_points)
         return out
     end
 end

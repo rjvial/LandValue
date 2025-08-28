@@ -267,12 +267,14 @@ for (i, row) in enumerate(eachrow(df_combis))
         id_combi = row.id_combi
         ps_calles_i, ps_combi_i = refina_segmentos_calle_combi(id_combi, df_calles, df_combis)
 
-        # (intersects, matrix) = polyShape.polyIntersects(ps_calles_i, ps_predios_vecinos, true)
+        flag_calle_x_vecinos, mat_flag_calle_x_vecinos = polyShape.polyIntersects(ps_calles_i, ps_predios_vecinos, true)
+        ps_predios_vecinos_i = polyShape.subShape(ps_predios_vecinos, findall(any(mat_flag_calle_x_vecinos, dims=1)[:]))
+        ps_calles_i = polyShape.polyDifference(ps_calles_i, ps_predios_vecinos_i)
 
-        ps_calles_x = polyShape.polyIntersection(ps_calles_i, ps_predios_vecinos)
-        ps_calles_i = polyShape.polyDifference(ps_calles_i, ps_calles_x)
-        ps_calles_x = polyShape.polyIntersection(ps_calles_i, ps_areas_verdes)
-        ps_calles_i = polyShape.polyDifference(ps_calles_i, ps_calles_x)
+        flag_verde_x_vecinos, mat_flag_verde_x_vecinos = polyShape.polyIntersects(ps_calles_i, ps_areas_verdes, true)
+        ps_areas_verdes_i = polyShape.subShape(ps_areas_verdes, findall(any(mat_flag_verde_x_vecinos, dims=1)[:]))
+        ps_calles_i = polyShape.polyDifference(ps_calles_i, ps_areas_verdes_i)
+
         ps_calles_32719_i = polyShape.ajustaCoordenadasInversa(ps_calles_i, dx, dy)
         ps_calles_4326_i = polyShape.shape_32719to4326(ps_calles_32719_i)
 

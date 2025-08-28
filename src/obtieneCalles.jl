@@ -13,7 +13,7 @@ function obtieneCalles(ps_predio::PolyShape, ps_buffer_predio::PolyShape, ps_pre
     vec_predio_calle_intersect_ = [polyGdal.shapeIntersect(polyGdal.shapeBuffer(ps_calle_predio, .4, 0), vec_edges_predio[i]) for i in eachindex(vec_edges_predio)]
     vec_predio_calle_intersect = Vector{LineShape}()
     for j in eachindex(vec_predio_calle_intersect_)
-        if size(vec_predio_calle_intersect_[j].Vertices[1], 1) >= 1
+        if !isempty(vec_predio_calle_intersect_[j].Vertices) && size(vec_predio_calle_intersect_[j].Vertices[1], 1) >= 1
             push!(vec_predio_calle_intersect, vec_predio_calle_intersect_[j])
         else
             push!(vec_predio_calle_intersect, LineShape([[0 0]],0))
@@ -21,7 +21,7 @@ function obtieneCalles(ps_predio::PolyShape, ps_buffer_predio::PolyShape, ps_pre
     end
     flag_sec_con_calle = [false for i in eachindex(vec_edges_predio)]
     for j in eachindex(vec_predio_calle_intersect)
-        if size(vec_predio_calle_intersect[j].Vertices[1], 1) >= 2
+        if !isempty(vec_predio_calle_intersect[j].Vertices) && size(vec_predio_calle_intersect[j].Vertices[1], 1) >= 2
             length_line_j = maximum(polyShape.lineLength(vec_predio_calle_intersect[j]))
             if length_line_j >= 4
                 flag_sec_con_calle[j] = true

@@ -1603,7 +1603,7 @@ function lineVec2polyShape(lineVec::Array{LineShape,1}, reg_vec=[])::PolyShape
             l_1 = polyShape.transformLine(lineVec_k[ix_1], :extend, 1.0)
             l_2 = polyShape.transformLine(lineVec_k[ix_2], :extend, 1.0)
             point_x_12 = polyGdal.shapeIntersect(l_1, l_2)
-            if size(point_x_12.Vertices[1], 1) >= 1
+            if !isempty(point_x_12.Vertices) && size(point_x_12.Vertices[1], 1) >= 1
                 V_k[ix_2, :] = point_x_12.Vertices[1, :]'
             else
                 V_k[ix_2, :] = V_k[ix_1, :]
