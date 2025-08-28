@@ -102,7 +102,7 @@ df_combis = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 
 #     for edge = 1:side_hull_i
 
-#         if polyShape.polyArea(polyShape.polyIntersect(polyShape.polyBoxFromEdge(ps_hull_i, edge, 5), ps_predios_manzana_i)) <= 3
+#         if polyShape.polyArea(polyShape.polyIntersection(polyShape.polyBoxFromEdge(ps_hull_i, edge, 5), ps_predios_manzana_i)) <= 3
 #             box_i_edge = polyShape.polyBoxFromEdge(ps_hull_i, edge, 30)
 #             box_i_edge = polyShape.rotate_to_first_ccw(box_i_edge, box_i_edge.Vertices[1][1,:])
 #             # Check intersection with each street segment
@@ -187,11 +187,11 @@ function refina_segmentos_calle_combi(id_combi, df_calles, df_combis)
             ps_i_prev = polyShape.subShape(ps_calles_combi, i_prev)
             ps_i = polyShape.subShape(ps_calles_combi, i)
 
-            ps_inter_i_prev = polyShape.polyIntersect(ps_i, ps_i_prev)
+            ps_inter_i_prev = polyShape.polyIntersection(ps_i, ps_i_prev)
             if polyShape.polyArea(ps_inter_i_prev) <= 5
                 ps_i_ext = polyShape.polyHasnan(polyShape.partialPolyOffset(ps_i, [2], 40)) ? deepcopy(ps_i) : polyShape.partialPolyOffset(ps_i, [2], 40)
                 ps_i_prev_ext = polyShape.polyHasnan(polyShape.partialPolyOffset(ps_i_prev, [4], 40)) ? deepcopy(ps_i_prev) : polyShape.partialPolyOffset(ps_i_prev, [4], 40)
-                ps_ext_inter = polyShape.polyIntersect(ps_i_ext, ps_i_prev_ext)
+                ps_ext_inter = polyShape.polyIntersection(ps_i_ext, ps_i_prev_ext)
                 if !isempty(ps_ext_inter.Vertices)
                     aux = polyShape.polyHasnan(polyShape.partialPolyOffset(ps_i, [3, 4], [10, 40])) ? deepcopy(ps_i) : polyShape.partialPolyOffset(ps_i, [3, 4], [10, 40])
                     ps_ext_inter_ = polyShape.polyDifference(ps_ext_inter, aux)
@@ -267,9 +267,11 @@ for (i, row) in enumerate(eachrow(df_combis))
         id_combi = row.id_combi
         ps_calles_i, ps_combi_i = refina_segmentos_calle_combi(id_combi, df_calles, df_combis)
 
-        ps_calles_x = polyShape.polyIntersect(ps_calles_i, ps_predios_vecinos)
+        # (intersects, matrix) = polyShape.polyIntersects(ps_calles_i, ps_predios_vecinos, true)
+
+        ps_calles_x = polyShape.polyIntersection(ps_calles_i, ps_predios_vecinos)
         ps_calles_i = polyShape.polyDifference(ps_calles_i, ps_calles_x)
-        ps_calles_x = polyShape.polyIntersect(ps_calles_i, ps_areas_verdes)
+        ps_calles_x = polyShape.polyIntersection(ps_calles_i, ps_areas_verdes)
         ps_calles_i = polyShape.polyDifference(ps_calles_i, ps_calles_x)
         ps_calles_32719_i = polyShape.ajustaCoordenadasInversa(ps_calles_i, dx, dy)
         ps_calles_4326_i = polyShape.shape_32719to4326(ps_calles_32719_i)

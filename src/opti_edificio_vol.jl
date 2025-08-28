@@ -43,7 +43,7 @@ function calculate_theoretical_volumes(ps_bruto, ps_areaEdif, altura_max, rasant
     Threads.@threads for i in 1:n_alts
         alt = vec_altVolteor[i]
         offset_poly = polyClipper.polyOffset(ps_bruto, -alt / rasante)
-        vec_psVolteor[i] = polyShape.polyIntersect(offset_poly, ps_areaEdif)
+        vec_psVolteor[i] = polyShape.polyIntersection(offset_poly, ps_areaEdif)
     end
     
     return vec_altVolteor, vec_psVolteor
@@ -171,7 +171,7 @@ function optimize_with_shadow_constraints(vec_psVolConSombra, vec_altVolConSombr
             
             # Update volumes with new buildable area - performance critical
             for i in eachindex(vec_psVolConSombra_work)
-                vec_psVolConSombra_work[i] = polyShape.polyIntersect(vec_psVolConSombra[i], ps_areaEdif_work)
+                vec_psVolConSombra_work[i] = polyShape.polyIntersection(vec_psVolConSombra[i], ps_areaEdif_work)
             end
             
         elseif objective_val > best_result["objective_val"]
@@ -198,7 +198,7 @@ function calculate_shadow_volumes(ps_predio, ps_areaEdif, altura_max, rasante_so
     Threads.@threads for i in eachindex(vec_altVolConSombra)
         alt = vec_altVolConSombra[i]
         offset_poly = polyClipper.polyOffset(ps_predio, -alt / rasante_sombra)
-        vec_psVolConSombra[i] = polyShape.polyIntersect(offset_poly, ps_areaEdif)
+        vec_psVolConSombra[i] = polyShape.polyIntersection(offset_poly, ps_areaEdif)
     end
     
     return vec_altVolConSombra, vec_psVolConSombra

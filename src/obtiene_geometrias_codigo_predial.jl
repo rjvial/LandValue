@@ -47,7 +47,7 @@ function obtiene_geometrias_codigo_predial(id_combi, conn_neo4j)
     ps_predios_manzanas_vecinas = polyShape.setPolyOrientation(ps_predios_manzanas_vecinas,1)
     ps_predios_manzanas_vecinas = polyShape.shape_4326to32719(ps_predios_manzanas_vecinas)
     ps_predios_manzanas_vecinas = polyShape.ajustaCoordenadas(ps_predios_manzanas_vecinas, dx, dy)
-    ps_predios_buffer = polyShape.polyIntersect(ps_predios_manzanas_vecinas, ps_buffer_predio)
+    ps_predios_buffer = polyShape.polyIntersection(ps_predios_manzanas_vecinas, ps_buffer_predio)
 
 
     # Obtiene areas verdes en el buffer del predio y ajusta coordenadas
@@ -62,7 +62,7 @@ function obtiene_geometrias_codigo_predial(id_combi, conn_neo4j)
     ps_areas_verdes = polyShape.setPolyOrientation(ps_areas_verdes,1)
     ps_areas_verdes = polyShape.shape_4326to32719(ps_areas_verdes)
     ps_areas_verdes = polyShape.ajustaCoordenadas(ps_areas_verdes, dx, dy)
-    ps_areas_verdes_buffer = polyShape.polyIntersect(ps_areas_verdes, ps_buffer_predio)
+    ps_areas_verdes_buffer = polyShape.polyIntersection(ps_areas_verdes, ps_buffer_predio)
 
     ps_predios_buffer = polyShape.polyUnion(ps_predios_buffer, ps_areas_verdes_buffer)
 
@@ -80,7 +80,7 @@ function obtiene_geometrias_codigo_predial(id_combi, conn_neo4j)
     vecSecSinCalle = setdiff(vecSecTodos, vecSecConCalle)
 
     display("Obtención de calles dentro del buffer")
-    @time ps_calles_intra_buffer = polyShape.polyIntersect(ps_calles, ps_buffer_predio)
+    @time ps_calles_intra_buffer = polyShape.polyIntersection(ps_calles, ps_buffer_predio)
 
     dict_geom = Dict(
         "ps_predio" => ps_predio,

@@ -31,23 +31,23 @@ function obtieneCalles(ps_predio::PolyShape, ps_buffer_predio::PolyShape, ps_pre
 
     vecSecConCalle = collect(1:length(vec_edges_predio))
     vecSecConCalle = vecSecConCalle[flag_sec_con_calle .== 1]
-    ps_calle = polyShape.polyIntersect(ps_calle_predio, polyShape.partialPolyOffset(ps_predio, vecSecConCalle, 30))
+    ps_calle = polyShape.polyIntersection(ps_calle_predio, polyShape.partialPolyOffset(ps_predio, vecSecConCalle, 30))
 
     vecAnchoCalle = fill(10., length(vecSecConCalle))
     for i in eachindex(vecSecConCalle)
-        ps_calle_lado_i = polyShape.polyIntersect(ps_calle, polyShape.partialPolyOffset(ps_predio, [vecSecConCalle[i]], [30]))
+        ps_calle_lado_i = polyShape.polyIntersection(ps_calle, polyShape.partialPolyOffset(ps_predio, [vecSecConCalle[i]], [30]))
 
         ancho_i = 10
         delta = .25
         ps_box_ant = polyShape.line2Box(vec_predio_calle_intersect[vecSecConCalle[i]], ancho_i)
         area_box_ant = polyGdal.shapeArea(ps_box_ant)
-        ps_inter_ant = polyShape.polyIntersect(ps_calle_lado_i, ps_box_ant)
+        ps_inter_ant = polyShape.polyIntersection(ps_calle_lado_i, ps_box_ant)
         area_inter_ant = polyGdal.shapeArea(ps_inter_ant)
         for k = 1:Int(50/delta)
             ancho_i += delta
             ps_box = polyShape.line2Box(vec_predio_calle_intersect[vecSecConCalle[i]], ancho_i)
             area_box = polyGdal.shapeArea(ps_box)
-            ps_inter = polyShape.polyIntersect(ps_calle_lado_i, ps_box)
+            ps_inter = polyShape.polyIntersection(ps_calle_lado_i, ps_box)
             area_inter = polyGdal.shapeArea(ps_inter)
             delta_box = area_box - area_box_ant
             delta_inter = area_inter - area_inter_ant

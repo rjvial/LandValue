@@ -8,7 +8,7 @@ using LandValue, ArchGDAL, LazySets, DataFrames, LinearAlgebra, Proj, Combinator
 # Core Geometry Operations
 # - polyUnion: Merge multiple polygon regions into a single unified polygon
 # - polyDifference: Subtract one polygon from another (boolean difference operation)
-# - polyIntersect: Find the overlapping area between two polygons
+# - polyIntersection: Find the overlapping area between two polygons
 # - polyShrink: Reduce polygon size while maintaining proportional shape using offset ratio
 #
 # Polygon Analysis
@@ -48,7 +48,7 @@ using LandValue, ArchGDAL, LazySets, DataFrames, LinearAlgebra, Proj, Combinator
 # Advanced Geometry
 # - partialPolyOffset: Create polygon with selective edge offsetting by specified distances
 # - polyEliminaColineales: Remove collinear vertices to simplify polygon shape
-# - findPolyIntersection: Find all intersection points between two polygon boundaries
+# - findpolyIntersectionion: Find all intersection points between two polygon boundaries
 # - cleanPolygon: Remove duplicate or contained regions from multi-region polygons
 #
 # Coordinate Systems
@@ -164,7 +164,7 @@ function polyDifference(ps_s_::PolyShape, ps_c_::PolyShape)::PolyShape
 end
 
 
-function polyIntersect(ps_s_::PolyShape, ps_c_::PolyShape)::PolyShape
+function polyIntersection(ps_s_::PolyShape, ps_c_::PolyShape)::PolyShape
     ps_s = deepcopy(ps_s_)
     ps_c = deepcopy(ps_c_)
     
@@ -226,6 +226,120 @@ function polyIntersect(ps_s_::PolyShape, ps_c_::PolyShape)::PolyShape
     ps_out = PolyShape(vec_V, length(vec_V))    
 
     return ps_out
+end
+
+
+function polyIntersects(shape1::PosDimGeom, shape2::PosDimGeom)::Bool
+    # Validate inputs
+    if !isValidShape(shape1) || !isValidShape(shape2)
+        return false
+    end
+    
+    try
+        intersection = polyGdal.shapeIntersect(shape1, shape2)
+        if typeof(intersection) == PolyShape
+            return polyArea(intersection) > 0.0
+        elseif typeof(intersection) == LineShape
+            return intersection.NumLines > 0
+        elseif typeof(intersection) == PointShape
+            return intersection.NumPoints > 0
+        end
+        return false
+    catch e
+        return false
+    end
+end
+function polyIntersects(shape1::PosDimGeom, pt::PointShape)::Bool
+    return polyGdal.shapeContains(shape1, pt)
+end
+function polyIntersects(pt::PointShape, shape2::PosDimGeom)::Bool
+    return polyGdal.shapeContains(shape2, pt)
+end
+function polyIntersects(pt1::PointShape, pt2::PointShape)::Bool
+    return calculateDistance(pt1, pt2) < 1e-10
+end
+function polyIntersects(shape1::PosDimGeom, shape2::PosDimGeom, detailed::Bool)::Tuple{Bool, Matrix{Bool}}
+    if !detailed
+        return (polyIntersects(shape1, shape2), Matrix{Bool}(undef, 0, 0))
+    end
+    
+    n1 = typeof(shape1) == PolyShape ? shape1.NumRegions : shape1.NumLines
+    n2 = typeof(shape2) == PolyShape ? shape2.NumRegions : shape2.NumLines
+    
+    intersection_matrix = Matrix{Bool}(undef, n1, n2)
+    overall_intersects = false
+    
+    for i = 1:n1
+        sub_shape1 = subShape(shape1, i)
+        for j = 1:n2
+            sub_shape2 = subShape(shape2, j)
+            intersects = polyIntersects(sub_shape1, sub_shape2)
+            intersection_matrix[i, j] = intersects
+            if intersects
+                overall_intersects = true
+            end
+        end
+    end
+    
+    return (overall_intersects, intersection_matrix)
+end
+function polyIntersects(shape1::PosDimGeom, pt::PointShape, detailed::Bool)::Tuple{Bool, Matrix{Bool}}
+    if !detailed
+        return (polyIntersects(shape1, pt), Matrix{Bool}(undef, 0, 0))
+    end
+    
+    n1 = typeof(shape1) == PolyShape ? shape1.NumRegions : shape1.NumLines
+    n2 = pt.NumPoints
+    
+    intersection_matrix = Matrix{Bool}(undef, n1, n2)
+    overall_intersects = false
+    
+    for i = 1:n1
+        sub_shape1 = subShape(shape1, i)
+        for j = 1:n2
+            sub_pt = subShape(pt, j)
+            intersects = polyIntersects(sub_shape1, sub_pt)
+            intersection_matrix[i, j] = intersects
+            if intersects
+                overall_intersects = true
+            end
+        end
+    end
+    
+    return (overall_intersects, intersection_matrix)
+end
+function polyIntersects(pt::PointShape, shape2::PosDimGeom, detailed::Bool)::Tuple{Bool, Matrix{Bool}}
+    if !detailed
+        return (polyIntersects(pt, shape2), Matrix{Bool}(undef, 0, 0))
+    end
+    
+    intersects, matrix = polyIntersects(shape2, pt, true)
+    return (intersects, matrix')
+end
+function polyIntersects(pt1::PointShape, pt2::PointShape, detailed::Bool)::Tuple{Bool, Matrix{Bool}}
+    if !detailed
+        return (polyIntersects(pt1, pt2), Matrix{Bool}(undef, 0, 0))
+    end
+    
+    n1 = pt1.NumPoints
+    n2 = pt2.NumPoints
+    
+    intersection_matrix = Matrix{Bool}(undef, n1, n2)
+    overall_intersects = false
+    
+    for i = 1:n1
+        sub_pt1 = subShape(pt1, i)
+        for j = 1:n2
+            sub_pt2 = subShape(pt2, j)
+            intersects = polyIntersects(sub_pt1, sub_pt2)
+            intersection_matrix[i, j] = intersects
+            if intersects
+                overall_intersects = true
+            end
+        end
+    end
+    
+    return (overall_intersects, intersection_matrix)
 end
 
 
@@ -997,7 +1111,7 @@ function transformLine(l::LineShape, operation::Symbol, params...)::LineShape
 end
 
 
-function findPolyIntersection(ps1::PolyShape, ps2::PolyShape)
+function findpolyIntersectionion(ps1::PolyShape, ps2::PolyShape)
     V1 = ps1.Vertices[1]
     V2 = ps2.Vertices[1]
     
@@ -1336,7 +1450,7 @@ function extendRectToIntersection(pos_x, pos_y, anchoLado, angle, ps, rectType="
         elseif rectType == "fat"
             box_ext = polyShape.polyBox(pos_x, pos_y, largoIni, anchoLado, angle)
         end
-        edges1, edges2, p_inter = polyShape.findPolyIntersection(box_ext, ps)
+        edges1, edges2, p_inter = polyShape.findpolyIntersectionion(box_ext, ps)
         point_1 = polyShape.subShape(p_inter, 1)
         dist_1 = polyShape.calculateDistance(edge, point_1)
         point_2 = polyShape.subShape(p_inter, 2)
@@ -2179,12 +2293,51 @@ function polyHasnan(ps::PolyShape)::Bool
     return false
 end
 
+function isValidShape(shape::PosDimGeom)::Bool
+    if typeof(shape) == PolyShape
+        if shape.NumRegions == 0
+            return false
+        end
+        for i = 1:shape.NumRegions
+            if size(shape.Vertices[i], 1) < 3
+                return false
+            end
+            if any(isnan.(shape.Vertices[i]))
+                return false
+            end
+        end
+    elseif typeof(shape) == LineShape
+        if shape.NumLines == 0
+            return false
+        end
+        for i = 1:shape.NumLines
+            if size(shape.Vertices[i], 1) < 2
+                return false
+            end
+            if any(isnan.(shape.Vertices[i]))
+                return false
+            end
+        end
+    end
+    return true
+end
+
+function isValidShape(pt::PointShape)::Bool
+    if pt.NumPoints == 0
+        return false
+    end
+    if any(isnan.(pt.Vertices))
+        return false
+    end
+    return true
+end
+
 
 export isPolyConvex, isPolyInPoly,  
-    polyArea, polyDifference, polyOrientation, polyUnion, polyIntersect, polyOffset,  
+    polyArea, polyDifference, polyOrientation, polyUnion, polyIntersection, polyIntersects, polyOffset,  
     polyEliminaColineales, subShape, shapeVertex, numVertices,
     polyBox, polyRotate, polyReverse, setPolyOrientation, minPolyDistance, 
-    polyCopy, intersectLines, findPolyIntersection, 
+    polyCopy, intersectLines, findpolyIntersectionion, 
     lineAngle, halfspaceSignOfPointToLine,
     polyObtieneCruces, replaceShapeVertex, lineVec2polyShape, polyShrink,
     ajustaCoordenadas, angleMaxDistRect, extendRectToIntersection, polyBoxFromEdge, minBoundingBox,
