@@ -231,58 +231,18 @@ function refina_segmentos_calle_combi(id_combi, df_calles, df_combis)
 end
 
 
-data_calles_combis = []
-for (i, row) in enumerate(eachrow(df_combis))
-    println("Processing combi $(i)/$(nrow(df_combis)): $(row.id_combi)")
-
-    try
-        id_combi = row.id_combi
-        ps_calles_i, ps_combi_i = refina_segmentos_calle_combi(id_combi, df_calles, df_combis)
-
-        ps_calles_4326_i = polyShape.ajustaCoordenadasInversa(ps_calles_i, dx, dy)
-        ps_calles_4326_i = polyShape.shape_32719to4326(ps_calles_4326_i)
-
-        ps_combi_4326_i = polyShape.ajustaCoordenadasInversa(ps_combi_i, dx, dy)
-        ps_combi_4326_i = polyShape.shape_32719to4326(ps_combi_4326_i)
-
-        push!(data_calles_combis, (
-            id_combi = id_combi,
-            combi_4326_wkt = ps_combi_4326_i,
-            calles_4326_wkt = ps_calles_4326_i,
-            combi_32719_wkt = ps_combi_i,
-            calles_32719_wkt = ps_calles_i
-        ))
-    catch
-        println("Error processing combi $(i)/$(nrow(df_combis)): $(row.id_combi)")
-    end
-end
-df_calles_combis = DataFrame(data_calles_combis)
-
-
-idx = 33
-id_combi = df_calles_combis[idx, "id_combi"] #"13132041006001_323" #
-ps_combi_32719 = df_calles_combis[df_calles_combis[!, "id_combi"] .== id_combi, "combi_32719_wkt"][1]
-ps_calles_32719 = df_calles_combis[df_calles_combis[!, "id_combi"] .== id_combi, "calles_32719_wkt"][1]
-
-
 # Obtiene predios contenidos en el buffer del predio y ajusta coordenadas
 display("Obtiene predios contenidos en el buffer del predio y ajusta coordenadas")
 query = """
-MATCH (c:Combi)<-[:CONFORMA_COMBI]-(p:Predio)-[:SE_UBICA_EN_MANZANA]->(m:Manzana)
-WHERE c.id_combi = '$id_combi'
-MATCH (m_:Manzana)-[:ES_VECINA_A]-(m)
-WITH m, m_
-UNWIND [m, m_] AS m2
-MATCH (gp:Geom_Predio)<-[:TIENE_GEOM]-(p2:Predio)-[:SE_UBICA_EN_MANZANA]->(m2)
+MATCH (gp:Geom_Predio)<-[:TIENE_GEOM]-(p:Predio)
+WHERE p.comuna = 'vitacura'
 RETURN DISTINCT gp.geom_wkt AS geom_wkt
 """
-df_predios_manzanas_vecinas = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-ps_predios_manzanas_vecinas = polyGdal.astext2shape(df_predios_manzanas_vecinas[:, "geom_wkt"])
-ps_predios_manzanas_vecinas = polyShape.setPolyOrientation(ps_predios_manzanas_vecinas,1)
-ps_predios_manzanas_vecinas = polyShape.shape_4326to32719(ps_predios_manzanas_vecinas)
-ps_predios_manzanas_vecinas = polyShape.ajustaCoordenadas(ps_predios_manzanas_vecinas, dx, dy)
-ps_calles_x = polyShape.polyIntersect(ps_calles_32719, ps_predios_manzanas_vecinas)
-ps_calles = polyShape.polyDifference(ps_calles_32719, ps_calles_x)
+df_predios_vecinos = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
+ps_predios_vecinos = polyGdal.astext2shape(df_predios_vecinos[:, "geom_wkt"])
+ps_predios_vecinos = polyShape.setPolyOrientation(ps_predios_vecinos,1)
+ps_predios_vecinos = polyShape.shape_4326to32719(ps_predios_vecinos)
+ps_predios_vecinos = polyShape.ajustaCoordenadas(ps_predios_vecinos, dx, dy)
 
 
 # Obtiene areas verdes en el buffer del predio y ajusta coordenadas
@@ -297,8 +257,48 @@ ps_areas_verdes = polyGdal.astext2shape(df_areas_verdes[:, "geom_wkt"])
 ps_areas_verdes = polyShape.setPolyOrientation(ps_areas_verdes,1)
 ps_areas_verdes = polyShape.shape_4326to32719(ps_areas_verdes)
 ps_areas_verdes = polyShape.ajustaCoordenadas(ps_areas_verdes, dx, dy)
-ps_calles_x = polyShape.polyIntersect(ps_calles, ps_areas_verdes)
-ps_calles = polyShape.polyDifference(ps_calles, ps_calles_x)
 
-fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_combi_32719, "green", 0.2)
-fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_calles, "blue", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+
+data_calles_combis = []
+for (i, row) in enumerate(eachrow(df_combis))
+    println("Processing combi $(i)/$(nrow(df_combis)): $(row.id_combi)")
+
+    try
+        id_combi = row.id_combi
+        ps_calles_i, ps_combi_i = refina_segmentos_calle_combi(id_combi, df_calles, df_combis)
+
+        ps_calles_x = polyShape.polyIntersect(ps_calles_i, ps_predios_vecinos)
+        ps_calles_i = polyShape.polyDifference(ps_calles_i, ps_calles_x)
+        ps_calles_x = polyShape.polyIntersect(ps_calles_i, ps_areas_verdes)
+        ps_calles_i = polyShape.polyDifference(ps_calles_i, ps_calles_x)
+        ps_calles_32719_i = polyShape.ajustaCoordenadasInversa(ps_calles_i, dx, dy)
+        ps_calles_4326_i = polyShape.shape_32719to4326(ps_calles_32719_i)
+
+        ps_combi_32719_i = polyShape.ajustaCoordenadasInversa(ps_combi_i, dx, dy)
+        ps_combi_4326_i = polyShape.shape_32719to4326(ps_combi_32719_i)
+
+        push!(data_calles_combis, (
+            id_combi = id_combi,
+            combi_ps = ps_combi_i,
+            combi_4326_ps = ps_combi_4326_i,
+            combi_32719_ps = ps_combi_32719_i,
+            combi_4326_wkt = polyShape.polyshape2wkt(ps_combi_4326_i),
+            combi_32719_wkt = polyShape.polyshape2wkt(ps_combi_32719_i),
+            calles_ps = ps_calles_i,
+            calles_4326_ps = ps_calles_4326_i,
+            calles_32719_ps = ps_calles_32719_i,
+            calles_4326_wkt = polyShape.polyshape2wkt(ps_calles_4326_i),
+            calles_32719_wkt = polyShape.polyshape2wkt(ps_calles_32719_i)
+        ))
+    catch
+        println("Error processing combi $(i)/$(nrow(df_combis)): $(row.id_combi)")
+    end
+end
+df_calles_combis = DataFrame(data_calles_combis)
+
+
+
+
+
+# fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_combi_32719, "green", 0.2)
+# fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_calles, "blue", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
