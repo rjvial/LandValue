@@ -158,6 +158,8 @@ df_calles = CSV.read("calles_por_combi.csv", DataFrame)
 
 function refina_segmentos_calle_combi(id_combi, df_calles, df_combis)
 
+    vec_segmento_calle = unique(df_calles[df_calles[!, "id_combi"] .== id_combi, "id_segmento_calle"])
+
     df_calles_combi = df_calles[df_calles[!, "id_combi"] .== id_combi, :]
     ps_calles_combi = df_calles[df_calles[!, "id_combi"] .== id_combi, "geom_wkt"]
     ps_calles_combi = polyGdal.astext2shape(ps_calles_combi)
@@ -172,7 +174,6 @@ function refina_segmentos_calle_combi(id_combi, df_calles, df_combis)
     ps_combi = polyShape.shape_4326to32719(ps_combi)
     ps_combi = polyShape.setPolyOrientation(ps_combi, 1)
     ps_combi = polyShape.ajustaCoordenadas(ps_combi, dx, dy)
-    ps_hull = polyShape.setPolyOrientation(polyShape.polySimplify(ps_combi, 1), 1)
 
     ps_calles = PolyShape([], 0)
     for i = 1:num_segmentos
@@ -226,8 +227,10 @@ function refina_segmentos_calle_combi(id_combi, df_calles, df_combis)
             end
         end
     end
+    
+    list_segmento_calle = "[" * join(vec_segmento_calle, ", ") * "]"
 
-    return ps_calles, ps_combi
+    return ps_calles, ps_combi, list_segmento_calle
 end
 
 
@@ -265,7 +268,7 @@ for (i, row) in enumerate(eachrow(df_combis))
 
     try
         id_combi = row.id_combi
-        ps_calles_i, ps_combi_i = refina_segmentos_calle_combi(id_combi, df_calles, df_combis)
+        ps_calles_i, ps_combi_i, list_segmento_calle = refina_segmentos_calle_combi(id_combi, df_calles, df_combis)
 
         flag_calle_x_vecinos, mat_flag_calle_x_vecinos = polyShape.polyIntersects(ps_calles_i, ps_predios_vecinos, true)
         ps_predios_vecinos_i = polyShape.subShape(ps_predios_vecinos, findall(any(mat_flag_calle_x_vecinos, dims=1)[:]))
@@ -275,25 +278,21 @@ for (i, row) in enumerate(eachrow(df_combis))
         ps_areas_verdes_i = polyShape.subShape(ps_areas_verdes, findall(any(mat_flag_verde_x_vecinos, dims=1)[:]))
         ps_calles_i = polyShape.polyDifference(ps_calles_i, ps_areas_verdes_i)
 
-        ps_calles_32719_i = polyShape.ajustaCoordenadasInversa(ps_calles_i, dx, dy)
-        ps_calles_4326_i = polyShape.shape_32719to4326(ps_calles_32719_i)
 
-        ps_combi_32719_i = polyShape.ajustaCoordenadasInversa(ps_combi_i, dx, dy)
-        ps_combi_4326_i = polyShape.shape_32719to4326(ps_combi_32719_i)
+        for j = 1:ps_calles_i.NumRegions
+            ps_calles_j = polyShape.subShape(ps_calles_i, j)
+            
+            ps_calles_32719_j = polyShape.ajustaCoordenadasInversa(ps_calles_j, dx, dy)
+            ps_calles_4326_j = polyShape.shape_32719to4326(ps_calles_32719_j)
 
-        push!(data_calles_combis, (
-            id_combi = id_combi,
-            combi_ps = ps_combi_i,
-            combi_4326_ps = ps_combi_4326_i,
-            combi_32719_ps = ps_combi_32719_i,
-            combi_4326_wkt = polyShape.polyshape2wkt(ps_combi_4326_i),
-            combi_32719_wkt = polyShape.polyshape2wkt(ps_combi_32719_i),
-            calles_ps = ps_calles_i,
-            calles_4326_ps = ps_calles_4326_i,
-            calles_32719_ps = ps_calles_32719_i,
-            calles_4326_wkt = polyShape.polyshape2wkt(ps_calles_4326_i),
-            calles_32719_wkt = polyShape.polyshape2wkt(ps_calles_32719_i)
-        ))
+            push!(data_calles_combis, (
+                id_calle_combi = id_combi * "_" * string(j),
+                id_combi = id_combi,
+                list_segmento_calle = list_segmento_calle,
+                calles_4326_wkt = polyShape.polyshape2wkt(ps_calles_4326_j),
+                calles_32719_wkt = polyShape.polyshape2wkt(ps_calles_32719_j)
+            ))
+        end
     catch
         println("Error processing combi $(i)/$(nrow(df_combis)): $(row.id_combi)")
     end
@@ -301,15 +300,35 @@ end
 df_calles_combis = DataFrame(data_calles_combis)
 
 
-fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"combi_ps"][1], "green", 0.2) 
-fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"calles_ps"][1], "blue", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
-fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"combi_ps"][2], "green", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
-fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"calles_ps"][2], "blue", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
-fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"combi_ps"][3], "green", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
-fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"calles_ps"][3], "blue", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
-fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"combi_ps"][4], "green", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
-fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"calles_ps"][4], "blue", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
-fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"combi_ps"][5], "green", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
-fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"calles_ps"][5], "blue", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
-fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"combi_ps"][6], "green", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
-fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"calles_ps"][6], "blue", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+
+# fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"combi_ps"][1], "green", 0.2) 
+# fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"calles_ps"][1], "blue", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+# fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"combi_ps"][2], "green", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+# fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"calles_ps"][2], "blue", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+# fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"combi_ps"][3], "green", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+# fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"calles_ps"][3], "blue", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+# fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"combi_ps"][4], "green", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+# fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"calles_ps"][4], "blue", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+# fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"combi_ps"][5], "green", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+# fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"calles_ps"][5], "blue", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+# fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"combi_ps"][6], "green", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+# fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"calles_ps"][6], "blue", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+
+# Write final results.
+local_file_name = "calles_combis.csv"
+CSV.write(local_file_name, df_calles_combis)
+println("Processing complete. Final data saved to ", local_file_name)
+
+aws_file_name = "kg/$(local_file_name)"
+aws_bucket = "landengines-data"
+
+aws_julia.upload_csv_file_to_s3(conn_aws, aws_bucket, aws_file_name, local_file_name)
+
+# Erase the checkpoint file now that processing is complete.
+if isfile(local_file_name)
+    rm(local_file_name)
+    println("Checkpoint file erased.")
+end
+
+
+
