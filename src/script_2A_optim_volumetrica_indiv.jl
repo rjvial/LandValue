@@ -41,7 +41,7 @@ codigo_predial = parse.(Int, split(strip(df_combis[333,"list_predios"], ['(', ')
 id_combi = df_combis[333,"id_combi"]
 # con problemas: 201, 401, 501, 603(con rasante), 803, 1001, 1003, 1101 
 
-dict_geom = obtiene_geometrias_codigo_predial(id_combi, conn_neo4j)
+dict_geom = obtiene_geometrias_combi(id_combi, conn_neo4j)
 
 println("###########################################")
 println("Caso base")

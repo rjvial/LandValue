@@ -1,4 +1,4 @@
-function obtiene_geometrias_codigo_predial(id_combi, conn_neo4j)
+function obtiene_geometrias_combi(id_combi, conn_neo4j)
     # Obtiene desde Neo4j las geometrias de los predios
     display("Obtiene desde Neo4j las geometrias de los predios")
 
@@ -9,15 +9,15 @@ function obtiene_geometrias_codigo_predial(id_combi, conn_neo4j)
                 c.geom_combi AS geom_wkt, c.num_predios AS num_predios
         ORDER BY id_combi
     """
-    df_predios = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-    sup_terreno_sii = sum(df_predios[!,"sup_terreno_sii"])
-    ps_predio_db = polyGdal.astext2shape(df_predios[:, "geom_wkt"])
-    ps_predio_db = polyShape.setPolyOrientation(ps_predio_db,1)
-    ps_predio_db = polyShape.shape_4326to32719(ps_predio_db)
-    ps_predio_db, dx, dy = polyShape.ajustaCoordenadas(ps_predio_db)
-    ps_predio_db = polyShape.polyUnion(ps_predio_db)
+    df_combi = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
+    sup_terreno_sii = sum(df_combi[!,"sup_terreno_sii"])
+    ps_combi_db = polyGdal.astext2shape(df_combi[:, "geom_wkt"])
+    ps_combi_db = polyShape.setPolyOrientation(ps_combi_db,1)
+    ps_combi_db = polyShape.shape_4326to32719(ps_combi_db)
+    ps_combi_db, dx, dy = polyShape.ajustaCoordenadas(ps_combi_db)
+    ps_combi_db = polyShape.polyUnion(ps_combi_db)
     simplify_value = 1.0 #1. #.1
-    ps_predio = polyGdal.shapeSimplify(ps_predio_db, simplify_value)
+    ps_predio = polyGdal.shapeSimplify(ps_combi_db, simplify_value)
     ps_predio = polyShape.polyEliminaColineales(ps_predio)
 
 
@@ -87,7 +87,7 @@ function obtiene_geometrias_codigo_predial(id_combi, conn_neo4j)
         "ps_calles" => ps_calles,
         "ps_publico" => ps_publico,
         "ps_bruto" => ps_bruto,
-        "n_predios" => df_predios[1,"num_predios"][1],
+        "n_predios" => df_combi[1,"num_predios"][1],
         "vecSecTodos" => vecSecTodos,
         "vecSecSinCalle" => vecSecSinCalle,
         "vecSecConCalle" => vecSecConCalle,
