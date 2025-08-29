@@ -491,6 +491,7 @@ function partialPolyOffset(ps::PolyShape, vec_partial_offset_id::Vector{Int}, ve
             cond_next_side_presente = ~(nonIntersecting_offset_lines[next_side_index].Vertices[1][1,:]' == [0 0] && 
                                         nonIntersecting_offset_lines[next_side_index].Vertices[1][2,:]' == [0 0])
 
+            intersection_point = nothing
             if cond_current_side_presente && cond_prev_side_presente
                 lin1 = polyShape.transformLine(nonIntersecting_offset_lines[prev_side_index], :extend, 100)
                 lin2 = polyShape.transformLine(nonIntersecting_offset_lines[current_side_index], :extend, 100)
@@ -504,7 +505,14 @@ function partialPolyOffset(ps::PolyShape, vec_partial_offset_id::Vector{Int}, ve
                 lin2 = polyShape.transformLine(nonIntersecting_offset_lines[next_side_index], :extend, 100)
                 intersection_point = polyShape.intersectLines(lin1, lin2)
             end
-            V_aux = [vcat(V_aux[1], intersection_point.Vertices[1, :]')]
+            
+            if intersection_point !== nothing
+                point = intersection_point.Vertices[1, :]'
+                if any(isnan.(point)) || any(isinf.(point))
+                    point = [0.0 0.0]
+                end
+                V_aux = [vcat(V_aux[1], point)]
+            end
 
         end
         ps_out = PolyShape([V_aux[1][2:end, :]], 1)

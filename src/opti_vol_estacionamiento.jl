@@ -33,12 +33,20 @@ function opti_vol_estacionamiento(ps_predio::PolyShape, ps_areaEst::PolyShape,
     max_ocup = coefOcupacionEst * areaPredio
     areaBasalEst = min(areaEstDisponible, max_ocup)
     
+    if isnan(areaPredio) || isnan(areaEstDisponible) || isnan(areaBasalEst)
+        throw(ArgumentError("Invalid geometry: polygon area calculation returned NaN"))
+    end
+    
     if areaBasalEst <= 0.0
         throw(ArgumentError("No available area for parking after applying occupancy constraints"))
     end
     
     # Calculate number of required levels
-    numSubtes = ceil(Int, areaReq / areaBasalEst)
+    ratio = areaReq / areaBasalEst
+    if isnan(ratio) || isinf(ratio)
+        throw(ArgumentError("Invalid area ratio: areaReq=$areaReq, areaBasalEst=$areaBasalEst"))
+    end
+    numSubtes = ceil(Int, ratio)
     
     if numSubtes == 1
         # Single level case

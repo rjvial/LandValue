@@ -242,7 +242,7 @@ function display_optimization_summary(results)
     
     println("-" ^ 40)
     println("Total Useful Area: $(round(results["supUtil"], digits=1)) m²")
-    println("Total Apartments: $(Int(results["numDeptos"]))")
+    println("Total Apartments: $(round(Int, results["numDeptos"]))")
     println("Apartments by type: $(results["numDeptosTipo"])")
     println("=" ^ 40)
 end
