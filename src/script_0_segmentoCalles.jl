@@ -278,9 +278,27 @@ for (i, row) in enumerate(eachrow(df_combis))
         ps_areas_verdes_i = polyShape.subShape(ps_areas_verdes, findall(any(mat_flag_verde_x_vecinos, dims=1)[:]))
         ps_calles_i = polyShape.polyDifference(ps_calles_i, ps_areas_verdes_i)
 
+        vec_segmento_calle = parse.(Int, strip.(split(replace(replace(list_segmento_calle, "[" => ""), "]" => ""), ",")))
+        df_segmentos_combi = filter(row -> row.id_segmento_calle in vec_segmento_calle, df_semento_calle)
+        ps_segmentos_combi = polyGdal.astext2shape(df_segmentos_combi[:, "geom_wkt"])
+        ps_segmentos_combi = polyShape.shape_4326to32719(ps_segmentos_combi)
+        ps_segmentos_combi = polyShape.ajustaCoordenadas(ps_segmentos_combi, dx, dy)
 
         for j = 1:ps_calles_i.NumRegions
             ps_calles_j = polyShape.subShape(ps_calles_i, j)
+            
+            flag_intersects, mat_intersects = polyShape.polyIntersects(ps_calles_j, ps_segmentos_combi, true)
+            intersecting_indices = findall(any(mat_intersects, dims=1)[:])
+            
+            if !isempty(intersecting_indices)
+                intersecting_segments = df_segmentos_combi[intersecting_indices, "id_segmento_calle"]
+                intersecting_segment_names = df_segmentos_combi[intersecting_indices, "nombre_calle"]
+                segmento_calle_intersecting = "[" * join(intersecting_segments, ", ") * "]"
+                nombre_calle_intersecting = "[" * join(unique(intersecting_segment_names), ", ") * "]"
+            else
+                segmento_calle_intersecting = "[]"
+                nombre_calle_intersecting = "[]"
+            end
             
             ps_calles_32719_j = polyShape.ajustaCoordenadasInversa(ps_calles_j, dx, dy)
             ps_calles_4326_j = polyShape.shape_32719to4326(ps_calles_32719_j)
@@ -288,7 +306,8 @@ for (i, row) in enumerate(eachrow(df_combis))
             push!(data_calles_combis, (
                 id_calle_combi = id_combi * "_" * string(j),
                 id_combi = id_combi,
-                list_segmento_calle = list_segmento_calle,
+                lista_segmento_calle = segmento_calle_intersecting,
+                lista_nombre_calle = nombre_calle_intersecting,
                 calles_4326_wkt = polyShape.polyshape2wkt(ps_calles_4326_j),
                 calles_32719_wkt = polyShape.polyshape2wkt(ps_calles_32719_j)
             ))
@@ -299,6 +318,20 @@ for (i, row) in enumerate(eachrow(df_combis))
 end
 df_calles_combis = DataFrame(data_calles_combis)
 
+df_calles_combis_segmento_calle = DataFrame(id_calle_combi=String[], id_segmento_calle=String[])
+for row in eachrow(df_calles_combis)
+    segmentos_str = replace(replace(row.lista_segmento_calle, "[" => ""), "]" => "")
+    if segmentos_str != ""
+        segmentos = strip.(split(segmentos_str, ","))
+        for segmento in segmentos
+            if segmento != ""
+                push!(df_calles_combis_segmento_calle, (id_calle_combi=row.id_calle_combi, id_segmento_calle=segmento))
+            end
+        end
+    end
+end
+
+df_combis_calles_combis = unique(df_calles_combis[:, ["id_combi", "id_calle_combi"]])
 
 
 # fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"combi_ps"][1], "green", 0.2) 
@@ -315,20 +348,35 @@ df_calles_combis = DataFrame(data_calles_combis)
 # fig, ax, ax_mat = polyPlot.plotPolyshape2D(df_calles_combis[:,"calles_ps"][6], "blue", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
 
 # Write final results.
+aws_bucket = "landengines-data"
+
 local_file_name = "calles_combis.csv"
 CSV.write(local_file_name, df_calles_combis)
 println("Processing complete. Final data saved to ", local_file_name)
-
 aws_file_name = "kg/$(local_file_name)"
-aws_bucket = "landengines-data"
-
 aws_julia.upload_csv_file_to_s3(conn_aws, aws_bucket, aws_file_name, local_file_name)
-
-# Erase the checkpoint file now that processing is complete.
 if isfile(local_file_name)
     rm(local_file_name)
-    println("Checkpoint file erased.")
+    println("$(local_file_name) Checkpoint file erased.")
 end
 
+local_file_name = "rel_combi_to_calles_combi.csv"
+CSV.write(local_file_name, df_combis_calles_combis)
+println("Processing complete. Final data saved to ", local_file_name)
+aws_file_name = "kg/$(local_file_name)"
+aws_julia.upload_csv_file_to_s3(conn_aws, aws_bucket, aws_file_name, local_file_name)
+if isfile(local_file_name)
+    rm(local_file_name)
+    println("$(local_file_name) Checkpoint file erased.")
+end
 
+local_file_name = "rel_segmento_calle_to_calles_combi.csv"
+CSV.write(local_file_name, df_calles_combis_segmento_calle)
+println("Processing complete. Final data saved to ", local_file_name)
+aws_file_name = "kg/$(local_file_name)"
+aws_julia.upload_csv_file_to_s3(conn_aws, aws_bucket, aws_file_name, local_file_name)
+if isfile(local_file_name)
+    rm(local_file_name)
+    println("$(local_file_name) Checkpoint file erased.")
+end
 
