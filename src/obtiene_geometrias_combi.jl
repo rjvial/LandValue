@@ -6,7 +6,7 @@ function obtiene_geometrias_combi(id_combi, conn_neo4j)
         MATCH (c:Combi)
         WHERE c.id_combi = '$id_combi'
         RETURN DISTINCT c.id_combi AS id_combi, c.sup_combi_sii AS sup_terreno_sii, 
-                c.geom_combi AS geom_wkt, c.num_predios AS num_predios
+                c.geom_combi AS geom_wkt, c.num_predios AS num_predios, c.calles_contexto_wkt AS calles_contexto_wkt
         ORDER BY id_combi
     """
     df_combi = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
@@ -19,6 +19,10 @@ function obtiene_geometrias_combi(id_combi, conn_neo4j)
     ps_combi = polyGdal.shapeSimplify(ps_combi, 1.0)
     ps_combi = polyShape.polyEliminaColineales(ps_combi)
 
+    ps_calles_contexto = polyGdal.astext2shape(df_combi[:, "calles_contexto_wkt"])
+    ps_calles_contexto = polyShape.setPolyOrientation(ps_calles_contexto,1)
+    ps_calles_contexto = polyShape.shape_4326to32719(ps_calles_contexto)
+    ps_calles_contexto = polyShape.ajustaCoordenadas(ps_calles_contexto, dx, dy)
 
     #################################
     # Obtiene predios y calles contenidos en el buffer del predio y ajusta coordenadas
@@ -38,6 +42,7 @@ function obtiene_geometrias_combi(id_combi, conn_neo4j)
         "ps_calles" => ps_calles,
         "ps_publico" => ps_publico,
         "ps_bruto" => ps_bruto,
+        "ps_calles_contexto" => ps_calles_contexto,
         "n_predios" => df_combi[1,"num_predios"][1],
         "vecSecTodos" => vecSecTodos,
         "vecSecSinCalle" => vecSecSinCalle,

@@ -2,11 +2,11 @@ function generaSombraEdificio(
     ps_bases::Vector{PolyShape},
     alts::Vector{Float64},
     ps_publico::PolyShape,
-    ps_calles::PolyShape
+    ps_calles_contexto::PolyShape
 )
     # Inner helper for one block
     function generaSombraBox(ps_baseBox::PolyShape, alt::Float64,
-                              ps_publico::PolyShape, ps_calles::PolyShape)
+                              ps_publico::PolyShape, ps_calles_contexto::PolyShape)
         ps_SombraBox_p = PolyShape([],0)
         ps_SombraBox_o = PolyShape([],0)
         ps_SombraBox_s = PolyShape([],0)
@@ -49,14 +49,14 @@ function generaSombraEdificio(
         p_s = polyShape.polyDifference(ps_SombraBox_s, ps_publico)
         ps_sombraBox_s = length(p_s.Vertices) > 0 ? PolyShape(p_s.Vertices, length(p_s.Vertices)) : PolyShape([],0)
         # Subtract streets
-        ps_sombraBox_p = polyShape.polyDifference(ps_sombraBox_p, ps_calles)
-        ps_sombraBox_o = polyShape.polyDifference(ps_sombraBox_o, ps_calles)
-        ps_sombraBox_s = polyShape.polyDifference(ps_sombraBox_s, ps_calles)
+        ps_sombraBox_p = polyShape.polyDifference(ps_sombraBox_p, ps_calles_contexto)
+        ps_sombraBox_o = polyShape.polyDifference(ps_sombraBox_o, ps_calles_contexto)
+        ps_sombraBox_s = polyShape.polyDifference(ps_sombraBox_s, ps_calles_contexto)
         return ps_sombraBox_p, ps_sombraBox_o, ps_sombraBox_s
     end
 
     # Process first block unconditionally
-    ps1_p, ps1_o, ps1_s = generaSombraBox(ps_bases[1], alts[1], ps_publico, ps_calles)
+    ps1_p, ps1_o, ps1_s = generaSombraBox(ps_bases[1], alts[1], ps_publico, ps_calles_contexto)
     ps_sombraEdif_p = deepcopy(ps1_p)
     ps_sombraEdif_o = deepcopy(ps1_o)
     ps_sombraEdif_s = deepcopy(ps1_s)
@@ -64,7 +64,7 @@ function generaSombraEdificio(
     # Union shadows of remaining blocks if height ≥ 1
     for i in 2:length(ps_bases)
         if alts[i] >= 1
-            psi_p, psi_o, psi_s = generaSombraBox(ps_bases[i], alts[i], ps_publico, ps_calles)
+            psi_p, psi_o, psi_s = generaSombraBox(ps_bases[i], alts[i], ps_publico, ps_calles_contexto)
             ps_sombraEdif_p = polyShape.polyUnion(ps_sombraEdif_p, psi_p)
             ps_sombraEdif_o = polyShape.polyUnion(ps_sombraEdif_o, psi_o)
             ps_sombraEdif_s = polyShape.polyUnion(ps_sombraEdif_s, psi_s)

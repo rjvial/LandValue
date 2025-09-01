@@ -1,4 +1,4 @@
-function generaSombraTeor(vec_psVolteor, vec_altVolteor, ps_publico, ps_calles)
+function generaSombraTeor(vec_psVolteor, vec_altVolteor, ps_publico, ps_calles_contexto)
 
     num_alturas = length(vec_altVolteor)
 
@@ -43,9 +43,9 @@ function generaSombraTeor(vec_psVolteor, vec_altVolteor, ps_publico, ps_calles)
         ps_sombraVolTeorico_s = PolyShape([], 0)
     end
         
-    ps_sombraVolTeorico_p = polyShape.polyDifference(ps_sombraVolTeorico_p, ps_calles)
-    ps_sombraVolTeorico_o = polyShape.polyDifference(ps_sombraVolTeorico_o, ps_calles)
-    ps_sombraVolTeorico_s = polyShape.polyDifference(ps_sombraVolTeorico_s, ps_calles)
+    ps_sombraVolTeorico_p = polyShape.polyDifference(ps_sombraVolTeorico_p, ps_calles_contexto)
+    ps_sombraVolTeorico_o = polyShape.polyDifference(ps_sombraVolTeorico_o, ps_calles_contexto)
+    ps_sombraVolTeorico_s = polyShape.polyDifference(ps_sombraVolTeorico_s, ps_calles_contexto)
 
     return ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s
 end

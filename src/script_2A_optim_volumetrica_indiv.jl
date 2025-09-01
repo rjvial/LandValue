@@ -33,15 +33,15 @@ AND c.convexity >= $convexity_min AND c.convexity <= $convexity_max
 AND c.sup_combi_sii >= $sup_combi_sii_min AND c.sup_combi_sii <= $sup_combi_sii_max
 AND c.num_predios >= $num_predios_min AND c.num_predios <= $num_predios_max
 RETURN DISTINCT  c.manzent AS manzent, c.id_combi AS id_combi, c.predios AS list_predios, 
-c.rectangularity AS rectangularity, c.convexity AS convexity, c.length AS length, c.width AS  width
+c.rectangularity AS rectangularity, c.convexity AS convexity, c.length AS length, c.width AS width
 ORDER BY manzent, id_combi
 """
 df_combis = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 
-pos_combi = 50
+pos_combi = 1
 codigo_predial = parse.(Int, split(strip(df_combis[pos_combi,"list_predios"], ['(', ')']), ';')) #18 ok
 id_combi = df_combis[pos_combi,"id_combi"]
-# con problemas: 201, 401, 501, 603(con rasante), 803, 1001, 1003, 1101 
+
 
 dict_geom = obtiene_geometrias_combi(id_combi, conn_neo4j)
 
@@ -152,5 +152,5 @@ fpe.sombraEdif_p = true
 fpe.sombraEdif_o = true
 fpe.sombraEdif_s = true
 
-fig, ax, ax_mat = plotBaseEdificio3D(fpe, dict_arquitectura["alturaPiso"], dict_geom["ps_predio"], dict_resultados["vec_psVolteor"], dict_resultados["vec_altVolteor"], dict_resultados["vec_psVolConSombra"], dict_resultados["vec_altVolConSombra"], dict_geom["ps_publico"], dict_geom["ps_calles"], dict_resultados["vec_ps_opt"], dict_resultados["vec_np_opt"], dict_resultados["vec_ps_subte"], dict_resultados["vec_np_subte"], dict_resultados["tipo_edificio"])
+fig, ax, ax_mat = plotBaseEdificio3D(fpe, dict_arquitectura["alturaPiso"], dict_geom["ps_predio"], dict_resultados["vec_psVolteor"], dict_resultados["vec_altVolteor"], dict_resultados["vec_psVolConSombra"], dict_resultados["vec_altVolConSombra"], dict_geom["ps_publico"], dict_geom["ps_calles_contexto"], dict_resultados["vec_ps_opt"], dict_resultados["vec_np_opt"], dict_resultados["vec_ps_subte"], dict_resultados["vec_np_subte"], dict_resultados["tipo_edificio"])
 

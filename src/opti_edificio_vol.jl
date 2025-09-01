@@ -81,7 +81,7 @@ Optimized to eliminate repetitive code.
 """
 function setup_shadow_constraints(vec_psVolteor, vec_altVolteor, dict_geom, ps_areaEdif)
     # Calculate theoretical shadows
-    shadows = generaSombraTeor(vec_psVolteor, vec_altVolteor, dict_geom["ps_publico"], dict_geom["ps_calles"])
+    vec_sombraTeor = generaSombraTeor(vec_psVolteor, vec_altVolteor, dict_geom["ps_publico"], dict_geom["ps_calles_contexto"])
     
     # Prepare constraint matrix once
     A0, b0 = polyShape.poly2Constraints(ps_areaEdif)
@@ -92,7 +92,7 @@ function setup_shadow_constraints(vec_psVolteor, vec_altVolteor, dict_geom, ps_a
     shadow_data = Dict{String, Any}()
     
     for (i, direction) in enumerate(directions)
-        direction_data = process_shadow_direction(shadows[i], A0, b0, edges, direction)
+        direction_data = process_shadow_direction(vec_sombraTeor[i], A0, b0, edges, direction)
         merge!(shadow_data, direction_data)
     end
     
@@ -137,7 +137,7 @@ function optimize_with_shadow_constraints(vec_psVolConSombra, vec_altVolConSombr
         # Calculate actual shadows
         vec_alt_acum = cumsum(np_stack) .* dict_arquitectura["alturaPiso"]
         ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s = 
-            generaSombraEdificio(ps_stack, vec_alt_acum, dict_geom["ps_publico"], dict_geom["ps_calles"])
+            generaSombraEdificio(ps_stack, vec_alt_acum, dict_geom["ps_publico"], dict_geom["ps_calles_contexto"])
         
         # Calculate shadow violations more efficiently
         area_act_p = polyShape.polyArea(ps_sombraEdif_p)

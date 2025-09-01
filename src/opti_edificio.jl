@@ -14,8 +14,6 @@ const COEF_OCUPACION_EST = 1.0
 const LARGE_NUMBER = 999999
 
 """
-    validate_opti_edificio_inputs(dict_geom, dict_arquitectura, dict_requerimientos)
-
 Validates input parameters for building optimization.
 """
 function validate_opti_edificio_inputs(dict_geom, dict_arquitectura, dict_requerimientos)
@@ -44,8 +42,6 @@ function validate_opti_edificio_inputs(dict_geom, dict_arquitectura, dict_requer
 end
 
 """
-    safe_expression_eval(expr_dict, variable_map)
-
 Safely evaluates Python expressions with variable substitution and proper error handling.
 """
 function safe_expression_eval(expr_dict, variable_map::Dict{String, <:Any})
@@ -65,8 +61,6 @@ function safe_expression_eval(expr_dict, variable_map::Dict{String, <:Any})
 end
 
 """
-    calculate_building_config(dict_geom, dict_arquitectura, dict_requerimientos)
-
 Calculates basic building configuration parameters.
 Returns dictionary with configuration values.
 """
@@ -119,8 +113,6 @@ function calculate_building_config(dict_geom, dict_arquitectura, dict_requerimie
 end
 
 """
-    calculate_density_limits(dict_requerimientos, config)
-
 Calculates density limits and maximum apartments.
 """
 function calculate_density_limits(dict_requerimientos, config)
@@ -150,8 +142,6 @@ function calculate_density_limits(dict_requerimientos, config)
 end
 
 """
-    calculate_parking_requirements(dict_requerimientos, cabida_data)
-
 Calculates all parking-related requirements with proper error handling.
 """
 function calculate_parking_requirements(dict_requerimientos, cabida_data)
@@ -285,8 +275,6 @@ function calculate_cabida_data(config, vec_ps_opt, vec_np_opt, dict_edificio_dep
 end
 
 """
-    calculate_underground_area(dict_geom, dict_requerimientos, dict_arquitectura, parking_data)
-
 Calculates underground parking area requirements.
 """
 function calculate_underground_area(dict_geom, dict_requerimientos, dict_arquitectura, parking_data)
@@ -321,10 +309,6 @@ function calculate_underground_area(dict_geom, dict_requerimientos, dict_arquite
 end
 
 """
-    compile_results(config, density_config, vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, 
-                   vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra,
-                   cabida_data, parking_data, dict_edificio_deptos, max_sol, numBodegas)
-
 Compiles final results dictionary.
 """
 function compile_results(config, density_config, vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte,
@@ -370,8 +354,6 @@ function compile_results(config, density_config, vec_ps_opt, vec_np_opt, vec_ps_
 end
 
 """
-    compile_normative_comparison(config, density_config, vec_ps_opt, vec_np_opt, cabida_data, dict_edificio_deptos, dict_requerimientos)
-
 Compiles project vs normative comparison dictionary.
 """
 function compile_normative_comparison(config, density_config, vec_ps_opt, vec_np_opt, cabida_data, dict_edificio_deptos, dict_requerimientos)
