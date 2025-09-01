@@ -1,5 +1,6 @@
 function obtieneCalles(id_combi, ps_combi, dx, dy, conn_neo4j)
 
+
     query = """
         MATCH (c:Combi)-[:CONTIENE_CALLES]->(cc:Calle_Combi)
         WHERE c.id_combi = '$id_combi'

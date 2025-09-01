@@ -2341,6 +2341,82 @@ function isValidShape(pt::PointShape)::Bool
 end
 
 
+function lines2Polygons(ls::LineShape, width::Real)::PolyShape
+    numLines = ls.NumLines
+    
+    if numLines == 0
+        return PolyShape(Vector{Matrix{Float64}}(), 0)
+    end
+    
+    all_vertices = Vector{Matrix{Float64}}()
+    
+    for i = 1:numLines
+        V_line = ls.Vertices[i]
+        n_points = size(V_line, 1)
+        
+        if n_points < 2
+            continue
+        end
+        
+        left_side = Matrix{Float64}(undef, n_points, 2)
+        right_side = Matrix{Float64}(undef, n_points, 2)
+        half_width = width / 2.0
+        
+        for j = 1:n_points
+            if j == 1
+                if n_points == 1
+                    continue
+                end
+                dx = V_line[2, 1] - V_line[1, 1]
+                dy = V_line[2, 2] - V_line[1, 2]
+            elseif j == n_points
+                dx = V_line[n_points, 1] - V_line[n_points-1, 1]
+                dy = V_line[n_points, 2] - V_line[n_points-1, 2]
+            else
+                dx1 = V_line[j, 1] - V_line[j-1, 1]
+                dy1 = V_line[j, 2] - V_line[j-1, 2]
+                dx2 = V_line[j+1, 1] - V_line[j, 1]
+                dy2 = V_line[j+1, 2] - V_line[j, 2]
+                
+                len1 = sqrt(dx1^2 + dy1^2)
+                len2 = sqrt(dx2^2 + dy2^2)
+                
+                if len1 > 0 && len2 > 0
+                    dx1 /= len1
+                    dy1 /= len1
+                    dx2 /= len2
+                    dy2 /= len2
+                    dx = (dx1 + dx2) / 2
+                    dy = (dy1 + dy2) / 2
+                else
+                    dx = dx1 + dx2
+                    dy = dy1 + dy2
+                end
+            end
+            
+            line_len = sqrt(dx^2 + dy^2)
+            if line_len > 0
+                perp_x = -dy / line_len
+                perp_y = dx / line_len
+                
+                left_side[j, 1] = V_line[j, 1] + half_width * perp_x
+                left_side[j, 2] = V_line[j, 2] + half_width * perp_y
+                right_side[j, 1] = V_line[j, 1] - half_width * perp_x
+                right_side[j, 2] = V_line[j, 2] - half_width * perp_y
+            else
+                left_side[j, :] = V_line[j, :]
+                right_side[j, :] = V_line[j, :]
+            end
+        end
+        
+        polygon_vertices = [left_side; reverse(right_side, dims=1)]
+        push!(all_vertices, polygon_vertices)
+    end
+    
+    return PolyShape(all_vertices, length(all_vertices))
+end
+
+
 export isPolyConvex, isPolyInPoly,  
     polyArea, polyDifference, polyOrientation, polyUnion, polyIntersection, polyIntersects, polyOffset,  
     polyEliminaColineales, subShape, shapeVertex, numVertices,
@@ -2352,7 +2428,7 @@ export isPolyConvex, isPolyInPoly,
     createLine, convHull, bisector_direction, angleBetweenLines, midPointSegment,
     alphaPointSegment, points2Line, points2Poly, lineLength, isLineLineParallel,
     projectBuildingShadow, partialPolyOffset, point2lineProjection, 
-    perpendicularLine, line2Box, poly2Constraints, constraints2poly, rotate_to_first_ccw,
+    perpendicularLine, line2Box, lines2Polygons, poly2Constraints, constraints2poly, rotate_to_first_ccw,
     calculateDistance, cleanPolygon, shape2vector, transformLine, polySimplify,
     ajusteCoordenadasInversa, shape_32719to4326, shape_4326to32719, polyshape2wkt, dividePoly,
     polyHasnan

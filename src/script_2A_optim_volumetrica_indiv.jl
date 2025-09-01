@@ -38,7 +38,7 @@ ORDER BY manzent, id_combi
 """
 df_combis = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 
-pos_combi = 30
+pos_combi = 50
 codigo_predial = parse.(Int, split(strip(df_combis[pos_combi,"list_predios"], ['(', ')']), ';')) #18 ok
 id_combi = df_combis[pos_combi,"id_combi"]
 # con problemas: 201, 401, 501, 603(con rasante), 803, 1001, 1003, 1101 
@@ -107,37 +107,37 @@ if length(dict_requerimientos) > 5
     display(dict_proyecto_vs_normativa);
 end
 
-println("")
-println("")
-println("###########################################################")
-println("Caso vivienda económica")
-println("###########################################################")
+# println("")
+# println("")
+# println("###########################################################")
+# println("Caso vivienda económica")
+# println("###########################################################")
 
-# Caso vivienda_economica 
-dict_arquitectura = OrderedDict(
-    "alturaPiso" => 2.55,
-    "K" => 1,
-    "ancho_crujia_min" => 8,
-    "ancho_crujia_max" => 18,
-    "tipo_edificio" => "departamento",
-    "flag_sombra" => true, # false,
-    "flag_vano" => false,
-    "vecSupInterior" => [25, 65, 85, 120, 240],
-    "vecSupTerraza" => [10, 20, 30, 40, 40],
-    "vecSupUtil" => [30, 75, 100, 140, 260],
-    "supPorEstacionamiento" => 30,
-    "supPorBodega" => 5,
-    "supPorBicicleta" => 4,
-    "coefSupComunPrimerPiso" => 0.10,
-    "coefSupComunPisosSup" => 0.05,
-    "coefSupComun" => 0.1,
-    "variante_normativa" => "vivienda_economica" #"dfl_2" # "base" # 
-)
-dict_requerimientos = obtiene_requerimientos_normativos(codigo_predial, dict_arquitectura["variante_normativa"], conn_neo4j);
-if length(dict_requerimientos) > 5
-    dict_resultados, dict_proyecto_vs_normativa = opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
-    display(dict_proyecto_vs_normativa);
-end
+# # Caso vivienda_economica 
+# dict_arquitectura = OrderedDict(
+#     "alturaPiso" => 2.55,
+#     "K" => 1,
+#     "ancho_crujia_min" => 8,
+#     "ancho_crujia_max" => 18,
+#     "tipo_edificio" => "departamento",
+#     "flag_sombra" => true, # false,
+#     "flag_vano" => false,
+#     "vecSupInterior" => [25, 65, 85, 120, 240],
+#     "vecSupTerraza" => [10, 20, 30, 40, 40],
+#     "vecSupUtil" => [30, 75, 100, 140, 260],
+#     "supPorEstacionamiento" => 30,
+#     "supPorBodega" => 5,
+#     "supPorBicicleta" => 4,
+#     "coefSupComunPrimerPiso" => 0.10,
+#     "coefSupComunPisosSup" => 0.05,
+#     "coefSupComun" => 0.1,
+#     "variante_normativa" => "vivienda_economica" #"dfl_2" # "base" # 
+# )
+# dict_requerimientos = obtiene_requerimientos_normativos(codigo_predial, dict_arquitectura["variante_normativa"], conn_neo4j);
+# if length(dict_requerimientos) > 5
+#     dict_resultados, dict_proyecto_vs_normativa = opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
+#     display(dict_proyecto_vs_normativa);
+# end
 
 
 fpe = FlagPlotEdif3D()

@@ -24,7 +24,6 @@ function obtiene_geometrias_combi(id_combi, conn_neo4j)
     # Obtiene predios y calles contenidos en el buffer del predio y ajusta coordenadas
     #################################
     
-
     display("Obtención del conjunto de calles en el entorno del predio")
     @time ps_calles, ps_publico, ps_bruto, vecAnchoCalle, vecSecConCalle = obtieneCalles(id_combi, ps_combi, dx, dy, conn_neo4j)
 
