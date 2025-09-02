@@ -211,11 +211,7 @@ ps_areas_verdes = polyShape.ajustaCoordenadas(ps_areas_verdes, dx, dy)
 # ═══════════════════════════════════════════════════════════════════════════════
 # STREET SEGMENT STITCHING ENGINE
 # ═══════════════════════════════════════════════════════════════════════════════
-# Core algorithm that processes each building combination to:
-# • Refine street geometry using intelligent segment merging
-# • Remove private property overlaps and green space conflicts
-# • Generate clean street frontage polygons with proper topology
-# • Create relationship mappings between buildings and street segments
+# Core algorithm that processes each building combination 
 
 df_calles = CSV.read("box_calle_combi.csv", DataFrame)
 

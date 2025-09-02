@@ -91,6 +91,11 @@ function setup_shadow_constraints(vec_psVolteor, vec_altVolteor, dict_geom, ps_a
         merge!(shadow_data, direction_data)
     end
     
+    # Add theoretical shadow volumes to shadow_data
+    shadow_data["ps_sombraVolTeorico_p"] = vec_sombraTeor[1]
+    shadow_data["ps_sombraVolTeorico_o"] = vec_sombraTeor[2]
+    shadow_data["ps_sombraVolTeorico_s"] = vec_sombraTeor[3]
+    
     return shadow_data
 end
 
@@ -172,6 +177,9 @@ function optimize_with_shadow_constraints(vec_psVolConSombra, vec_altVolConSombr
             best_result["objective_val"] = objective_val
             best_result["ps_stack"] = ps_stack  # Already a copy from quad_opti_vol
             best_result["np_stack"] = np_stack  # Already a copy from quad_opti_vol
+            best_result["ps_sombraEdif_p"] = ps_sombraEdif_p
+            best_result["ps_sombraEdif_o"] = ps_sombraEdif_o
+            best_result["ps_sombraEdif_s"] = ps_sombraEdif_s
         end
     end
     
@@ -271,7 +279,10 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
         "vec_altVolteor" => Float64[],
         "vec_psVolteor" => PolyShape[],
         "vec_altVolConSombra" => Float64[],
-        "vec_psVolConSombra" => PolyShape[]
+        "vec_psVolConSombra" => PolyShape[],
+        "ps_sombraEdif_p" => PolyShape[],
+        "ps_sombraEdif_o" => PolyShape[],
+        "ps_sombraEdif_s" => PolyShape[]
     )
 
     # Generate floor combinations more efficiently
@@ -339,6 +350,12 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
                     best_result["vec_psVolteor"] = vec_psVolteor
                     best_result["vec_altVolConSombra"] = vec_altVolConSombra
                     best_result["vec_psVolConSombra"] = vec_psVolConSombra
+                    best_result["ps_sombraEdif_p"] = shadow_result["ps_sombraEdif_p"]
+                    best_result["ps_sombraEdif_o"] = shadow_result["ps_sombraEdif_o"]
+                    best_result["ps_sombraEdif_s"] = shadow_result["ps_sombraEdif_s"]
+                    best_result["ps_sombraVolTeorico_p"] = shadow_data["ps_sombraVolTeorico_p"]
+                    best_result["ps_sombraVolTeorico_o"] = shadow_data["ps_sombraVolTeorico_o"]
+                    best_result["ps_sombraVolTeorico_s"] = shadow_data["ps_sombraVolTeorico_s"]
                 end
             end
         else
@@ -361,6 +378,7 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
                 
                 best_result["vec_altVolConSombra"] = vec_altVolConSombra
                 best_result["vec_psVolConSombra"] = vec_psVolConSombra
+                
             end
         end
         
@@ -373,6 +391,12 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
     # Return results in original format
     return (best_result["ps_stack"], best_result["np_stack"], best_result["max_sol"], 
             best_result["vec_psVolteor"], best_result["vec_altVolteor"], 
-            best_result["vec_psVolConSombra"], best_result["vec_altVolConSombra"])
+            best_result["vec_psVolConSombra"], best_result["vec_altVolConSombra"],
+            get(best_result, "ps_sombraEdif_p", PolyShape[]),
+            get(best_result, "ps_sombraEdif_o", PolyShape[]),
+            get(best_result, "ps_sombraEdif_s", PolyShape[]),
+            get(best_result, "ps_sombraVolTeorico_p", PolyShape[]),
+            get(best_result, "ps_sombraVolTeorico_o", PolyShape[]),
+            get(best_result, "ps_sombraVolTeorico_s", PolyShape[]))
 end
 

@@ -152,5 +152,5 @@ fpe.sombraEdif_p = true
 fpe.sombraEdif_o = true
 fpe.sombraEdif_s = true
 
-fig, ax, ax_mat = plotBaseEdificio3D(fpe, dict_arquitectura["alturaPiso"], dict_geom["ps_predio"], dict_resultados["vec_psVolteor"], dict_resultados["vec_altVolteor"], dict_resultados["vec_psVolConSombra"], dict_resultados["vec_altVolConSombra"], dict_geom["ps_publico"], dict_geom["ps_calles_contexto"], dict_resultados["vec_ps_opt"], dict_resultados["vec_np_opt"], dict_resultados["vec_ps_subte"], dict_resultados["vec_np_subte"], dict_resultados["tipo_edificio"])
+fig, ax, ax_mat = plotBaseEdificio3D(fpe, dict_arquitectura["alturaPiso"], dict_geom["ps_predio"], dict_geom["ps_publico"], dict_geom["ps_calles_contexto"], dict_resultados)
 

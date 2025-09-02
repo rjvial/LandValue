@@ -311,7 +311,9 @@ Compiles final results dictionary.
 """
 function compile_results(config, density_config, vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte,
                         vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra,
-                        cabida_data, parking_data, dict_edificio_deptos, max_sol, numBodegas, dict_arquitectura)
+                        cabida_data, parking_data, dict_edificio_deptos, max_sol, numBodegas, dict_arquitectura,
+                        ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s,
+                        ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s)
     
     return OrderedDict(
         "tipo_edificio" => config["tipo_edificio"],
@@ -347,7 +349,13 @@ function compile_results(config, density_config, vec_ps_opt, vec_np_opt, vec_ps_
         "estacionamientos_autos_final" => parking_data["estacionamientos_autos_final"],
         "estacionamientos_bicicletas_final" => parking_data["estacionamientos_bicicletas_final"],
         "bodegas" => numBodegas,
-        "dict_edificio_deptos" => config["tipo_edificio"] == "departamento" ? dict_edificio_deptos : 0
+        "dict_edificio_deptos" => config["tipo_edificio"] == "departamento" ? dict_edificio_deptos : 0,
+        "ps_sombraEdif_p" => ps_sombraEdif_p,
+        "ps_sombraEdif_o" => ps_sombraEdif_o,
+        "ps_sombraEdif_s" => ps_sombraEdif_s,
+        "ps_sombraVolTeorico_p" => ps_sombraVolTeorico_p,
+        "ps_sombraVolTeorico_o" => ps_sombraVolTeorico_o,
+        "ps_sombraVolTeorico_s" => ps_sombraVolTeorico_s
     )
 end
 
@@ -383,7 +391,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
     density_config = calculate_density_limits(dict_requerimientos, config)
     
     # Perform volume optimization
-    vec_ps_opt, vec_np_opt, max_sol, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra = opti_edificio_vol(
+    vec_ps_opt, vec_np_opt, max_sol, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s, ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s = opti_edificio_vol(
         dict_geom, dict_arquitectura, dict_requerimientos, config["vec_pisos"], 
         density_config["max_ocupacion_suelo"], config["max_losa_snt"]
     )
@@ -469,7 +477,9 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
     # Compile results
     dict_resultados = compile_results(config, density_config, vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte,
                                      vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra,
-                                     cabida_data, parking_data, dict_edificio_deptos, max_sol, numBodegas, dict_arquitectura)
+                                     cabida_data, parking_data, dict_edificio_deptos, max_sol, numBodegas, dict_arquitectura,
+                                     ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s,
+                                     ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s)
     
     dict_proyecto_vs_normativa = compile_normative_comparison(config, density_config, vec_ps_opt, vec_np_opt, 
                                                              cabida_data, dict_edificio_deptos, dict_requerimientos)

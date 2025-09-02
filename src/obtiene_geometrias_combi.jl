@@ -3,9 +3,8 @@ function obtiene_geometrias_combi(id_combi, conn_neo4j)
     display("Obtiene desde Neo4j las geometrias de los predios y calles")
 
     query = """
-        MATCH (c:Combi)
+        MATCH (c:Combi)-[:CONTIENE_CALLES]->(cc:Calle_Combi)
         WHERE c.id_combi = '$id_combi'
-        OPTIONAL MATCH (c)-[:CONTIENE_CALLES]->(cc:Calle_Combi)
         RETURN DISTINCT c.id_combi AS id_combi, c.sup_combi_sii AS sup_terreno_sii, 
                 c.geom_combi AS geom_wkt, c.num_predios AS num_predios, 
                 c.calles_contexto_wkt AS calles_contexto_wkt,
@@ -56,7 +55,9 @@ function obtiene_geometrias_combi(id_combi, conn_neo4j)
         "vecSecSinCalle" => vecSecSinCalle,
         "vecSecConCalle" => vecSecConCalle,
         "vecAnchoCalle" => vecAnchoCalle,
-        "sup_terreno_sii" => sup_terreno_sii
+        "sup_terreno_sii" => sup_terreno_sii,
+        "dx" => dx,
+        "dy" => dy
     )
 
     return dict_geom
