@@ -241,8 +241,6 @@ function calculate_parking_requirements(dict_requerimientos, cabida_data)
 end
 
 """
-    calculate_cabida_data(config, vec_ps_opt, vec_np_opt, dict_edificio_deptos)
-
 Calculates capacity data for different building types.
 """
 function calculate_cabida_data(config, vec_ps_opt, vec_np_opt, dict_edificio_deptos, dict_arquitectura)

@@ -4,12 +4,10 @@ const DELTA_DIST = -0.5  # Optimized from -0.1*5
 const EPS_AREA = 1e-10
 const MIN_AREA_THRESHOLD = 50.0
 
-"""
-    calculate_buildable_area(dict_geom, dict_requerimientos, dict_arquitectura, altura, n_pisos)
-
-Calculates the buildable footprint area considering setbacks and separations.
-"""
 function calculate_buildable_area(dict_geom, dict_requerimientos, dict_arquitectura, altura, n_pisos)
+    """
+    Calculates the buildable footprint area considering setbacks and separations.
+    """
     # Calculate separation from neighbors
     distanciamiento = dict_requerimientos["distanciamiento"][1]
     expr_str = expression_converter.parse_python_expression(dict_requerimientos["distanciamiento"][3])
@@ -28,13 +26,12 @@ function calculate_buildable_area(dict_geom, dict_requerimientos, dict_arquitect
     return polyShape.partialPolyOffset(dict_geom["ps_predio"], dict_geom["vecSecTodos"], vec_dist)
 end
 
-"""
-    calculate_theoretical_volumes(ps_bruto, ps_areaEdif, altura_max, rasante)
-
-Calculates theoretical building volumes based on height restrictions and setbacks.
-Performance optimized to avoid repeated allocations.
-"""
 function calculate_theoretical_volumes(ps_bruto, ps_areaEdif, altura_max, rasante)
+    """
+    Calculates theoretical building volumes based on height restrictions and setbacks.
+    Performance optimized to avoid repeated allocations.
+    """
+
     vec_altVolteor = collect(0:0.5:altura_max)
     n_alts = length(vec_altVolteor)
     vec_psVolteor = Vector{PolyShape}(undef, n_alts)
@@ -49,12 +46,11 @@ function calculate_theoretical_volumes(ps_bruto, ps_areaEdif, altura_max, rasant
     return vec_altVolteor, vec_psVolteor
 end
 
-"""
-    process_shadow_direction(shadow_poly, constraint_matrix, constraint_vector, edges, direction_key)
-
-Helper function to process a single shadow direction and extract constraint data.
-"""
 function process_shadow_direction(shadow_poly, constraint_matrix, constraint_vector, edges, direction_key)
+    """
+    Helper function to process a single shadow direction and extract constraint data.
+    """
+
     area = polyShape.polyArea(shadow_poly)
     is_active = area >= EPS_AREA
     
@@ -73,13 +69,12 @@ function process_shadow_direction(shadow_poly, constraint_matrix, constraint_vec
     )
 end
 
-"""
-    setup_shadow_constraints(vec_psVolteor, vec_altVolteor, dict_geom, ps_areaEdif)
-
-Sets up shadow constraint calculations and returns shadow data dictionary.
-Optimized to eliminate repetitive code.
-"""
 function setup_shadow_constraints(vec_psVolteor, vec_altVolteor, dict_geom, ps_areaEdif)
+    """
+    Sets up shadow constraint calculations and returns shadow data dictionary.
+    Optimized to eliminate repetitive code.
+    """
+
     # Calculate theoretical shadows
     vec_sombraTeor = generaSombraTeor(vec_psVolteor, vec_altVolteor, dict_geom["ps_publico"], dict_geom["ps_calles_contexto"])
     
@@ -99,14 +94,12 @@ function setup_shadow_constraints(vec_psVolteor, vec_altVolteor, dict_geom, ps_a
     return shadow_data
 end
 
-"""
-    optimize_with_shadow_constraints(vec_psVolConSombra, vec_altVolConSombra, shadow_data, floors, dict_arquitectura, dict_geom, max_ocupacion_suelo, max_losa_snt, ps_areaEdif_ref)
-
-Performs iterative optimization considering shadow constraints.
-Returns best optimization result as dictionary.
-"""
 function optimize_with_shadow_constraints(vec_psVolConSombra, vec_altVolConSombra, shadow_data, floors, 
                                         dict_arquitectura, dict_geom, max_ocupacion_suelo, max_losa_snt, ps_areaEdif_ref)
+    """
+    Performs iterative optimization considering shadow constraints.
+    Returns best optimization result as dictionary.
+    """
     
     # Initialize deltas
     delta_p = shadow_data["flag_p"] ? -1.0 : 1000.0
@@ -185,13 +178,12 @@ function optimize_with_shadow_constraints(vec_psVolConSombra, vec_altVolConSombr
     return best_result
 end
 
-"""
-    calculate_shadow_volumes(ps_predio, ps_areaEdif, altura_max, rasante_sombra)
-
-Calculates shadow volumes for the given parameters.
-Optimized for parallel execution.
-"""
 function calculate_shadow_volumes(ps_predio, ps_areaEdif, altura_max, rasante_sombra)
+    """
+    Calculates shadow volumes for the given parameters.
+    Optimized for parallel execution.
+    """
+
     vec_altVolConSombra = collect(0:0.5:altura_max)
     vec_psVolConSombra = Vector{PolyShape}(undef, length(vec_altVolConSombra))
     
@@ -204,13 +196,11 @@ function calculate_shadow_volumes(ps_predio, ps_areaEdif, altura_max, rasante_so
     return vec_altVolConSombra, vec_psVolConSombra
 end
 
-"""
-    generate_floor_combinations(min_pisos, max_pisos, K)
-
-Generates valid floor combinations for optimization.
-Performance optimized to pre-filter combinations.
-"""
 function generate_floor_combinations(min_pisos, max_pisos, K)
+    """
+    Generates valid floor combinations for optimization.
+    Performance optimized to pre-filter combinations.
+    """
 
     function generate_stack_vector(pisos_tot, num_stacks)
         if num_stacks <= 0 || pisos_tot < 0

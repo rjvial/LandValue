@@ -1,6 +1,4 @@
 """
-    opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_deptos, vec_ps_opt, vec_np_opt, flag_dfl2, sup_patio_vivienda_economica, superficie_terreno)
-
 Optimizes apartment distribution in a multi-story building to maximize useful area while respecting regulatory constraints.
 
 # Arguments
@@ -26,7 +24,6 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
     basal_areas = [polyShape.polyArea(ps) for ps in vec_ps_opt]
     total_floors = sum(vec_np_opt)
     regular_floors = total_floors - 1  # Upper floors (excluding ground floor)
-
 
     # Extract apartment type specifications
     num_apartment_types = length(dict_arquitectura["vecSupUtil"])
@@ -86,7 +83,6 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
     @constraint(model, total_common_area >= dict_arquitectura["coefSupComun"] * total_useful_area)
     @constraint(model, total_common_area <= 0.25 * total_useful_area)
 
-
     # Ground occupation constraints
     if sup_patio_vivienda_economica > 0
         available_ground_area = superficie_terreno - total_apartments * sup_patio_vivienda_economica
@@ -104,7 +100,6 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
     # Total area balance
     @constraint(model, unused_area + total_common_area + total_terrace_area + total_interior_area == 
         sum(basal_areas[k] * vec_np_opt[k] for k=1:num_stacks))
-
 
     # DFL2 apartment type restrictions
     if flag_dfl2 || (sup_patio_vivienda_economica > 0)

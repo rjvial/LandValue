@@ -1,13 +1,12 @@
-function obtieneCalles(id_combi, ps_combi, dx, dy, conn_neo4j)
+function obtieneCalles(calles_data, ps_combi, dx, dy)
 
-
-    query = """
-        MATCH (c:Combi)-[:CONTIENE_CALLES]->(cc:Calle_Combi)
-        WHERE c.id_combi = '$id_combi'
-        RETURN DISTINCT cc.id_calle_combi AS id_calle_combi, cc.geom_wkt AS calles_combi_wkt
-    """
-    df_calles_combi = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-    ps_calles_combi = polyGdal.astext2shape(df_calles_combi[:, "calles_combi_wkt"])
+    # Process pre-fetched calles data instead of making new query
+    if size(calles_data, 1) == 0
+        # Return empty results if no street data available
+        return PolyShape([], 0), PolyShape([], 0), PolyShape([], 0), Float64[], Int[]
+    end
+    
+    ps_calles_combi = polyGdal.astext2shape(calles_data[:, "calles_combi_wkt"])
     ps_calles_combi = polyShape.setPolyOrientation(ps_calles_combi,1)
     ps_calles_combi = polyShape.shape_4326to32719(ps_calles_combi)
     ps_calles_combi = polyShape.ajustaCoordenadas(ps_calles_combi, dx, dy)

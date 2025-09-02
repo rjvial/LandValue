@@ -38,7 +38,7 @@ ORDER BY manzent, id_combi
 """
 df_combis = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 
-pos_combi = 1
+pos_combi = 50
 codigo_predial = parse.(Int, split(strip(df_combis[pos_combi,"list_predios"], ['(', ')']), ';')) #18 ok
 id_combi = df_combis[pos_combi,"id_combi"]
 

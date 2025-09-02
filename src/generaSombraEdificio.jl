@@ -1,9 +1,4 @@
-function generaSombraEdificio(
-    ps_bases::Vector{PolyShape},
-    alts::Vector{Float64},
-    ps_publico::PolyShape,
-    ps_calles_contexto::PolyShape
-)
+function generaSombraEdificio(ps_bases::Vector{PolyShape}, alts::Vector{Float64}, ps_publico::PolyShape, ps_calles_contexto::PolyShape)
     # Inner helper for one block
     function generaSombraBox(ps_baseBox::PolyShape, alt::Float64,
                               ps_publico::PolyShape, ps_calles_contexto::PolyShape)
