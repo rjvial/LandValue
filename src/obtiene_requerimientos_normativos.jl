@@ -6,7 +6,7 @@ function obtiene_requerimientos_normativos(codigo_predial, variante_normativa, c
 
     query = """
         MATCH (p:Predio)-[:SE_UBICA_EN_ZONA]->(z:Zona_Edificacion)-[:TIENE_REQUERIMIENTO]->(r:Requerimiento_Edificacion)
-        WHERE p.codigo_predial = '$(codigo_predial[1])'
+        WHERE p.codigo_predial = '$(codigo_predial)'
         RETURN
         r.id_requerimiento_edificacion AS id_requerimiento_edificacion,
         r.id_zona_edificacion        AS id_zona_edificacion,

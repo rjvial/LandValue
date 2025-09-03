@@ -1,17 +1,6 @@
-function obtiene_geometrias_combi(id_combi, conn_neo4j)
+function obtiene_geometrias_combi(df_combined)
     # Unified query to get both Combi and Calle_Combi data in single database call
-    display("Obtiene desde Neo4j las geometrias de los predios y calles")
 
-    query = """
-        MATCH (c:Combi)-[:CONTIENE_CALLES]->(cc:Calle_Combi)
-        WHERE c.id_combi = '$id_combi'
-        RETURN DISTINCT c.id_combi AS id_combi, c.sup_combi_sii AS sup_terreno_sii, 
-                c.geom_combi AS geom_wkt, c.num_predios AS num_predios, 
-                c.calles_contexto_wkt AS calles_contexto_wkt,
-                cc.id_calle_combi AS id_calle_combi, cc.geom_wkt AS calles_combi_wkt
-        ORDER BY id_combi, id_calle_combi
-    """
-    df_combined = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
     
     # Extract Combi data (first row contains all combi info)
     sup_terreno_sii = df_combined[1,"sup_terreno_sii"]

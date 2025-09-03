@@ -13,11 +13,10 @@ const DEFAULT_METRO_DISTANCE = 3000
 const COEF_OCUPACION_EST = 1.0
 const LARGE_NUMBER = 999999
 
-"""
-Validates input parameters for building optimization.
-"""
 function validate_opti_edificio_inputs(dict_geom, dict_arquitectura, dict_requerimientos)
-    # Validate required keys
+    """
+    Validates input parameters for building optimization.
+    """
     required_geom_keys = ["sup_terreno_sii", "ps_bruto", "ps_predio", "vecSecTodos", "vecSecSinCalle"]
     required_arq_keys = ["tipo_edificio", "variante_normativa", "alturaPiso", "K", "flag_sombra"]
     required_req_keys = ["coeficiente_de_constructibilidad", "n_pisos", "coeficiente_de_ocupacion_de_suelo"]
@@ -41,10 +40,10 @@ function validate_opti_edificio_inputs(dict_geom, dict_arquitectura, dict_requer
     dict_requerimientos["n_pisos"] > 0 || throw(ArgumentError("Max floors must be positive"))
 end
 
-"""
-Safely evaluates Python expressions with variable substitution and proper error handling.
-"""
 function safe_expression_eval(expr_dict, variable_map::Dict{String, <:Any})
+    """
+    Safely evaluates Python expressions with variable substitution and proper error handling.
+    """
     try
         expr_str = expression_converter.parse_python_expression(expr_dict[3])
         
@@ -60,11 +59,11 @@ function safe_expression_eval(expr_dict, variable_map::Dict{String, <:Any})
     end
 end
 
-"""
-Calculates basic building configuration parameters.
-Returns dictionary with configuration values.
-"""
 function calculate_building_config(dict_geom, dict_arquitectura, dict_requerimientos)
+    """
+    Calculates basic building configuration parameters.
+    Returns dictionary with configuration values.
+    """
     config = Dict{String, Any}()
     
     # Building type flags
@@ -112,10 +111,11 @@ function calculate_building_config(dict_geom, dict_arquitectura, dict_requerimie
     return config
 end
 
-"""
-Calculates density limits and maximum apartments.
-"""
 function calculate_density_limits(dict_requerimientos, config)
+    """
+    Calculates density limits and maximum apartments.
+    """
+
     density_config = Dict{String, Any}()
     
     # Density calculation
@@ -141,10 +141,10 @@ function calculate_density_limits(dict_requerimientos, config)
     return density_config
 end
 
-"""
-Calculates all parking-related requirements with proper error handling.
-"""
 function calculate_parking_requirements(dict_requerimientos, cabida_data)
+    """
+    Calculates all parking-related requirements with proper error handling.
+    """
     parking = Dict{String, Any}()
     
     try
@@ -240,10 +240,10 @@ function calculate_parking_requirements(dict_requerimientos, cabida_data)
     end
 end
 
-"""
-Calculates capacity data for different building types.
-"""
 function calculate_cabida_data(config, vec_ps_opt, vec_np_opt, dict_edificio_deptos, dict_arquitectura)
+    """
+    Calculates capacity data for different building types.
+    """
     cabida = Dict{String, String}()
     
     if config["tipo_edificio"] == "departamento"
@@ -272,10 +272,11 @@ function calculate_cabida_data(config, vec_ps_opt, vec_np_opt, dict_edificio_dep
     return cabida
 end
 
-"""
-Calculates underground parking area requirements.
-"""
 function calculate_underground_area(dict_geom, dict_requerimientos, dict_arquitectura, parking_data)
+    """
+    Calculates underground parking area requirements.
+    """
+
     # Calculate required area
     supPorEstacionamiento = dict_arquitectura["supPorEstacionamiento"]
     supPorBodega = dict_arquitectura["supPorBodega"]
@@ -306,84 +307,10 @@ function calculate_underground_area(dict_geom, dict_requerimientos, dict_arquite
     return areaReq, ps_areaEst, numBodegas
 end
 
-"""
-Compiles final results dictionary.
-"""
-function compile_results(config, density_config, vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte,
-                        vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra,
-                        cabida_data, parking_data, dict_edificio_deptos, max_sol, numBodegas, dict_arquitectura,
-                        ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s,
-                        ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s)
-    
-    return OrderedDict(
-        "tipo_edificio" => config["tipo_edificio"],
-        "variante_normativa" => config["variante_str"],
-        "flag_sombra" => dict_arquitectura["flag_sombra"],
-        "sup_edificada_snt" => max_sol,
-        "vec_ps_opt" => vec_ps_opt,
-        "vec_np_opt" => vec_np_opt,
-        "vec_ps_subte" => vec_ps_subte,
-        "vec_np_subte" => vec_np_subte,
-        "vec_psVolteor" => vec_psVolteor,
-        "vec_altVolteor" => vec_altVolteor,
-        "vec_psVolConSombra" => vec_psVolConSombra,
-        "vec_altVolConSombra" => vec_altVolConSombra,
-        "cabida_sup_deptos" => cabida_data["cabida_sup_deptos"],
-        "cabida_num_deptos" => cabida_data["cabida_num_deptos"],
-        "cabida_sup_comercio" => cabida_data["cabida_sup_comercio"],
-        "cabida_num_comercio" => cabida_data["cabida_num_comercio"],
-        "cabida_sup_oficinas" => cabida_data["cabida_sup_oficinas"],
-        "cabida_num_oficinas" => cabida_data["cabida_num_oficinas"],
-        "estacionamientos_autos_oficina" => parking_data["estacionamientos_autos_oficina"],
-        "estacionamientos_autos_vivienda" => parking_data["estacionamientos_autos_vivienda"],
-        "estacionamientos_autos_comercio" => parking_data["estacionamientos_autos_comercio"],
-        "estacionamientos_autos" => parking_data["estacionamientos_autos"],
-        "estacionamientos_visitas" => parking_data["estacionamientos_visitas"],
-        "estacionamientos_discapacitados" => parking_data["estacionamientos_discapacitados"],
-        "estacionamientos_bicicletas" => parking_data["estacionamientos_bicicletas"],
-        "descuento_estacionamientos_x_metro" => parking_data["descuento_estacionamientos_x_metro"],
-        "descuento_estacionamientos_x_bici_t1" => parking_data["descuento_estacionamientos_x_bici_t1"],
-        "descuento_estacionamientos_x_bici_t2" => parking_data["descuento_estacionamientos_x_bici_t2"],
-        "descuento_estacionamientos_x_bici" => parking_data["descuento_estacionamientos_x_bici"],
-        "aumento_bici_x_descuento_estacionamientos" => parking_data["aumento_bici_x_descuento_estacionamientos"],
-        "estacionamientos_autos_final" => parking_data["estacionamientos_autos_final"],
-        "estacionamientos_bicicletas_final" => parking_data["estacionamientos_bicicletas_final"],
-        "bodegas" => numBodegas,
-        "dict_edificio_deptos" => config["tipo_edificio"] == "departamento" ? dict_edificio_deptos : 0,
-        "ps_sombraEdif_p" => ps_sombraEdif_p,
-        "ps_sombraEdif_o" => ps_sombraEdif_o,
-        "ps_sombraEdif_s" => ps_sombraEdif_s,
-        "ps_sombraVolTeorico_p" => ps_sombraVolTeorico_p,
-        "ps_sombraVolTeorico_o" => ps_sombraVolTeorico_o,
-        "ps_sombraVolTeorico_s" => ps_sombraVolTeorico_s
-    )
-end
-
-"""
-Compiles project vs normative comparison dictionary.
-"""
-function compile_normative_comparison(config, density_config, vec_ps_opt, vec_np_opt, cabida_data, dict_edificio_deptos, dict_requerimientos)
-    return OrderedDict(
-        "densidad_proyecto" => sum(eval(Meta.parse(cabida_data["cabida_num_deptos"]))),
-        "densidad_normativa" => density_config["max_deptos"],
-        "losa_proyecto" => sum(isempty(vec_ps_opt[i].Vertices) ? 0.0 : polyShape.polyArea(vec_ps_opt[i]) * vec_np_opt[i] for i in eachindex(vec_ps_opt)),
-        "losa_normativa" => config["flag_economica"] ? LARGE_NUMBER : config["max_losa_snt"],
-        "constructibilidad_proyecto" => dict_edificio_deptos["supUtil"],
-        "constructibilidad_normativa" => config["flag_economica"] ? LARGE_NUMBER : config["max_constructibilidad"],
-        "ocupacion_suelo_proyecto" => isempty(vec_ps_opt) || isempty(vec_ps_opt[1].Vertices) ? 0.0 : polyShape.polyArea(vec_ps_opt[1]),
-        "ocupacion_suelo_normativa" => if config["flag_economica"]
-            config["superficieTerreno"] - sum(eval(Meta.parse(cabida_data["cabida_num_deptos"]))) * density_config["sup_patio_vivienda_economica"]
-        else
-            density_config["max_ocupacion_suelo"]
-        end,
-        "pisos_proyecto" => sum(vec_np_opt[i] for i in eachindex(vec_ps_opt)),
-        "pisos_normativa" => dict_requerimientos["n_pisos"],
-        "supNoUtilizada" => dict_edificio_deptos["supNoUtilizada"]
-    )
-end
 
 function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
-    # Input validation
+    # Main function
+
     validate_opti_edificio_inputs(dict_geom, dict_arquitectura, dict_requerimientos)
     
     # Calculate building configuration
@@ -462,27 +389,70 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
     # Calculate underground area requirements
     areaReq, ps_areaEst, _ = calculate_underground_area(dict_geom, dict_requerimientos, dict_arquitectura, parking_data)
     
-    # Update area requirement with correct bodega count
-    supPorEstacionamiento = dict_arquitectura["supPorEstacionamiento"]
-    supPorBodega = dict_arquitectura["supPorBodega"]
-    supPorBicicleta = dict_arquitectura["supPorBicicleta"]
-    
-    areaReq = parking_data["estacionamientos_autos_final"] * supPorEstacionamiento + 
-              parking_data["estacionamientos_bicicletas_final"] * supPorBicicleta + 
-              numBodegas * supPorBodega
-    
     # Optimize underground parking volume
     vec_ps_subte, vec_np_subte = opti_vol_estacionamiento(dict_geom["ps_predio"], ps_areaEst, COEF_OCUPACION_EST, areaReq)
     
     # Compile results
-    dict_resultados = compile_results(config, density_config, vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte,
-                                     vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra,
-                                     cabida_data, parking_data, dict_edificio_deptos, max_sol, numBodegas, dict_arquitectura,
-                                     ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s,
-                                     ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s)
-    
-    dict_proyecto_vs_normativa = compile_normative_comparison(config, density_config, vec_ps_opt, vec_np_opt, 
-                                                             cabida_data, dict_edificio_deptos, dict_requerimientos)
+    dict_resultados = OrderedDict(
+        "tipo_edificio" => config["tipo_edificio"],
+        "variante_normativa" => config["variante_str"],
+        "flag_sombra" => dict_arquitectura["flag_sombra"],
+        "sup_edificada_snt" => max_sol,
+        "cabida_sup_deptos" => cabida_data["cabida_sup_deptos"],
+        "cabida_num_deptos" => cabida_data["cabida_num_deptos"],
+        "cabida_sup_comercio" => cabida_data["cabida_sup_comercio"],
+        "cabida_num_comercio" => cabida_data["cabida_num_comercio"],
+        "cabida_sup_oficinas" => cabida_data["cabida_sup_oficinas"],
+        "cabida_num_oficinas" => cabida_data["cabida_num_oficinas"],
+        "estacionamientos_autos_oficina" => parking_data["estacionamientos_autos_oficina"],
+        "estacionamientos_autos_vivienda" => parking_data["estacionamientos_autos_vivienda"],
+        "estacionamientos_autos_comercio" => parking_data["estacionamientos_autos_comercio"],
+        "estacionamientos_autos" => parking_data["estacionamientos_autos"],
+        "estacionamientos_visitas" => parking_data["estacionamientos_visitas"],
+        "estacionamientos_discapacitados" => parking_data["estacionamientos_discapacitados"],
+        "estacionamientos_bicicletas" => parking_data["estacionamientos_bicicletas"],
+        "descuento_estacionamientos_x_metro" => parking_data["descuento_estacionamientos_x_metro"],
+        "descuento_estacionamientos_x_bici_t1" => parking_data["descuento_estacionamientos_x_bici_t1"],
+        "descuento_estacionamientos_x_bici_t2" => parking_data["descuento_estacionamientos_x_bici_t2"],
+        "descuento_estacionamientos_x_bici" => parking_data["descuento_estacionamientos_x_bici"],
+        "aumento_bici_x_descuento_estacionamientos" => parking_data["aumento_bici_x_descuento_estacionamientos"],
+        "estacionamientos_autos_final" => parking_data["estacionamientos_autos_final"],
+        "estacionamientos_bicicletas_final" => parking_data["estacionamientos_bicicletas_final"],
+        "bodegas" => numBodegas,
+        "dict_edificio_deptos" => config["tipo_edificio"] == "departamento" ? dict_edificio_deptos : 0,
+        "vec_ps_opt" => vec_ps_opt,
+        "vec_np_opt" => vec_np_opt,
+        "vec_ps_subte" => vec_ps_subte,
+        "vec_np_subte" => vec_np_subte,
+        "vec_psVolteor" => vec_psVolteor,
+        "vec_altVolteor" => vec_altVolteor,
+        "vec_psVolConSombra" => vec_psVolConSombra,
+        "vec_altVolConSombra" => vec_altVolConSombra,
+        "ps_sombraEdif_p" => ps_sombraEdif_p,
+        "ps_sombraEdif_o" => ps_sombraEdif_o,
+        "ps_sombraEdif_s" => ps_sombraEdif_s,
+        "ps_sombraVolTeorico_p" => ps_sombraVolTeorico_p,
+        "ps_sombraVolTeorico_o" => ps_sombraVolTeorico_o,
+        "ps_sombraVolTeorico_s" => ps_sombraVolTeorico_s
+    )
+
+    dict_proyecto_vs_normativa = OrderedDict(
+        "densidad_proyecto" => sum(eval(Meta.parse(cabida_data["cabida_num_deptos"]))),
+        "densidad_normativa" => density_config["max_deptos"],
+        "losa_proyecto" => sum(isempty(vec_ps_opt[i].Vertices) ? 0.0 : polyShape.polyArea(vec_ps_opt[i]) * vec_np_opt[i] for i in eachindex(vec_ps_opt)),
+        "losa_normativa" => config["flag_economica"] ? LARGE_NUMBER : config["max_losa_snt"],
+        "constructibilidad_proyecto" => dict_edificio_deptos["supUtil"],
+        "constructibilidad_normativa" => config["flag_economica"] ? LARGE_NUMBER : config["max_constructibilidad"],
+        "ocupacion_suelo_proyecto" => isempty(vec_ps_opt) || isempty(vec_ps_opt[1].Vertices) ? 0.0 : polyShape.polyArea(vec_ps_opt[1]),
+        "ocupacion_suelo_normativa" => if config["flag_economica"]
+            config["superficieTerreno"] - sum(eval(Meta.parse(cabida_data["cabida_num_deptos"]))) * density_config["sup_patio_vivienda_economica"]
+        else
+            density_config["max_ocupacion_suelo"]
+        end,
+        "pisos_proyecto" => sum(vec_np_opt[i] for i in eachindex(vec_ps_opt)),
+        "pisos_normativa" => dict_requerimientos["n_pisos"],
+        "supNoUtilizada" => dict_edificio_deptos["supNoUtilizada"]
+    )
 
     return dict_resultados, dict_proyecto_vs_normativa
 end
