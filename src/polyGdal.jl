@@ -464,8 +464,10 @@ function astext2shape(str)::GeomObject
             for i in eachindex(str)
                 shape_i = polyGdal.geom2shape(ArchGDAL.fromWKT(str[i]))
                 if isa(shape_i, PolyShape)
-                    V_ = shape_i.Vertices[1]
-                    push!(V, V_[1:end-1, :])
+                    for j in 1:shape_i.NumRegions
+                        V_ = shape_i.Vertices[j]
+                        push!(V, V_[1:end-1, :])
+                    end
                 else
                     error("Mixed geometry types in array not supported")
                 end
@@ -509,9 +511,12 @@ function astext2shape(str)::GeomObject
         shape = polyGdal.geom2shape(geom)
         
         if isa(shape, PolyShape)
-            V_ = shape.Vertices[1]
-            V = V_[1:end-1, :]
-            return PolyShape([V], 1)
+            V = []
+            for j in 1:shape.NumRegions
+                V_ = shape.Vertices[j]
+                push!(V, V_[1:end-1, :])
+            end
+            return PolyShape(V, length(V))
         else
             return shape
         end

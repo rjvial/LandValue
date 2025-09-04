@@ -74,6 +74,7 @@ ORDER BY id_instancia ASC
 """
 df_instancias = pg_julia.query(conn_postgres, query_pg)
 
+
 for row in eachrow(df_instancias)
     id_combi = row.id_combi
     dict_geom, vec_predios = obtiene_geometrias(id_combi)
@@ -105,7 +106,7 @@ for row in eachrow(df_instancias)
         )
         dict_resultados, dict_proyecto_vs_normativa = ejecuta_instancia_cabida(dict_geom, vec_predios[1], dict_arquitectura)
 
-        fig, ax, ax_mat = plotBaseEdificio3D(fpe, dict_arquitectura["alturaPiso"], dict_geom["ps_predio"], dict_geom["ps_publico"], dict_geom["ps_calles_contexto"], dict_resultados)
+        fig, ax, ax_mat = plotBaseEdificio3D(fpe, dict_arquitectura["alturaPiso"], dict_geom["ps_combi"], dict_geom["ps_publico"], dict_geom["ps_calles_contexto"], dict_resultados)
     end
 end
 

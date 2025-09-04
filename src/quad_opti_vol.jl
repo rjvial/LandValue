@@ -3,29 +3,10 @@ const MAX_RETRY_ATTEMPTS = 2
 const MIN_DIMENSION = 2.0
 const QUARTER_SCALE = 0.25
 
-"""
-    validate_quad_inputs(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_ocupacion_suelo, max_losa_snt, K, ancho_crujia_min, ancho_crujia_max)
 
-Validates input parameters for quadrilateral optimization.
-"""
-function validate_quad_inputs(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_ocupacion_suelo, max_losa_snt, K, ancho_crujia_min, ancho_crujia_max)
-    length(vec_psVolteor) == length(vec_altVolteor) || throw(ArgumentError("Volume and altitude vectors must have same length"))
-    length(floors) == K || throw(ArgumentError("Floors vector must have length K"))
-    all(f -> f >= 0, floors) || throw(ArgumentError("All floor counts must be non-negative"))
-    alturaPiso > 0 || throw(ArgumentError("Floor height must be positive"))
-    max_ocupacion_suelo > 0 || throw(ArgumentError("Max ground occupation must be positive"))
-    max_losa_snt > 0 || throw(ArgumentError("Max constructible area must be positive"))
-    K > 0 || throw(ArgumentError("Number of stacks must be positive"))
-    ancho_crujia_min >= 0 || throw(ArgumentError("Min crujia width must be non-negative"))
-    ancho_crujia_max >= ancho_crujia_min || throw(ArgumentError("Max crujia width must be >= min width"))
-end
-
-"""
-    calculate_initial_dimensions(ps0)
-
-Calculates initial width and height from polygon shape.
-"""
 function calculate_initial_dimensions(ps0::PolyShape)
+    # Calculates initial width and height from polygon shape.
+
     if ps0.Vertices == []
         return 0.0, 0.0
     end
@@ -39,23 +20,17 @@ function calculate_initial_dimensions(ps0::PolyShape)
     return width, height
 end
 
-"""
-    create_optimization_model()
-
-Creates and configures the Ipopt optimization model.
-"""
 function create_optimization_model()
+    # Creates and configures the Ipopt optimization model.
+
     model = Model(optimizer_with_attributes(Ipopt.Optimizer, "sb" => "yes"))
     set_silent(model)
     return model
 end
 
-"""
-    setup_model_variables!(model, K, width, height, attempt)
-
-Sets up all model variables with appropriate bounds based on attempt number.
-"""
 function setup_model_variables!(model, K, width, height, attempt)
+    # Sets up all model variables with appropriate bounds based on attempt number.
+
     # Global position and rotation
     @variable(model, x1)
     @variable(model, y1)
@@ -94,12 +69,9 @@ function setup_model_variables!(model, K, width, height, attempt)
     end
 end
 
-"""
-    add_basic_constraints!(model, K, max_ocupacion_suelo)
-
-Adds basic optimization constraints (ground occupation, nesting).
-"""
 function add_basic_constraints!(model, K, max_ocupacion_suelo)
+    # Adds basic optimization constraints (ground occupation, nesting).
+
     w = model[:w]
     h = model[:h]
     
@@ -117,12 +89,9 @@ function add_basic_constraints!(model, K, max_ocupacion_suelo)
     end
 end
 
-"""
-    add_volume_constraints!(model, K, floors, alturaPiso, vec_psVolteor, vec_altVolteor)
-
-Adds volume confinement constraints for each stack.
-"""
 function add_volume_constraints!(model, K, floors, alturaPiso, vec_psVolteor, vec_altVolteor)
+    # Adds volume confinement constraints for each stack.
+
     x1, y1, c, s = model[:x1], model[:y1], model[:c], model[:s]
     w, h = model[:w], model[:h]
     dx = K > 1 ? model[:dx] : nothing
@@ -156,12 +125,9 @@ function add_volume_constraints!(model, K, floors, alturaPiso, vec_psVolteor, ve
     end
 end
 
-"""
-    set_objective_and_constraints!(model, K, floors, max_losa_snt)
-
-Sets the objective function and constructibility constraint.
-"""
 function set_objective_and_constraints!(model, K, floors, max_losa_snt)
+    # Sets the objective function and constructibility constraint.
+
     w, h = model[:w], model[:h]
     
     # Constructibility constraint
@@ -171,13 +137,9 @@ function set_objective_and_constraints!(model, K, floors, max_losa_snt)
     @objective(model, Max, sum(w[stack] * h[stack] * floors[stack] for stack in 1:K))
 end
 
-"""
-    extract_solution(model, K, floors)
-
-Extracts the optimized solution from the model.
-Returns (ps_opt, np_opt, objective_val).
-"""
 function extract_solution(model, K, floors)
+    # Extracts the optimized solution from the model.
+
     ps_opt = Vector{PolyShape}(undef, K)
     np_opt = Vector{Int}(undef, K)
     
@@ -213,12 +175,9 @@ function extract_solution(model, K, floors)
     return ps_opt, np_opt, objective_value(model)
 end
 
-"""
-    solve_optimization_problem(model)
-
-Solves the optimization problem and returns success status.
-"""
 function solve_optimization_problem(model)
+    # Solves the optimization problem and returns success status.
+
     try
         optimize!(model)
         status = termination_status(model)
@@ -230,8 +189,6 @@ function solve_optimization_problem(model)
 end
 
 function quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_ocupacion_suelo, max_losa_snt, K, ancho_crujia_min, ancho_crujia_max)
-    # Input validation
-    validate_quad_inputs(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_ocupacion_suelo, max_losa_snt, K, ancho_crujia_min, ancho_crujia_max)
     
     # Get initial solution and dimensions
     x1_ini, y1_ini, c_ini, s_ini, w_ini, h_ini, ps0 = quad_opti_sol_ini(vec_psVolteor, ancho_crujia_max)
@@ -267,7 +224,6 @@ function quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_oc
             end
         end
     end
-
 
     return ps_opt, np_opt, objective_val
 end

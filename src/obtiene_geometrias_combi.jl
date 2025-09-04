@@ -34,7 +34,7 @@ function obtiene_geometrias_combi(df_combined)
     vecSecSinCalle = setdiff(vecSecTodos, vecSecConCalle)
 
     dict_geom = Dict(
-        "ps_predio" => ps_combi,
+        "ps_combi" => ps_combi,
         "ps_calles" => ps_calles,
         "ps_publico" => ps_publico,
         "ps_bruto" => ps_bruto,

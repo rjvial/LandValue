@@ -1,13 +1,12 @@
 # Constants for better maintainability
 const MAX_ITER = 1000
-const DELTA_DIST = -0.5  # Optimized from -0.1*5
+const DELTA_DIST = -0.5
 const EPS_AREA = 1e-10
 const MIN_AREA_THRESHOLD = 50.0
 
 function calculate_buildable_area(dict_geom, dict_requerimientos, dict_arquitectura, altura, n_pisos)
-    """
-    Calculates the buildable footprint area considering setbacks and separations.
-    """
+    # Calculates the buildable footprint area considering setbacks and separations.
+
     # Calculate separation from neighbors
     distanciamiento = dict_requerimientos["distanciamiento"][1]
     expr_str = expression_converter.parse_python_expression(dict_requerimientos["distanciamiento"][3])
@@ -22,15 +21,12 @@ function calculate_buildable_area(dict_geom, dict_requerimientos, dict_arquitect
     vec_dist = Float64.(copy(dict_geom["vecSecTodos"]))
     vec_dist .= -dict_requerimientos["antejardin"]
     vec_dist[dict_geom["vecSecSinCalle"]] .= -sepVecinos
-    
-    return polyShape.partialPolyOffset(dict_geom["ps_predio"], dict_geom["vecSecTodos"], vec_dist)
+
+    return polyShape.partialPolyOffset(dict_geom["ps_combi"], dict_geom["vecSecTodos"], vec_dist)
 end
 
 function calculate_theoretical_volumes(ps_bruto, ps_areaEdif, altura_max, rasante)
-    """
-    Calculates theoretical building volumes based on height restrictions and setbacks.
-    Performance optimized to avoid repeated allocations.
-    """
+    # Calculates theoretical building volumes based on height restrictions and setbacks.
 
     vec_altVolteor = collect(0:0.5:altura_max)
     n_alts = length(vec_altVolteor)
@@ -47,9 +43,7 @@ function calculate_theoretical_volumes(ps_bruto, ps_areaEdif, altura_max, rasant
 end
 
 function process_shadow_direction(shadow_poly, constraint_matrix, constraint_vector, edges, direction_key)
-    """
-    Helper function to process a single shadow direction and extract constraint data.
-    """
+    # Helper function to process a single shadow direction and extract constraint data.
 
     area = polyShape.polyArea(shadow_poly)
     is_active = area >= EPS_AREA
@@ -70,10 +64,7 @@ function process_shadow_direction(shadow_poly, constraint_matrix, constraint_vec
 end
 
 function setup_shadow_constraints(vec_psVolteor, vec_altVolteor, dict_geom, ps_areaEdif)
-    """
-    Sets up shadow constraint calculations and returns shadow data dictionary.
-    Optimized to eliminate repetitive code.
-    """
+    # Sets up shadow constraint calculations and returns shadow data dictionary.
 
     # Calculate theoretical shadows
     vec_sombraTeor = generaSombraTeor(vec_psVolteor, vec_altVolteor, dict_geom["ps_publico"], dict_geom["ps_calles_contexto"])
@@ -101,10 +92,7 @@ end
 
 function optimize_with_shadow_constraints(vec_psVolConSombra, vec_altVolConSombra, shadow_data, floors, 
                                         dict_arquitectura, dict_geom, max_ocupacion_suelo, max_losa_snt, ps_areaEdif_ref)
-    """
-    Performs iterative optimization considering shadow constraints.
-    Returns best optimization result as dictionary.
-    """
+    # Performs iterative optimization considering shadow constraints.
     
     # Initialize deltas
     delta_p = shadow_data["flag_p"] ? -1.0 : 1000.0
@@ -187,10 +175,7 @@ function optimize_with_shadow_constraints(vec_psVolConSombra, vec_altVolConSombr
 end
 
 function calculate_shadow_volumes(ps_predio, ps_areaEdif, altura_max, rasante_sombra)
-    """
-    Calculates shadow volumes for the given parameters.
-    Optimized for parallel execution.
-    """
+    # Calculates shadow volumes for the given parameters.
 
     vec_altVolConSombra = collect(0:0.5:altura_max)
     vec_psVolConSombra = Vector{PolyShape}(undef, length(vec_altVolConSombra))
@@ -205,10 +190,7 @@ function calculate_shadow_volumes(ps_predio, ps_areaEdif, altura_max, rasante_so
 end
 
 function generate_floor_combinations(min_pisos, max_pisos, K)
-    """
-    Generates valid floor combinations for optimization.
-    Performance optimized to pre-filter combinations.
-    """
+    # Generates valid floor combinations for optimization.
 
     function generate_stack_vector(pisos_tot, num_stacks)
         if num_stacks <= 0 || pisos_tot < 0
@@ -227,8 +209,6 @@ function generate_floor_combinations(min_pisos, max_pisos, K)
             end
 
             # Determine the maximum we can place here:
-            #  • can’t exceed remaining_sum
-            #  • must be ≤ last element (to enforce non-increasing order)
             max_val = remaining_sum
             if !isempty(current_vec)
                 max_val = min(max_val, current_vec[end])
@@ -258,8 +238,9 @@ function generate_floor_combinations(min_pisos, max_pisos, K)
 end
 
 function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, vec_pisos, max_ocupacion_suelo, max_losa_snt)
-    # Extract configuration for cleaner code
-    ps_predio = dict_geom["ps_predio"]
+    # Main function
+
+    ps_predio = dict_geom["ps_combi"]
     ps_bruto = dict_geom["ps_bruto"]
     alturaPiso = dict_arquitectura["alturaPiso"]
     K = dict_arquitectura["K"]
@@ -399,4 +380,3 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
             get(best_result, "ps_sombraVolTeorico_o", PolyShape[]),
             get(best_result, "ps_sombraVolTeorico_s", PolyShape[]))
 end
-
