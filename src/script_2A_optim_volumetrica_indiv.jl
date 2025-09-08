@@ -33,6 +33,7 @@ ORDER BY id_instancia ASC
 """
 df_instancias = pg_julia.query(conn_postgres, query_pg)
 
+row = df_instancias[df_instancias.id_combi .== "13132011001009_40",:]
 for row in eachrow(df_instancias)
     id_combi = row.id_combi
 
@@ -98,7 +99,7 @@ for row in eachrow(df_instancias)
     end
 end
 
-# id_combi = "13132011002011_1188"
+# id_combi = "13132011001012_31" #"13132011001009_40"
 
 
 

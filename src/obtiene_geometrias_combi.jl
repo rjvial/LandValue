@@ -1,6 +1,5 @@
 function obtiene_geometrias_combi(df_combined)
     # Unified query to get both Combi and Calle_Combi data in single database call
-
     
     # Extract Combi data (first row contains all combi info)
     sup_terreno_sii = df_combined[1,"sup_terreno_sii"]

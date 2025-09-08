@@ -156,11 +156,20 @@ end
 function polyOffset(ps_::PolyShape, dist::Real)::PolyShape
     ps = deepcopy(ps_)
 
+    # Handle zero offset case directly
+    if abs(dist) < 1e-10
+        return ps
+    end
+
     delta = clipper_scale(dist)
     path = shape2clipper(ps)
     path_offset = clipper_offset(path, delta, Clipper.JoinTypeMiter)
     ps_offset = clipper2shape(path_offset, PolyShape)
 
+    # Skip parallel line filtering entirely - it causes incorrect results for volume optimization
+    return ps_offset
+
+    # Original parallel line filtering (only for larger offsets)
     vec_line_ps, _ = polyShape.shape2vector(ps)
     vec_line_offset, reg_offset = polyShape.shape2vector(ps_offset)
 
@@ -174,7 +183,6 @@ function polyOffset(ps_::PolyShape, dist::Real)::PolyShape
         end
     end
     ps_offset_final = polyShape.lineVec2polyShape(vec_line_offset_final, reg_offset_final)
-
 
     return ps_offset_final
 end

@@ -34,15 +34,15 @@ function calculate_buildable_area(dict_geom, dict_requerimientos, dict_arquitect
     return polyShape.partialPolyOffset(dict_geom["ps_combi"], dict_geom["vecSecTodos"], vec_dist)
 end
 
-function calculate_theoretical_volumes(ps_bruto, ps_areaEdif, altura_max, rasante)
+function calculate_theoretical_volumes(ps_bruto, ps_areaEdif, alturaMax, rasante)
     # Calculates theoretical building volumes based on height restrictions and setbacks.
 
-    vec_altVolteor = collect(0:0.5:altura_max)
+    vec_altVolteor = collect(0:0.5:alturaMax)
     n_alts = length(vec_altVolteor)
     vec_psVolteor = Vector{PolyShape}(undef, n_alts)
     
     # Pre-calculate offset polygons for better performance
-    Threads.@threads for i in 1:n_alts
+    for i in 1:n_alts
         alt = vec_altVolteor[i]
         offset_poly = polyClipper.polyOffset(ps_bruto, -alt / rasante)
         vec_psVolteor[i] = polyShape.polyIntersection(offset_poly, ps_areaEdif)
@@ -195,7 +195,7 @@ function calculate_shadow_volumes(ps_predio, ps_areaEdif, altura_max, rasante_so
     vec_altVolConSombra = collect(0:0.5:altura_max)
     vec_psVolConSombra = Vector{PolyShape}(undef, length(vec_altVolConSombra))
     
-    Threads.@threads for i in eachindex(vec_altVolConSombra)
+    for i in eachindex(vec_altVolConSombra)
         alt = vec_altVolConSombra[i]
         offset_poly = polyClipper.polyOffset(ps_predio, -alt / rasante_sombra)
         vec_psVolConSombra[i] = polyShape.polyIntersection(offset_poly, ps_areaEdif)
