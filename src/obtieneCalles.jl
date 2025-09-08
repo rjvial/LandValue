@@ -1,6 +1,11 @@
 function obtieneCalles(calles_data, ps_combi_, dx, dy)
+    # ============================================================================
+    # STREET GEOMETRY PROCESSING AND ANALYSIS
+    # ============================================================================
 
-    # Process pre-fetched calles data instead of making new query
+    # ============================================================================
+    # 1. DATA VALIDATION AND PREPROCESSING
+    # ============================================================================
     if size(calles_data, 1) == 0
         # Return empty results if no street data available
         return PolyShape([], 0), PolyShape([], 0), PolyShape([], 0), Float64[], Int[]
@@ -11,7 +16,9 @@ function obtieneCalles(calles_data, ps_combi_, dx, dy)
     ps_calles_combi = polyShape.shape_4326to32719(ps_calles_combi)
     ps_calles_combi = polyShape.ajustaCoordenadas(ps_calles_combi, dx, dy)
 
-    # Obtiene vector de secciones del predio con calle 
+    # ============================================================================
+    # 2. STREET-PROPERTY INTERSECTION ANALYSIS
+    # ============================================================================ 
     vec_edges_combi, _ = polyShape.shape2vector(ps_combi_)
 
     vec_combi_calle_intersect_ = [polyGdal.shapeIntersect(polyGdal.shapeBuffer(ps_calles_combi, .4, 0), vec_edges_combi[i]) for i in eachindex(vec_edges_combi)]
@@ -39,6 +46,9 @@ function obtieneCalles(calles_data, ps_combi_, dx, dy)
     vecSecConCalle = vecSecConCalle[flag_sec_con_calle .== 1]
     ps_calles = polyShape.polyIntersection(ps_calles_combi, polyShape.partialPolyOffset(ps_combi_, vecSecConCalle, 30))
 
+    # ============================================================================
+    # 3. STREET WIDTH CALCULATION
+    # ============================================================================
     vecAnchoCalle = fill(10., length(vecSecConCalle))
     for i in eachindex(vecSecConCalle)
         ps_calle_lado_i = polyShape.polyIntersection(ps_calles, polyShape.partialPolyOffset(ps_combi_, [vecSecConCalle[i]], [30]))
@@ -67,11 +77,16 @@ function obtieneCalles(calles_data, ps_combi_, dx, dy)
         vecAnchoCalle[i] = ancho_i
     end
 
+    # ============================================================================
+    # 4. GEOMETRY GENERATION
+    # ============================================================================
     ps_toda_calle = polyShape.polyDifference(polyShape.partialPolyOffset(ps_combi_, vecSecConCalle, vecAnchoCalle), ps_combi_)
     ps_bruto = polyShape.partialPolyOffset(ps_combi_, vecSecConCalle, vecAnchoCalle./2)
     ps_publico = polyClipper.polyOffset(polyShape.polyUnion(ps_combi_, ps_toda_calle), 0.1)
 
-
+    # ============================================================================
+    # 5. VISUALIZATION
+    # ============================================================================
     fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_combi_, "blue", 0.2)
     fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_calles, "gray", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
     fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_bruto, "green", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)

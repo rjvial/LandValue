@@ -1,9 +1,18 @@
-# Constants for better maintainability
+# ============================================================================
+# BUILDING VOLUME OPTIMIZATION MODULE
+# ============================================================================
+
+# ============================================================================
+# CONSTANTS AND CONFIGURATION
+# ============================================================================
 const MAX_ITER = 1000
 const DELTA_DIST = -0.5
 const EPS_AREA = 1e-10
 const MIN_AREA_THRESHOLD = 50.0
 
+# ============================================================================
+# HELPER FUNCTIONS FOR AREA AND VOLUME CALCULATIONS
+# ============================================================================
 function calculate_buildable_area(dict_geom, dict_requerimientos, dict_arquitectura, altura, n_pisos)
     # Calculates the buildable footprint area considering setbacks and separations.
 
@@ -42,6 +51,9 @@ function calculate_theoretical_volumes(ps_bruto, ps_areaEdif, altura_max, rasant
     return vec_altVolteor, vec_psVolteor
 end
 
+# ============================================================================
+# SHADOW CONSTRAINT PROCESSING FUNCTIONS
+# ============================================================================
 function process_shadow_direction(shadow_poly, constraint_matrix, constraint_vector, edges, direction_key)
     # Helper function to process a single shadow direction and extract constraint data.
 
@@ -90,6 +102,9 @@ function setup_shadow_constraints(vec_psVolteor, vec_altVolteor, dict_geom, ps_a
     return shadow_data
 end
 
+# ============================================================================
+# SHADOW-CONSTRAINED OPTIMIZATION ENGINE
+# ============================================================================
 function optimize_with_shadow_constraints(vec_psVolConSombra, vec_altVolConSombra, shadow_data, floors, 
                                         dict_arquitectura, dict_geom, max_ocupacion_suelo, max_losa_snt, ps_areaEdif_ref)
     # Performs iterative optimization considering shadow constraints.
@@ -189,6 +204,9 @@ function calculate_shadow_volumes(ps_predio, ps_areaEdif, altura_max, rasante_so
     return vec_altVolConSombra, vec_psVolConSombra
 end
 
+# ============================================================================
+# FLOOR COMBINATION GENERATION
+# ============================================================================
 function generate_floor_combinations(min_pisos, max_pisos, K)
     # Generates valid floor combinations for optimization.
 
@@ -237,9 +255,14 @@ function generate_floor_combinations(min_pisos, max_pisos, K)
     return filter(v -> v[1] >= max_pisos - 2, vec_stacks_)
 end
 
+# ============================================================================
+# MAIN VOLUME OPTIMIZATION FUNCTION
+# ============================================================================
 function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, vec_pisos, max_ocupacion_suelo, max_losa_snt)
-    # Main function
 
+    # ============================================================================
+    # 1. PARAMETER INITIALIZATION
+    # ============================================================================
     ps_predio = dict_geom["ps_combi"]
     ps_bruto = dict_geom["ps_bruto"]
     alturaPiso = dict_arquitectura["alturaPiso"]
@@ -252,7 +275,9 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
     min_pisos = minimum(vec_pisos)
     max_pisos = maximum(vec_pisos)
 
-    # Initialize best solution tracking
+    # ============================================================================
+    # 2. SOLUTION TRACKING INITIALIZATION
+    # ============================================================================
     best_result = Dict{String, Any}(
         "ps_stack" => [PolyShape([], 1) for _ in 1:K],
         "np_stack" => zeros(Int, K),
@@ -266,16 +291,22 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
         "ps_sombraEdif_s" => PolyShape[]
     )
 
-    # Generate floor combinations more efficiently
+    # ============================================================================
+    # 3. FLOOR COMBINATION GENERATION
+    # ============================================================================
     vec_stacks = generate_floor_combinations(min_pisos, max_pisos, K)
     
-    # Cache variables for performance - avoid recomputing expensive operations
+    # ============================================================================
+    # 4. PERFORMANCE OPTIMIZATION CACHING
+    # ============================================================================
     cached_altura = -1
     cached_ps_areaEdif = PolyShape([], 0)
     cached_volumes = (Float64[], PolyShape[])
     cached_shadow_volumes = (Float64[], PolyShape[])
     
-    # Main optimization loop
+    # ============================================================================
+    # 5. MAIN OPTIMIZATION LOOP
+    # ============================================================================
     for (iter_floors, floors) in enumerate(vec_stacks)
         n_pisos = sum(floors)
         altura = n_pisos * alturaPiso
@@ -369,7 +400,9 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
         end
     end
 
-    # Return results in original format
+    # ============================================================================
+    # 6. RESULTS COMPILATION AND RETURN
+    # ============================================================================
     return (best_result["ps_stack"], best_result["np_stack"], best_result["max_sol"], 
             best_result["vec_psVolteor"], best_result["vec_altVolteor"], 
             best_result["vec_psVolConSombra"], best_result["vec_altVolConSombra"],
