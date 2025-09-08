@@ -32,58 +32,7 @@ function python_expression_eval_with_varmap(expr_dict, variable_map::Dict{String
     end
 end
 
-function calculate_building_config(dict_geom, dict_arquitectura, dict_requerimientos)
-    # Calculates basic building configuration parameters.
-    # Returns dictionary with configuration values.
-
-    config = Dict{String, Any}()
-    
-    # Building type flags
-    config["tipo_edificio"] = dict_arquitectura["tipo_edificio"]
-    variante_str = dict_arquitectura["variante_normativa"]
-    config["variante_str"] = variante_str
-    config["flag_dfl2"] = (variante_str == "dfl_2")
-    config["flag_economica"] = (variante_str == "vivienda_economica")
-    
-    # Surface areas
-    config["superficieTerreno"] = dict_geom["sup_terreno_sii"]
-    config["superficieTerrenoBruto"] = polyShape.polyArea(dict_geom["ps_bruto"])
-    
-    # Constructibility calculation
-    coef_const_raw = dict_requerimientos["coeficiente_de_constructibilidad"]
-    if typeof(coef_const_raw[1]) == Float64
-        config["coefConstructibilidad"] = coef_const_raw[1]
-    else
-        variable_map = Dict(
-            "n_predios" => dict_geom["n_predios"],
-            "coeficiente_de_constructibilidad" => parse(Float64, coef_const_raw[1])
-        )
-        config["coefConstructibilidad"] = python_expression_eval_with_varmap(coef_const_raw, variable_map)
-    end
-    
-    config["max_constructibilidad"] = config["superficieTerreno"] * config["coefConstructibilidad"]
-    
-    # Calculate max losa based on building type and variant
-    base_constructibilidad = config["max_constructibilidad"]
-    is_apartment_special = (config["tipo_edificio"] == "departamento" && 
-                           (config["flag_dfl2"] || config["flag_economica"]))
-    
-    config["max_losa_snt"] = if is_apartment_special
-        base_constructibilidad * (INTERIOR_FACTOR + TERRACE_FACTOR + COMMON_AREAS_FACTOR)
-    else
-        base_constructibilidad * (INTERIOR_FACTOR + TERRACE_FACTOR)
-    end
-    
-    # Floor configuration
-    maxPisos = dict_requerimientos["n_pisos"]
-    config["maxPisos"] = maxPisos
-    config["default_min_pisos"] = max(MIN_FLOORS, maxPisos - DEFAULT_FLOOR_BUFFER)
-    config["vec_pisos"] = collect(config["default_min_pisos"]:maxPisos)
-    
-    return config
-end
-
-function calculate_density_limits(dict_requerimientos, config)
+function calculate_density_limits(dict_requerimientos, config_edificio)
     # Calculates density limits and maximum apartments.
 
     density_config = Dict{String, Any}()
@@ -91,23 +40,23 @@ function calculate_density_limits(dict_requerimientos, config)
     # Density calculation
     flagDensidadBruta = haskey(dict_requerimientos, "densidad_maxima_bruta")
     density_config["flagDensidadBruta"] = flagDensidadBruta
-    
-    superficie_densidad = flagDensidadBruta ? config["superficieTerrenoBruto"] : config["superficieTerreno"]
+
+    superficie_densidad = flagDensidadBruta ? config_edificio["superficieTerrenoBruto"] : config_edificio["superficieTerreno"]
     max_densidad = flagDensidadBruta ? dict_requerimientos["densidad_maxima_bruta"] : dict_requerimientos["densidad_maxima_neta"]
     
     density_config["max_deptos"] = floor(max_densidad / DENSITY_DIVISOR * superficie_densidad / AREA_CONVERSION)
     
     # Ground occupation
-    sup_patio_vivienda_economica = config["flag_economica"] ? dict_requerimientos["superficice_min_patio_x_depto"] : 0
+    sup_patio_vivienda_economica = config_edificio["flag_economica"] ? dict_requerimientos["superficice_min_patio_x_depto"] : 0
     ocupacion_suelo = dict_requerimientos["coeficiente_de_ocupacion_de_suelo"]
     
     density_config["sup_patio_vivienda_economica"] = sup_patio_vivienda_economica
-    density_config["max_ocupacion_suelo"] = if config["flag_economica"]
-        config["superficieTerreno"] - density_config["max_deptos"] * sup_patio_vivienda_economica
+    if config_edificio["flag_economica"]
+        density_config["max_ocupacion_suelo"] = config_edificio["superficieTerreno"] - density_config["max_deptos"] * sup_patio_vivienda_economica
     else
-        config["superficieTerreno"] * ocupacion_suelo
+        density_config["max_ocupacion_suelo"] = config_edificio["superficieTerreno"] * ocupacion_suelo
     end
-    
+                        
     return density_config
 end
 
@@ -209,36 +158,6 @@ function calculate_parking_requirements(dict_requerimientos, cabida_data)
     end
 end
 
-function calculate_cabida_data(config, vec_ps_opt, vec_np_opt, dict_edificio_deptos, dict_arquitectura)
-    # Calculates capacity data for different building types.
-
-    cabida = Dict{String, String}()
-    
-    if config["tipo_edificio"] == "departamento"
-        cabida["cabida_sup_deptos"] = string(get(dict_arquitectura, "vecSupUtil", "0"))
-        cabida["cabida_num_deptos"] = string(dict_edificio_deptos["numDeptosTipo"])
-        cabida["cabida_sup_comercio"] = "0"
-        cabida["cabida_num_comercio"] = "0"
-        cabida["cabida_sup_oficinas"] = "0"
-        cabida["cabida_num_oficinas"] = "0"
-    else
-        # Safely calculate area, handling empty polygons
-        area_edif = 0.0
-        for i in eachindex(vec_ps_opt)
-            if !isempty(vec_ps_opt[i].Vertices)
-                area_edif += polyShape.polyArea(vec_ps_opt[i]) * vec_np_opt[i]
-            end
-        end
-        cabida["cabida_sup_deptos"] = "0"
-        cabida["cabida_num_deptos"] = "0"
-        cabida["cabida_sup_comercio"] = "0"
-        cabida["cabida_num_comercio"] = "0"
-        cabida["cabida_sup_oficinas"] = string(OFFICE_AREA_PER_UNIT)
-        cabida["cabida_num_oficinas"] = string(ceil(area_edif / OFFICE_AREA_PER_UNIT))
-    end
-    
-    return cabida
-end
 
 function calculate_underground_area(dict_geom, dict_requerimientos, dict_arquitectura, parking_data, numBodegas)
     # Calculates underground parking area requirements.
@@ -268,9 +187,52 @@ end
 
 function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
     # Main function
+        
+    config_edificio = Dict{String, Any}()
     
+    # Building type flags
+    config_edificio["tipo_edificio"] = dict_arquitectura["tipo_edificio"]
+    variante_str = dict_arquitectura["variante_normativa"]
+    config_edificio["variante_str"] = variante_str
+    config_edificio["flag_dfl2"] = (variante_str == "dfl_2")
+    config_edificio["flag_economica"] = (variante_str == "vivienda_economica")
+
+    # Surface areas
+    config_edificio["superficieTerreno"] = dict_geom["sup_terreno_sii"]
+    config_edificio["superficieTerrenoBruto"] = polyShape.polyArea(dict_geom["ps_bruto"])
+
+    # Constructibility calculation
+    coef_const_raw = dict_requerimientos["coeficiente_de_constructibilidad"]
+    if typeof(coef_const_raw[1]) == Float64
+        config_edificio["coefConstructibilidad"] = coef_const_raw[1]
+    else
+        variable_map = Dict(
+            "n_predios" => dict_geom["n_predios"],
+            "coeficiente_de_constructibilidad" => parse(Float64, coef_const_raw[1])
+        )
+        config_edificio["coefConstructibilidad"] = python_expression_eval_with_varmap(coef_const_raw, variable_map)
+    end
+    
+    config_edificio["max_constructibilidad"] = config_edificio["superficieTerreno"] * config_edificio["coefConstructibilidad"]
+    
+    # Calculate max losa based on building type and variant
+    base_constructibilidad = config_edificio["max_constructibilidad"]
+    is_apartment_special = (config_edificio["tipo_edificio"] == "departamento" &&
+                           (config_edificio["flag_dfl2"] || config_edificio["flag_economica"]))
+
+    if is_apartment_special
+        config_edificio["max_losa_snt"] = base_constructibilidad * (INTERIOR_FACTOR + TERRACE_FACTOR + COMMON_AREAS_FACTOR)
+    else
+        config_edificio["max_losa_snt"] = base_constructibilidad * (INTERIOR_FACTOR + TERRACE_FACTOR)
+    end
+    
+    # Floor configuration
+    maxPisos = dict_requerimientos["n_pisos"]
+    config_edificio["maxPisos"] = maxPisos
+    config_edificio["default_min_pisos"] = max(MIN_FLOORS, maxPisos - DEFAULT_FLOOR_BUFFER)
+    config_edificio["vec_pisos"] = collect(config_edificio["default_min_pisos"]:maxPisos)
+
     # Calculate building configuration
-    config_edificio = calculate_building_config(dict_geom, dict_arquitectura, dict_requerimientos)
     density_config = calculate_density_limits(dict_requerimientos, config_edificio)
 
     # Perform volume optimization
@@ -288,9 +250,33 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
         dict_edificio_deptos = Dict{String, Any}("numDeptosTipo" => [0], "supUtil" => 0.0, "supNoUtilizada" => 0.0)
     end
     
-    # Calculate capacity data
-    cabida_data = calculate_cabida_data(config_edificio, vec_ps_opt, vec_np_opt, dict_edificio_deptos, dict_arquitectura)
+    # Calculate capacity data    
+    cabida_data = Dict{String, String}()
     
+    if config_edificio["tipo_edificio"] == "departamento"
+        cabida_data["cabida_sup_deptos"] = string(get(dict_arquitectura, "vecSupUtil", "0"))
+        cabida_data["cabida_num_deptos"] = string(dict_edificio_deptos["numDeptosTipo"])
+        cabida_data["cabida_sup_comercio"] = "0"
+        cabida_data["cabida_num_comercio"] = "0"
+        cabida_data["cabida_sup_oficinas"] = "0"
+        cabida_data["cabida_num_oficinas"] = "0"
+    else
+        # Safely calculate area, handling empty polygons
+        area_edif = 0.0
+        for i in eachindex(vec_ps_opt)
+            if !isempty(vec_ps_opt[i].Vertices)
+                area_edif += polyShape.polyArea(vec_ps_opt[i]) * vec_np_opt[i]
+            end
+        end
+        cabida_data["cabida_sup_deptos"] = "0"
+        cabida_data["cabida_num_deptos"] = "0"
+        cabida_data["cabida_sup_comercio"] = "0"
+        cabida_data["cabida_num_comercio"] = "0"
+        cabida_data["cabida_sup_oficinas"] = string(OFFICE_AREA_PER_UNIT)
+        cabida_data["cabida_num_oficinas"] = string(ceil(area_edif / OFFICE_AREA_PER_UNIT))
+    end
+
+
     # Calculate parking requirements
     parking_data = calculate_parking_requirements(dict_requerimientos, cabida_data)
     
