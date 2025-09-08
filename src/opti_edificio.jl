@@ -32,33 +32,6 @@ function python_expression_eval_with_varmap(expr_dict, variable_map::Dict{String
     end
 end
 
-function calculate_density_limits(dict_requerimientos, config_edificio)
-    # Calculates density limits and maximum apartments.
-
-    density_config = Dict{String, Any}()
-    
-    # Density calculation
-    flagDensidadBruta = haskey(dict_requerimientos, "densidad_maxima_bruta")
-    density_config["flagDensidadBruta"] = flagDensidadBruta
-
-    superficie_densidad = flagDensidadBruta ? config_edificio["superficieTerrenoBruto"] : config_edificio["superficieTerreno"]
-    max_densidad = flagDensidadBruta ? dict_requerimientos["densidad_maxima_bruta"] : dict_requerimientos["densidad_maxima_neta"]
-    
-    density_config["max_deptos"] = floor(max_densidad / DENSITY_DIVISOR * superficie_densidad / AREA_CONVERSION)
-    
-    # Ground occupation
-    sup_patio_vivienda_economica = config_edificio["flag_economica"] ? dict_requerimientos["superficice_min_patio_x_depto"] : 0
-    ocupacion_suelo = dict_requerimientos["coeficiente_de_ocupacion_de_suelo"]
-    
-    density_config["sup_patio_vivienda_economica"] = sup_patio_vivienda_economica
-    if config_edificio["flag_economica"]
-        density_config["max_ocupacion_suelo"] = config_edificio["superficieTerreno"] - density_config["max_deptos"] * sup_patio_vivienda_economica
-    else
-        density_config["max_ocupacion_suelo"] = config_edificio["superficieTerreno"] * ocupacion_suelo
-    end
-                        
-    return density_config
-end
 
 function calculate_parking_requirements(dict_requerimientos, cabida_data)
     # Calculates all parking-related requirements with proper error handling.
@@ -233,8 +206,29 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
     config_edificio["vec_pisos"] = collect(config_edificio["default_min_pisos"]:maxPisos)
 
     # Calculate building configuration
-    density_config = calculate_density_limits(dict_requerimientos, config_edificio)
+    density_config = Dict{String, Any}()
+    
+    # Density calculation
+    flagDensidadBruta = haskey(dict_requerimientos, "densidad_maxima_bruta")
+    density_config["flagDensidadBruta"] = flagDensidadBruta
 
+    superficie_densidad = flagDensidadBruta ? config_edificio["superficieTerrenoBruto"] : config_edificio["superficieTerreno"]
+    max_densidad = flagDensidadBruta ? dict_requerimientos["densidad_maxima_bruta"] : dict_requerimientos["densidad_maxima_neta"]
+    
+    density_config["max_deptos"] = floor(max_densidad / DENSITY_DIVISOR * superficie_densidad / AREA_CONVERSION)
+    
+    # Ground occupation
+    sup_patio_vivienda_economica = config_edificio["flag_economica"] ? dict_requerimientos["superficice_min_patio_x_depto"] : 0
+    ocupacion_suelo = dict_requerimientos["coeficiente_de_ocupacion_de_suelo"]
+    
+    density_config["sup_patio_vivienda_economica"] = sup_patio_vivienda_economica
+    if config_edificio["flag_economica"]
+        density_config["max_ocupacion_suelo"] = config_edificio["superficieTerreno"] - density_config["max_deptos"] * sup_patio_vivienda_economica
+    else
+        density_config["max_ocupacion_suelo"] = config_edificio["superficieTerreno"] * ocupacion_suelo
+    end
+
+    
     # Perform volume optimization
     vec_ps_opt, vec_np_opt, max_sol, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, 
     ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s, 
