@@ -25,16 +25,18 @@ function obtiene_geometrias_combi(df_combined)
     #################################
     
     display("Procesamiento del conjunto de calles en el entorno del predio")
-    @time ps_calles, ps_publico, ps_bruto, vecAnchoCalle, vecSecConCalle = obtieneCalles(calles_data, ps_combi, dx, dy)
+    ps_combi_ = polyGdal.shapeHull(ps_combi)
+    ps_combi_ = polyShape.setPolyOrientation(ps_combi_,1)
+    @time ps_calles, ps_publico, ps_bruto, vecAnchoCalle, vecSecConCalle = obtieneCalles(calles_data, ps_combi_, dx, dy)
 
 
-    vec_edges_predio, aux = polyShape.shape2vector(ps_combi)
+    vec_edges_predio, aux = polyShape.shape2vector(ps_combi_)
     numLadosPredio = length(vec_edges_predio)
     vecSecTodos = collect(1:numLadosPredio)
     vecSecSinCalle = setdiff(vecSecTodos, vecSecConCalle)
 
     dict_geom = Dict(
-        "ps_combi" => ps_combi,
+        "ps_combi" => ps_combi_,
         "ps_calles" => ps_calles,
         "ps_publico" => ps_publico,
         "ps_bruto" => ps_bruto,

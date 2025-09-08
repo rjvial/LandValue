@@ -27,17 +27,24 @@ fpe.sombraEdif_p = true
 fpe.sombraEdif_o = true
 fpe.sombraEdif_s = true
 
-function obtiene_geometrias(id_combi)
+query_pg = """
+SELECT * FROM public.tabla_instancias_optimizacion
+ORDER BY id_instancia ASC 
+"""
+df_instancias = pg_julia.query(conn_postgres, query_pg)
+
+for row in eachrow(df_instancias)
+    id_combi = row.id_combi
+
     query = """
-    MATCH (p:Predio)-[]-(c:Combi)
-    WHERE c.id_combi = '$id_combi'
-    RETURN DISTINCT  c.manzent AS manzent, c.id_combi AS id_combi, c.predios AS list_predios, 
-    c.rectangularity AS rectangularity, c.convexity AS convexity, c.length AS length, c.width AS width
-    ORDER BY manzent, id_combi
+        MATCH (p:Predio)-[]-(c:Combi)
+        WHERE c.id_combi = '$id_combi'
+        RETURN DISTINCT  c.id_combi AS id_combi, c.predios AS list_predios
+        ORDER BY id_combi
     """
     df_combis = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
     
-    codigo_predial = parse.(Int, split(strip(df_combis[1,"list_predios"], ['(', ')']), ';')) #18 ok
+    vec_predios = parse.(Int, split(strip(df_combis[1,"list_predios"], ['(', ')']), ';')) #18 ok
 
     display("Obtiene desde Neo4j las geometrias de los predios y calles")
     query = """
@@ -50,34 +57,8 @@ function obtiene_geometrias(id_combi)
         ORDER BY id_combi, id_calle_combi
     """
     df_combined = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
+
     dict_geom = obtiene_geometrias_combi(df_combined)
-
-    return dict_geom, codigo_predial
-end
-
-function ejecuta_instancia_cabida(dict_geom, codigo_predial, dict_arquitectura)
-
-    dict_requerimientos = obtiene_requerimientos_normativos(codigo_predial, dict_arquitectura["variante_normativa"], conn_neo4j);
-
-    dict_resultados, dict_proyecto_vs_normativa = opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
-    display(dict_proyecto_vs_normativa);
-
-    println("")
-    println("")
-
-    return dict_resultados, dict_proyecto_vs_normativa
-end
-
-query_pg = """
-SELECT * FROM public.tabla_instancias_optimizacion
-ORDER BY id_instancia ASC 
-"""
-df_instancias = pg_julia.query(conn_postgres, query_pg)
-
-
-for row in eachrow(df_instancias)
-    id_combi = row.id_combi
-    dict_geom, vec_predios = obtiene_geometrias(id_combi)
 
     list_variantes = row.list_variantes
     vec_variantes = split(row.list_variantes, ",")
@@ -104,7 +85,14 @@ for row in eachrow(df_instancias)
             "coefSupComun" => 0.1,
             "variante_normativa" => vec_variantes[i]
         )
-        dict_resultados, dict_proyecto_vs_normativa = ejecuta_instancia_cabida(dict_geom, vec_predios[1], dict_arquitectura)
+
+        dict_requerimientos = obtiene_requerimientos_normativos(vec_predios[1], dict_arquitectura["variante_normativa"], conn_neo4j);
+
+        dict_resultados, dict_proyecto_vs_normativa = opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
+        display(dict_proyecto_vs_normativa);
+
+        println("")
+        println("")
 
         fig, ax, ax_mat = plotBaseEdificio3D(fpe, dict_arquitectura["alturaPiso"], dict_geom["ps_combi"], dict_geom["ps_publico"], dict_geom["ps_calles_contexto"], dict_resultados)
     end
