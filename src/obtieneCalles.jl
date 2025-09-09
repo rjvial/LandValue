@@ -26,7 +26,7 @@ function obtieneCalles(calles_data, ps_combi_, dx, dy)
     for j in eachindex(vec_combi_calle_intersect_)
         if !isempty(vec_combi_calle_intersect_[j].Vertices) && 
                 size(vec_combi_calle_intersect_[j].Vertices[1], 1) >= 1 &&
-                polyShape.lineLength(vec_combi_calle_intersect_[j]) > 2
+                maximum(polyShape.lineLength(vec_combi_calle_intersect_[j])) > 2
             push!(vec_combi_calle_intersect, vec_combi_calle_intersect_[j])
         else
             push!(vec_combi_calle_intersect, LineShape([[0 0]],0))
@@ -44,7 +44,9 @@ function obtieneCalles(calles_data, ps_combi_, dx, dy)
 
     vecSecConCalle = collect(1:length(vec_edges_combi))
     vecSecConCalle = vecSecConCalle[flag_sec_con_calle .== 1]
-    ps_calles = polyShape.polyIntersection(ps_calles_combi, polyShape.partialPolyOffset(ps_combi_, vecSecConCalle, 30))
+    # ps_calles = polyShape.polyIntersection(ps_calles_combi, polyShape.partialPolyOffset(ps_combi_, vecSecConCalle, 30))
+    ps_calles = polyShape.polyIntersection(ps_calles_combi, polyClipper.polyOffset(ps_combi_, 30))
+
 
     # ============================================================================
     # 3. STREET WIDTH CALCULATION

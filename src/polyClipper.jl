@@ -166,25 +166,24 @@ function polyOffset(ps_::PolyShape, dist::Real)::PolyShape
     path_offset = clipper_offset(path, delta, Clipper.JoinTypeMiter)
     ps_offset = clipper2shape(path_offset, PolyShape)
 
-    # Skip parallel line filtering entirely - it causes incorrect results for volume optimization
     return ps_offset
 
-    # Original parallel line filtering (only for larger offsets)
-    vec_line_ps, _ = polyShape.shape2vector(ps)
-    vec_line_offset, reg_offset = polyShape.shape2vector(ps_offset)
+    # # Original parallel line filtering (only for larger offsets)
+    # vec_line_ps, _ = polyShape.shape2vector(ps)
+    # vec_line_offset, reg_offset = polyShape.shape2vector(ps_offset)
 
-    vec_line_offset_final = Vector{LineShape}()
-    reg_offset_final = Vector{Int}()
-    for i in eachindex(vec_line_offset)
-        flag_offset_i = [polyShape.isLineLineParallel(vec_line_offset[i], vec_line_ps[j]) for j in eachindex(vec_line_ps)]
-        if sum(flag_offset_i) >= 1
-            push!(vec_line_offset_final, vec_line_offset[i])
-            push!(reg_offset_final, reg_offset[i])
-        end
-    end
-    ps_offset_final = polyShape.lineVec2polyShape(vec_line_offset_final, reg_offset_final)
+    # vec_line_offset_final = Vector{LineShape}()
+    # reg_offset_final = Vector{Int}()
+    # for i in eachindex(vec_line_offset)
+    #     flag_offset_i = [polyShape.isLineLineParallel(vec_line_offset[i], vec_line_ps[j]) for j in eachindex(vec_line_ps)]
+    #     if sum(flag_offset_i) >= 1
+    #         push!(vec_line_offset_final, vec_line_offset[i])
+    #         push!(reg_offset_final, reg_offset[i])
+    #     end
+    # end
+    # ps_offset_final = polyShape.lineVec2polyShape(vec_line_offset_final, reg_offset_final)
 
-    return ps_offset_final
+    # return ps_offset_final
 end
 
 
