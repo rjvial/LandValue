@@ -125,41 +125,34 @@ end
 
 
 function polyDifference(ps_s_::PolyShape, ps_c_::PolyShape)::PolyShape
-    ps_s = deepcopy(ps_s_)
-    ps_c = deepcopy(ps_c_)
-    ps_c = polyShape.polyUnion(ps_c)
-
-    if ps_c.NumRegions == 0
-        return ps_s
+    if ps_s_.NumRegions == 0
+        return PolyShape(Vector{Matrix{Float64}}(), 0)
     end
-
-    ps_c_bounds = [minimum([minimum(region[:, 1]) for region in ps_c.Vertices]),
-                   minimum([minimum(region[:, 2]) for region in ps_c.Vertices]),
-                   maximum([maximum(region[:, 1]) for region in ps_c.Vertices]),
-                   maximum([maximum(region[:, 2]) for region in ps_c.Vertices])]
     
-    path_c = polyClipper.shape2clipper(ps_c)
-    vec_V = []
-    for i = 1:ps_s.NumRegions
-        region_bounds = [minimum(ps_s.Vertices[i][:, 1]), minimum(ps_s.Vertices[i][:, 2]), 
-                        maximum(ps_s.Vertices[i][:, 1]), maximum(ps_s.Vertices[i][:, 2])]
-        
-        if region_bounds[1] > ps_c_bounds[3] || region_bounds[3] < ps_c_bounds[1] ||
-           region_bounds[2] > ps_c_bounds[4] || region_bounds[4] < ps_c_bounds[2]
-            push!(vec_V, ps_s.Vertices[i])
-            continue
-        end
-        
-        ps_s_i = polyShape.subShape(ps_s, i)
-        path_s_i = polyClipper.shape2clipper(ps_s_i)
-        d_path = polyClipper.clipper_difference(path_s_i, path_c)
-        ps_out_i = polyClipper.clipper2shape(d_path, PolyShape)
-        for j = 1:ps_out_i.NumRegions
-            push!(vec_V, ps_out_i.Vertices[j])
-        end
+    if ps_c_.NumRegions == 0
+        return ps_s_
     end
-    ps_out = PolyShape(vec_V, length(vec_V))    
 
+    ps_c_bounds = [minimum([minimum(region[:, 1]) for region in ps_c_.Vertices]),
+                   minimum([minimum(region[:, 2]) for region in ps_c_.Vertices]),
+                   maximum([maximum(region[:, 1]) for region in ps_c_.Vertices]),
+                   maximum([maximum(region[:, 2]) for region in ps_c_.Vertices])]
+
+    ps_s_bounds = [minimum([minimum(region[:, 1]) for region in ps_s_.Vertices]),
+                   minimum([minimum(region[:, 2]) for region in ps_s_.Vertices]),
+                   maximum([maximum(region[:, 1]) for region in ps_s_.Vertices]),
+                   maximum([maximum(region[:, 2]) for region in ps_s_.Vertices])]
+    
+    if ps_s_bounds[1] > ps_c_bounds[3] || ps_s_bounds[3] < ps_c_bounds[1] ||
+       ps_s_bounds[2] > ps_c_bounds[4] || ps_s_bounds[4] < ps_c_bounds[2]
+        return ps_s_
+    end
+    
+    path_s = polyClipper.shape2clipper(ps_s_)
+    path_c = polyClipper.shape2clipper(ps_c_)
+    d_path = polyClipper.clipper_difference(path_s, path_c)
+    ps_out = polyClipper.clipper2shape(d_path, PolyShape)
+    
     return ps_out
 end
 

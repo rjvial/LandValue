@@ -44,7 +44,6 @@ function obtieneCalles(calles_data, ps_combi_, dx, dy)
 
     vecSecConCalle = collect(1:length(vec_edges_combi))
     vecSecConCalle = vecSecConCalle[flag_sec_con_calle .== 1]
-    # ps_calles = polyShape.polyIntersection(ps_calles_combi, polyShape.partialPolyOffset(ps_combi_, vecSecConCalle, 30))
     ps_calles = polyShape.polyIntersection(ps_calles_combi, polyClipper.polyOffset(ps_combi_, 30))
 
 

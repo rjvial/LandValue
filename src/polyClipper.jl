@@ -83,13 +83,11 @@ function clipper_op(ct::ClipType, vec_path1_::Vector{Vector{IntPoint}}, vec_path
     if length(vec_path1) == 1
         Clipper.add_path!(c, vec_path1[1], Clipper.PolyTypeSubject, true)
     else
-        vec_path1 = clipper_union(vec_path1)
         Clipper.add_paths!(c, vec_path1, Clipper.PolyTypeSubject, true)
     end
     if length(vec_path2) == 1
         Clipper.add_path!(c, vec_path2[1], Clipper.PolyTypeClip, true)
     else
-        vec_path2 = clipper_union(vec_path2)
         Clipper.add_paths!(c, vec_path2, Clipper.PolyTypeClip, true)
     end
     _, result_paths = Clipper.execute(c, ct, Clipper.PolyFillTypeEvenOdd, Clipper.PolyFillTypeEvenOdd)
@@ -167,23 +165,6 @@ function polyOffset(ps_::PolyShape, dist::Real)::PolyShape
     ps_offset = clipper2shape(path_offset, PolyShape)
 
     return ps_offset
-
-    # # Original parallel line filtering (only for larger offsets)
-    # vec_line_ps, _ = polyShape.shape2vector(ps)
-    # vec_line_offset, reg_offset = polyShape.shape2vector(ps_offset)
-
-    # vec_line_offset_final = Vector{LineShape}()
-    # reg_offset_final = Vector{Int}()
-    # for i in eachindex(vec_line_offset)
-    #     flag_offset_i = [polyShape.isLineLineParallel(vec_line_offset[i], vec_line_ps[j]) for j in eachindex(vec_line_ps)]
-    #     if sum(flag_offset_i) >= 1
-    #         push!(vec_line_offset_final, vec_line_offset[i])
-    #         push!(reg_offset_final, reg_offset[i])
-    #     end
-    # end
-    # ps_offset_final = polyShape.lineVec2polyShape(vec_line_offset_final, reg_offset_final)
-
-    # return ps_offset_final
 end
 
 

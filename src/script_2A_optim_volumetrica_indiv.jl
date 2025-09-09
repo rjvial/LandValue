@@ -33,7 +33,7 @@ ORDER BY id_instancia ASC
 """
 df_instancias = pg_julia.query(conn_postgres, query_pg)
 
-# row = df_instancias[df_instancias.id_combi .== "13132011001009_40",:]
+# row = df_instancias[df_instancias.id_combi .== "13132011001012_82",:]
 for row in eachrow(df_instancias)
     id_combi = row.id_combi
 
@@ -59,47 +59,49 @@ for row in eachrow(df_instancias)
     """
     df_combined = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 
-    dict_geom = obtiene_geometrias_combi(df_combined)
+    if !isempty(df_combined)
+        dict_geom = obtiene_geometrias_combi(df_combined)
 
-    list_variantes = row.list_variantes
-    vec_variantes = split(row.list_variantes, ",")
+        list_variantes = row.list_variantes
+        vec_variantes = split(row.list_variantes, ",")
 
-    num_variante = row.num_variantes
-    for i = 1:num_variante
-        println("ID Combi: ", row.id_combi, " - Variante: ", vec_variantes[i])
-        dict_arquitectura = OrderedDict(
-            "alturaPiso" => 2.55,
-            "K" => 1,
-            "ancho_crujia_min" => 8,
-            "ancho_crujia_max" => 18,
-            "tipo_edificio" => "departamento",
-            "flag_sombra" => true, #false, # 
-            "flag_vano" => false,
-            "vecSupInterior" => [25, 65, 85, 120, 240],
-            "vecSupTerraza" => [10, 20, 30, 40, 40],
-            "vecSupUtil" => [30, 75, 100, 140, 260],
-            "supPorEstacionamiento" => 30,
-            "supPorBodega" => 5,
-            "supPorBicicleta" => 4,
-            "coefSupComunPrimerPiso" => 0.10,
-            "coefSupComunPisosSup" => 0.05,
-            "coefSupComun" => 0.1,
-            "variante_normativa" => vec_variantes[i]
-        )
+        num_variante = row.num_variantes
+        for i = 1:num_variante
+            println("ID Combi: ", row.id_combi, " - Variante: ", vec_variantes[i])
+            dict_arquitectura = OrderedDict(
+                "alturaPiso" => 2.55,
+                "K" => 1,
+                "ancho_crujia_min" => 8,
+                "ancho_crujia_max" => 18,
+                "tipo_edificio" => "departamento",
+                "flag_sombra" => true, #false, # 
+                "flag_vano" => false,
+                "vecSupInterior" => [25, 65, 85, 120, 240],
+                "vecSupTerraza" => [10, 20, 30, 40, 40],
+                "vecSupUtil" => [30, 75, 100, 140, 260],
+                "supPorEstacionamiento" => 30,
+                "supPorBodega" => 5,
+                "supPorBicicleta" => 4,
+                "coefSupComunPrimerPiso" => 0.10,
+                "coefSupComunPisosSup" => 0.05,
+                "coefSupComun" => 0.1,
+                "variante_normativa" => vec_variantes[i]
+            )
 
-        dict_requerimientos = obtiene_requerimientos_normativos(vec_predios[1], dict_arquitectura["variante_normativa"], conn_neo4j);
+            dict_requerimientos = obtiene_requerimientos_normativos(vec_predios[1], dict_arquitectura["variante_normativa"], conn_neo4j);
 
-        dict_resultados, dict_proyecto_vs_normativa = opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
-        display(dict_proyecto_vs_normativa);
+            dict_resultados, dict_proyecto_vs_normativa = opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
+            display(dict_proyecto_vs_normativa);
 
-        println("")
-        println("")
+            println("")
+            println("")
 
-        fig, ax, ax_mat = plotBaseEdificio3D(fpe, dict_arquitectura["alturaPiso"], dict_geom["ps_combi"], dict_geom["ps_publico"], dict_geom["ps_calles_contexto"], dict_resultados)
+            fig, ax, ax_mat = plotBaseEdificio3D(fpe, dict_arquitectura["alturaPiso"], dict_geom["ps_combi"], dict_geom["ps_publico"], dict_geom["ps_calles_contexto"], dict_resultados)
+        end
     end
 end
 
-# id_combi = "13132011001012_31" #"13132011001009_40" "13132011001012_71"
+# id_combi = "13132011001012_31" #"13132011001009_40" "13132011001012_82" "13132011001014_4"
 
 
 
