@@ -121,12 +121,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
     ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s = opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, vec_pisos, 
                                                                                             max_ocupacion_suelo, max_losa_snt)
 
-
-    plotBaseEdificio3D(dict_geom["ps_combi"], vec_ps_opt, vec_np_opt, max_sol, vec_psVolteor, vec_altVolteor, 
-    vec_psVolConSombra, vec_altVolConSombra, ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s,
-    ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s)
-
-
+                                                                                        
     # ============================================================================
     # 4. APARTMENT CONFIGURATION
     # ============================================================================

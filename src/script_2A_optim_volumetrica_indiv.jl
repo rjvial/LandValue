@@ -97,7 +97,7 @@ for row in eachrow(df_instancias)
             println("")
             println("")
 
-            # fig, ax, ax_mat = plotBaseEdificio3D(fpe, dict_arquitectura["alturaPiso"], dict_geom["ps_combi"], dict_geom["ps_publico"], dict_geom["ps_calles_contexto"], dict_resultados)
+            fig, ax, ax_mat = plotBaseEdificio3D(fpe, dict_arquitectura["alturaPiso"], dict_geom["ps_combi"], dict_geom["ps_publico"], dict_geom["ps_calles_contexto"], dict_resultados)
         end
     
     catch
