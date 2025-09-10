@@ -138,7 +138,3 @@ function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, ps_publico, ps_calles_co
         ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s
     )
 end
-
-function plotBaseEdificio3D_simple(fpe, alturaPiso, ps_predio, ps_publico, ps_calles_contexto, dict_resultado)
-    return plotBaseEdificio3D(fpe, alturaPiso, ps_predio, ps_publico, ps_calles_contexto, dict_resultado)
-end
