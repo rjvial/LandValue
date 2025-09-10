@@ -1,11 +1,6 @@
-
-function create_apartment_optimization_model()
-    model = Model(Cbc.Optimizer)
-    set_optimizer_attribute(model, "ratioGap", 0.001)
-    set_optimizer_attribute(model, "logLevel", 0)
-    return model
-end
-
+################################################################################
+# RESULTS PROCESSING FUNCTION
+################################################################################
 function process_optimization_results(model, 
     total_useful_area, useful_area_ground_floor, useful_area_upper_floors,
     total_common_area, common_area_ground_floor, common_area_upper_floors,
@@ -14,12 +9,34 @@ function process_optimization_results(model,
     unused_area, dfl2_discount, total_apartments,
     apartments_ground_floor, apartments_per_upper_floor, regular_floors)
     
+    ############################################################################
+    # Check Optimization Status
+    ############################################################################
     if termination_status(model) != MOI.OPTIMAL
         @warn "Optimization did not find optimal solution. Status: $(termination_status(model))"
-        return create_empty_result_dict()
+        return OrderedDict(
+            "supUtil" => 0.0,
+            "supUtilPrimerPiso" => 0.0,
+            "supUtilPisosSup" => 0.0,
+            "supComun" => 0.0,
+            "supComunPrimerPiso" => 0.0,
+            "supComunPisosSup" => 0.0,
+            "supTerraza" => 0.0,
+            "supTerrazaPrimerPiso" => 0.0,
+            "supTerrazaPisosSup" => 0.0,
+            "supInterior" => 0.0,
+            "supInteriorPrimerPiso" => 0.0,
+            "supInteriorPisosSup" => 0.0,
+            "descuento_dfl2" => 0.0,
+            "supNoUtilizada" => 0.0,
+            "numDeptosTipo" => Int[],
+            "numDeptos" => 0
+        )
     end
     
-    # Extract values
+    ############################################################################
+    # Extract Optimization Values
+    ############################################################################
     results = OrderedDict(
         "supUtil" => value(total_useful_area),
         "supUtilPrimerPiso" => value(useful_area_ground_floor),
@@ -39,34 +56,9 @@ function process_optimization_results(model,
         "numDeptos" => value(total_apartments)
     )
     
-    # Display results summary
-    display_optimization_summary(results)
-    
-    return results
-end
-
-function create_empty_result_dict()
-    return OrderedDict(
-        "supUtil" => 0.0,
-        "supUtilPrimerPiso" => 0.0,
-        "supUtilPisosSup" => 0.0,
-        "supComun" => 0.0,
-        "supComunPrimerPiso" => 0.0,
-        "supComunPisosSup" => 0.0,
-        "supTerraza" => 0.0,
-        "supTerrazaPrimerPiso" => 0.0,
-        "supTerrazaPisosSup" => 0.0,
-        "supInterior" => 0.0,
-        "supInteriorPrimerPiso" => 0.0,
-        "supInteriorPisosSup" => 0.0,
-        "descuento_dfl2" => 0.0,
-        "supNoUtilizada" => 0.0,
-        "numDeptosTipo" => Int[],
-        "numDeptos" => 0
-    )
-end
-
-function display_optimization_summary(results)
+    ############################################################################
+    # Display Results Summary
+    ############################################################################
     println("\n=== Optimization Results Summary ===")
     println("Ground Floor | Upper Floors | Total")
     println("-" ^ 40)
@@ -104,18 +96,28 @@ function display_optimization_summary(results)
     println("Total Apartments: $(round(Int, results["numDeptos"]))")
     println("Apartments by type: $(results["numDeptosTipo"])")
     println("=" ^ 40)
+    
+    return results
 end
 
+
+################################################################################
+# MAIN OPTIMIZATION FUNCTION
+################################################################################
 function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_deptos, vec_ps_opt, vec_np_opt, flag_dfl2, sup_patio_vivienda_economica, superficie_terreno)
     # Optimizes apartment distribution in a multi-story building to maximize useful area while respecting regulatory constraints.
     
-    # Calculate base building geometry
+    ############################################################################
+    # Building Geometry Setup
+    ############################################################################
     num_stacks = length(vec_ps_opt)
     basal_areas = [polyShape.polyArea(ps) for ps in vec_ps_opt]
     total_floors = sum(vec_np_opt)
     regular_floors = total_floors - 1  # Upper floors (excluding ground floor)
 
-    # Extract apartment type specifications
+    ############################################################################
+    # Apartment Type Specifications
+    ############################################################################
     num_apartment_types = length(dict_arquitectura["vecSupUtil"])
     useful_areas = dict_arquitectura["vecSupUtil"]
     terrace_areas = dict_arquitectura["vecSupTerraza"]
@@ -124,12 +126,19 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
     # DFL2 eligibility: apartments ≤ 140m² qualify
     dfl2_eligible = [useful_areas[i] <= 140 ? 1 : 0 for i in 1:num_apartment_types]
 
-    # Calculate total built footprint
-    total_building_area = sum(basal_areas[i] * vec_np_opt[i] for i in 1:num_stacks)
+    # # Calculate total built footprint
+    # total_building_area = sum(basal_areas[i] * vec_np_opt[i] for i in 1:num_stacks)
 
-    # Initialize optimization model
-    model = create_apartment_optimization_model()
+    ############################################################################
+    # Optimization Model Setup
+    ############################################################################
+    model = Model(Cbc.Optimizer)
+    set_optimizer_attribute(model, "ratioGap", 0.001)
+    set_optimizer_attribute(model, "logLevel", 0)
 
+    ############################################################################
+    # Decision Variables
+    ############################################################################
     @variables(model, begin
         apartments_ground_floor[u=1:num_apartment_types] >= 0, Int
         apartments_per_upper_floor[u=1:num_apartment_types] >= 0, Int
@@ -139,7 +148,9 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
         unused_area >= 0
     end)
 
-    # Define area expressions
+    ############################################################################
+    # Calculated Expressions
+    ############################################################################
     @expression(model, useful_area_ground_floor, 
         sum(useful_areas[u] * apartments_ground_floor[u] for u=1:num_apartment_types))
     @expression(model, useful_area_upper_floors, 
@@ -162,7 +173,9 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
     @expression(model, total_apartments, 
         sum(apartments_ground_floor) + sum(apartments_per_upper_floor) * regular_floors)
 
-    # Apartment count constraint
+    ############################################################################
+    # Optimization Constraints
+    ############################################################################
     @constraint(model, sum(apartments_ground_floor) + sum(apartments_per_upper_floor) * regular_floors == max_deptos)
 
     # Common area constraints
@@ -197,11 +210,15 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
             apartments_ground_floor[u] + apartments_per_upper_floor[u] * regular_floors <= dfl2_eligible[u] * max_deptos)
     end
 
-    # Objective: maximize useful area
+    ############################################################################
+    # Objective Function and Solve
+    ############################################################################
     @objective(model, Max, total_useful_area)
     optimize!(model)
 
-    # Process optimization results
+    ############################################################################
+    # Return Results
+    ############################################################################
     return process_optimization_results(model, 
         total_useful_area, useful_area_ground_floor, useful_area_upper_floors,
         total_common_area, common_area_ground_floor, common_area_upper_floors,
