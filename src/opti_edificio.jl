@@ -121,13 +121,24 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
     ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s = opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, vec_pisos, 
                                                                                             max_ocupacion_suelo, max_losa_snt)
 
+
+    plotBaseEdificio3D(dict_geom["ps_combi"], vec_ps_opt, vec_np_opt, max_sol, vec_psVolteor, vec_altVolteor, 
+    vec_psVolConSombra, vec_altVolConSombra, ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s,
+    ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s)
+
+
     # ============================================================================
     # 4. APARTMENT CONFIGURATION
     # ============================================================================
     if config_edificio["tipo_edificio"] == "departamento"
-        dict_edificio_deptos = opti_edificio_deptos(dict_arquitectura, config_edificio["max_constructibilidad"], density_config["max_deptos"], 
-                                                    vec_ps_opt, vec_np_opt, config_edificio["flag_dfl2"], 
-                                                    density_config["sup_patio_vivienda_economica"], config_edificio["superficieTerreno"])
+        max_constructibilidad = config_edificio["max_constructibilidad"]
+        max_deptos = density_config["max_deptos"]
+        flag_dfl2 = config_edificio["flag_dfl2"]
+        sup_patio_vivienda_economica = density_config["sup_patio_vivienda_economica"]
+        superficie_terreno = config_edificio["superficieTerreno"]
+        dict_edificio_deptos = opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_deptos, 
+                                                    vec_ps_opt, vec_np_opt, flag_dfl2, 
+                                                    sup_patio_vivienda_economica, superficie_terreno)
     else
         dict_edificio_deptos = Dict{String, Any}("numDeptosTipo" => [0], "supUtil" => 0.0, "supNoUtilizada" => 0.0)
     end

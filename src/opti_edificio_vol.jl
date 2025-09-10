@@ -75,14 +75,14 @@ function process_shadow_direction(shadow_poly, constraint_matrix, constraint_vec
     )
 end
 
-function setup_shadow_constraints(vec_psVolteor, vec_altVolteor, dict_geom, ps_areaEdif)
+function setup_shadow_constraints(vec_psVolteor, vec_altVolteor, dict_geom, cached_ps_areaEdif)
     # Sets up shadow constraint calculations and returns shadow data dictionary.
 
     # Calculate theoretical shadows
     vec_sombraTeor = generaSombraTeor(vec_psVolteor, vec_altVolteor, dict_geom["ps_publico"], dict_geom["ps_calles_contexto"])
     
     # Prepare constraint matrix once
-    A0, b0 = polyShape.poly2Constraints(ps_areaEdif)
+    A0, b0 = polyShape.poly2Constraints(cached_ps_areaEdif)
     edges = collect(1:length(b0))
     
     # Process all shadow directions

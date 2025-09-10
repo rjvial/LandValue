@@ -59,7 +59,8 @@ for row in eachrow(df_instancias)
     """
     df_combined = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 
-    if !isempty(df_combined)
+    
+    try #if !isempty(df_combined)
         dict_geom = obtiene_geometrias_combi(df_combined)
 
         list_variantes = row.list_variantes
@@ -96,8 +97,15 @@ for row in eachrow(df_instancias)
             println("")
             println("")
 
-            fig, ax, ax_mat = plotBaseEdificio3D(fpe, dict_arquitectura["alturaPiso"], dict_geom["ps_combi"], dict_geom["ps_publico"], dict_geom["ps_calles_contexto"], dict_resultados)
+            # fig, ax, ax_mat = plotBaseEdificio3D(fpe, dict_arquitectura["alturaPiso"], dict_geom["ps_combi"], dict_geom["ps_publico"], dict_geom["ps_calles_contexto"], dict_resultados)
         end
+    
+    catch
+        println("")
+        println("")
+        println("No se pudo procesar la combi ", id_combi)
+        println("")
+        println("")
     end
 end
 
