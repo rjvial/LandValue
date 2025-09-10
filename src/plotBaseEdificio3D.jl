@@ -21,10 +21,6 @@ function plot_building_floors(vec_ps, vec_np, alturaPiso, color, alpha, fig, ax,
     return fig, ax, ax_mat
 end
 
-function get_building_color(tipo_edificio)
-    return tipo_edificio == "departamento" ? "teal" : "darkgray"
-end
-
 function plot_shadows_conditional(shadows, flags, color, alpha, fig, ax, ax_mat)
     for (shadow, flag) in zip(shadows, flags)
         if flag
@@ -42,7 +38,8 @@ function get_shadows_if_available(ps_pre_p, ps_pre_o, ps_pre_s, fallback_func, a
     end
 end
 
-function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, ps_publico, ps_calles, vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, tipo_edificio)
+function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, 
+                            vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, tipo_edificio, ps_publico, ps_calles)
     fig = nothing; ax = nothing; ax_mat = nothing
 
     # Plot predio
@@ -52,7 +49,7 @@ function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVo
 
     # Plot building floors
     if fpe.edif
-        color = get_building_color(tipo_edificio)
+        color = (tipo_edificio == "departamento") ? "teal" : "darkgray"
         fig, ax, ax_mat = plot_building_floors(vec_ps_opt, vec_np_opt, alturaPiso, color, 1.0, fig, ax, ax_mat)
         fig, ax, ax_mat = plot_building_floors(vec_ps_subte, vec_np_subte, alturaPiso, "black", 0.2, fig, ax, ax_mat, true)
     end
@@ -80,7 +77,10 @@ function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVo
     return fig, ax, ax_mat
 end
 
-function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, ps_publico, ps_calles, vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, tipo_edificio, ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s, ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s)
+function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, 
+                            vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, tipo_edificio, 
+                            ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s, 
+                            ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s)
     fig = nothing; ax = nothing; ax_mat = nothing
 
     # Plot predio
@@ -90,20 +90,18 @@ function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVo
 
     # Plot building floors
     if fpe.edif
-        color = get_building_color(tipo_edificio)
+        color = (tipo_edificio == "departamento") ? "teal" : "darkgray"
         fig, ax, ax_mat = plot_building_floors(vec_ps_opt, vec_np_opt, alturaPiso, color, 1.0, fig, ax, ax_mat)
         fig, ax, ax_mat = plot_building_floors(vec_ps_subte, vec_np_subte, alturaPiso, "black", 0.2, fig, ax, ax_mat, true)
     end
 
     # Plot theoretical shadows - use pre-calculated if available
     if fpe.sombraVolTeorico_p || fpe.sombraVolTeorico_o || fpe.sombraVolTeorico_s
-        ps_p, ps_o, ps_s = get_shadows_if_available(ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s, generaSombraTeor, vec_psVolteor, vec_altVolteor, ps_publico, ps_calles)
-        fig, ax, ax_mat = plot_shadows_conditional([ps_p, ps_o, ps_s], [fpe.sombraVolTeorico_p, fpe.sombraVolTeorico_o, fpe.sombraVolTeorico_s], "gold", 0.3, fig, ax, ax_mat)
+        fig, ax, ax_mat = plot_shadows_conditional([ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s], [fpe.sombraVolTeorico_p, fpe.sombraVolTeorico_o, fpe.sombraVolTeorico_s], "gold", 0.3, fig, ax, ax_mat)
     end
 
     # Plot actual building shadows - use pre-calculated if available
-    ps_p, ps_o, ps_s = get_shadows_if_available(ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s, generaSombraEdificio, vec_ps_opt, cumsum(vec_np_opt).*alturaPiso, ps_publico, ps_calles)
-    for ps_sombra in [ps_p, ps_o, ps_s]
+    for ps_sombra in [ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s]
         fig, ax, ax_mat = polyPlot.plotPolyshape2Din3D(ps_sombra, 0, "red", 0.25, fig=fig, ax=ax, ax_mat=ax_mat)
     end
 
@@ -118,7 +116,7 @@ function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVo
     return fig, ax, ax_mat
 end
 
-function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, ps_publico, ps_calles_contexto, dict_resultado)
+function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, dict_resultado)
     ps_sombraVolTeorico_p = get(dict_resultado, "ps_sombraVolTeorico_p", nothing)
     ps_sombraVolTeorico_o = get(dict_resultado, "ps_sombraVolTeorico_o", nothing)
     ps_sombraVolTeorico_s = get(dict_resultado, "ps_sombraVolTeorico_s", nothing)
@@ -130,7 +128,6 @@ function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, ps_publico, ps_calles_co
         fpe, alturaPiso, ps_predio,
         dict_resultado["vec_psVolteor"], dict_resultado["vec_altVolteor"],
         dict_resultado["vec_psVolConSombra"], dict_resultado["vec_altVolConSombra"],
-        ps_publico, ps_calles_contexto,
         dict_resultado["vec_ps_opt"], dict_resultado["vec_np_opt"],
         dict_resultado["vec_ps_subte"], dict_resultado["vec_np_subte"],
         dict_resultado["tipo_edificio"],
