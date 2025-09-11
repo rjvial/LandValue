@@ -75,14 +75,14 @@ function process_shadow_direction(shadow_poly, constraint_matrix, constraint_vec
     )
 end
 
-function setup_shadow_constraints(vec_psVolteor, vec_altVolteor, dict_geom, cached_ps_areaEdif)
+function setup_shadow_constraints(vec_psVolteor, vec_altVolteor, dict_geom, ps_areaEdif)
     # Sets up shadow constraint calculations and returns shadow data dictionary.
 
     # Calculate theoretical shadows
     vec_sombraTeor = generaSombraTeor(vec_psVolteor, vec_altVolteor, dict_geom["ps_publico"], dict_geom["ps_calles_contexto"])
     
     # Prepare constraint matrix once
-    A0, b0 = polyShape.poly2Constraints(cached_ps_areaEdif)
+    A0, b0 = polyShape.poly2Constraints(ps_areaEdif)
     edges = collect(1:length(b0))
     
     # Process all shadow directions
@@ -299,10 +299,10 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
     # ============================================================================
     # 4. PERFORMANCE OPTIMIZATION CACHING
     # ============================================================================
-    cached_altura = -1
-    cached_ps_areaEdif = PolyShape([], 0)
-    cached_volumes = (Float64[], PolyShape[])
-    cached_shadow_volumes = (Float64[], PolyShape[])
+    altura_ant = -1
+    ps_areaEdif = PolyShape([], 0)
+    vec_altVolteor, vec_psVolteor = (Float64[], PolyShape[])
+    vec_altVolConSombra, vec_psVolConSombra = (Float64[], PolyShape[])
     
     # ============================================================================
     # 5. MAIN OPTIMIZATION LOOP
@@ -312,25 +312,24 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
         altura = n_pisos * alturaPiso
         
         # Only recalculate when height changes (performance optimization)
-        if altura != cached_altura
-            cached_altura = altura
+        if altura != altura_ant
+            altura_ant = altura
             
             # Calculate buildable area with error handling
             try
-                cached_ps_areaEdif = calculate_buildable_area(dict_geom, dict_requerimientos, dict_arquitectura, altura, n_pisos)
+                ps_areaEdif = calculate_buildable_area(dict_geom, dict_requerimientos, dict_arquitectura, altura, n_pisos)
                 
                 # Early termination if area too small
-                if polyShape.polyArea(cached_ps_areaEdif) < MIN_AREA_THRESHOLD
+                if polyShape.polyArea(ps_areaEdif) < MIN_AREA_THRESHOLD
                     continue
                 end
                 
                 # Calculate theoretical volumes with performance optimization
-                cached_volumes = calculate_theoretical_volumes(ps_bruto, cached_ps_areaEdif, alturaMax, rasante)
-                vec_altVolteor, vec_psVolteor = cached_volumes
+                vec_altVolteor, vec_psVolteor = calculate_theoretical_volumes(ps_bruto, ps_areaEdif, alturaMax, rasante)
                 
                 if flag_sombra
                     # Calculate shadow volumes and cache them
-                    cached_shadow_volumes = calculate_shadow_volumes(ps_predio, cached_ps_areaEdif, alturaMax, rasante_sombra)
+                    vec_altVolConSombra, vec_psVolConSombra = calculate_shadow_volumes(ps_predio, ps_areaEdif, alturaMax, rasante_sombra)
                 end
                 
             catch e
@@ -339,16 +338,15 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
             end
         end
         
-        # Get cached values
-        vec_altVolteor, vec_psVolteor = cached_volumes
+        # # Get cached values
+        # vec_altVolteor, vec_psVolteor = cached_volumes
         
         if flag_sombra
-            vec_altVolConSombra, vec_psVolConSombra = cached_shadow_volumes
-            shadow_data = setup_shadow_constraints(vec_psVolteor, vec_altVolteor, dict_geom, cached_ps_areaEdif)
+            shadow_data = setup_shadow_constraints(vec_psVolteor, vec_altVolteor, dict_geom, ps_areaEdif)
             
             # Only proceed if any shadow constraints are active
             if shadow_data["flag_p"] || shadow_data["flag_o"] || shadow_data["flag_s"]
-                ps_areaEdif_ref = Ref(cached_ps_areaEdif)
+                ps_areaEdif_ref = Ref(ps_areaEdif)
                 shadow_result = optimize_with_shadow_constraints(
                     vec_psVolConSombra, vec_altVolConSombra, shadow_data, floors,
                     dict_arquitectura, dict_geom, max_ocupacion_suelo, max_losa_snt, ps_areaEdif_ref
@@ -386,7 +384,7 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
                 best_result["vec_psVolteor"] = vec_psVolteor
                 
                 # Calculate shadow volumes for output consistency using helper function
-                vec_altVolConSombra, vec_psVolConSombra = calculate_shadow_volumes(ps_predio, cached_ps_areaEdif, alturaMax, rasante_sombra)
+                vec_altVolConSombra, vec_psVolConSombra = calculate_shadow_volumes(ps_predio, ps_areaEdif, alturaMax, rasante_sombra)
                 
                 best_result["vec_altVolConSombra"] = vec_altVolConSombra
                 best_result["vec_psVolConSombra"] = vec_psVolConSombra

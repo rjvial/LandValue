@@ -32,6 +32,42 @@ function python_expression_eval_with_varmap(expr_dict, variable_map::Dict{String
     end
 end
 
+function estimacion_ocupacion_suelo(superficieTerreno, max_deptos, sup_patio_vivienda_economica, coefSupComun,
+                                    vecSupInterior, vecSupTerraza, vecSupUtil)
+    
+    sup_depto_promedio = (sum(vecSupInterior.*(vecSupUtil .<= 140)) + sum(vecSupTerraza.*(vecSupUtil .<= 140)) + sum(vecSupUtil.*(vecSupUtil .<= 140)) * coefSupComun) /
+    length(vecSupInterior)
+    num_pisos = 4
+
+    num_deptos_actual = max_deptos ÷ 2
+
+    while true
+        sup_ocupacion_est = superficieTerreno - num_deptos_actual * sup_patio_vivienda_economica
+
+        if sup_ocupacion_est <= 0
+            break
+        end
+
+        sup_const_est = sup_ocupacion_est * num_pisos
+        num_deptos_estimado = floor(Int, sup_const_est / sup_depto_promedio)
+
+        if num_deptos_actual < num_deptos_estimado
+            num_deptos_actual = num_deptos_estimado + 1
+        else
+            break
+        end
+
+        if num_deptos_actual > max_deptos
+            num_deptos_actual = max_deptos
+            break
+        end
+    end
+
+    num_deptos_opt = min(num_deptos_actual, max_deptos)
+    sup_ocupacion_est = superficieTerreno - num_deptos_opt * sup_patio_vivienda_economica
+    
+    return sup_ocupacion_est
+end
 
 function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
     # ============================================================================
@@ -105,7 +141,10 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
     
     density_config["sup_patio_vivienda_economica"] = sup_patio_vivienda_economica
     if config_edificio["flag_economica"]
-        density_config["max_ocupacion_suelo"] = config_edificio["superficieTerreno"] - density_config["max_deptos"] * sup_patio_vivienda_economica
+        max_ocupacion_suelo_est = estimacion_ocupacion_suelo(config_edificio["superficieTerreno"], density_config["max_deptos"], density_config["sup_patio_vivienda_economica"], 
+                                        dict_arquitectura["coefSupComun"], dict_arquitectura["vecSupInterior"], dict_arquitectura["vecSupTerraza"], dict_arquitectura["vecSupUtil"])
+            
+        density_config["max_ocupacion_suelo"] = max_ocupacion_suelo_est
     else
         density_config["max_ocupacion_suelo"] = config_edificio["superficieTerreno"] * ocupacion_suelo
     end

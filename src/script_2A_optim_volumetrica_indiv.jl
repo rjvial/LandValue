@@ -64,7 +64,7 @@ for row in eachrow(df_instancias)
         dict_geom = obtiene_geometrias_combi(df_combined)
 
         list_variantes = row.list_variantes
-        vec_variantes = split(row.list_variantes, ",")
+        vec_variantes = sort(split(row.list_variantes, ","))
 
         num_variante = row.num_variantes
         for i = 1:num_variante

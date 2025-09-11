@@ -177,7 +177,7 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
     ############################################################################
     # Optimization Constraints
     ############################################################################
-    @constraint(model, total_apartments_constraint, sum(apartments_ground_floor) + sum(apartments_per_upper_floor) * regular_floors == max_deptos)
+    @constraint(model, total_apartments_constraint, sum(apartments_ground_floor) + sum(apartments_per_upper_floor) * regular_floors <= max_deptos)
 
     # Common area constraints
     @constraint(model, dfl2_discount_useful_area_limit, dfl2_discount <= flag_dfl2 * 0.2 * total_useful_area)
