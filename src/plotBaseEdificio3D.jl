@@ -34,18 +34,12 @@ function plot_shadows_conditional(shadows, flags, color, alpha, fig, ax, ax_mat)
     return fig, ax, ax_mat
 end
 
-function get_shadows_if_available(ps_pre_p, ps_pre_o, ps_pre_s, fallback_func, args...)
-    if ps_pre_p !== nothing && ps_pre_o !== nothing && ps_pre_s !== nothing
-        return ps_pre_p, ps_pre_o, ps_pre_s
-    else
-        return fallback_func(args...)
-    end
-end
 
 ################################################################################
-#  MAIN PLOTTING FUNCTION (WITH CALCULATION)
+#  MAIN PLOTTING FUNCTION
 ################################################################################
 
+# WITH SHADOW CALCULATION
 function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, 
                             vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, tipo_edificio, ps_publico, ps_calles)
     fig = nothing; ax = nothing; ax_mat = nothing
@@ -85,10 +79,7 @@ function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVo
     return fig, ax, ax_mat
 end
 
-################################################################################
-#  MAIN PLOTTING FUNCTION (WITH PRE-CALCULATED SHADOWS)
-################################################################################
-
+# WITH PRE-CALCULATED SHADOWS
 function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, 
                             vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, tipo_edificio, 
                             ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s, 
@@ -128,10 +119,7 @@ function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVo
     return fig, ax, ax_mat
 end
 
-################################################################################
-#  CONVENIENCE WRAPPER (WITH DICTIONARY)
-################################################################################
-
+# WITH CONVENIENCE DICTIONARY WRAPPER
 function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, dict_resultado)
     ps_sombraVolTeorico_p = get(dict_resultado, "ps_sombraVolTeorico_p", nothing)
     ps_sombraVolTeorico_o = get(dict_resultado, "ps_sombraVolTeorico_o", nothing)
