@@ -107,7 +107,8 @@ end
 ################################################################################
 # MAIN OPTIMIZATION FUNCTION
 ################################################################################
-function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_deptos, vec_ps_opt, vec_np_opt, flag_dfl2, sup_patio_vivienda_economica, superficie_terreno)
+function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_deptos, vec_ps_opt, vec_np_opt, 
+                                flag_dfl2, sup_patio_vivienda_economica, superficie_terreno)
     # Optimizes apartment distribution in a multi-story building to maximize useful area while respecting regulatory constraints.
     
     ############################################################################
@@ -128,9 +129,6 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
     
     # DFL2 eligibility: apartments ≤ 140m² qualify
     dfl2_eligible = [useful_areas[i] <= 140 ? 1 : 0 for i in 1:num_apartment_types]
-
-    # # Calculate total built footprint
-    # total_building_area = sum(basal_areas[i] * vec_np_opt[i] for i in 1:num_stacks)
 
     ############################################################################
     # Optimization Model Setup
@@ -179,37 +177,37 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
     ############################################################################
     # Optimization Constraints
     ############################################################################
-    @constraint(model, sum(apartments_ground_floor) + sum(apartments_per_upper_floor) * regular_floors == max_deptos)
+    @constraint(model, total_apartments_constraint, sum(apartments_ground_floor) + sum(apartments_per_upper_floor) * regular_floors == max_deptos)
 
     # Common area constraints
-    @constraint(model, dfl2_discount <= flag_dfl2 * 0.2 * total_useful_area)
-    @constraint(model, dfl2_discount <= flag_dfl2 * total_common_area)
-    @constraint(model, common_area_ground_floor >= dict_arquitectura["coefSupComunPrimerPiso"] * useful_area_ground_floor)
-    @constraint(model, common_area_upper_floors >= dict_arquitectura["coefSupComunPisosSup"] * useful_area_upper_floors)
-    @constraint(model, total_common_area >= dict_arquitectura["coefSupComun"] * total_useful_area)
-    @constraint(model, total_common_area <= 0.25 * total_useful_area)
+    @constraint(model, dfl2_discount_useful_area_limit, dfl2_discount <= flag_dfl2 * 0.2 * total_useful_area)
+    @constraint(model, dfl2_discount_common_area_limit, dfl2_discount <= flag_dfl2 * total_common_area)
+    @constraint(model, common_area_ground_floor_min, common_area_ground_floor >= dict_arquitectura["coefSupComunPrimerPiso"] * useful_area_ground_floor)
+    @constraint(model, common_area_upper_floors_min, common_area_upper_floors >= dict_arquitectura["coefSupComunPisosSup"] * useful_area_upper_floors)
+    @constraint(model, total_common_area_min, total_common_area >= dict_arquitectura["coefSupComun"] * total_useful_area)
+    @constraint(model, total_common_area_max, total_common_area <= 0.25 * total_useful_area)
 
     # Ground occupation constraints
     if sup_patio_vivienda_economica > 0
         available_ground_area = superficie_terreno - total_apartments * sup_patio_vivienda_economica
-        @constraint(model, common_area_ground_floor + terrace_area_ground_floor + interior_area_ground_floor <= available_ground_area)
-        @constraint(model, common_area_upper_floors + terrace_area_upper_floors + interior_area_upper_floors <= available_ground_area * regular_floors)
+        @constraint(model, ground_floor_area_limit_with_patio, common_area_ground_floor + terrace_area_ground_floor + interior_area_ground_floor <= available_ground_area)
+        @constraint(model, upper_floors_area_limit_with_patio, common_area_upper_floors + terrace_area_upper_floors + interior_area_upper_floors <= available_ground_area * regular_floors)
     else
-        @constraint(model, common_area_ground_floor + terrace_area_ground_floor + interior_area_ground_floor <= basal_areas[1])
-        @constraint(model, common_area_upper_floors + terrace_area_upper_floors + interior_area_upper_floors <= 
+        @constraint(model, ground_floor_area_limit_basal, common_area_ground_floor + terrace_area_ground_floor + interior_area_ground_floor <= basal_areas[1])
+        @constraint(model, upper_floors_area_limit_basal, common_area_upper_floors + terrace_area_upper_floors + interior_area_upper_floors <= 
             sum(basal_areas[k] * (k==1 ? vec_np_opt[k]-1 : vec_np_opt[k]) for k=1:num_stacks))
     end
 
     # Buildability constraint
-    @constraint(model, total_useful_area + total_common_area - dfl2_discount <= max_constructibilidad)
+    @constraint(model, buildability_limit, total_useful_area + total_common_area - dfl2_discount <= max_constructibilidad)
     
     # Total area balance
-    @constraint(model, unused_area + total_common_area + total_terrace_area + total_interior_area == 
+    @constraint(model, total_area_balance, unused_area + total_common_area + total_terrace_area + total_interior_area == 
         sum(basal_areas[k] * vec_np_opt[k] for k=1:num_stacks))
 
     # DFL2 apartment type restrictions
     if flag_dfl2 || (sup_patio_vivienda_economica > 0)
-        @constraint(model, [u=1:num_apartment_types], 
+        @constraint(model, dfl2_apartment_type_restriction[u=1:num_apartment_types], 
             apartments_ground_floor[u] + apartments_per_upper_floor[u] * regular_floors <= dfl2_eligible[u] * max_deptos)
     end
 
