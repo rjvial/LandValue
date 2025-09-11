@@ -1,3 +1,7 @@
+################################################################################
+#  HELPER FUNCTIONS
+################################################################################
+
 function plot_building_floors(vec_ps, vec_np, alturaPiso, color, alpha, fig, ax, ax_mat, is_underground=false)
     cum_floors = 0
     for i in eachindex(vec_ps)
@@ -38,6 +42,10 @@ function get_shadows_if_available(ps_pre_p, ps_pre_o, ps_pre_s, fallback_func, a
     end
 end
 
+################################################################################
+#  MAIN PLOTTING FUNCTION (WITH CALCULATION)
+################################################################################
+
 function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, 
                             vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, tipo_edificio, ps_publico, ps_calles)
     fig = nothing; ax = nothing; ax_mat = nothing
@@ -77,6 +85,10 @@ function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVo
     return fig, ax, ax_mat
 end
 
+################################################################################
+#  MAIN PLOTTING FUNCTION (WITH PRE-CALCULATED SHADOWS)
+################################################################################
+
 function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, 
                             vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, tipo_edificio, 
                             ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s, 
@@ -115,6 +127,10 @@ function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVo
 
     return fig, ax, ax_mat
 end
+
+################################################################################
+#  CONVENIENCE WRAPPER (WITH DICTIONARY)
+################################################################################
 
 function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, dict_resultado)
     ps_sombraVolTeorico_p = get(dict_resultado, "ps_sombraVolTeorico_p", nothing)

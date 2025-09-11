@@ -14,7 +14,7 @@ function process_optimization_results(model,
     ############################################################################
     if termination_status(model) != MOI.OPTIMAL
         @warn "Optimization did not find optimal solution. Status: $(termination_status(model))"
-        return OrderedDict(
+        results = OrderedDict(
             "supUtil" => 0.0,
             "supUtilPrimerPiso" => 0.0,
             "supUtilPisosSup" => 0.0,
@@ -32,70 +32,73 @@ function process_optimization_results(model,
             "numDeptosTipo" => Int[],
             "numDeptos" => 0
         )
-    end
-    
-    ############################################################################
-    # Extract Optimization Values
-    ############################################################################
-    results = OrderedDict(
-        "supUtil" => value(total_useful_area),
-        "supUtilPrimerPiso" => value(useful_area_ground_floor),
-        "supUtilPisosSup" => value(useful_area_upper_floors),
-        "supComun" => value(total_common_area),
-        "supComunPrimerPiso" => value(common_area_ground_floor),
-        "supComunPisosSup" => value(common_area_upper_floors),
-        "supTerraza" => value(total_terrace_area),
-        "supTerrazaPrimerPiso" => value(terrace_area_ground_floor),
-        "supTerrazaPisosSup" => value(terrace_area_upper_floors),
-        "supInterior" => value(total_interior_area),
-        "supInteriorPrimerPiso" => value(interior_area_ground_floor),
-        "supInteriorPisosSup" => value(interior_area_upper_floors),
-        "descuento_dfl2" => value(dfl2_discount),
-        "supNoUtilizada" => value(unused_area),
-        "numDeptosTipo" => [value(apartments_ground_floor[u]) + value(apartments_per_upper_floor[u]) * regular_floors for u in axes(apartments_ground_floor, 1)],
-        "numDeptos" => value(total_apartments)
-    )
-    
-    ############################################################################
-    # Display Results Summary
-    ############################################################################
-    println("\n=== Optimization Results Summary ===")
-    println("Ground Floor | Upper Floors | Total")
-    println("-" ^ 40)
-    
-    areas = [
-        ("Common", "supComunPrimerPiso", "supComunPisosSup", "supComun"),
-        ("Terrace", "supTerrazaPrimerPiso", "supTerrazaPisosSup", "supTerraza"),
-        ("Interior", "supInteriorPrimerPiso", "supInteriorPisosSup", "supInterior")
-    ]
-    
-    # Calculate column totals
-    ground_floor_total = 0.0
-    upper_floors_total = 0.0
-    grand_total = 0.0
-    
-    # Display each row with totals
-    for (name, ground_key, upper_key, total_key) in areas
-        ground_val = round(results[ground_key], digits=1)
-        upper_val = round(results[upper_key], digits=1)
-        total_val = round(results[total_key], digits=1)
+
+    else
+
+        ############################################################################
+        # Extract Optimization Values
+        ############################################################################
+        results = OrderedDict(
+            "supUtil" => value(total_useful_area),
+            "supUtilPrimerPiso" => value(useful_area_ground_floor),
+            "supUtilPisosSup" => value(useful_area_upper_floors),
+            "supComun" => value(total_common_area),
+            "supComunPrimerPiso" => value(common_area_ground_floor),
+            "supComunPisosSup" => value(common_area_upper_floors),
+            "supTerraza" => value(total_terrace_area),
+            "supTerrazaPrimerPiso" => value(terrace_area_ground_floor),
+            "supTerrazaPisosSup" => value(terrace_area_upper_floors),
+            "supInterior" => value(total_interior_area),
+            "supInteriorPrimerPiso" => value(interior_area_ground_floor),
+            "supInteriorPisosSup" => value(interior_area_upper_floors),
+            "descuento_dfl2" => value(dfl2_discount),
+            "supNoUtilizada" => value(unused_area),
+            "numDeptosTipo" => [value(apartments_ground_floor[u]) + value(apartments_per_upper_floor[u]) * regular_floors for u in axes(apartments_ground_floor, 1)],
+            "numDeptos" => value(total_apartments)
+        )
         
-        ground_floor_total += ground_val
-        upper_floors_total += upper_val
-        grand_total += total_val
+        ############################################################################
+        # Display Results Summary
+        ############################################################################
+        println("\n=== Optimization Results Summary ===")
+        println("Ground Floor | Upper Floors | Total")
+        println("-" ^ 40)
         
-        println("$(rpad(name, 8)) = $(rpad(ground_val, 11)) | $(rpad(upper_val, 12)) | $(total_val)")
+        areas = [
+            ("Common", "supComunPrimerPiso", "supComunPisosSup", "supComun"),
+            ("Terrace", "supTerrazaPrimerPiso", "supTerrazaPisosSup", "supTerraza"),
+            ("Interior", "supInteriorPrimerPiso", "supInteriorPisosSup", "supInterior")
+        ]
+        
+        # Calculate column totals
+        ground_floor_total = 0.0
+        upper_floors_total = 0.0
+        grand_total = 0.0
+        
+        # Display each row with totals
+        for (name, ground_key, upper_key, total_key) in areas
+            ground_val = round(results[ground_key], digits=1)
+            upper_val = round(results[upper_key], digits=1)
+            total_val = round(results[total_key], digits=1)
+            
+            ground_floor_total += ground_val
+            upper_floors_total += upper_val
+            grand_total += total_val
+            
+            println("$(rpad(name, 8)) = $(rpad(ground_val, 11)) | $(rpad(upper_val, 12)) | $(total_val)")
+        end
+        
+        # Display column totals
+        println("-" ^ 40)
+        println("$(rpad("TOTALS", 8)) = $(rpad(round(ground_floor_total, digits=1), 11)) | $(rpad(round(upper_floors_total, digits=1), 12)) | $(round(grand_total, digits=1))")
+        
+        println("-" ^ 40)
+        println("Total Useful Area: $(round(results["supUtil"], digits=1)) m²")
+        println("Total Apartments: $(round(Int, results["numDeptos"]))")
+        println("Apartments by type: $(results["numDeptosTipo"])")
+        println("=" ^ 40)
+
     end
-    
-    # Display column totals
-    println("-" ^ 40)
-    println("$(rpad("TOTALS", 8)) = $(rpad(round(ground_floor_total, digits=1), 11)) | $(rpad(round(upper_floors_total, digits=1), 12)) | $(round(grand_total, digits=1))")
-    
-    println("-" ^ 40)
-    println("Total Useful Area: $(round(results["supUtil"], digits=1)) m²")
-    println("Total Apartments: $(round(Int, results["numDeptos"]))")
-    println("Apartments by type: $(results["numDeptosTipo"])")
-    println("=" ^ 40)
     
     return results
 end
