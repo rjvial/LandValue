@@ -31,7 +31,11 @@ function calculate_buildable_area(dict_geom, dict_requerimientos, dict_arquitect
     vec_dist .= -dict_requerimientos["antejardin"]
     vec_dist[dict_geom["vecSecSinCalle"]] .= -sepVecinos
 
-    return polyShape.partialPolyOffset(dict_geom["ps_combi"], dict_geom["vecSecTodos"], vec_dist)
+    ps = deepcopy(dict_geom["ps_combi"])
+    vec_partial_offset_id = dict_geom["vecSecTodos"]
+    vec_partial_offset_dist = vec_dist
+
+    return polyShape.partialPolyOffset(ps, vec_partial_offset_id, vec_partial_offset_dist)
 end
 
 function calculate_theoretical_volumes(ps_bruto, ps_areaEdif, alturaMax, rasante)
