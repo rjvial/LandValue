@@ -21,7 +21,7 @@ function obtieneCalles(calles_data, ps_combi_, dx, dy)
     # ============================================================================ 
     vec_edges_combi, _ = polyShape.shape2vector(ps_combi_)
 
-    vec_combi_calle_intersect_ = [polyGdal.shapeIntersect(polyGdal.shapeBuffer(ps_calles_combi, .4, 0), vec_edges_combi[i]) for i in eachindex(vec_edges_combi)]
+    vec_combi_calle_intersect_ = [polyGdal.shapeIntersect(polyClipper.polyOffset(ps_calles_combi, .4), vec_edges_combi[i]) for i in eachindex(vec_edges_combi)]
     vec_combi_calle_intersect = Vector{LineShape}()
     for j in eachindex(vec_combi_calle_intersect_)
         if !isempty(vec_combi_calle_intersect_[j].Vertices) && 
@@ -52,30 +52,8 @@ function obtieneCalles(calles_data, ps_combi_, dx, dy)
     # ============================================================================
     vecAnchoCalle = fill(10., length(vecSecConCalle))
     for i in eachindex(vecSecConCalle)
-        ps_calle_lado_i = polyShape.polyIntersection(ps_calles, polyShape.partialPolyOffset(ps_combi_, [vecSecConCalle[i]], [30]))
-
-        ancho_i = 10
-        delta = .25
-        ps_box_ant = polyShape.line2Box(vec_combi_calle_intersect[vecSecConCalle[i]], ancho_i)
-        area_box_ant = polyGdal.shapeArea(ps_box_ant)
-        ps_inter_ant = polyShape.polyIntersection(ps_calles_combi, ps_box_ant)
-        area_inter_ant = polyGdal.shapeArea(ps_inter_ant)
-        for k = 1:Int(50/delta)
-            ancho_i += delta
-            ps_box = polyShape.line2Box(vec_combi_calle_intersect[vecSecConCalle[i]], ancho_i)
-            area_box = polyGdal.shapeArea(ps_box)
-            ps_inter = polyShape.polyIntersection(ps_calles_combi, ps_box)
-            area_inter = polyGdal.shapeArea(ps_inter)
-            delta_box = area_box - area_box_ant
-            delta_inter = area_inter - area_inter_ant
-            if delta_inter / delta_box < .8 
-                break
-            else
-                area_box_ant = area_box
-                area_inter_ant = area_inter
-            end
-        end
-        vecAnchoCalle[i] = ancho_i
+        ps_box_i = polyShape.line2Box(vec_combi_calle_intersect[vecSecConCalle[i]], 40)
+        vecAnchoCalle[i] = polyShape.polyAverageHeight(ps_calles, ps_box_i, 1.)
     end
 
     # ============================================================================

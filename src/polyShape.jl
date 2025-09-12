@@ -2409,6 +2409,55 @@ function lines2Polygons(ls::LineShape, width::Real)::PolyShape
     return PolyShape(all_vertices, length(all_vertices))
 end
 
+function polyAverageHeight(ps::PolyShape, box::PolyShape, tolerance::Float64=1e-6)::Float64
+    intersection = polyShape.polyIntersection(ps, box)
+    
+    if intersection.NumRegions == 0 || isempty(intersection.Vertices)
+        return 0.0
+    end
+    
+    box_vertices = box.Vertices[1]
+    v1 = box_vertices[1, :]
+    v2 = box_vertices[2, :]
+    
+    edge_vector = v2 - v1
+    edge_length = sqrt(sum(edge_vector.^2))
+    
+    if edge_length == 0
+        return 0.0
+    end
+    
+    edge_unit = edge_vector / edge_length
+    perpendicular_unit = [-edge_unit[2], edge_unit[1]]
+    
+    total_height = 0.0
+    valid_points = 0
+    
+    for vertices in intersection.Vertices
+        for i in axes(vertices, 1)
+            point = vertices[i, :]
+            relative_pos = point - v1
+            
+            projection_scalar = dot(relative_pos, edge_unit)
+            
+            if projection_scalar < 0 || projection_scalar > edge_length
+                continue
+            end
+            
+            height = abs(dot(relative_pos, perpendicular_unit))
+            
+            if height < tolerance
+                continue
+            end
+            
+            total_height += height
+            valid_points += 1
+        end
+    end
+    
+    return valid_points > 0 ? total_height / valid_points : 0.0
+end
+
 
 export isPolyConvex, isPolyInPoly,  
     polyArea, polyDifference, polyOrientation, polyUnion, polyIntersection, polyIntersects, polyOffset,  
@@ -2424,5 +2473,5 @@ export isPolyConvex, isPolyInPoly,
     perpendicularLine, line2Box, lines2Polygons, poly2Constraints, constraints2poly, rotate_to_first_ccw,
     calculateDistance, cleanPolygon, shape2vector, transformLine, polySimplify,
     ajusteCoordenadasInversa, shape_32719to4326, shape_4326to32719, polyshape2wkt, dividePoly,
-    polyHasnan
+    polyHasnan, polyAverageHeight
 end
