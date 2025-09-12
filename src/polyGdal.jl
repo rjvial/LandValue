@@ -209,7 +209,7 @@ function shapeDifference(shape1::PosDimGeom, shape2::PosDimGeom)::PosDimGeom
 end
 
 
-function shapeIntersect(shape1::PosDimGeom, shape2::PosDimGeom)::GeomObject
+function shapeIntersect(shape1::GeomObject, shape2::GeomObject)::GeomObject
     geom1 = polyGdal.shape2geom(shape1)
     geom2 = polyGdal.shape2geom(shape2)
     geom_out = ArchGDAL.intersection(geom1, geom2)

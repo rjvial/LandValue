@@ -52,7 +52,8 @@ function obtieneCalles(calles_data, ps_combi_, dx, dy)
     # ============================================================================
     vecAnchoCalle = fill(10., length(vecSecConCalle))
     for i in eachindex(vecSecConCalle)
-        ps_box_i = polyShape.line2Box(vec_combi_calle_intersect[vecSecConCalle[i]], 40)
+        x_line_i = polyShape.transformLine(vec_combi_calle_intersect[vecSecConCalle[i]], :extend, -2.0)
+        ps_box_i = polyShape.line2Box(x_line_i, 40)
         vecAnchoCalle[i] = polyShape.polyHeight(ps_calles, ps_box_i, :minimum, 1.)
     end
 

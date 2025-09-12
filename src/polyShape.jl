@@ -2417,88 +2417,79 @@ function lines2Polygons(ls::LineShape, width::Real)::PolyShape
 end
 
 function polyHeight(ps::PolyShape, box::PolyShape, method::Symbol=:average, tolerance::Float64=1e-6)::Float64
-    intersection = polyShape.polyIntersection(ps, box)
-    
-    if intersection.NumRegions == 0 || isempty(intersection.Vertices)
-        return 0.0
-    end
-    
-    box_vertices = box.Vertices[1]
-    v1 = box_vertices[1, :]
-    v2 = box_vertices[2, :]
-    
-    edge_vector = v2 - v1
-    edge_length = sqrt(sum(edge_vector.^2))
-    
-    if edge_length == 0
-        return 0.0
-    end
-    
-    edge_unit = edge_vector / edge_length
-    perpendicular_unit = [-edge_unit[2], edge_unit[1]]
-    
-    heights = Float64[]
-    
-    for vertices in intersection.Vertices
-        for i in axes(vertices, 1)
-            point = vertices[i, :]
-            relative_pos = point - v1
-            
-            projection_scalar = dot(relative_pos, edge_unit)
-            
-            if projection_scalar < 0 || projection_scalar > edge_length
-                continue
-            end
-            
-            height = abs(dot(relative_pos, perpendicular_unit))
-            
-            if height >= tolerance
-                push!(heights, height)
-            end
+
+    edge_points = polyShape.sampleEdgePoints(ps, 5.)
+
+    intersected_points = polyGdal.shapeIntersect(edge_points, box)
+    num_points = intersected_points.NumPoints
+
+    box_edges, _ = polyShape.shape2vector(box)
+    base_edge = box_edges[1]
+    base_line = polyShape.transformLine(base_edge, :extend, 30.0)
+
+    vec_dist = []
+    for i = 1:num_points
+        p_i = polyShape.subShape(intersected_points, i)
+        d_i = polyShape.calculateDistance(base_line, p_i)
+        if d_i > 5
+            push!(vec_dist, d_i)
         end
     end
-    
-    if isempty(heights)
-        return 0.0
-    end
-    
-    # Remove max and min values if we have more than 2 points
-    if length(heights) > 2
-        min_val = minimum(heights)
-        max_val = maximum(heights)
-        
-        # Remove one instance of min and max values
-        filtered_heights = copy(heights)
-        min_idx = findfirst(x -> x == min_val, filtered_heights)
-        if min_idx !== nothing
-            deleteat!(filtered_heights, min_idx)
-        end
-        max_idx = findfirst(x -> x == max_val, filtered_heights)
-        if max_idx !== nothing
-            deleteat!(filtered_heights, max_idx)
-        end
-        
-        heights = filtered_heights
-    end
-    
-    if isempty(heights)
-        return 0.0
-    end
-    
+
+
     if method == :average
-        return sum(heights) / length(heights)
+        return sum(vec_dist) / length(vec_dist)
     elseif method == :maximum
-        return maximum(heights)
+        return maximum(vec_dist)
     elseif method == :minimum
-        return minimum(heights)
+        return minimum(vec_dist)
     else
         throw(ArgumentError("Invalid method: $method. Use :average, :maximum, or :minimum"))
     end
 end
 
-function polyAverageHeight(ps::PolyShape, box::PolyShape, tolerance::Float64=1e-6)::Float64
-    return polyHeight(ps, box, :average, tolerance)
+function sampleEdgePoints(ps::PolyShape, sample_distance::Float64=1.0)::PointShape
+    if ps.NumRegions == 0 || isempty(ps.Vertices)
+        return PointShape(zeros(Float64, 0, 2), 0)
+    end
+    
+    all_points = Matrix{Float64}(undef, 0, 2)
+    
+    for vertices in ps.Vertices
+        n_vertices = size(vertices, 1)
+        if n_vertices < 3
+            continue
+        end
+        
+        for i in 1:n_vertices
+            p1 = vertices[i, :]
+            p2 = vertices[i % n_vertices + 1, :]
+            
+            edge_vec = p2 - p1
+            edge_len = sqrt(sum(edge_vec.^2))
+            
+            if edge_len < sample_distance / 10
+                continue
+            end
+            
+            num_samples = max(1, round(Int, edge_len / sample_distance))
+            
+            for j in 0:num_samples-1
+                t = j / num_samples
+                sample_point = p1 + t * edge_vec
+                all_points = vcat(all_points, sample_point')
+            end
+        end
+    end
+    
+    if size(all_points, 1) == 0
+        return PointShape(zeros(Float64, 0, 2), 0)
+    end
+    
+    return PointShape(all_points, size(all_points, 1))
 end
+
+
 
 
 export isPolyConvex, isPolyInPoly,  
@@ -2515,5 +2506,5 @@ export isPolyConvex, isPolyInPoly,
     perpendicularLine, line2Box, lines2Polygons, poly2Constraints, constraints2poly, rotate_to_first_ccw,
     calculateDistance, cleanPolygon, shape2vector, transformLine, polySimplify,
     ajusteCoordenadasInversa, shape_32719to4326, shape_4326to32719, polyshape2wkt, dividePoly,
-    polyHasnan, polyAverageHeight
+    polyHasnan, sampleEdgePoints
 end
