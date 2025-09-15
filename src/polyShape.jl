@@ -14,7 +14,6 @@ using LandValue, ArchGDAL, LazySets, DataFrames, LinearAlgebra, Proj, Combinator
 # - polyOrientation: Determine if polygon vertices are oriented clockwise or counterclockwise
 # - polyArea: Calculate the total area of a polygon or areas of individual regions
 # - isPolyConvex: Check if a polygon is convex (no interior angles > 180°)
-# - isPolyInPoly: Test if one polygon is completely contained within another
 #
 # Shape Construction
 # - polyBox: Create rectangular polygon from position, dimensions, and rotation angle
@@ -60,8 +59,6 @@ using LandValue, ArchGDAL, LazySets, DataFrames, LinearAlgebra, Proj, Combinator
 # - midPointSegment: Find midpoint(s) of line segment(s)
 #
 # Construction & Conversion
-# - points2Line: Create line segment from two point shapes
-# - points2Poly: Create polygon from sequence of point shapes
 # - lineVec2polyShape: Convert vector of connected line segments to polygon
 # - shape2vector: Break polygon into vector of individual edge line segments
 # - polyshape2wkt: Convert polygon to Well-Known Text string format
@@ -615,16 +612,6 @@ function isPolyConvex(ps::PolyShape)::Bool
         isConvexVec[j] = checkConvex(V_j)
     end
     return isConvexVec
-end
-
-
-function isPolyInPoly(ps_s::PolyShape, ps::PolyShape)::Bool
-    ps_r = polyDifference(ps_s, ps)
-    if polyShape.polyArea(ps_r) < 0.01
-        return true
-    else
-        return false
-    end
 end
 
 
@@ -1313,27 +1300,6 @@ function midPointSegment(edge::LineShape)::PointShape
     end
     p_out = PointShape(V_out, num_lines)
     return p_out
-end
-
-
-function points2Line(p1::PointShape, p2::PointShape)::LineShape
-    V1 = p1.Vertices[:]'
-    V2 = p2.Vertices[:]'
-    l = LineShape([[V1; V2]], 1)
-    return l
-end
-
-
-function points2Poly(p::PointShape...)
-    num_points = length(p)
-    V = [0 0]
-    for i = 1:num_points
-        V_i = p[i].Vertices[:]
-        V = [V; V_i[:]']
-    end
-    V = V[2:end, :]
-    ps = PolyShape([V], 1)
-    return ps
 end
 
 
@@ -2033,8 +1999,7 @@ end
 
 
 
-
-export isPolyConvex, isPolyInPoly,  
+export isPolyConvex, 
     polyArea, polyDifference, polyOrientation, polyUnion, polyIntersection, polyIntersects, polyOffset,  
     polyEliminaColineales, subShape, shapeVertex, numVertices,
     polyBox, polyRotate, polyReverse, setPolyOrientation,
@@ -2043,7 +2008,7 @@ export isPolyConvex, isPolyInPoly,
     lineVec2polyShape,
     ajustaCoordenadas, polyBoxFromEdge,
     createLine, convHull, midPointSegment,
-    points2Line, points2Poly, lineLength, isLineLineParallel,
+    lineLength, isLineLineParallel,
     partialPolyOffset, 
     line2Box, lines2Polygons, poly2Constraints, constraints2poly, rotate_to_first_ccw,
     calculateDistance, shape2vector, transformLine, polySimplify,
