@@ -1,5 +1,25 @@
 function generaSombraTeor(vec_psVolteor, vec_altVolteor, ps_publico, ps_calles_contexto)
 
+    function projectBuildingShadow(ps, alt, orientacion)
+        num_regions = ps.NumRegions
+        V = []
+        for k = 1:num_regions
+            V_k = ps.Vertices[k]
+            num_verts_k = size(V_k, 1)
+            if orientacion == "p"
+                V_k_ = [V_k[:, 1] - ones(num_verts_k, 1) * alt / 0.49 V_k[:, 2]]
+            elseif orientacion == "o"
+                V_k_ = [V_k[:, 1] + ones(num_verts_k, 1) * alt / 0.49 V_k[:, 2]]
+            else
+                V_k_ = [V_k[:, 1] V_k[:, 2] - ones(num_verts_k, 1) * alt / 1.54]
+            end
+            push!(V, V_k_)
+        end
+
+        return PolyShape(V, length(V))
+
+    end
+
     num_alturas = length(vec_altVolteor)
 
     ps_sombraVolTeorico_p = []
@@ -9,9 +29,9 @@ function generaSombraTeor(vec_psVolteor, vec_altVolteor, ps_publico, ps_calles_c
 
         ps_Volteor_k = vec_psVolteor[k]
 
-        ps_sombra_p_k = polyShape.projectBuildingShadow(ps_Volteor_k, vec_altVolteor[k], "p")
-        ps_sombra_o_k = polyShape.projectBuildingShadow(ps_Volteor_k, vec_altVolteor[k], "o")
-        ps_sombra_s_k = polyShape.projectBuildingShadow(ps_Volteor_k, vec_altVolteor[k], "s")
+        ps_sombra_p_k = projectBuildingShadow(ps_Volteor_k, vec_altVolteor[k], "p")
+        ps_sombra_o_k = projectBuildingShadow(ps_Volteor_k, vec_altVolteor[k], "o")
+        ps_sombra_s_k = projectBuildingShadow(ps_Volteor_k, vec_altVolteor[k], "s")
 
         if k == 1
             ps_sombraVolTeorico_p = deepcopy(ps_sombra_p_k)

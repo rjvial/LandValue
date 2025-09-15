@@ -9,14 +9,12 @@ using LandValue, ArchGDAL, LazySets, DataFrames, LinearAlgebra, Proj, Combinator
 # - polyUnion: Merge multiple polygon regions into a single unified polygon
 # - polyDifference: Subtract one polygon from another (boolean difference operation)
 # - polyIntersection: Find the overlapping area between two polygons
-# - polyShrink: Reduce polygon size while maintaining proportional shape using offset ratio
 #
 # Polygon Analysis
 # - polyOrientation: Determine if polygon vertices are oriented clockwise or counterclockwise
 # - polyArea: Calculate the total area of a polygon or areas of individual regions
 # - isPolyConvex: Check if a polygon is convex (no interior angles > 180°)
 # - isPolyInPoly: Test if one polygon is completely contained within another
-# - minPolyDistance: Find minimum distance between vertices of two polygons
 #
 # Shape Construction
 # - polyBox: Create rectangular polygon from position, dimensions, and rotation angle
@@ -35,7 +33,6 @@ using LandValue, ArchGDAL, LazySets, DataFrames, LinearAlgebra, Proj, Combinator
 # - subShape: Extract specific region(s) from multi-region polygon
 # - shapeVertex: Extract specific vertex or all vertices from shape as points
 # - numVertices: Count number of vertices in a polygon region
-# - minBoundingBox: Find minimum area bounding rectangle for polygon
 #
 # Line Operations
 # - lineAngle: Calculate angle(s) of line segments in radians
@@ -48,8 +45,6 @@ using LandValue, ArchGDAL, LazySets, DataFrames, LinearAlgebra, Proj, Combinator
 # Advanced Geometry
 # - partialPolyOffset: Create polygon with selective edge offsetting by specified distances
 # - polyEliminaColineales: Remove collinear vertices to simplify polygon shape
-# - findpolyIntersectionion: Find all intersection points between two polygon boundaries
-# - cleanPolygon: Remove duplicate or contained regions from multi-region polygons
 #
 # Coordinate Systems
 # - ajustaCoordenadas: Translate polygon coordinates by subtracting minimum x,y values
@@ -60,14 +55,9 @@ using LandValue, ArchGDAL, LazySets, DataFrames, LinearAlgebra, Proj, Combinator
 # Distance & Position
 # - calculateDistance: Compute distance between lines, points, or line-to-point
 # - halfspaceSignOfPointToLine: Determine which side of line a point lies on
-# - point2lineProjection: Project point onto line segment (closest point)
-# - perpendicularLine: Create perpendicular line from point at specified distance
 #
 # Complex Analysis
-# - bisector_direction: Calculate angle bisector direction between two line segments
-# - angleBetweenLines: Compute angle between two line segments
 # - midPointSegment: Find midpoint(s) of line segment(s)
-# - alphaPointSegment: Get point at parameter α along line segment (0=start, 1=end)
 #
 # Construction & Conversion
 # - points2Line: Create line segment from two point shapes
@@ -77,12 +67,8 @@ using LandValue, ArchGDAL, LazySets, DataFrames, LinearAlgebra, Proj, Combinator
 # - polyshape2wkt: Convert polygon to Well-Known Text string format
 #
 # Specialized Operations
-# - replaceShapeVertex: Replace specific vertex in shape with new point location
 # - reversePath: Reverse order of vertices in coordinate array
 # - intersectTwoEdges: Find intersection between two line segment edges
-# - polyObtieneCruces: Detect self-intersections in polygon boundaries
-# - projectBuildingShadow: Project building shadow based on height and sun orientation
-# - angleMaxDistRect: Find optimal rectangle orientation for maximum distance
 # - extendRectToIntersection: Extend rectangle until it intersects with polygon
 # - poly2Constraints: Convert convex polygon to linear inequality constraints
 # - constraints2poly: Convert linear constraints back to polygon representation
@@ -333,26 +319,6 @@ function polyIntersects(pt1::PointShape, pt2::PointShape, detailed::Bool)::Tuple
     end
     
     return (overall_intersects, intersection_matrix)
-end
-
-
-function polyShrink(ps_base_, ratio)
-    ps_base = deepcopy(ps_base_)
-
-    area_target = polyShape.polyArea(ps_base) * ratio
-    ps_actual = polyShape.polyCopy(ps_base)
-    area_actual = polyShape.polyArea(ps_actual)
-    delta = -0.01
-    while true
-        p = abs((area_actual - area_target) / area_target)
-        delta = -0.1 * p
-        if p <= 0.00001
-            return ps_actual
-        else
-            ps_actual = polyClipper.polyOffset(ps_actual, delta)
-            area_actual = polyShape.polyArea(ps_actual)
-        end
-    end
 end
 
 
@@ -812,31 +778,6 @@ function reversePath(V::Array{Float64,2})::Array{Float64,2}
 end
 
 
-function minPolyDistance(ps1::PolyShape, ps2::PolyShape)
-    numVertices_1 = polyShape.numVertices(ps1, 1)
-    numVertices_2 = polyShape.numVertices(ps2, 1)
-    V1 = ps1.Vertices[1]
-    V2 = ps2.Vertices[1]
-    dist_min = 100000
-    id1_min = 0
-    id2_min = 0
-    for i = 1:numVertices_1
-        p1_i = V1[i, :]
-        for j = 1:numVertices_2
-            p2_j = V2[j, :]
-            dist_ij = sqrt((p1_i[1] - p2_j[1])^2 + (p1_i[2] - p2_j[2])^2)
-            if dist_ij < dist_min
-                dist_min = dist_ij
-                id1_min = i
-                id2_min = j
-            end
-        end
-    end
-
-    return dist_min, id1_min, id2_min
-end
-
-
 function polyCopy(ps::PolyShape)::PolyShape
     ps_out = deepcopy(ps)
     return ps_out
@@ -848,50 +789,6 @@ end
 function polyCopy(p::PointShape)::PointShape
     p_out = deepcopy(p)
     return p_out
-end
-
-
-function cleanPolygon(ps_::PolyShape, method::Symbol)::PolyShape
-    ps = polyCopy(ps_)
-    numRegions = ps.NumRegions
-    V = copy(ps.Vertices)
-    
-    if method == :duplicates
-        for i = 1:numRegions-1
-            ps_i = polyShape.subShape(ps, i)
-            area_i = polyShape.polyArea(ps_i)
-            for j = i+1:numRegions
-                ps_j = polyShape.subShape(ps, j)
-                area_j = polyShape.polyArea(ps_j)
-                if abs(area_i - area_j) < 1
-                    ps_dif = polyShape.polyDifference(ps_i, ps_j)
-                    area_dif = polyShape.polyArea(ps_dif)
-                    if area_dif < 1
-                        V[i] = [0.0 0.0]
-                    end
-                end
-            end
-        end
-    elseif method == :contained
-        for i in 1:numRegions
-            ps_i = polyShape.subShape(ps, i)
-            for j in setdiff(1:numRegions, i)
-                ps_j = polyShape.subShape(ps, j)
-                if polyGdal.shapeContains(ps_i, ps_j)
-                    V[j] = [0.0 0.0]
-                end
-            end
-        end
-    end
-    
-    V_out = []
-    for i = 1:numRegions
-        if size(V[i], 1) >= 2
-            V_out = push!(V_out, V[i])
-        end
-    end
-    ps_out = PolyShape(V_out, length(V_out))
-    return ps_out
 end
 
 
@@ -1106,49 +1003,6 @@ function transformLine(l::LineShape, operation::Symbol, params...)::LineShape
 end
 
 
-function findpolyIntersectionion(ps1::PolyShape, ps2::PolyShape)
-    V1 = ps1.Vertices[1]
-    V2 = ps2.Vertices[1]
-    
-    # Close polygons by adding first point at end
-    V1_closed = [V1; V1[1, :]']
-    V2_closed = [V2; V2[1, :]']
-    N1 = size(V1_closed, 1)
-    N2 = size(V2_closed, 1)
-    
-    # Initialize result arrays
-    edge_indices1 = Int64[]
-    edge_indices2 = Int64[]
-    intersection_points = zeros(Float64, 0, 2)
-    
-    # Loop over all edge pairs
-    for n1 = 1:N1-1
-        for n2 = 1:N2-1
-            # Define edges as [x1_start, y1_start, x1_end, y1_end]
-            e1 = [V1_closed[n1, 1], V1_closed[n1, 2], V1_closed[n1+1, 1], V1_closed[n1+1, 2]]
-            e2 = [V2_closed[n2, 1], V2_closed[n2, 2], V2_closed[n2+1, 1], V2_closed[n2+1, 2]]
-            
-            # Calculate intersection using line-line intersection
-            p_int = intersectTwoEdges(e1, e2)
-            
-            # Check if intersection is valid (not NaN)
-            if !isnan(p_int[1]) && !isnan(p_int[2])
-                push!(edge_indices1, n1)
-                push!(edge_indices2, n2)
-                intersection_points = [intersection_points; p_int']
-            end
-        end
-    end
-    
-    # Create PointShape from intersection points
-    if size(intersection_points, 1) > 0
-        p = PointShape(intersection_points, size(intersection_points, 1))
-    else
-        p = PointShape(zeros(Float64, 0, 2), 0)
-    end
-    
-    return edge_indices1, edge_indices2, p
-end
 
 
 function intersectTwoEdges(edge1::Vector{Float64}, edge2::Vector{Float64})::Vector{Float64}
@@ -1279,49 +1133,6 @@ function polyEliminaColineales(ps::PolyShape, tol::Float64=0.001, topoFlag::Bool
 end
 
 
-function polyObtieneCruces(ps::PolyShape)
-
-    V = copy(ps.Vertices[1])
-    N = size(V, 1)
-
-    mat_x = [0 0]
-    V_x = [0 0]
-    for i = 1:N
-        for j = 1:N
-            if (j >= i + 2 && j - i <= N - 2)
-                if i <= N - 1
-                    ki_0 = i
-                    ki_1 = i + 1
-                else
-                    ki_0 = N
-                    ki_1 = 1
-                end
-                if j <= N - 1
-                    kj_0 = j
-                    kj_1 = j + 1
-                else
-                    kj_0 = N
-                    kj_1 = 1
-                end
-
-                li = LineShape([V[[ki_0, ki_1], :]], 1)
-                lj = LineShape([V[[kj_0, kj_1], :]], 1)
-                x_ij = polyGdal.shapeIntersect(li, lj)
-                if typeof(x_ij) == PointShape
-                    mat_x = vcat(mat_x, [ki_0 kj_0])
-                    V_x = vcat(V_x, x_ij.Vertices)
-                end
-            end
-        end
-    end
-
-    mat_x = mat_x[2:end, :]
-    V_x = V_x[2:end, :]
-
-    return mat_x, V_x
-end
-
-
 function ajustaCoordenadas(ps::PolyShape)::Tuple{PolyShape,Float64,Float64}
     dx = 10000000
     dy = 10000000
@@ -1382,93 +1193,6 @@ function ajustaCoordenadas(ls::LineShape, dx::Real, dy::Real)
 end
 
 
-function angleMaxDistRect(pos_x, pos_y, anchoLado, angleSpace, ps, template=0)
-
-    if template == 0
-        # Inicialización
-        max_dist = 0.0
-        angle_max_dist = 0.0
-
-        # Busca angulo para maximizar distancia
-        box_out = PolyShape([], 0)
-        for angle in angleSpace
-            dist, box_out = polyShape.extendRectToIntersection(pos_x, pos_y, anchoLado, angle, ps, "tall")
-            if dist > max_dist
-                max_dist = dist - 1
-                angle_max_dist = angle
-            end
-        end
-
-    elseif template == 1
-        # Inicialización
-        max_dist_1 = 0.0
-        angle_max_dist = 0.0
-
-        for angle in angleSpace
-            dist_1, box_1 = polyShape.extendRectToIntersection(pos_x, pos_y, anchoLado, angle, ps, "fat")
-            dist_2, box_2 = polyShape.extendRectToIntersection(pos_x, pos_y, anchoLado, angle, ps, "tall")
-            footPrint = polyShape.polyUnion(box_1, box_2)
-
-            if dist > max_dist
-                max_dist = dist - 1
-                angle_max_dist = angle
-            end
-        end
-
-    end
-
-    return max_dist, angle_max_dist
-end
-
-
-function extendRectToIntersection(pos_x, pos_y, anchoLado, angle, ps, rectType="tall")
-
-    # Inicialización
-    dist = 0
-    largoIni = 130.0
-    box_out = PolyShape([], 0)
-
-    # Prueba si rectangulo anchLado*1 en pos_x, pos_y con angle se encuentra dentro de ps
-    if rectType == "tall"
-        box = polyShape.polyBox(pos_x, pos_y, anchoLado, 1.0, angle)
-        edge = polyShape.LineShape([box.Vertices[1][[3, 4], :]], 1)
-    elseif rectType == "fat"
-        box = polyShape.polyBox(pos_x, pos_y, 1.0, anchoLado, angle)
-        edge = polyShape.LineShape([box.Vertices[1][[2, 3], :]], 1)
-    end
-    flag = polyShape.isPolyInPoly(box, ps)
-
-    # Extiende lado de rectangulo hasta que intersecta con ps
-    if flag
-        if rectType == "tall"
-            box_ext = polyShape.polyBox(pos_x, pos_y, anchoLado, largoIni, angle)
-        elseif rectType == "fat"
-            box_ext = polyShape.polyBox(pos_x, pos_y, largoIni, anchoLado, angle)
-        end
-        edges1, edges2, p_inter = polyShape.findpolyIntersectionion(box_ext, ps)
-        point_1 = polyShape.subShape(p_inter, 1)
-        dist_1 = polyShape.calculateDistance(edge, point_1)
-        point_2 = polyShape.subShape(p_inter, 2)
-        dist_2 = polyShape.calculateDistance(edge, point_2)
-        buf = 1
-        if dist_1 < dist_2
-            dist = dist_1 + 1 - buf
-        else
-            dist = dist_2 + 1 - buf
-        end
-
-        # Genera rectangulo de máxima distancia
-        if rectType == "tall"
-            box_out = polyShape.polyBox(pos_x, pos_y, anchoLado, Float64(dist), angle)
-        elseif rectType == "fat"
-            box_out = polyShape.polyBox(pos_x, pos_y, Float64(dist), anchoLado, angle)
-        end
-
-    end
-
-    return dist, box_out
-end
-
 # polyBox(pos_x::Real, pos_y::Real, dx::Real, dy::Real=dx, angulo::Real=0.0, cr=[pos_x; pos_y])
 function polyBoxFromEdge(ps::PolyShape, edge_id::Int, extension_length::Real)::PolyShape
     V = ps.Vertices[1]
@@ -1497,77 +1221,6 @@ function polyBoxFromEdge(ps::PolyShape, edge_id::Int, extension_length::Real)::P
     box_out = polyShape.polyBox(pos_x, pos_y, dx, dy, angulo)
 
     return box_out
-end
-
-
-function minBoundingBox(ps::PolyShape)::PolyShape
-    V = ps.Vertices[1]
-    num_vertices = size(V, 1)
-    
-    # Get convex hull first to reduce computation
-    hull_vertices = convHull(V)
-    hull_ps = PolyShape([hull_vertices], 1)
-    
-    min_area = Inf
-    best_box = PolyShape([], 0)
-    
-    # Test each edge of the convex hull as a potential orientation
-    hull_V = hull_vertices
-    num_hull_vertices = size(hull_V, 1)
-    
-    for i = 1:num_hull_vertices
-        # Get edge vector
-        p1 = hull_V[i, :]
-        p2_id = i == num_hull_vertices ? 1 : i + 1
-        p2 = hull_V[p2_id, :]
-        edge_vector = p2 - p1
-        
-        # Calculate rotation angle for this edge to be horizontal
-        edge_angle = atan(edge_vector[2], edge_vector[1])
-        
-        # Rotate the polygon so this edge becomes horizontal
-        centroid = sum(hull_V, dims=1) / num_hull_vertices
-        rotated_ps = polyRotate(hull_ps, -edge_angle, centroid[:])
-        
-        # Get axis-aligned bounding box of rotated polygon
-        rotated_V = rotated_ps.Vertices[1]
-        min_x = minimum(rotated_V[:, 1])
-        max_x = maximum(rotated_V[:, 1])
-        min_y = minimum(rotated_V[:, 2])
-        max_y = maximum(rotated_V[:, 2])
-        
-        # Calculate dimensions
-        width = max_x - min_x
-        height = max_y - min_y
-        area = width * height
-        
-        # Check if this is the minimum area so far
-        if area < min_area
-            min_area = area
-            
-            # Create the bounding box in the rotated space
-            box_rotated = polyBox(min_x, min_y, width, height)
-            
-            # Rotate the box back to original orientation
-            best_box = polyRotate(box_rotated, edge_angle, centroid[:])
-        end
-    end
-    
-    return best_box
-end
-
-
-function replaceShapeVertex(pt::PointShape, id::Int, shape::PosDimGeom)::PosDimGeom
-    V = copy(shape.Vertices[1])
-    v_pt = copy(pt.Vertices[1, :])
-    V[id, :] = v_pt'
-    if typeof(shape) == PolyShape
-        shape_out = PolyShape([V], 1)
-    elseif typeof(shape) == LineShape
-        shape_out = LineShape([V], 1)
-    end
-
-    return shape_out
 end
 
 
@@ -1651,67 +1304,12 @@ function shape2vector(ps::PolyShape)
 end
 
 
-# Calculate the bisector direction for a vertex
-function bisector_direction(edge1::LineShape, edge2::LineShape)::LineShape
-    V1 = edge1.Vertices[1]
-    V2 = edge2.Vertices[1]
-    p1_start = V1[1, :]
-    p1_end = V1[2, :]
-    p2_start = V2[1, :]
-    p2_end = V2[2, :]
-
-    edgeA_direction = ([p1_end[1] - p1_start[1], p1_end[2] - p1_start[2]])
-    edgeA_direction = edgeA_direction ./ sqrt(edgeA_direction[1]^2 + edgeA_direction[2]^2)
-    edgeB_direction = ([p2_end[1] - p2_start[1], p2_end[2] - p2_start[2]])
-    edgeB_direction = edgeB_direction ./ sqrt(edgeB_direction[1]^2 + edgeB_direction[2]^2)
-
-    dir = edgeA_direction + edgeB_direction
-    dir = dir ./ sqrt(dir[1]^2 + dir[2]^2)
-
-    bisector_dir = LineShape([[0 0; dir[1] dir[2]]], 1)
-
-    return bisector_dir
-end
-
-
-# Calculate the angle between two edges 
-function angleBetweenLines(edge1, edge2)
-    V1 = edge1.Vertices[1]
-    V2 = edge2.Vertices[1]
-    p1_start = V1[1, :]
-    p1_end = V1[2, :]
-    p2_start = V2[1, :]
-    p2_end = V2[2, :]
-
-    edgeA_direction = ([p1_end[1] - p1_start[1], p1_end[2] - p1_start[2]])
-    edgeB_direction = ([p2_end[1] - p2_start[1], p2_end[2] - p2_start[2]])
-
-    edgeAB = sum(edgeA_direction .* edgeB_direction)
-    absA = sqrt(edgeA_direction[1]^2 + edgeA_direction[2]^2)
-    absB = sqrt(edgeB_direction[1]^2 + edgeB_direction[2]^2)
-
-    return acos(edgeAB / absA / absB)
-end
-
-
 function midPointSegment(edge::LineShape)::PointShape
     num_lines = edge.NumLines
     V_out = zeros(num_lines, 2)
     for i = 1:num_lines
         V_i = edge.Vertices[i]
         V_out[i, :] = 0.5 * V_i[1, :] + 0.5 * V_i[2, :]
-    end
-    p_out = PointShape(V_out, num_lines)
-    return p_out
-end
-
-
-function alphaPointSegment(edge::LineShape, α)::PointShape
-    num_lines = edge.NumLines
-    V_out = zeros(num_lines, 2)
-    for i = 1:num_lines
-        V_i = edge.Vertices[i]
-        V_out[i, :] = (1 - α) * V_i[1, :] + α * V_i[2, :]
     end
     p_out = PointShape(V_out, num_lines)
     return p_out
@@ -1768,26 +1366,6 @@ function lineLength(l::LineShape)
 end
 
 
-function point2lineProjection(p::PointShape, l::LineShape)
-    start, finish = l.Vertices[1][1, :], l.Vertices[1][2, :]
-    v = finish .- start
-    t = ((p.Vertices[1] - start[1]) * v[1] + (p.Vertices[2] - start[2]) * v[2]) / (v[1]^2 + v[2]^2)
-    t = max(0, min(1, t))
-    return PointShape((start + t * v)', 1)
-end
-
-
-function perpendicularLine(p::PointShape, l::LineShape, d::Real)
-    start, finish = l.Vertices[1][1, :], l.Vertices[1][2, :]
-    v = finish .- start
-    perp_v = [-v[2], v[1]]
-    perp_v_length = sqrt(perp_v[1]^2 + perp_v[2]^2)
-    perp_v_norm = perp_v / perp_v_length
-    end_point = p.Vertices - d * perp_v_norm'
-    return LineShape([vcat(p.Vertices, end_point)], 1)
-end
-
-
 function isLineLineParallel(l1::LineShape, l2::LineShape, tol = 0.015)::Bool
 
     angle1 = polyShape.lineAngle(l1)
@@ -1799,27 +1377,6 @@ function isLineLineParallel(l1::LineShape, l2::LineShape, tol = 0.015)::Bool
     end
 
     return flag
-end
-
-
-function projectBuildingShadow(ps, alt, orientacion)
-    num_regions = ps.NumRegions
-    V = []
-    for k = 1:num_regions
-        V_k = ps.Vertices[k]
-        num_verts_k = size(V_k, 1)
-        if orientacion == "p"
-            V_k_ = [V_k[:, 1] - ones(num_verts_k, 1) * alt / 0.49 V_k[:, 2]]
-        elseif orientacion == "o"
-            V_k_ = [V_k[:, 1] + ones(num_verts_k, 1) * alt / 0.49 V_k[:, 2]]
-        else
-            V_k_ = [V_k[:, 1] V_k[:, 2] - ones(num_verts_k, 1) * alt / 1.54]
-        end
-        push!(V, V_k_)
-    end
-
-    return PolyShape(V, length(V))
-
 end
 
 
@@ -2480,16 +2037,16 @@ end
 export isPolyConvex, isPolyInPoly,  
     polyArea, polyDifference, polyOrientation, polyUnion, polyIntersection, polyIntersects, polyOffset,  
     polyEliminaColineales, subShape, shapeVertex, numVertices,
-    polyBox, polyRotate, polyReverse, setPolyOrientation, minPolyDistance, 
-    polyCopy, intersectLines, findpolyIntersectionion, 
+    polyBox, polyRotate, polyReverse, setPolyOrientation,
+    polyCopy, intersectLines, 
     lineAngle, halfspaceSignOfPointToLine,
-    polyObtieneCruces, replaceShapeVertex, lineVec2polyShape, polyShrink,
-    ajustaCoordenadas, angleMaxDistRect, extendRectToIntersection, polyBoxFromEdge, minBoundingBox,
-    createLine, convHull, bisector_direction, angleBetweenLines, midPointSegment,
-    alphaPointSegment, points2Line, points2Poly, lineLength, isLineLineParallel,
-    projectBuildingShadow, partialPolyOffset, point2lineProjection, 
-    perpendicularLine, line2Box, lines2Polygons, poly2Constraints, constraints2poly, rotate_to_first_ccw,
-    calculateDistance, cleanPolygon, shape2vector, transformLine, polySimplify,
+    lineVec2polyShape,
+    ajustaCoordenadas, polyBoxFromEdge,
+    createLine, convHull, midPointSegment,
+    points2Line, points2Poly, lineLength, isLineLineParallel,
+    partialPolyOffset, 
+    line2Box, lines2Polygons, poly2Constraints, constraints2poly, rotate_to_first_ccw,
+    calculateDistance, shape2vector, transformLine, polySimplify,
     ajusteCoordenadasInversa, shape_32719to4326, shape_4326to32719, polyshape2wkt, dividePoly,
     polyHasnan, sampleEdgePoints
 end
