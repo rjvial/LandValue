@@ -21,7 +21,9 @@ function obtieneCalles(calles_data, ps_combi_, dx, dy)
     # ============================================================================ 
     vec_edges_combi, _ = polyShape.shape2vector(ps_combi_)
 
-    vec_combi_calle_intersect_ = [polyGdal.shapeIntersect(polyClipper.polyOffset(ps_calles_combi, .4), vec_edges_combi[i]) for i in eachindex(vec_edges_combi)]
+    # vec_combi_calle_intersect_ = [polyGdal.shapeIntersect(polyClipper.polyOffset(ps_calles_combi, .4), vec_edges_combi[i]) for i in eachindex(vec_edges_combi)]
+    vec_combi_calle_intersect_ = [polyGdal.shapeIntersect(vec_edges_combi[i], polyClipper.polyOffset(ps_calles_combi, .4)) for i in eachindex(vec_edges_combi)]
+
     vec_combi_calle_intersect = Vector{LineShape}()
     for j in eachindex(vec_combi_calle_intersect_)
         if !isempty(vec_combi_calle_intersect_[j].Vertices) && 
@@ -53,13 +55,15 @@ function obtieneCalles(calles_data, ps_combi_, dx, dy)
     vecAnchoCalle = fill(10., length(vecSecConCalle))
     for i in eachindex(vecSecConCalle)
         x_line_i = polyShape.transformLine(vec_combi_calle_intersect[vecSecConCalle[i]], :extend, -2.0)
-        ps_box_i = polyShape.line2Box(x_line_i, 40)
+        ps_box_i = polyShape.line2Box(x_line_i, 60)
         vecAnchoCalle[i] = polyShape.polyHeight(ps_calles, ps_box_i, :minimum, 1.)
     end
 
     # ============================================================================
     # 4. GEOMETRY GENERATION
     # ============================================================================
+
+
     ps_toda_calle = polyShape.polyDifference(polyShape.partialPolyOffset(ps_combi_, vecSecConCalle, vecAnchoCalle), ps_combi_)
     ps_bruto = polyShape.partialPolyOffset(ps_combi_, vecSecConCalle, vecAnchoCalle./2)
     ps_publico = polyClipper.polyOffset(polyShape.polyUnion(ps_combi_, ps_toda_calle), 0.1)

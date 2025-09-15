@@ -482,38 +482,17 @@ function partialPolyOffset(ps::PolyShape, vec_partial_offset_id::Vector{Int}, ve
             end
         end
  
+        nonIntersecting_offset_lines_2 = nonIntersecting_offset_lines_2[findall(polyShape.lineLength.(nonIntersecting_offset_lines_2) .>= 1)]
         V_aux = [0 0]
         for i in eachindex(nonIntersecting_offset_lines_2)
-            current_side_index = i            
-            prev_side_index = mod1(current_side_index - 1, length(nonIntersecting_offset_lines_2))
+            current_side_index = i
             next_side_index = mod1(current_side_index + 1, length(nonIntersecting_offset_lines_2))
 
-            flag_current = current_side_index in vec_partial_offset_id
-            flag_prev = prev_side_index in vec_partial_offset_id
-            flag_next = next_side_index in vec_partial_offset_id
-            if flag_current && flag_next
-                lin1 = polyShape.transformLine(nonIntersecting_offset_lines_2[current_side_index], :extend, 100)
-                lin2 = polyShape.transformLine(nonIntersecting_offset_lines_2[next_side_index], :extend, 100)
-                intersection_point = polyShape.intersectLines(lin1, lin2)
-                point = intersection_point.Vertices[1, :]'
-                V_aux = [vcat(V_aux[1], point)]
-
-            elseif flag_current && !flag_next
-                point1 = nonIntersecting_offset_lines_2[current_side_index].Vertices[1][2, :]'
-                V_aux = [vcat(V_aux[1], point1)]
-                point2 = nonIntersecting_offset_lines_2[next_side_index].Vertices[1][1, :]'
-                V_aux = [vcat(V_aux[1], point2)]
-
-            elseif !flag_current && flag_next
-                point1 = nonIntersecting_offset_lines_2[current_side_index].Vertices[1][2, :]'
-                V_aux = [vcat(V_aux[1], point1)]
-                point2 = nonIntersecting_offset_lines_2[next_side_index].Vertices[1][1, :]'
-                V_aux = [vcat(V_aux[1], point2)]
-
-            elseif !flag_current && !flag_next
-                point1 = nonIntersecting_offset_lines_2[current_side_index].Vertices[1][2, :]'
-                V_aux = [vcat(V_aux[1], point1)]
-            end
+            lin1 = polyShape.transformLine(nonIntersecting_offset_lines_2[current_side_index], :extend, 100)
+            lin2 = polyShape.transformLine(nonIntersecting_offset_lines_2[next_side_index], :extend, 100)
+            intersection_point = polyShape.intersectLines(lin1, lin2)
+            point = intersection_point.Vertices[1, :]'
+            V_aux = [vcat(V_aux[1], point)]
         end
         V_aux = V_aux[1][2:end,:]
         ps_out = polyShape.polySimplify(PolyShape([V_aux], 1), 0.1)
@@ -2418,14 +2397,14 @@ end
 
 function polyHeight(ps::PolyShape, box::PolyShape, method::Symbol=:average, tolerance::Float64=1e-6)::Float64
 
-    edge_points = polyShape.sampleEdgePoints(ps, 5.)
+    edge_points = polyShape.sampleEdgePoints(ps, 1.)
 
     intersected_points = polyGdal.shapeIntersect(edge_points, box)
     num_points = intersected_points.NumPoints
 
     box_edges, _ = polyShape.shape2vector(box)
     base_edge = box_edges[1]
-    base_line = polyShape.transformLine(base_edge, :extend, 30.0)
+    base_line = polyShape.transformLine(base_edge, :extend, 60.0)
 
     vec_dist = []
     for i = 1:num_points
@@ -2435,7 +2414,6 @@ function polyHeight(ps::PolyShape, box::PolyShape, method::Symbol=:average, tole
             push!(vec_dist, d_i)
         end
     end
-
 
     if method == :average
         return sum(vec_dist) / length(vec_dist)
