@@ -34,7 +34,7 @@ ORDER BY id_instancia ASC
 df_instancias = pg_julia.query(conn_postgres, query_pg)
 
 ########### partialPolyOffset No esta funcionando bien: prbar con 13132011001009_24
-# row = df_instancias[df_instancias.id_combi .== "13132011001009_24",:]
+# row = df_instancias[df_instancias.id_combi .== "13132011002005_19",:]
 for row in eachrow(df_instancias)
     id_combi = row.id_combi
 
