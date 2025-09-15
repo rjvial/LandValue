@@ -110,7 +110,7 @@ end
 # SHADOW-CONSTRAINED OPTIMIZATION ENGINE
 # ============================================================================
 function optimize_with_shadow_constraints(vec_psVolConSombra, vec_altVolConSombra, shadow_data, floors, 
-                                        dict_arquitectura, dict_geom, max_ocupacion_suelo, max_losa_snt, ps_areaEdif_ref)
+                                        dict_arquitectura, dict_geom, max_ocupacion_suelo, max_losa_snt, ps_areaEdif)
     # Performs iterative optimization considering shadow constraints.
     
     # Initialize deltas
@@ -120,7 +120,7 @@ function optimize_with_shadow_constraints(vec_psVolConSombra, vec_altVolConSombr
     
     # Work with copies to avoid modifying originals - performance optimization
     vec_psVolConSombra_work = copy(vec_psVolConSombra)  # Shallow copy first
-    ps_areaEdif_work = deepcopy(ps_areaEdif_ref[])  # Only deep copy when needed
+    ps_areaEdif_work = deepcopy(ps_areaEdif)  # Only deep copy when needed
     
     best_result = Dict{String, Any}(
         "objective_val" => 0.0,
@@ -320,26 +320,21 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
             altura_ant = altura
             
             # Calculate buildable area with error handling
-            try
-                ps_areaEdif = calculate_buildable_area(dict_geom, dict_requerimientos, dict_arquitectura, altura, n_pisos)
+            ps_areaEdif = calculate_buildable_area(dict_geom, dict_requerimientos, dict_arquitectura, altura, n_pisos)
                 
-                # Early termination if area too small
-                if polyShape.polyArea(ps_areaEdif) < MIN_AREA_THRESHOLD
-                    continue
-                end
-                
-                # Calculate theoretical volumes with performance optimization
-                vec_altVolteor, vec_psVolteor = calculate_theoretical_volumes(ps_bruto, ps_areaEdif, alturaMax, rasante)
-                
-                if flag_sombra
-                    # Calculate shadow volumes and cache them
-                    vec_altVolConSombra, vec_psVolConSombra = calculate_shadow_volumes(ps_predio, ps_areaEdif, alturaMax, rasante_sombra)
-                end
-                
-            catch e
-                @warn "Error calculating buildable area for altura=$altura: $e"
+            # Early termination if area too small
+            if polyShape.polyArea(ps_areaEdif) < MIN_AREA_THRESHOLD
                 continue
             end
+            
+            # Calculate theoretical volumes with performance optimization
+            vec_altVolteor, vec_psVolteor = calculate_theoretical_volumes(ps_bruto, ps_areaEdif, alturaMax, rasante)
+            
+            if flag_sombra
+                # Calculate shadow volumes and cache them
+                vec_altVolConSombra, vec_psVolConSombra = calculate_shadow_volumes(ps_predio, ps_areaEdif, alturaMax, rasante_sombra)
+            end
+
         end
         
         # # Get cached values
@@ -350,10 +345,9 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
             
             # Only proceed if any shadow constraints are active
             if shadow_data["flag_p"] || shadow_data["flag_o"] || shadow_data["flag_s"]
-                ps_areaEdif_ref = Ref(ps_areaEdif)
                 shadow_result = optimize_with_shadow_constraints(
                     vec_psVolConSombra, vec_altVolConSombra, shadow_data, floors,
-                    dict_arquitectura, dict_geom, max_ocupacion_suelo, max_losa_snt, ps_areaEdif_ref
+                    dict_arquitectura, dict_geom, max_ocupacion_suelo, max_losa_snt, ps_areaEdif
                 )
                 
                 if shadow_result["objective_val"] > best_result["max_sol"]
