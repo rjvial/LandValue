@@ -63,7 +63,7 @@ num_predios_min = 1;        num_predios_max = 12
 #c.id_combi = '13132011001012_31' AND
 query = """
 MATCH (c:Combi) 
-WHERE c.id_combi = '13132011001012_31' AND
+WHERE 
 c.length >= $length_min_combi             AND c.length <= $length_max_combi
 AND c.width >= $width_min_combi                 AND c.width <= $width_max_combi
 AND c.length_to_width >= $length_to_width_min   AND c.length_to_width <= $length_to_width_max
@@ -92,7 +92,7 @@ query = """
   RETURN p.codigo_predial AS codigo_predial, m.manzent AS manzent, gp.geom_wkt AS geom_wkt
 """
 df_predios = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-lista_manzanas = unique(df_predios[:,"manzent"])
+# lista_manzanas = unique(df_predios[:,"manzent"])
 
 
 # Create results array to store vec_box_calle_combi

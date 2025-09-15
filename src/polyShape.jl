@@ -483,7 +483,7 @@ function partialPolyOffset(ps::PolyShape, vec_partial_offset_id::Vector{Int}, ve
         end
  
         nonIntersecting_offset_lines_2 = nonIntersecting_offset_lines_2[findall(polyShape.lineLength.(nonIntersecting_offset_lines_2) .>= 1)]
-        V_aux = [0 0]
+        V_aux = [0.0 0.0]
         for i in eachindex(nonIntersecting_offset_lines_2)
             current_side_index = i
             next_side_index = mod1(current_side_index + 1, length(nonIntersecting_offset_lines_2))
@@ -494,14 +494,14 @@ function partialPolyOffset(ps::PolyShape, vec_partial_offset_id::Vector{Int}, ve
             if isnan(intersection_point.Vertices[1])
                 point1 = nonIntersecting_offset_lines_2[current_side_index].Vertices[1][2, :]'
                 point2 = nonIntersecting_offset_lines_2[next_side_index].Vertices[1][1, :]'
-                V_aux = [vcat(V_aux[1], point1)]
-                V_aux = [vcat(V_aux[1], point2)]
+                V_aux = vcat(V_aux, point1)
+                V_aux = vcat(V_aux, point2)
             else
                 point = intersection_point.Vertices[1, :]'
-                V_aux = [vcat(V_aux[1], point)]
-            end        
+                V_aux = vcat(V_aux, point)
+            end
         end
-        V_aux = V_aux[1][2:end,:]
+        V_aux = V_aux[2:end,:]
         ps_out = polyShape.polySimplify(PolyShape([V_aux], 1), 0.1)
 
         return ps_out, vec_todos_offset_dist_
@@ -1473,18 +1473,18 @@ end
 function polyBoxFromEdge(ps::PolyShape, edge_id::Int, extension_length::Real)::PolyShape
     V = ps.Vertices[1]
     num_vertices = size(V, 1)
-    
+
     # Get the selected edge vertices
     edge_1 = edge_id
     edge_2 = mod1(edge_1 + 1, num_vertices)
 
     p1 = V[edge_1, :]
     p2 = V[edge_2, :]
-    
+
     # Calculate edge vector and length
     edge_vector = p2 - p1
     edge_length = sqrt(sum(edge_vector .^ 2))
-    
+
     # Calculate edge angle
     edge_angle = atan(edge_vector[2], edge_vector[1])
 
