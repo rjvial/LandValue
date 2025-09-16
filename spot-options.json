@@ -1,7 +1,0 @@
-{
-  "MarketType": "spot",
-  "SpotOptions": {
-    "SpotInstanceType": "persistent",	
-    "MaxPrice": "2.5"
-  }
-}

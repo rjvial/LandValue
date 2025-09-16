@@ -12,7 +12,6 @@ function obtiene_geometrias_combi(df_combined)
     ps_combi = polyShape.polyEliminaColineales(ps_combi)
 
     ps_calles_contexto = polyGdal.astext2shape([df_combined[1, "calles_contexto_wkt"]])
-    # ps_calles_contexto = polyShape.setPolyOrientation(ps_calles_contexto,1)
     ps_calles_contexto = polyShape.shape_4326to32719(ps_calles_contexto)
     ps_calles_contexto = polyShape.ajustaCoordenadas(ps_calles_contexto, dx, dy)
 
