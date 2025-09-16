@@ -1,9 +1,9 @@
-function obtiene_geometrias_combi(df_combined)
+function obtiene_geometrias_combi(df_combined_row)
     # Unified query to get both Combi and Calle_Combi data in single database call
     
     # Extract Combi data (first row contains all combi info)
-    sup_terreno_sii = df_combined[1,"sup_terreno_sii"]
-    ps_combi = polyGdal.astext2shape([df_combined[1, "geom_wkt"]])
+    sup_terreno_sii = df_combined_row[1,"sup_terreno_sii"]
+    ps_combi = polyGdal.astext2shape([df_combined_row[1, "geom_wkt"]])
     ps_combi = polyShape.setPolyOrientation(ps_combi,1)
     ps_combi = polyShape.shape_4326to32719(ps_combi)
     ps_combi, dx, dy = polyShape.ajustaCoordenadas(ps_combi)
@@ -11,12 +11,12 @@ function obtiene_geometrias_combi(df_combined)
     ps_combi = polyGdal.shapeSimplify(ps_combi, 1.0)
     ps_combi = polyShape.polyEliminaColineales(ps_combi)
 
-    ps_calles_contexto = polyGdal.astext2shape([df_combined[1, "calles_contexto_wkt"]])
+    ps_calles_contexto = polyGdal.astext2shape([df_combined_row[1, "calles_contexto_wkt"]])
     ps_calles_contexto = polyShape.shape_4326to32719(ps_calles_contexto)
     ps_calles_contexto = polyShape.ajustaCoordenadas(ps_calles_contexto, dx, dy)
 
     # Extract Calle_Combi data from the combined result
-    calles_data = filter(row -> !ismissing(row.calles_combi_wkt), df_combined)
+    calles_data = filter(row -> !ismissing(row.calles_combi_wkt), df_combined_row)
     
     #################################
     # Process streets using data already obtained from unified query
@@ -37,7 +37,7 @@ function obtiene_geometrias_combi(df_combined)
         "ps_publico" => ps_publico,
         "ps_bruto" => ps_bruto,
         "ps_calles_contexto" => ps_calles_contexto,
-        "n_predios" => df_combined[1,"num_predios"],
+        "n_predios" => df_combined_row[1,"num_predios"],
         "vecSecTodos" => vecSecTodos,
         "vecSecSinCalle" => vecSecSinCalle,
         "vecSecConCalle" => vecSecConCalle,

@@ -45,6 +45,7 @@ df_semento_calle = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 ls_segmentos = polyGdal.astext2shape(df_semento_calle[:, "geom_wkt"])
 ls_segmentos = polyShape.shape_4326to32719(ls_segmentos)
 ls_segmentos, dx, dy = polyShape.ajustaCoordenadas(ls_segmentos)
+ps_segmentos = polyShape.lines2Polygons(ls_segmentos, 45)
 
 
 # ───────────────────────────────────────────────────────────────────────────────
@@ -80,7 +81,7 @@ df_combis = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# EDGE-BASED STREET FRONTAGE DETECTION ENGINE
+# GENERA BOXES PARA CADA SEGMENTO DE CALLE 
 # ═══════════════════════════════════════════════════════════════════════════════
 # For each building combination edge, creates rectangular buffers using polyBoxFromEdge
 # to detect which street segments are adjacent. Only processes edges not blocked by
@@ -171,7 +172,7 @@ CSV.write("box_calle_combi.csv", df_box_calle_combi)
 
 
 # ───────────────────────────────────────────────────────────────────────────────
-# NEIGHBORING PROPERTIES SPATIAL CONTEXT EXTRACTION
+# OBTIENE GEOM DE PREDIOS EN LA COMUNA 
 # ───────────────────────────────────────────────────────────────────────────────
 # Retrieves all property boundaries within commune to identify private land that
 # should be excluded from street frontage calculations and public space analysis
@@ -187,11 +188,9 @@ ps_predios_comuna = polyShape.setPolyOrientation(ps_predios_comuna,1)
 ps_predios_comuna = polyShape.shape_4326to32719(ps_predios_comuna)
 ps_predios_comuna = polyShape.ajustaCoordenadas(ps_predios_comuna, dx, dy)
 
-ps_segmentos = polyShape.lines2Polygons(ls_segmentos, 45)
-
 
 # ───────────────────────────────────────────────────────────────────────────────
-# URBAN GREEN INFRASTRUCTURE MAPPING
+# OBTIENE GEOM AREAS VERDES
 # ───────────────────────────────────────────────────────────────────────────────
 # Extracts parks, gardens, and green spaces from POI database to distinguish
 # between street areas and landscaped public spaces in frontage calculations
@@ -209,11 +208,8 @@ ps_areas_verdes = polyShape.ajustaCoordenadas(ps_areas_verdes, dx, dy)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# STREET SEGMENT STITCHING ENGINE
+# GENERA df_calles_combis
 # ═══════════════════════════════════════════════════════════════════════════════
-# Core algorithm that processes each building combination 
-
-df_calles = CSV.read("box_calle_combi.csv", DataFrame)
 
 function stitch_street_segments_together(id_combi, df_calles, df_combis)
     vec_segmento_calle = unique(df_calles[df_calles[!, "id_combi"] .== id_combi, "id_segmento_calle"])
@@ -291,9 +287,8 @@ function stitch_street_segments_together(id_combi, df_calles, df_combis)
     return ps_calles, ps_combi, list_segmento_calle
 end
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# GENERATE df_calles_combis
-# ═══════════════════════════════════════════════════════════════════════════════
+df_calles = CSV.read("box_calle_combi.csv", DataFrame)
+
 data_calles_combis = []
 for (i, row) in enumerate(eachrow(df_combis))
     println("Processing combi $(i)/$(nrow(df_combis)): $(row.id_combi)")
@@ -352,7 +347,7 @@ df_calles_combis = DataFrame(data_calles_combis)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# GENERATE df_segmento_calle_to_calles_combi and df_combi_to_calles_combi
+# GENERA df_segmento_calle_to_calles_combi y df_combi_to_calles_combi
 # ═══════════════════════════════════════════════════════════════════════════════
 df_segmento_calle_to_calles_combi = DataFrame(id_calle_combi=String[], id_segmento_calle=String[])
 for row in eachrow(df_calles_combis)
@@ -371,7 +366,7 @@ df_combi_to_calles_combi = unique(df_calles_combis[:, ["id_combi", "id_calle_com
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# GENERATE df_calles_contexto_combis
+# GENERA df_calles_contexto_combis
 # ═══════════════════════════════════════════════════════════════════════════════
 lista_combis = unique(df_combis[:,"id_combi"])
 num_combis = length(lista_combis)
@@ -403,7 +398,7 @@ df_calles_contexto_combis = DataFrame(data_calles_contexto_combis)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# EXPORT DATA TO CLOUD INFRASTRUCTURE
+# EXPORTA DAToS A LA NUBE
 # ═══════════════════════════════════════════════════════════════════════════════
 aws_bucket = "landengines-data"
 

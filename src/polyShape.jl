@@ -1348,8 +1348,8 @@ end
 
 function poly2Constraints(ps_::PolyShape)
     # Convert a PolyShape to halfspace constraints. Only works for convex or near convex polygons.
-    v1 = ps_.Vertices[1][1,:]
     ps = setPolyOrientation(polyGdal.shapeHull(ps_), 1)
+    v1 = ps.Vertices[1][1,:]
     ps = polyShape.rotate_to_first_ccw(ps, v1)
 
     V = ps.Vertices[1]
