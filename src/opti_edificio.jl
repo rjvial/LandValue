@@ -185,15 +185,15 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
     # ============================================================================
     # 5. CAPACITY DATA CALCULATION
     # ============================================================================
-    cabida_data = Dict{String, String}()
+    cabida_data = Dict{String, Any}()
     
     if config_edificio["tipo_edificio"] == "departamento"
         cabida_data["cabida_sup_deptos"] = string(get(dict_arquitectura, "vecSupUtil", "0"))
         cabida_data["cabida_num_deptos"] = string(dict_edificio_deptos["numDeptosTipo"])
-        cabida_data["cabida_sup_comercio"] = "0"
-        cabida_data["cabida_num_comercio"] = "0"
-        cabida_data["cabida_sup_oficinas"] = "0"
-        cabida_data["cabida_num_oficinas"] = "0"
+        cabida_data["cabida_sup_comercio"] = 0
+        cabida_data["cabida_num_comercio"] = 0
+        cabida_data["cabida_sup_oficinas"] = 0
+        cabida_data["cabida_num_oficinas"] = 0
     else
         # Safely calculate area, handling empty polygons
         area_edif = 0.0
@@ -204,10 +204,10 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
         end
         cabida_data["cabida_sup_deptos"] = "0"
         cabida_data["cabida_num_deptos"] = "0"
-        cabida_data["cabida_sup_comercio"] = "0"
-        cabida_data["cabida_num_comercio"] = "0"
-        cabida_data["cabida_sup_oficinas"] = string(OFFICE_AREA_PER_UNIT)
-        cabida_data["cabida_num_oficinas"] = string(ceil(area_edif / OFFICE_AREA_PER_UNIT))
+        cabida_data["cabida_sup_comercio"] = 0
+        cabida_data["cabida_num_comercio"] = 0
+        cabida_data["cabida_sup_oficinas"] = OFFICE_AREA_PER_UNIT
+        cabida_data["cabida_num_oficinas"] = Int(ceil(area_edif / OFFICE_AREA_PER_UNIT))
     end
 
     # ============================================================================
@@ -227,23 +227,23 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
         )
         
         dict_estacionamientos = python_expression_eval_with_varmap(dict_requerimientos["estacionamientos_autos"], car_parking_vars)
-        parking_data["estacionamientos_autos_oficina"] = Float64(dict_estacionamientos["estacionamientos_autos_oficina"])
-        parking_data["estacionamientos_autos_vivienda"] = Float64(dict_estacionamientos["estacionamientos_autos_vivienda"])
-        parking_data["estacionamientos_autos_comercio"] = Float64(dict_estacionamientos["estacionamientos_autos_comercio"])
+        parking_data["estacionamientos_autos_oficina"] = Int8(dict_estacionamientos["estacionamientos_autos_oficina"])
+        parking_data["estacionamientos_autos_vivienda"] = Int8(dict_estacionamientos["estacionamientos_autos_vivienda"])
+        parking_data["estacionamientos_autos_comercio"] = Int8(dict_estacionamientos["estacionamientos_autos_comercio"])
         parking_data["estacionamientos_autos"] = parking_data["estacionamientos_autos_oficina"] + 
                                           parking_data["estacionamientos_autos_vivienda"] + 
                                           parking_data["estacionamientos_autos_comercio"]
         
         # Visitor parking
         visitor_vars = Dict("estacionamientos_autos_vivienda" => parking_data["estacionamientos_autos_vivienda"])
-        parking_data["estacionamientos_visitas"] = Float64(python_expression_eval_with_varmap(dict_requerimientos["estacionamientos_visitas"], visitor_vars))
+        parking_data["estacionamientos_visitas"] = Int8(python_expression_eval_with_varmap(dict_requerimientos["estacionamientos_visitas"], visitor_vars))
         
         # Total parking spots
         numEst = parking_data["estacionamientos_autos"] + parking_data["estacionamientos_visitas"]
         
         # Disabled parking
         disabled_vars = Dict("estacionamientos_autos" => numEst)
-        parking_data["estacionamientos_discapacitados"] = Float64(python_expression_eval_with_varmap(dict_requerimientos["estacionamientos_discapacitados"], disabled_vars))
+        parking_data["estacionamientos_discapacitados"] = Int8(python_expression_eval_with_varmap(dict_requerimientos["estacionamientos_discapacitados"], disabled_vars))
         
         # Bicycle parking
         bike_vars = Dict(
@@ -251,7 +251,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
             "estacionamientos_visitas" => parking_data["estacionamientos_visitas"],
             "carga_ocupacion" => DEFAULT_OCCUPATION_LOAD
         )
-        parking_data["estacionamientos_bicicletas"] = Float64(python_expression_eval_with_varmap(dict_requerimientos["estacionamientos_bicicletas"], bike_vars))
+        parking_data["estacionamientos_bicicletas"] = Int8(python_expression_eval_with_varmap(dict_requerimientos["estacionamientos_bicicletas"], bike_vars))
         
         # Metro discount
         metro_vars = Dict(
@@ -260,7 +260,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
             "estacionamientos_autos_oficina" => parking_data["estacionamientos_autos_oficina"],
             "distancia_al_metro" => DEFAULT_METRO_DISTANCE
         )
-        parking_data["descuento_estacionamientos_x_metro"] = Float64(python_expression_eval_with_varmap(dict_requerimientos["descuento_estacionamientos_x_metro"], metro_vars))
+        parking_data["descuento_estacionamientos_x_metro"] = Int8(python_expression_eval_with_varmap(dict_requerimientos["descuento_estacionamientos_x_metro"], metro_vars))
 
         # Bicycle discount
         bike_discount_vars = Dict(
@@ -271,9 +271,9 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
         )
         
         dict_descuento_bici = python_expression_eval_with_varmap(dict_requerimientos["descuento_estacionamientos_x_bici"], bike_discount_vars)
-        parking_data["descuento_estacionamientos_x_bici_t1"] = Float64(dict_descuento_bici["descuento_estacionamientos_x_bici_t1"])
-        parking_data["descuento_estacionamientos_x_bici_t2"] = Float64(dict_descuento_bici["descuento_estacionamientos_x_bici_t2"])
-        parking_data["descuento_estacionamientos_x_bici"] = Float64(dict_descuento_bici["descuento_estacionamientos_x_bici"])
+        parking_data["descuento_estacionamientos_x_bici_t1"] = Int8(dict_descuento_bici["descuento_estacionamientos_x_bici_t1"])
+        parking_data["descuento_estacionamientos_x_bici_t2"] = Int8(dict_descuento_bici["descuento_estacionamientos_x_bici_t2"])
+        parking_data["descuento_estacionamientos_x_bici"] = Int8(dict_descuento_bici["descuento_estacionamientos_x_bici"])
 
         # Bicycle increase from discount
         bike_increase_vars = Dict("descuento_estacionamientos_x_bici_t2" => parking_data["descuento_estacionamientos_x_bici_t2"])
@@ -288,30 +288,30 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
         @warn "Error calculating parking requirements: $e"
         # Set minimal parking configuration
         parking_data = Dict{String, Any}(
-            "estacionamientos_autos_oficina" => 0.0,
-            "estacionamientos_autos_vivienda" => 0.0,
-            "estacionamientos_autos_comercio" => 0.0,
-            "estacionamientos_autos" => 0.0,
-            "estacionamientos_visitas" => 0.0,
-            "estacionamientos_discapacitados" => 0.0,
-            "estacionamientos_bicicletas" => 0.0,
-            "descuento_estacionamientos_x_metro" => 0.0,
-            "descuento_estacionamientos_x_bici_t1" => 0.0,
-            "descuento_estacionamientos_x_bici_t2" => 0.0,
-            "descuento_estacionamientos_x_bici" => 0.0,
-            "aumento_bici_x_descuento_estacionamientos" => 0.0,
-            "estacionamientos_autos_final" => 0.0,
-            "estacionamientos_bicicletas_final" => 0.0
+            "estacionamientos_autos_oficina" => 0,
+            "estacionamientos_autos_vivienda" => 0,
+            "estacionamientos_autos_comercio" => 0,
+            "estacionamientos_autos" => 0,
+            "estacionamientos_visitas" => 0,
+            "estacionamientos_discapacitados" => 0,
+            "estacionamientos_bicicletas" => 0,
+            "descuento_estacionamientos_x_metro" => 0,
+            "descuento_estacionamientos_x_bici_t1" => 0,
+            "descuento_estacionamientos_x_bici_t2" => 0,
+            "descuento_estacionamientos_x_bici" => 0,
+            "aumento_bici_x_descuento_estacionamientos" => 0,
+            "estacionamientos_autos_final" => 0,
+            "estacionamientos_bicicletas_final" => 0
         )
     end
     
     # ============================================================================
     # 7. STORAGE AND UNDERGROUND AREA CALCULATION
     # ============================================================================
-    numBodegas = if config_edificio["tipo_edificio"] == "departamento"
-        sum(dict_edificio_deptos["numDeptosTipo"])
+    if config_edificio["tipo_edificio"] == "departamento"
+        numBodegas = sum(dict_edificio_deptos["numDeptosTipo"])
     else
-        ceil(BODEGA_RATIO * (parking_data["estacionamientos_autos_final"] + parking_data["estacionamientos_visitas"]))
+        numBodegas = ceil(BODEGA_RATIO * (parking_data["estacionamientos_autos_final"] + parking_data["estacionamientos_visitas"]))
     end
     
     # Calculate underground area requirements
@@ -319,9 +319,9 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
     supPorBodega = dict_arquitectura["supPorBodega"]
     supPorBicicleta = dict_arquitectura["supPorBicicleta"]
     
-    areaEst_requerida = parking_data["estacionamientos_autos_final"] * supPorEstacionamiento + 
-                            parking_data["estacionamientos_bicicletas_final"] * supPorBicicleta + 
-                            numBodegas * supPorBodega
+    areaEst_requerida = Float64(parking_data["estacionamientos_autos_final"] * supPorEstacionamiento +
+                            parking_data["estacionamientos_bicicletas_final"] * supPorBicicleta +
+                            numBodegas * supPorBodega)
 
     # Create underground area polygon
     vecSecTodos = dict_geom["vecSecTodos"]
@@ -347,7 +347,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
         "variante_normativa" => config_edificio["variante_str"],
         "flag_sombra" => dict_arquitectura["flag_sombra"],
         "sup_edificada_snt" => max_sol,
-        "pisos_snt" => sum(vec_np_opt[i] for i in eachindex(vec_ps_opt)),
+        "pisos_snt" => Int8(sum(vec_np_opt[i] for i in eachindex(vec_ps_opt))),
         "sup_edificada_bnt" => areaEst_requerida,
         "pisos_bnt" => 0,
         "cabida_sup_deptos" => cabida_data["cabida_sup_deptos"],
@@ -370,7 +370,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
         "aumento_bici_x_descuento_estacionamientos" => parking_data["aumento_bici_x_descuento_estacionamientos"],
         "estacionamientos_autos_final" => parking_data["estacionamientos_autos_final"],
         "estacionamientos_bicicletas_final" => parking_data["estacionamientos_bicicletas_final"],
-        "bodegas" => numBodegas,
+        "bodegas" => Int8(numBodegas),
         "dict_edificio_deptos" => config_edificio["tipo_edificio"] == "departamento" ? dict_edificio_deptos : 0,
         "vec_ps_opt" => vec_ps_opt,
         "vec_np_opt" => vec_np_opt,
@@ -401,8 +401,8 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
                                     else
                                         density_config["max_ocupacion_suelo"]
                                     end,
-        "pisos_proyecto" => sum(vec_np_opt[i] for i in eachindex(vec_ps_opt)),
-        "pisos_normativa" => dict_requerimientos["n_pisos"],
+        "pisos_proyecto" => Int8(sum(vec_np_opt[i] for i in eachindex(vec_ps_opt))),
+        "pisos_normativa" => Int8(dict_requerimientos["n_pisos"]),
         "supNoUtilizada" => dict_edificio_deptos["supNoUtilizada"]
     )
 

@@ -53,8 +53,8 @@ function process_optimization_results(model,
             "supInteriorPisosSup" => value(interior_area_upper_floors),
             "descuento_dfl2" => value(dfl2_discount),
             "supNoUtilizada" => value(unused_area),
-            "numDeptosTipo" => [value(apartments_ground_floor[u]) + value(apartments_per_upper_floor[u]) * regular_floors for u in axes(apartments_ground_floor, 1)],
-            "numDeptos" => value(total_apartments)
+            "numDeptosTipo" => [round(Int, value(apartments_ground_floor[u]) + value(apartments_per_upper_floor[u]) * regular_floors) for u in axes(apartments_ground_floor, 1)],
+            "numDeptos" => round(Int8, value(total_apartments))
         )
         
         ############################################################################

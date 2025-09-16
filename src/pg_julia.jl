@@ -1,6 +1,6 @@
 module pg_julia
 
-using LibPQ, Tables, DataFrames,  IterTools, CSV, XLSX
+using LibPQ, Tables, DataFrames, IterTools, CSV, XLSX, Dates
 
 
 function connection(dbStr::String, userStr::String, pwStr::String)
@@ -182,8 +182,74 @@ function close_db(conn)
     LibPQ.close(conn::LibPQ.Connection)
 end
 
-export connection, query, simpleQuery, appendToTable!, createTable, deleteTable, deleteRows!, insertRow!, modifyRow!, 
-        df2csv, csv2df, df2xlsx, close_db
+
+function juliaTypeToPgType(juliaType::Type)
+    if juliaType <: Integer
+        return "int8"
+    elseif juliaType <: AbstractFloat
+        return "float8"
+    elseif juliaType <: AbstractString
+        return "text"
+    elseif juliaType <: Bool
+        return "bool"
+    elseif juliaType == Date
+        return "date"
+    elseif juliaType == DateTime
+        return "timestamp"
+    else
+        return "text"
+    end
+end
+
+
+function createTableFromDict(conn::LibPQ.Connection, tableNameStr::String, dicts, primaryKeyStr::String="id")
+    if isa(dicts, AbstractDict)
+        dicts = [dicts]
+    elseif isa(dicts, Vector) && all(x -> isa(x, AbstractDict), dicts)
+        # dicts is already a vector of dictionaries
+    else
+        throw(ArgumentError("Input must be a dictionary or vector of dictionaries"))
+    end
+
+    if isempty(dicts)
+        throw(ArgumentError("Dictionary vector cannot be empty"))
+    end
+
+    all_keys = Set{String}()
+    type_map = Dict{String, Type}()
+
+    for dict in dicts
+        for (key, value) in dict
+            push!(all_keys, key)
+            if haskey(type_map, key)
+                current_type = type_map[key]
+                value_type = typeof(value)
+                if current_type != value_type
+                    if current_type <: Number && value_type <: Number
+                        type_map[key] = promote_type(current_type, value_type)
+                    else
+                        type_map[key] = String
+                    end
+                end
+            else
+                type_map[key] = typeof(value)
+            end
+        end
+    end
+
+    vecColumnNames = collect(all_keys)
+    if !(primaryKeyStr in vecColumnNames)
+        push!(vecColumnNames, primaryKeyStr)
+        type_map[primaryKeyStr] = Int64
+    end
+
+    vecColumnTypes = [juliaTypeToPgType(type_map[col]) for col in vecColumnNames]
+
+    return createTable(conn, tableNameStr, vecColumnNames, vecColumnTypes, primaryKeyStr)
+end
+
+export connection, query, simpleQuery, appendToTable!, createTable, deleteTable, deleteRows!, insertRow!, modifyRow!,
+        df2csv, csv2df, df2xlsx, close_db, createTableFromDict
 
 
 end
