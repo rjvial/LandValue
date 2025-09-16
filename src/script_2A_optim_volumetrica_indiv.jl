@@ -33,36 +33,40 @@ ORDER BY id_instancia ASC
 """
 df_instancias = pg_julia.query(conn_postgres, query_pg)
 
+query = """
+    MATCH (p:Predio)-[]-(c:Combi)
+    RETURN DISTINCT  c.id_combi AS id_combi, c.predios AS list_predios
+    ORDER BY id_combi
+"""
+df_combis = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
+
+lista_combi_instancias = unique(df_instancias.id_combi)
+cypher_list = "[" * join("\"" .* lista_combi_instancias .* "\"", ", ") * "]"
+
+display("Obtiene las geometrias de los predios y calles desde Neo4j")
+query = """
+    MATCH (c:Combi)-[:CONTIENE_CALLES]->(cc:Calle_Combi)
+    WHERE c.id_combi IN $cypher_list
+    RETURN DISTINCT c.id_combi AS id_combi, c.sup_combi_sii AS sup_terreno_sii, 
+            c.geom_combi AS geom_wkt, c.num_predios AS num_predios, 
+            c.calles_contexto_wkt AS calles_contexto_wkt,
+            cc.id_calle_combi AS id_calle_combi, cc.geom_wkt AS calles_combi_wkt
+    ORDER BY id_combi, id_calle_combi
+"""
+df_combined = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
+
 ########### partialPolyOffset No esta funcionando bien: prbar con 13132011001009_24
 # row = df_instancias[df_instancias.id_combi .== "13132011002005_19",:]
 for row in eachrow(df_instancias)
     id_combi = row.id_combi
 
-    query = """
-        MATCH (p:Predio)-[]-(c:Combi)
-        WHERE c.id_combi = '$id_combi'
-        RETURN DISTINCT  c.id_combi AS id_combi, c.predios AS list_predios
-        ORDER BY id_combi
-    """
-    df_combis = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-    
-    vec_predios = parse.(Int, split(strip(df_combis[1,"list_predios"], ['(', ')']), ';')) #18 ok
+    df_combis_row = filter(r -> r.id_combi == id_combi, df_combis)
+    vec_predios = parse.(Int, split(strip(df_combis_row[1,"list_predios"], ['(', ')']), ';')) #18 ok
 
-    display("Obtiene desde Neo4j las geometrias de los predios y calles")
-    query = """
-        MATCH (c:Combi)-[:CONTIENE_CALLES]->(cc:Calle_Combi)
-        WHERE c.id_combi = '$id_combi'
-        RETURN DISTINCT c.id_combi AS id_combi, c.sup_combi_sii AS sup_terreno_sii, 
-                c.geom_combi AS geom_wkt, c.num_predios AS num_predios, 
-                c.calles_contexto_wkt AS calles_contexto_wkt,
-                cc.id_calle_combi AS id_calle_combi, cc.geom_wkt AS calles_combi_wkt
-        ORDER BY id_combi, id_calle_combi
-    """
-    df_combined = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
+    df_combined_row = filter(r -> r.id_combi == id_combi, df_combined)
 
-    
-    try #if !isempty(df_combined)
-        dict_geom = obtiene_geometrias_combi(df_combined)
+    try
+        dict_geom = obtiene_geometrias_combi(df_combined_row)
 
         list_variantes = row.list_variantes
         vec_variantes = sort(split(row.list_variantes, ","))
