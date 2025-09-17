@@ -96,7 +96,7 @@ for row in eachrow(df_instancias)
 
             dict_requerimientos = obtiene_requerimientos_normativos(vec_predios[1], dict_arquitectura["variante_normativa"], conn_neo4j);
 
-            dict_resultados, dict_proyecto_vs_normativa = opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
+            dict_resultados, dict_proyecto_vs_normativa = opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, row.id_instancia, row.id_combi)
             display(dict_proyecto_vs_normativa);
 
             println("")

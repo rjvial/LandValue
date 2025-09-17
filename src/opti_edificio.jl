@@ -69,7 +69,7 @@ function estimacion_ocupacion_suelo_viv_econ(superficieTerreno, max_deptos, sup_
     return sup_ocupacion_est
 end
 
-function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
+function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_instancia=nothing, id_combi=nothing)
     # ============================================================================
     # MAIN BUILDING OPTIMIZATION FUNCTION
     # ============================================================================
@@ -343,6 +343,8 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos)
     # 9. RESULTS COMPILATION
     # ============================================================================
     dict_resultados = OrderedDict(
+        "id_instancia" => id_instancia,
+        "id_combi" => id_combi,
         "tipo_edificio" => config_edificio["tipo_edificio"],
         "variante_normativa" => config_edificio["variante_str"],
         "flag_sombra" => dict_arquitectura["flag_sombra"],

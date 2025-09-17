@@ -90,7 +90,7 @@ function createTable(conn::LibPQ.Connection, tableNameStr, vecColumnNames, vecCo
     #vecColumnType = ["float8", "float8", "float8", "float8", "float8", "int8", "float8", "float8", "float8", "bool", "float8", "float8", "float8", "float8", "float8", "float8", "bool", "int8", "float8", "float8", "bool", "int8"]
     #df = pg_julia.createTable(conn, "tablaprueba", vecColumnNames, vecColumnType, "id_Normativa")
     tableNameStr = lowercase(tableNameStr)
-    columnStr = join((string("\"", x, "\"", " ", "\"", y, "\"") for (x, y) in zip(vecColumnNames, vecColumnType)), ", ")
+    columnStr = join((string("\"", x, "\"", " ", y) for (x, y) in zip(vecColumnNames, vecColumnType)), ", ")
     executeStr = "CREATE TABLE $tableNameStr (" * columnStr * ", PRIMARY KEY ( \"$primaryKeyStr\" )" * ");"
     pg_julia.query(conn, executeStr)
     df_out = pg_julia.query(conn, """SELECT * FROM public."$tableNameStr";""")
@@ -185,13 +185,13 @@ end
 
 function juliaTypeToPgType(juliaType::Type)
     if juliaType <: Integer
-        return "int8"
+        return "int4"
     elseif juliaType <: AbstractFloat
-        return "float8"
+        return "numeric(10,2)"
     elseif juliaType <: AbstractString
         return "text"
     elseif juliaType <: Bool
-        return "bool"
+        return "boolean"
     elseif juliaType == Date
         return "date"
     elseif juliaType == DateTime
@@ -217,23 +217,31 @@ function createTableFromDict(conn::LibPQ.Connection, tableNameStr::String, dicts
 
     all_keys = Set{String}()
     type_map = Dict{String, Type}()
+    column_conflicts = Dict{String, Vector{Tuple{Int, Type}}}()
 
-    for dict in dicts
+    for (dict_idx, dict) in enumerate(dicts)
         for (key, value) in dict
             push!(all_keys, key)
+            value_type = typeof(value)
+
             if haskey(type_map, key)
                 current_type = type_map[key]
-                value_type = typeof(value)
                 if current_type != value_type
-                    if current_type <: Number && value_type <: Number
-                        type_map[key] = promote_type(current_type, value_type)
-                    else
-                        type_map[key] = String
+                    if !haskey(column_conflicts, key)
+                        column_conflicts[key] = [(1, current_type)]
                     end
+                    push!(column_conflicts[key], (dict_idx, value_type))
                 end
             else
-                type_map[key] = typeof(value)
+                type_map[key] = value_type
             end
+        end
+    end
+
+    if !isempty(column_conflicts)
+        @warn "Column conflicts detected - using first occurrence in dictionary order:" column_conflicts
+        for (col, conflicts) in column_conflicts
+            @warn "Column '$col' conflicts: $(conflicts) - keeping type $(type_map[col]) from first dictionary"
         end
     end
 
