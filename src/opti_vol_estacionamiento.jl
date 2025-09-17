@@ -1,43 +1,48 @@
-function _find_optimal_offset(orig_ps::PolyShape, target_area::Float64; 
-                             tol::Float64=0.1, maxiter::Int=100, 
+function _find_optimal_offset(orig_ps::PolyShape, target_area::Float64;
+                             tol::Float64=0.1, maxiter::Int=100,
                              init_bounds::Tuple{Float64,Float64}=(-100.0, 100.0))
-    # Finds the optimal polygon offset to achieve target area using bisection method.
 
     low, high = init_bounds
-    
-    # Validate bounds can bracket the target
     area_low = polyShape.polyArea(polyClipper.polyOffset(orig_ps, low))
     area_high = polyShape.polyArea(polyClipper.polyOffset(orig_ps, high))
-    
-    if !(area_low < target_area < area_high)
-        throw(ArgumentError("Cannot bracket target area $target_area. Got bounds: [$area_low, $area_high]. Adjust init_bounds."))
+
+    # Auto-expand bounds if needed
+    if !(area_low ≤ target_area ≤ area_high || area_high ≤ target_area ≤ area_low)
+        if target_area > max(area_low, area_high)
+            high *= 3
+        elseif target_area < min(area_low, area_high)
+            low *= 3
+        end
+        area_low = polyShape.polyArea(polyClipper.polyOffset(orig_ps, low))
+        area_high = polyShape.polyArea(polyClipper.polyOffset(orig_ps, high))
     end
-    
-    best_offset = 0.0
-    converged = false
-    
+
+    # Ensure correct ordering
+    if area_low > area_high
+        low, high = high, low
+    end
+
+    best_offset = (low + high) / 2
+    adaptive_tol = max(tol, target_area * 0.005)
+
     for i in 1:maxiter
         mid = (low + high) / 2
         area_mid = polyShape.polyArea(polyClipper.polyOffset(orig_ps, mid))
-        error = area_mid - target_area
-        
-        if abs(error) ≤ tol
+        error = abs(area_mid - target_area)
+
+        if error ≤ adaptive_tol || abs(high - low) < 1e-8
             best_offset = mid
-            converged = true
             break
-        elseif error > 0
+        end
+
+        if area_mid > target_area
             high = mid
         else
             low = mid
         end
-        
         best_offset = mid
     end
-    
-    if !converged
-        @warn "Bisection did not converge after $maxiter iterations. Final error: $(abs(polyShape.polyArea(polyClipper.polyOffset(orig_ps, best_offset)) - target_area))"
-    end
-    
+
     return polyClipper.polyOffset(orig_ps, best_offset), best_offset
 end
 

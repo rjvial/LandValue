@@ -46,47 +46,6 @@ if isempty(df_check_resultados_optimizacion)
     query_str = """ 
     CREATE TABLE IF NOT EXISTS public.tabla_resultados_optimizacion
     (
-        "tipo_edificio" text,
-        "variante_normativa" text,
-        "flag_sombra" text,
-        "sup_edificada_snt" float,
-        "cabida_sup_deptos" float,
-        "cabida_num_deptos" int,
-        "cabida_sup_comercio" float,
-        "cabida_num_comercio" int,
-        "cabida_sup_oficinas" float,
-        "cabida_num_oficinas" int,
-        "estacionamientos_autos_oficina" int,
-        "estacionamientos_autos_vivienda" int,
-        "estacionamientos_autos_comercio" int,
-        "estacionamientos_autos" int,
-        "estacionamientos_visitas" int,
-        "estacionamientos_discapacitados" int,
-        "estacionamientos_bicicletas" int,
-        "descuento_estacionamientos_x_metro" int,
-        "descuento_estacionamientos_x_bici_t1" int,
-        "descuento_estacionamientos_x_bici_t2" int,
-        "descuento_estacionamientos_x_bici" int,
-        "aumento_bici_x_descuento_estacionamientos" int,
-        "estacionamientos_autos_final" int,
-        "estacionamientos_bicicletas_final" int,
-        "bodegas" int,
-        "dict_edificio_deptos" text,
-        
-        "vec_ps_opt" text,
-        "vec_np_opt" text,
-        "vec_ps_subte" text,
-        "vec_np_subte" text,
-        "vec_psVolteor" text,
-        "vec_altVolteor" text,
-        "vec_psVolConSombra" text,
-        "vec_altVolConSombra" text,
-        "ps_sombraEdif_p" text,
-        "ps_sombraEdif_o" text,
-        "ps_sombraEdif_s" text,
-        "ps_sombraVolTeorico_p" text,
-        "ps_sombraVolTeorico_o" text,
-        "ps_sombraVolTeorico_s" text
     )
     """
     pg_julia.query(conn_postgres, query_str)

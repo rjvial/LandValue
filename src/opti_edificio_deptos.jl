@@ -29,7 +29,7 @@ function process_optimization_results(model,
             "supInteriorPisosSup" => 0.0,
             "descuento_dfl2" => 0.0,
             "supNoUtilizada" => 0.0,
-            "numDeptosTipo" => Int[],
+            "vec_numDeptosTipo" => Int[],
             "numDeptos" => 0
         )
 
@@ -39,21 +39,21 @@ function process_optimization_results(model,
         # Extract Optimization Values
         ############################################################################
         results = OrderedDict(
-            "supUtil" => value(total_useful_area),
-            "supUtilPrimerPiso" => value(useful_area_ground_floor),
-            "supUtilPisosSup" => value(useful_area_upper_floors),
-            "supComun" => value(total_common_area),
-            "supComunPrimerPiso" => value(common_area_ground_floor),
-            "supComunPisosSup" => value(common_area_upper_floors),
-            "supTerraza" => value(total_terrace_area),
-            "supTerrazaPrimerPiso" => value(terrace_area_ground_floor),
-            "supTerrazaPisosSup" => value(terrace_area_upper_floors),
-            "supInterior" => value(total_interior_area),
-            "supInteriorPrimerPiso" => value(interior_area_ground_floor),
-            "supInteriorPisosSup" => value(interior_area_upper_floors),
-            "descuento_dfl2" => value(dfl2_discount),
-            "supNoUtilizada" => value(unused_area),
-            "numDeptosTipo" => [round(Int, value(apartments_ground_floor[u]) + value(apartments_per_upper_floor[u]) * regular_floors) for u in axes(apartments_ground_floor, 1)],
+            "supUtil" => round(value(total_useful_area), digits=2),
+            "supUtilPrimerPiso" => round(value(useful_area_ground_floor), digits=2),
+            "supUtilPisosSup" => round(value(useful_area_upper_floors), digits=2),
+            "supComun" => round(value(total_common_area), digits=2),
+            "supComunPrimerPiso" => round(value(common_area_ground_floor), digits=2),
+            "supComunPisosSup" => round(value(common_area_upper_floors), digits=2),
+            "supTerraza" => round(value(total_terrace_area), digits=2),
+            "supTerrazaPrimerPiso" => round(value(terrace_area_ground_floor), digits=2),
+            "supTerrazaPisosSup" => round(value(terrace_area_upper_floors), digits=2),
+            "supInterior" => round(value(total_interior_area), digits=2),
+            "supInteriorPrimerPiso" => round(value(interior_area_ground_floor), digits=2),
+            "supInteriorPisosSup" => round(value(interior_area_upper_floors), digits=2),
+            "descuento_dfl2" => round(value(dfl2_discount), digits=2),
+            "supNoUtilizada" => round(value(unused_area), digits=2),
+            "vec_numDeptosTipo" => [round(Int, value(apartments_ground_floor[u]) + value(apartments_per_upper_floor[u]) * regular_floors) for u in axes(apartments_ground_floor, 1)],
             "numDeptos" => round(Int8, value(total_apartments))
         )
         
@@ -95,7 +95,7 @@ function process_optimization_results(model,
         println("-" ^ 40)
         println("Total Useful Area: $(round(results["supUtil"], digits=1)) m²")
         println("Total Apartments: $(round(Int, results["numDeptos"]))")
-        println("Apartments by type: $(results["numDeptosTipo"])")
+        println("Apartments by type: $(results["vec_numDeptosTipo"])")
         println("=" ^ 40)
 
     end

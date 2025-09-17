@@ -179,7 +179,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_ins
                                                     vec_ps_opt, vec_np_opt, flag_dfl2, 
                                                     sup_patio_vivienda_economica, superficie_terreno)
     else
-        dict_edificio_deptos = Dict{String, Any}("numDeptosTipo" => [0], "supUtil" => 0.0, "supNoUtilizada" => 0.0)
+        dict_edificio_deptos = Dict{String, Any}("vec_numDeptosTipo" => [0], "supUtil" => 0.0, "supNoUtilizada" => 0.0)
     end
     
     # ============================================================================
@@ -188,12 +188,12 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_ins
     cabida_data = Dict{String, Any}()
     
     if config_edificio["tipo_edificio"] == "departamento"
-        cabida_data["cabida_sup_deptos"] = string(get(dict_arquitectura, "vecSupUtil", "0"))
-        cabida_data["cabida_num_deptos"] = string(dict_edificio_deptos["numDeptosTipo"])
-        cabida_data["cabida_sup_comercio"] = 0
-        cabida_data["cabida_num_comercio"] = 0
-        cabida_data["cabida_sup_oficinas"] = 0
-        cabida_data["cabida_num_oficinas"] = 0
+        cabida_data["vec_sup_deptos"] = string(get(dict_arquitectura, "vecSupUtil", "0"))
+        cabida_data["vec_num_deptos"] = string(dict_edificio_deptos["vec_numDeptosTipo"])
+        cabida_data["vec_sup_comercio"] = 0
+        cabida_data["vec_num_comercio"] = 0
+        cabida_data["vec_sup_oficinas"] = 0
+        cabida_data["vec_num_oficinas"] = 0
     else
         # Safely calculate area, handling empty polygons
         area_edif = 0.0
@@ -202,12 +202,12 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_ins
                 area_edif += polyShape.polyArea(vec_ps_opt[i]) * vec_np_opt[i]
             end
         end
-        cabida_data["cabida_sup_deptos"] = "0"
-        cabida_data["cabida_num_deptos"] = "0"
-        cabida_data["cabida_sup_comercio"] = 0
-        cabida_data["cabida_num_comercio"] = 0
-        cabida_data["cabida_sup_oficinas"] = OFFICE_AREA_PER_UNIT
-        cabida_data["cabida_num_oficinas"] = Int(ceil(area_edif / OFFICE_AREA_PER_UNIT))
+        cabida_data["vec_sup_deptos"] = "0"
+        cabida_data["vec_num_deptos"] = "0"
+        cabida_data["vec_sup_comercio"] = 0
+        cabida_data["vec_num_comercio"] = 0
+        cabida_data["vec_sup_oficinas"] = OFFICE_AREA_PER_UNIT
+        cabida_data["vec_num_oficinas"] = Int(ceil(area_edif / OFFICE_AREA_PER_UNIT))
     end
 
     # ============================================================================
@@ -218,32 +218,38 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_ins
     try
         # Car parking calculations
         car_parking_vars = Dict(
-            "cabida_sup_deptos" => cabida_data["cabida_sup_deptos"],
-            "cabida_num_deptos" => cabida_data["cabida_num_deptos"],
-            "cabida_sup_comercio" => cabida_data["cabida_sup_comercio"],
-            "cabida_num_comercio" => cabida_data["cabida_num_comercio"],
-            "cabida_sup_oficinas" => cabida_data["cabida_sup_oficinas"],
-            "cabida_num_oficinas" => cabida_data["cabida_num_oficinas"]
+            "vec_sup_deptos" => cabida_data["vec_sup_deptos"],
+            "vec_num_deptos" => cabida_data["vec_num_deptos"],
+            "vec_sup_comercio" => cabida_data["vec_sup_comercio"],
+            "vec_num_comercio" => cabida_data["vec_num_comercio"],
+            "vec_sup_oficinas" => cabida_data["vec_sup_oficinas"],
+            "vec_num_oficinas" => cabida_data["vec_num_oficinas"],
+            "cabida_sup_deptos" => cabida_data["vec_sup_deptos"],
+            "cabida_num_deptos" => cabida_data["vec_num_deptos"],
+            "cabida_sup_comercio" => cabida_data["vec_sup_comercio"],
+            "cabida_num_comercio" => cabida_data["vec_num_comercio"],
+            "cabida_sup_oficinas" => cabida_data["vec_sup_oficinas"],
+            "cabida_num_oficinas" => cabida_data["vec_num_oficinas"]
         )
         
         dict_estacionamientos = python_expression_eval_with_varmap(dict_requerimientos["estacionamientos_autos"], car_parking_vars)
-        parking_data["estacionamientos_autos_oficina"] = Int8(dict_estacionamientos["estacionamientos_autos_oficina"])
-        parking_data["estacionamientos_autos_vivienda"] = Int8(dict_estacionamientos["estacionamientos_autos_vivienda"])
-        parking_data["estacionamientos_autos_comercio"] = Int8(dict_estacionamientos["estacionamientos_autos_comercio"])
+        parking_data["estacionamientos_autos_oficina"] = Int(dict_estacionamientos["estacionamientos_autos_oficina"])
+        parking_data["estacionamientos_autos_vivienda"] = Int(dict_estacionamientos["estacionamientos_autos_vivienda"])
+        parking_data["estacionamientos_autos_comercio"] = Int(dict_estacionamientos["estacionamientos_autos_comercio"])
         parking_data["estacionamientos_autos"] = parking_data["estacionamientos_autos_oficina"] + 
                                           parking_data["estacionamientos_autos_vivienda"] + 
                                           parking_data["estacionamientos_autos_comercio"]
         
         # Visitor parking
         visitor_vars = Dict("estacionamientos_autos_vivienda" => parking_data["estacionamientos_autos_vivienda"])
-        parking_data["estacionamientos_visitas"] = Int8(python_expression_eval_with_varmap(dict_requerimientos["estacionamientos_visitas"], visitor_vars))
+        parking_data["estacionamientos_visitas"] = Int(python_expression_eval_with_varmap(dict_requerimientos["estacionamientos_visitas"], visitor_vars))
         
         # Total parking spots
         numEst = parking_data["estacionamientos_autos"] + parking_data["estacionamientos_visitas"]
         
         # Disabled parking
         disabled_vars = Dict("estacionamientos_autos" => numEst)
-        parking_data["estacionamientos_discapacitados"] = Int8(python_expression_eval_with_varmap(dict_requerimientos["estacionamientos_discapacitados"], disabled_vars))
+        parking_data["estacionamientos_discapacitados"] = Int(python_expression_eval_with_varmap(dict_requerimientos["estacionamientos_discapacitados"], disabled_vars))
         
         # Bicycle parking
         bike_vars = Dict(
@@ -251,7 +257,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_ins
             "estacionamientos_visitas" => parking_data["estacionamientos_visitas"],
             "carga_ocupacion" => DEFAULT_OCCUPATION_LOAD
         )
-        parking_data["estacionamientos_bicicletas"] = Int8(python_expression_eval_with_varmap(dict_requerimientos["estacionamientos_bicicletas"], bike_vars))
+        parking_data["estacionamientos_bicicletas"] = Int(python_expression_eval_with_varmap(dict_requerimientos["estacionamientos_bicicletas"], bike_vars))
         
         # Metro discount
         metro_vars = Dict(
@@ -260,7 +266,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_ins
             "estacionamientos_autos_oficina" => parking_data["estacionamientos_autos_oficina"],
             "distancia_al_metro" => DEFAULT_METRO_DISTANCE
         )
-        parking_data["descuento_estacionamientos_x_metro"] = Int8(python_expression_eval_with_varmap(dict_requerimientos["descuento_estacionamientos_x_metro"], metro_vars))
+        parking_data["descuento_estacionamientos_x_metro"] = Int(python_expression_eval_with_varmap(dict_requerimientos["descuento_estacionamientos_x_metro"], metro_vars))
 
         # Bicycle discount
         bike_discount_vars = Dict(
@@ -271,9 +277,9 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_ins
         )
         
         dict_descuento_bici = python_expression_eval_with_varmap(dict_requerimientos["descuento_estacionamientos_x_bici"], bike_discount_vars)
-        parking_data["descuento_estacionamientos_x_bici_t1"] = Int8(dict_descuento_bici["descuento_estacionamientos_x_bici_t1"])
-        parking_data["descuento_estacionamientos_x_bici_t2"] = Int8(dict_descuento_bici["descuento_estacionamientos_x_bici_t2"])
-        parking_data["descuento_estacionamientos_x_bici"] = Int8(dict_descuento_bici["descuento_estacionamientos_x_bici"])
+        parking_data["descuento_estacionamientos_x_bici_t1"] = Int(dict_descuento_bici["descuento_estacionamientos_x_bici_t1"])
+        parking_data["descuento_estacionamientos_x_bici_t2"] = Int(dict_descuento_bici["descuento_estacionamientos_x_bici_t2"])
+        parking_data["descuento_estacionamientos_x_bici"] = Int(dict_descuento_bici["descuento_estacionamientos_x_bici"])
 
         # Bicycle increase from discount
         bike_increase_vars = Dict("descuento_estacionamientos_x_bici_t2" => parking_data["descuento_estacionamientos_x_bici_t2"])
@@ -309,7 +315,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_ins
     # 7. STORAGE AND UNDERGROUND AREA CALCULATION
     # ============================================================================
     if config_edificio["tipo_edificio"] == "departamento"
-        numBodegas = sum(dict_edificio_deptos["numDeptosTipo"])
+        numBodegas = sum(dict_edificio_deptos["vec_numDeptosTipo"])
     else
         numBodegas = ceil(BODEGA_RATIO * (parking_data["estacionamientos_autos_final"] + parking_data["estacionamientos_visitas"]))
     end
@@ -352,12 +358,12 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_ins
         "pisos_snt" => Int8(sum(vec_np_opt[i] for i in eachindex(vec_ps_opt))),
         "sup_edificada_bnt" => areaEst_requerida,
         "pisos_bnt" => 0,
-        "cabida_sup_deptos" => cabida_data["cabida_sup_deptos"],
-        "cabida_num_deptos" => cabida_data["cabida_num_deptos"],
-        "cabida_sup_comercio" => cabida_data["cabida_sup_comercio"],
-        "cabida_num_comercio" => cabida_data["cabida_num_comercio"],
-        "cabida_sup_oficinas" => cabida_data["cabida_sup_oficinas"],
-        "cabida_num_oficinas" => cabida_data["cabida_num_oficinas"],
+        "vec_sup_deptos" => cabida_data["vec_sup_deptos"],
+        "vec_num_deptos" => cabida_data["vec_num_deptos"],
+        "vec_sup_comercio" => cabida_data["vec_sup_comercio"],
+        "vec_num_comercio" => cabida_data["vec_num_comercio"],
+        "vec_sup_oficinas" => cabida_data["vec_sup_oficinas"],
+        "vec_num_oficinas" => cabida_data["vec_num_oficinas"],
         "estacionamientos_autos_oficina" => parking_data["estacionamientos_autos_oficina"],
         "estacionamientos_autos_vivienda" => parking_data["estacionamientos_autos_vivienda"],
         "estacionamientos_autos_comercio" => parking_data["estacionamientos_autos_comercio"],
@@ -373,7 +379,22 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_ins
         "estacionamientos_autos_final" => parking_data["estacionamientos_autos_final"],
         "estacionamientos_bicicletas_final" => parking_data["estacionamientos_bicicletas_final"],
         "bodegas" => Int8(numBodegas),
-        "dict_edificio_deptos" => config_edificio["tipo_edificio"] == "departamento" ? dict_edificio_deptos : 0,
+        "supUtil" => dict_edificio_deptos["supUtil"],
+        "supUtilPrimerPiso" => dict_edificio_deptos["supUtilPrimerPiso"],
+        "supUtilPisosSup" => dict_edificio_deptos["supUtilPisosSup"],
+        "supComun" => dict_edificio_deptos["supComun"],
+        "supComunPrimerPiso" => dict_edificio_deptos["supComunPrimerPiso"],
+        "supComunPisosSup" => dict_edificio_deptos["supComunPisosSup"],
+        "supTerraza" => dict_edificio_deptos["supTerraza"],
+        "supTerrazaPrimerPiso" => dict_edificio_deptos["supTerrazaPrimerPiso"],
+        "supTerrazaPisosSup" => dict_edificio_deptos["supTerrazaPisosSup"],
+        "supInterior" => dict_edificio_deptos["supInterior"],
+        "supInteriorPrimerPiso" => dict_edificio_deptos["supInteriorPrimerPiso"],
+        "supInteriorPisosSup" => dict_edificio_deptos["supInteriorPisosSup"],
+        "descuento_dfl2" => dict_edificio_deptos["descuento_dfl2"],
+        "supNoUtilizada" => dict_edificio_deptos["supNoUtilizada"],
+        "vec_numDeptosTipo" => dict_edificio_deptos["vec_numDeptosTipo"],
+        "numDeptos" => dict_edificio_deptos["numDeptos"],
         "vec_ps_opt" => vec_ps_opt,
         "vec_np_opt" => vec_np_opt,
         "vec_ps_subte" => vec_ps_subte,
@@ -391,7 +412,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_ins
     )
 
     dict_proyecto_vs_normativa = OrderedDict(
-        "densidad_proyecto" => sum(eval(Meta.parse(cabida_data["cabida_num_deptos"]))),
+        "densidad_proyecto" => sum(eval(Meta.parse(cabida_data["vec_num_deptos"]))),
         "densidad_normativa" => density_config["max_deptos"],
         "losa_proyecto" => sum(isempty(vec_ps_opt[i].Vertices) ? 0.0 : polyShape.polyArea(vec_ps_opt[i]) * vec_np_opt[i] for i in eachindex(vec_ps_opt)),
         "losa_normativa" => config_edificio["flag_economica"] ? LARGE_NUMBER : config_edificio["max_losa_snt"],
@@ -399,7 +420,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_ins
         "constructibilidad_normativa" => config_edificio["flag_economica"] ? LARGE_NUMBER : config_edificio["max_constructibilidad"],
         "ocupacion_suelo_proyecto" => isempty(vec_ps_opt) || isempty(vec_ps_opt[1].Vertices) ? 0.0 : polyShape.polyArea(vec_ps_opt[1]),
         "ocupacion_suelo_normativa" => if config_edificio["flag_economica"]
-                                        config_edificio["superficieTerreno"] - sum(eval(Meta.parse(cabida_data["cabida_num_deptos"]))) * density_config["sup_patio_vivienda_economica"]
+                                        config_edificio["superficieTerreno"] - sum(eval(Meta.parse(cabida_data["vec_num_deptos"]))) * density_config["sup_patio_vivienda_economica"]
                                     else
                                         density_config["max_ocupacion_suelo"]
                                     end,
