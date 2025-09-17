@@ -183,81 +183,8 @@ function close_db(conn)
 end
 
 
-function juliaTypeToPgType(juliaType::Type)
-    if juliaType <: Integer
-        return "int4"
-    elseif juliaType <: AbstractFloat
-        return "numeric(10,2)"
-    elseif juliaType <: AbstractString
-        return "text"
-    elseif juliaType <: Bool
-        return "boolean"
-    elseif juliaType == Date
-        return "date"
-    elseif juliaType == DateTime
-        return "timestamp"
-    else
-        return "text"
-    end
-end
-
-
-function createTableFromDict(conn::LibPQ.Connection, tableNameStr::String, dicts, primaryKeyStr::String="id")
-    if isa(dicts, AbstractDict)
-        dicts = [dicts]
-    elseif isa(dicts, Vector) && all(x -> isa(x, AbstractDict), dicts)
-        # dicts is already a vector of dictionaries
-    else
-        throw(ArgumentError("Input must be a dictionary or vector of dictionaries"))
-    end
-
-    if isempty(dicts)
-        throw(ArgumentError("Dictionary vector cannot be empty"))
-    end
-
-    all_keys = Set{String}()
-    type_map = Dict{String, Type}()
-    column_conflicts = Dict{String, Vector{Tuple{Int, Type}}}()
-
-    for (dict_idx, dict) in enumerate(dicts)
-        for (key, value) in dict
-            push!(all_keys, key)
-            value_type = typeof(value)
-
-            if haskey(type_map, key)
-                current_type = type_map[key]
-                if current_type != value_type
-                    if !haskey(column_conflicts, key)
-                        column_conflicts[key] = [(1, current_type)]
-                    end
-                    push!(column_conflicts[key], (dict_idx, value_type))
-                end
-            else
-                type_map[key] = value_type
-            end
-        end
-    end
-
-    if !isempty(column_conflicts)
-        @warn "Column conflicts detected - using first occurrence in dictionary order:" column_conflicts
-        for (col, conflicts) in column_conflicts
-            @warn "Column '$col' conflicts: $(conflicts) - keeping type $(type_map[col]) from first dictionary"
-        end
-    end
-
-    vecColumnNames = collect(all_keys)
-    if !(primaryKeyStr in vecColumnNames)
-        push!(vecColumnNames, primaryKeyStr)
-        type_map[primaryKeyStr] = Int64
-    end
-
-    vecColumnTypes = [juliaTypeToPgType(type_map[col]) for col in vecColumnNames]
-
-    return createTable(conn, tableNameStr, vecColumnNames, vecColumnTypes, primaryKeyStr)
-end
-
 export connection, query, simpleQuery, appendToTable!, createTable, deleteTable, deleteRows!, insertRow!, modifyRow!,
-        df2csv, csv2df, df2xlsx, close_db, createTableFromDict
+        df2csv, csv2df, df2xlsx, close_db
 
 
 end

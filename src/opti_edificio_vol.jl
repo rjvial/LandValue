@@ -17,18 +17,18 @@ function calculate_buildable_area(dict_geom, dict_requerimientos, dict_arquitect
     # Calculates the buildable footprint area considering setbacks and separations.
 
     # Calculate separation from neighbors
-    distanciamiento = dict_requerimientos["distanciamiento"][1]
-    expr_str = expression_converter.parse_python_expression(dict_requerimientos["distanciamiento"][3])
+    distanciamiento = dict_requerimientos["norm_distanciamiento"][1]
+    expr_str = expression_converter.parse_python_expression(dict_requerimientos["norm_distanciamiento"][3])
     expr_str = replace(expr_str, "flag_sombra" => false)
     expr_str = replace(expr_str, "altura" => string(altura))
     expr_str = replace(expr_str, "n_pisos" => string(n_pisos))
     expr_str = replace(expr_str, "distanciamiento" => string(distanciamiento))
-    expr_str = replace(expr_str, "flag_vano" => string(dict_arquitectura["flag_vano"]))
+    expr_str = replace(expr_str, "flag_vano" => string(dict_arquitectura["arq_flag_vano"]))
     sepVecinos = eval(Meta.parse(expr_str))
     
     # Create offset distances vector
     vec_dist = Float64.(copy(dict_geom["vecSecTodos"]))
-    vec_dist .= -dict_requerimientos["antejardin"]
+    vec_dist .= -dict_requerimientos["norm_antejardin"]
     vec_dist[dict_geom["vecSecSinCalle"]] .= -sepVecinos
 
     ps = deepcopy(dict_geom["ps_combi"])
@@ -124,8 +124,8 @@ function optimize_with_shadow_constraints(vec_psVolConSombra, vec_altVolConSombr
     
     best_result = Dict{String, Any}(
         "objective_val" => 0.0,
-        "ps_stack" => [PolyShape([], 1) for _ in 1:dict_arquitectura["K"]],
-        "np_stack" => zeros(Int, dict_arquitectura["K"])
+        "ps_stack" => [PolyShape([], 1) for _ in 1:dict_arquitectura["arq_K"]],
+        "np_stack" => zeros(Int, dict_arquitectura["arq_K"])
     )
     
     iter = 0
@@ -134,13 +134,13 @@ function optimize_with_shadow_constraints(vec_psVolConSombra, vec_altVolConSombr
         
         # Optimize volumes for K stacks
         ps_stack, np_stack, objective_val = quad_opti_vol(
-            vec_psVolConSombra_work, vec_altVolConSombra, floors, dict_arquitectura["alturaPiso"],
-            max_ocupacion_suelo, max_losa_snt, dict_arquitectura["K"], 
-            dict_arquitectura["ancho_crujia_min"], dict_arquitectura["ancho_crujia_max"]
+            vec_psVolConSombra_work, vec_altVolConSombra, floors, dict_arquitectura["arq_alturaPiso"],
+            max_ocupacion_suelo, max_losa_snt, dict_arquitectura["arq_K"], 
+            dict_arquitectura["arq_ancho_crujia_min"], dict_arquitectura["arq_ancho_crujia_max"]
         )
         
         # Calculate actual shadows
-        vec_alt_acum = cumsum(np_stack) .* dict_arquitectura["alturaPiso"]
+        vec_alt_acum = cumsum(np_stack) .* dict_arquitectura["arq_alturaPiso"]
         ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s = 
             generaSombraEdificio(ps_stack, vec_alt_acum, dict_geom["ps_publico"], dict_geom["ps_calles_contexto"])
         
@@ -269,12 +269,12 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
     # ============================================================================
     ps_predio = dict_geom["ps_combi"]
     ps_bruto = dict_geom["ps_bruto"]
-    alturaPiso = dict_arquitectura["alturaPiso"]
-    K = dict_arquitectura["K"]
-    flag_sombra = dict_arquitectura["flag_sombra"]
-    alturaMax = dict_requerimientos["altura_max"]
-    rasante = tan(dict_requerimientos["rasante"] * π / 180)
-    rasante_sombra = dict_requerimientos["rasante_sombra"]
+    alturaPiso = dict_arquitectura["arq_alturaPiso"]
+    K = dict_arquitectura["arq_K"]
+    flag_sombra = dict_arquitectura["arq_flag_sombra"]
+    alturaMax = dict_requerimientos["norm_altura_max"]
+    rasante = tan(dict_requerimientos["norm_rasante"] * π / 180)
+    rasante_sombra = dict_requerimientos["norm_rasante_sombra"]
     
     min_pisos = minimum(vec_pisos)
     max_pisos = maximum(vec_pisos)
@@ -371,7 +371,7 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
             ps_stack, np_stack, objective_val = quad_opti_vol(
                 vec_psVolteor, vec_altVolteor, floors, alturaPiso,
                 max_ocupacion_suelo, max_losa_snt, K,
-                dict_arquitectura["ancho_crujia_min"], dict_arquitectura["ancho_crujia_max"]
+                dict_arquitectura["arq_ancho_crujia_min"], dict_arquitectura["arq_ancho_crujia_max"]
             )
             
             if objective_val > best_result["max_sol"]

@@ -121,19 +121,19 @@ end
 
 # WITH CONVENIENCE DICTIONARY WRAPPER
 function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, dict_resultado)
-    ps_sombraVolTeorico_p = get(dict_resultado, "ps_sombraVolTeorico_p", nothing)
-    ps_sombraVolTeorico_o = get(dict_resultado, "ps_sombraVolTeorico_o", nothing)
-    ps_sombraVolTeorico_s = get(dict_resultado, "ps_sombraVolTeorico_s", nothing)
-    ps_sombraEdif_p = get(dict_resultado, "ps_sombraEdif_p", nothing)
-    ps_sombraEdif_o = get(dict_resultado, "ps_sombraEdif_o", nothing)
-    ps_sombraEdif_s = get(dict_resultado, "ps_sombraEdif_s", nothing)
+    ps_sombraVolTeorico_p = get(dict_resultado, "proyecto_ps_sombraVolTeorico_p", nothing)
+    ps_sombraVolTeorico_o = get(dict_resultado, "proyecto_ps_sombraVolTeorico_o", nothing)
+    ps_sombraVolTeorico_s = get(dict_resultado, "proyecto_ps_sombraVolTeorico_s", nothing)
+    ps_sombraEdif_p = get(dict_resultado, "proyecto_ps_sombraEdif_p", nothing)
+    ps_sombraEdif_o = get(dict_resultado, "proyecto_ps_sombraEdif_o", nothing)
+    ps_sombraEdif_s = get(dict_resultado, "proyecto_ps_sombraEdif_s", nothing)
     
     return plotBaseEdificio3D(
         fpe, alturaPiso, ps_predio,
-        dict_resultado["vec_psVolteor"], dict_resultado["vec_altVolteor"],
-        dict_resultado["vec_psVolConSombra"], dict_resultado["vec_altVolConSombra"],
-        dict_resultado["vec_ps_opt"], dict_resultado["vec_np_opt"],
-        dict_resultado["vec_ps_subte"], dict_resultado["vec_np_subte"],
+        dict_resultado["proyecto_vec_psVolteor"], dict_resultado["proyecto_vec_altVolteor"],
+        dict_resultado["proyecto_vec_psVolConSombra"], dict_resultado["proyecto_vec_altVolConSombra"],
+        dict_resultado["proyecto_vec_ps_opt"], dict_resultado["proyecto_vec_np_opt"],
+        dict_resultado["proyecto_vec_ps_subte"], dict_resultado["proyecto_vec_np_subte"],
         dict_resultado["tipo_edificio"],
         ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s,
         ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s

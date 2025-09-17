@@ -43,17 +43,17 @@ function obtiene_requerimientos_normativos(codigo_predial, variante_normativa, c
                 # ───────── sin parámetros ─────────
                 chosen = valor_str != "NULL" ? valor_str : formula_str
                 parsed = tryparse(Float64, String(chosen))
-                dict_requerimientos[r] = parsed === nothing ? String(chosen) : parsed
+                dict_requerimientos["norm_" * r] = parsed === nothing ? String(chosen) : parsed
 
             elseif valor_str == "NULL"
                 # ───────── con parámetros ─────────
-                dict_requerimientos[r] = (
+                dict_requerimientos["norm_" * r] = (
                     "",
                     String(parametros_str),
                     String(formula_str)
                 )
             else
-                dict_requerimientos[r] = (
+                dict_requerimientos["norm_" * r] = (
                     String(valor_str),
                     String(parametros_str),
                     String(formula_str)
@@ -62,7 +62,7 @@ function obtiene_requerimientos_normativos(codigo_predial, variante_normativa, c
         end
     end
 
-    dict_requerimientos["rasante_sombra"] = 5.0
+    dict_requerimientos["norm_rasante_sombra"] = 5.0
 
 
     return dict_requerimientos

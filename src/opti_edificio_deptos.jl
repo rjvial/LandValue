@@ -122,10 +122,10 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
     ############################################################################
     # Apartment Type Specifications
     ############################################################################
-    num_apartment_types = length(dict_arquitectura["vecSupUtil"])
-    useful_areas = dict_arquitectura["vecSupUtil"]
-    terrace_areas = dict_arquitectura["vecSupTerraza"]
-    interior_areas = dict_arquitectura["vecSupInterior"]
+    num_apartment_types = length(dict_arquitectura["arq_vecSupUtil"])
+    useful_areas = dict_arquitectura["arq_vecSupUtil"]
+    terrace_areas = dict_arquitectura["arq_vecSupTerraza"]
+    interior_areas = dict_arquitectura["arq_vecSupInterior"]
     
     # DFL2 eligibility: apartments ≤ 140m² qualify
     dfl2_eligible = [useful_areas[i] <= 140 ? 1 : 0 for i in 1:num_apartment_types]
@@ -182,9 +182,9 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
     # Common area constraints
     @constraint(model, dfl2_discount_useful_area_limit, dfl2_discount <= flag_dfl2 * 0.2 * total_useful_area)
     @constraint(model, dfl2_discount_common_area_limit, dfl2_discount <= flag_dfl2 * total_common_area)
-    @constraint(model, common_area_ground_floor_min, common_area_ground_floor >= dict_arquitectura["coefSupComunPrimerPiso"] * useful_area_ground_floor)
-    @constraint(model, common_area_upper_floors_min, common_area_upper_floors >= dict_arquitectura["coefSupComunPisosSup"] * useful_area_upper_floors)
-    @constraint(model, total_common_area_min, total_common_area >= dict_arquitectura["coefSupComun"] * total_useful_area)
+    @constraint(model, common_area_ground_floor_min, common_area_ground_floor >= dict_arquitectura["arq_coefSupComunPrimerPiso"] * useful_area_ground_floor)
+    @constraint(model, common_area_upper_floors_min, common_area_upper_floors >= dict_arquitectura["arq_coefSupComunPisosSup"] * useful_area_upper_floors)
+    @constraint(model, total_common_area_min, total_common_area >= dict_arquitectura["arq_coefSupComun"] * total_useful_area)
     @constraint(model, total_common_area_max, total_common_area <= 0.25 * total_useful_area)
 
     # Ground occupation constraints

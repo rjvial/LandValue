@@ -27,6 +27,98 @@ fpe.sombraEdif_p = true
 fpe.sombraEdif_o = true
 fpe.sombraEdif_s = true
 
+
+function juliaTypeToPgType(juliaType::Type)
+    if juliaType <: Integer
+        return "int4"
+    elseif juliaType <: AbstractFloat
+        return "numeric(10,2)"
+    elseif juliaType <: AbstractString
+        return "text"
+    elseif juliaType <: Bool
+        return "boolean"
+    else
+        return "text"
+    end
+end
+
+function dict2tablevec(dicts, primaryKeyStr::String="id")
+    if isa(dicts, AbstractDict)
+        dicts = [dicts]
+    elseif isa(dicts, Vector) && all(x -> isa(x, AbstractDict), dicts)
+        # dicts is already a vector of dictionaries
+    else
+        throw(ArgumentError("Input must be a dictionary or vector of dictionaries"))
+    end
+
+    if isempty(dicts)
+        throw(ArgumentError("Dictionary vector cannot be empty"))
+    end
+
+    all_keys = Set{String}()
+    type_map = Dict{String, Type}()
+    column_conflicts = Dict{String, Vector{Tuple{Int, Type}}}()
+
+    for (dict_idx, dict) in enumerate(dicts)
+        for (key, value) in dict
+            push!(all_keys, key)
+            value_type = typeof(value)
+
+            if haskey(type_map, key)
+                current_type = type_map[key]
+                if current_type != value_type
+                    if !haskey(column_conflicts, key)
+                        column_conflicts[key] = [(1, current_type)]
+                    end
+                    push!(column_conflicts[key], (dict_idx, value_type))
+                end
+            else
+                type_map[key] = value_type
+            end
+        end
+    end
+
+    if !isempty(column_conflicts)
+        @warn "Column conflicts detected - using first occurrence in dictionary order:" column_conflicts
+        for (col, conflicts) in column_conflicts
+            @warn "Column '$col' conflicts: $(conflicts) - keeping type $(type_map[col]) from first dictionary"
+        end
+    end
+
+    vecColumnNames = collect(all_keys)
+    if !(primaryKeyStr in vecColumnNames)
+        push!(vecColumnNames, primaryKeyStr)
+        type_map[primaryKeyStr] = Int64
+    end
+
+    function sort_columns_with_prefixes(columns)
+        unprefixed = String[]
+        proyecto_prefixed = String[]
+        norm_prefixed = String[]
+        arq_prefixed = String[]
+
+        for col in columns
+            if startswith(col, "proyecto_")
+                push!(proyecto_prefixed, col)
+            elseif startswith(col, "norm_")
+                push!(norm_prefixed, col)
+            elseif startswith(col, "arq_")
+                push!(arq_prefixed, col)
+            else
+                push!(unprefixed, col)
+            end
+        end
+
+        return vcat(sort(unprefixed), sort(proyecto_prefixed), sort(norm_prefixed), sort(arq_prefixed))
+    end
+
+    vecColumnNames = sort_columns_with_prefixes(vecColumnNames)
+    vecColumnTypes = [juliaTypeToPgType(type_map[col]) for col in vecColumnNames]
+
+    return vecColumnNames, vecColumnTypes
+end
+
+
 query_pg = """
 SELECT * FROM public.tabla_instancias_optimizacion
 ORDER BY id_instancia ASC 
@@ -57,6 +149,7 @@ df_combined = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 
 ########### partialPolyOffset No esta funcionando bien: prbar con 13132011001009_24
 # row = df_instancias[df_instancias.id_combi .== "13132011002005_19",:]
+flag_create_table = false
 for row in eachrow(df_instancias)
     id_combi = row.id_combi
 
@@ -65,7 +158,7 @@ for row in eachrow(df_instancias)
 
     df_combined_row = filter(r -> r.id_combi == id_combi, df_combined)
 
-    try
+    # try
         dict_geom = obtiene_geometrias_combi(df_combined_row)
 
         list_variantes = row.list_variantes
@@ -75,44 +168,74 @@ for row in eachrow(df_instancias)
         for i = 1:num_variante
             println("ID Combi: ", row.id_combi, " - Variante: ", vec_variantes[i])
             dict_arquitectura = OrderedDict(
-                "alturaPiso" => 2.55,
-                "K" => 1,
-                "ancho_crujia_min" => 8,
-                "ancho_crujia_max" => 18,
-                "tipo_edificio" => "departamento",
-                "flag_sombra" => true, #false, # 
-                "flag_vano" => false,
-                "vecSupInterior" => [25, 65, 85, 120, 240],
-                "vecSupTerraza" => [10, 20, 30, 40, 40],
-                "vecSupUtil" => [30, 75, 100, 140, 260],
-                "supPorEstacionamiento" => 30,
-                "supPorBodega" => 5,
-                "supPorBicicleta" => 4,
-                "coefSupComunPrimerPiso" => 0.10,
-                "coefSupComunPisosSup" => 0.05,
-                "coefSupComun" => 0.1,
-                "variante_normativa" => vec_variantes[i]
+                "arq_alturaPiso" => 2.55,
+                "arq_K" => 1,
+                "arq_ancho_crujia_min" => 8,
+                "arq_ancho_crujia_max" => 18,
+                "arq_tipo_edificio" => "departamento",
+                "arq_flag_sombra" => true, #false, #
+                "arq_flag_vano" => false,
+                "arq_vecSupInterior" => [25, 65, 85, 120, 240],
+                "arq_vecSupTerraza" => [10, 20, 30, 40, 40],
+                "arq_vecSupUtil" => [30, 75, 100, 140, 260],
+                "arq_supPorEstacionamiento" => 30,
+                "arq_supPorBodega" => 5,
+                "arq_supPorBicicleta" => 4,
+                "arq_coefSupComunPrimerPiso" => 0.10,
+                "arq_coefSupComunPisosSup" => 0.05,
+                "arq_coefSupComun" => 0.1,
+                "arq_variante_normativa" => vec_variantes[i]
             )
 
-            dict_requerimientos = obtiene_requerimientos_normativos(vec_predios[1], dict_arquitectura["variante_normativa"], conn_neo4j);
+            dict_requerimientos = obtiene_requerimientos_normativos(vec_predios[1], dict_arquitectura["arq_variante_normativa"], conn_neo4j);
 
             dict_resultados, dict_proyecto_vs_normativa = opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, row.id_instancia, row.id_combi)
-            show(IOContext(stdout, :limit => false), MIME("text/plain"), dict_proyecto_vs_normativa)
-            show(IOContext(stdout, :limit => false), MIME("text/plain"), dict_resultados)
+            # show(IOContext(stdout, :limit => false), MIME("text/plain"), dict_proyecto_vs_normativa)
+            # show(IOContext(stdout, :limit => false), MIME("text/plain"), dict_resultados)
 
             println("")
             println("")
+            
+            # primaryKeyStr = "id_opti"
+            # tableNameStr = "prueba"
 
-            fig, ax, ax_mat = plotBaseEdificio3D(fpe, dict_arquitectura["alturaPiso"], dict_geom["ps_combi"], dict_resultados)
+            # dicts = [dict_resultados, dict_requerimientos, dict_proyecto_vs_normativa, dict_arquitectura]
+
+            # dict_all = OrderedDict{String, Any}()
+            # for dict in dicts
+            #     for (key, value) in dict
+            #         if typeof(value) == Bool
+            #             dict_all[key] = value ? 1 : 0
+            #         else
+            #             dict_all[key] = value
+            #         end
+            #     end
+            # end
+
+            # if flag_create_table
+            #     vecColumnNames, vecColumnTypes = dict2tablevec(dict_all, primaryKeyStr)
+            #     pg_julia.createTable(conn_postgres, tableNameStr, vecColumnNames, vecColumnTypes, primaryKeyStr)
+
+            #     flag_create_table = false
+            # end
+
+            
+            # id_opti_index = findfirst(x -> x == "id_opti", vecColumnNames_)
+            # vecColumnValue_[id_opti_index] = row.id_instancia * 10 + i
+            
+            # pg_julia.insertRow!(conn_postgres, tableNameStr, vecColumnNames, vecColumnValue, :id_opti)
+
+
+            fig, ax, ax_mat = plotBaseEdificio3D(fpe, dict_arquitectura["arq_alturaPiso"], dict_geom["ps_combi"], dict_resultados)
         end
     
-    catch
-        println("")
-        println("")
-        println("No se pudo procesar la combi ", id_combi)
-        println("")
-        println("")
-    end
+    # catch
+    #     println("")
+    #     println("")
+    #     println("No se pudo procesar la combi ", id_combi)
+    #     println("")
+    #     println("")
+    # end
 end
 
 # id_combi = "13132011001012_31" #"13132011001009_40" "13132011001012_82" "13132011001014_4"
