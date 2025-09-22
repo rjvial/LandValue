@@ -6,8 +6,8 @@ using LandValue, ArchGDAL, DataFrames, LinearAlgebra
 # ===========================
 #
 # Core Conversion Functions
-# - geom2shape: Convert GDAL geometry objects to polyShape/lineShape/pointShape format
-# - shape2geom: Convert polyShape/lineShape/pointShape to GDAL geometry objects
+# - gdal2shape: Convert GDAL geometry objects to polyShape/lineShape/pointShape format
+# - shape2gdal: Convert polyShape/lineShape/pointShape to GDAL geometry objects
 #
 # Geometric Analysis
 # - shapeArea: Calculate area of polygon using GDAL precision algorithms
@@ -35,7 +35,7 @@ using LandValue, ArchGDAL, DataFrames, LinearAlgebra
 #              Funciones en base a ArchGDAL                            #
 ########################################################################
 
-function geom2shape(geom)::GeomObject
+function gdal2shape(geom)::GeomObject
     if ArchGDAL.geomname(geom) == "POLYGON"
         geom_ = ArchGDAL.createmultipolygon()
         ArchGDAL.addgeom!(geom_, geom)
@@ -120,7 +120,7 @@ function geom2shape(geom)::GeomObject
 end
 
 
-function shape2geom(shape::PolyShape)
+function shape2gdal(shape::PolyShape)
     n = shape.NumRegions
     out = ArchGDAL.createmultipolygon()
     for k = 1:n
@@ -133,7 +133,7 @@ function shape2geom(shape::PolyShape)
     end
     return out
 end
-function shape2geom(shape::LineShape)
+function shape2gdal(shape::LineShape)
     n = shape.NumLines
     out = ArchGDAL.createmultilinestring()
     for k = 1:n
@@ -144,7 +144,7 @@ function shape2geom(shape::LineShape)
     end
     return out
 end
-function shape2geom(shape::PointShape)
+function shape2gdal(shape::PointShape)
     n = shape.NumPoints
     V = shape.Vertices
     largo, dim = size(V)
@@ -163,7 +163,7 @@ function shapeArea(ps::PolyShape)::Float64
     area = 0
     for i = 1:num_regions
         ps_i = polyShape.subShape(ps, i)
-        geom_i = polyGdal.shape2geom(ps_i)
+        geom_i = polyGdal.shape2gdal(ps_i)
         area_i = ArchGDAL.geomarea(geom_i)
         if polyShape.polyOrientation(ps_i) == 1
             area += area_i
@@ -186,9 +186,9 @@ function shapeContains(shape1::PosDimGeom, shape2::GeomObject)::Bool
     end
     flag_out = false
     for i1 = 1:numRegions1
-        geom1 = polyGdal.shape2geom(polyShape.subShape(shape1, i1))
+        geom1 = polyGdal.shape2gdal(polyShape.subShape(shape1, i1))
         for i2 = 1:numRegions2
-            geom2 = polyGdal.shape2geom(polyShape.subShape(shape2, i2))
+            geom2 = polyGdal.shape2gdal(polyShape.subShape(shape2, i2))
             flag_12 = ArchGDAL.contains(geom1, geom2)
             if flag_12
                 flag_out = true
@@ -201,27 +201,27 @@ end
 
 
 function shapeDifference(shape1::PosDimGeom, shape2::PosDimGeom)::PosDimGeom
-    geom1 = polyGdal.shape2geom(shape1)
-    geom2 = polyGdal.shape2geom(shape2)
+    geom1 = polyGdal.shape2gdal(shape1)
+    geom2 = polyGdal.shape2gdal(shape2)
     geom_out = ArchGDAL.difference(geom1, geom2)
-    shape_out = polyGdal.geom2shape(geom_out)
+    shape_out = polyGdal.gdal2shape(geom_out)
     return shape_out
 end
 
 
 function shapeIntersect(shape1::GeomObject, shape2::GeomObject)::GeomObject
-    geom1 = polyGdal.shape2geom(shape1)
-    geom2 = polyGdal.shape2geom(shape2)
+    geom1 = polyGdal.shape2gdal(shape1)
+    geom2 = polyGdal.shape2gdal(shape2)
     geom_out = ArchGDAL.intersection(geom1, geom2)
-    shape_out = polyGdal.geom2shape(geom_out)
+    shape_out = polyGdal.gdal2shape(geom_out)
     return shape_out
 end
 
 
 function shapeTouches(shape1::PosDimGeom, shape2::PosDimGeom)::Bool
     try
-        geom1 = polyGdal.shape2geom(shape1)
-        geom2 = polyGdal.shape2geom(shape2)
+        geom1 = polyGdal.shape2gdal(shape1)
+        geom2 = polyGdal.shape2gdal(shape2)
         
         # Use GDAL's built-in intersects method which is much faster
         return ArchGDAL.intersects(geom1, geom2)
@@ -232,10 +232,10 @@ end
 
 
 function shapeUnion(shape1::PosDimGeom, shape2::PosDimGeom)::PosDimGeom # polyUnion es más robusto
-    geom1 = polyGdal.shape2geom(shape1)
-    geom2 = polyGdal.shape2geom(shape2)
+    geom1 = polyGdal.shape2gdal(shape1)
+    geom2 = polyGdal.shape2gdal(shape2)
     geom_out = ArchGDAL.union(geom1, geom2)
-    shape_out = polyGdal.geom2shape(geom_out)
+    shape_out = polyGdal.gdal2shape(geom_out)
     return shape_out
 end
 function shapeUnion(shape::PolyShape)::PolyShape
@@ -259,9 +259,9 @@ end
 
 
 function shapeHull(shape::PosDimGeom)::PosDimGeom
-    geom = polyGdal.shape2geom(shape)
+    geom = polyGdal.shape2gdal(shape)
     geom_out = ArchGDAL.convexhull(geom)
-    shape_out = polyGdal.geom2shape(geom_out)
+    shape_out = polyGdal.gdal2shape(geom_out)
     V = shape_out.Vertices[1]
     shape_out = PolyShape([V[1:end-1, :]], 1)
     return shape_out
@@ -281,13 +281,13 @@ function shapeSimplifyTopology(shape::PosDimGeom, tol::Real=0.05, flagTopo::Bool
         numElementos = shape.NumLines
     end
     if numElementos == 1
-        geom = polyGdal.shape2geom(shape)
+        geom = polyGdal.shape2gdal(shape)
         if flagTopo
             geom_ = ArchGDAL.simplifypreservetopology(geom, tol)
         else
             geom_ = ArchGDAL.simplify(geom, tol)
         end
-        shape_ = polyGdal.geom2shape(geom_)
+        shape_ = polyGdal.gdal2shape(geom_)
         shape_ = PolyShape([shape_.Vertices[1][1:end-1, :]], 1)
         is_ccw = polyShape.polyOrientation(shape_)
         V = shape_.Vertices[1]
@@ -299,13 +299,13 @@ function shapeSimplifyTopology(shape::PosDimGeom, tol::Real=0.05, flagTopo::Bool
         V = []
         for i = 1:numElementos
             shape_i = polyShape.subShape(shape, i)
-            geom_i = polyGdal.shape2geom(shape_i)
+            geom_i = polyGdal.shape2gdal(shape_i)
             if flagTopo
                 geom_i_ = ArchGDAL.simplifypreservetopology(geom_i, tol)
             else
                 geom_i_ = ArchGDAL.simplify(geom_i, tol)
             end
-            shape_i_ = polyGdal.geom2shape(geom_i_)
+            shape_i_ = polyGdal.gdal2shape(geom_i_)
             shape_i_ = PolyShape([shape_i_.Vertices[1][1:end-1, :]], 1)
             is_ccw = polyShape.polyOrientation(shape_i_)
             V_i = shape_i_.Vertices[1]
@@ -333,9 +333,9 @@ function shapeBuffer(shape::PosDimGeom, dist::Real, nseg::Int)
         numElementos = shape.NumLines
     end
     if numElementos == 1
-        geom = polyGdal.shape2geom(shape)
+        geom = polyGdal.shape2gdal(shape)
         poly_ = ArchGDAL.buffer(geom, dist, nseg)
-        shape_ = polyGdal.geom2shape(poly_)
+        shape_ = polyGdal.gdal2shape(poly_)
 
         shape_ = PolyShape([shape_.Vertices[1][1:end-1, :]], 1)
         is_ccw = polyShape.polyOrientation(shape_)
@@ -349,9 +349,9 @@ function shapeBuffer(shape::PosDimGeom, dist::Real, nseg::Int)
         V = []
         for k = 1:numElementos
             shape_k = isa(shape, LineShape) ? LineShape([shape.Vertices[k]], 1) : PolyShape([shape.Vertices[k]], 1)
-            geom_k = polyGdal.shape2geom(shape_k)
+            geom_k = polyGdal.shape2gdal(shape_k)
             poly_k = ArchGDAL.buffer(geom_k, dist, nseg)
-            shape_k_ = polyGdal.geom2shape(poly_k)
+            shape_k_ = polyGdal.gdal2shape(poly_k)
             shape_k_ = PolyShape([shape_k_.Vertices[1][1:end-1, :]], 1)
             is_ccw = polyShape.polyOrientation(shape_k_)
             V_k = shape_k_.Vertices[1]
@@ -369,9 +369,9 @@ function shapeBuffer(shape::PointShape, dist::Real=0.1)
     VV = Array{Array{Float64,2},1}(undef, numElementos)
     for i = 1:numElementos
         point_i = PointShape(shape.Vertices[i, :]', 1)
-        geom = polyGdal.shape2geom(point_i)
+        geom = polyGdal.shape2gdal(point_i)
         poly_ = ArchGDAL.buffer(geom, dist, 3)
-        shape_ = polyGdal.geom2shape(poly_)
+        shape_ = polyGdal.gdal2shape(poly_)
         shape_ = PolyShape([shape_.Vertices[1][1:end-1, :]], 1)
         is_ccw = polyShape.polyOrientation(shape_)
         V = shape_.Vertices[1]
@@ -388,8 +388,8 @@ end
 
 
 function shapeCentroid(shape::PosDimGeom)::PointShape
-    geom_point = ArchGDAL.centroid(polyGdal.shape2geom(shape))
-    out = polyGdal.geom2shape(geom_point)
+    geom_point = ArchGDAL.centroid(polyGdal.shape2gdal(shape))
+    out = polyGdal.gdal2shape(geom_point)
     return out
 end
 
@@ -412,8 +412,8 @@ end
 
    
 function shapeDistance(shape1::GeomObject, shape2::GeomObject)::Float64
-    geom1 = polyGdal.shape2geom(shape1)
-    geom2 = polyGdal.shape2geom(shape2)
+    geom1 = polyGdal.shape2gdal(shape1)
+    geom2 = polyGdal.shape2gdal(shape2)
     dist = ArchGDAL.distance(geom1, geom2)
     return dist
 end
@@ -462,7 +462,7 @@ function astext2shape(str)::GeomObject
             # Handle as PolyShape
             V = []
             for i in eachindex(str)
-                shape_i = polyGdal.geom2shape(ArchGDAL.fromWKT(str[i]))
+                shape_i = polyGdal.gdal2shape(ArchGDAL.fromWKT(str[i]))
                 if isa(shape_i, PolyShape)
                     for j in 1:shape_i.NumRegions
                         V_ = shape_i.Vertices[j]
@@ -478,22 +478,22 @@ function astext2shape(str)::GeomObject
             # Handle as LineShape
             geom_ls = ArchGDAL.createmultilinestring()
             for i in eachindex(str)
-                shape_i = polyGdal.geom2shape(ArchGDAL.fromWKT(str[i]))
+                shape_i = polyGdal.gdal2shape(ArchGDAL.fromWKT(str[i]))
                 if isa(shape_i, LineShape)
                     V_i = shape_i.Vertices[1]
-                    geom_i = polyGdal.shape2geom(LineShape([V_i], 1))
+                    geom_i = polyGdal.shape2gdal(LineShape([V_i], 1))
                     geom_ls = ArchGDAL.union(geom_ls, geom_i)
                 else
                     error("Mixed geometry types in array not supported")
                 end
             end
-            return polyGdal.geom2shape(geom_ls)
+            return polyGdal.gdal2shape(geom_ls)
             
         elseif startswith(geom_type, "POINT")
             # Handle as PointShape
             V = []
             for i in eachindex(str)
-                shape_i = polyGdal.geom2shape(ArchGDAL.fromWKT(str[i]))
+                shape_i = polyGdal.gdal2shape(ArchGDAL.fromWKT(str[i]))
                 if isa(shape_i, PointShape)
                     push!(V, shape_i.Vertices[1, :])
                 else
@@ -508,7 +508,7 @@ function astext2shape(str)::GeomObject
     else
         # Single WKT string
         geom = ArchGDAL.fromWKT(str)
-        shape = polyGdal.geom2shape(geom)
+        shape = polyGdal.gdal2shape(geom)
         
         if isa(shape, PolyShape)
             V = []
@@ -523,9 +523,56 @@ function astext2shape(str)::GeomObject
     end
 end
 
+function shape2astext(shape::GeomObject)::Union{String, Vector{String}}
+    if isa(shape, PolyShape)
+        if shape.NumRegions == 1
+            geom = polyGdal.shape2gdal(shape)
+            return ArchGDAL.toWKT(geom)
+        else
+            wkt_strings = String[]
+            for i in 1:shape.NumRegions
+                V = shape.Vertices[i]
+                single_poly = PolyShape([V], 1)
+                geom = polyGdal.shape2gdal(single_poly)
+                push!(wkt_strings, ArchGDAL.toWKT(geom))
+            end
+            return wkt_strings
+        end
+    elseif isa(shape, LineShape)
+        if shape.NumRegions == 1
+            geom = polyGdal.shape2gdal(shape)
+            return ArchGDAL.toWKT(geom)
+        else
+            wkt_strings = String[]
+            for i in 1:shape.NumRegions
+                V = shape.Vertices[i]
+                single_line = LineShape([V], 1)
+                geom = polyGdal.shape2gdal(single_line)
+                push!(wkt_strings, ArchGDAL.toWKT(geom))
+            end
+            return wkt_strings
+        end
+    elseif isa(shape, PointShape)
+        if shape.NumRegions == 1
+            geom = polyGdal.shape2gdal(shape)
+            return ArchGDAL.toWKT(geom)
+        else
+            wkt_strings = String[]
+            for i in 1:shape.NumRegions
+                V = shape.Vertices[i:i, :]
+                single_point = PointShape(V, 1)
+                geom = polyGdal.shape2gdal(single_point)
+                push!(wkt_strings, ArchGDAL.toWKT(geom))
+            end
+            return wkt_strings
+        end
+    else
+        error("Unsupported shape type: $(typeof(shape))")
+    end
+end
 
 
-export geom2shape, shape2geom, shapeArea, shapeContains, shapeDifference, shapeIntersect, shapeUnion, shapeHull, 
-shapeSimplify, shapeSimplifyTopology, shapeBuffer, shapeCentroid, partialCentroid, shapeDistance, 
-partialDistance, astext2shape, shapeTouches
+export gdal2shape, shape2gdal, shapeArea, shapeContains, shapeDifference, shapeIntersect, shapeUnion, shapeHull,
+shapeSimplify, shapeSimplifyTopology, shapeBuffer, shapeCentroid, partialCentroid, shapeDistance,
+partialDistance, astext2shape, shape2astext, shapeTouches
 end

@@ -11,7 +11,7 @@ const BODEGA_RATIO = 0.2
 const DEFAULT_OCCUPATION_LOAD = 100
 const DEFAULT_METRO_DISTANCE = 3000
 const COEF_OCUPACION_EST = 1.0
-const LARGE_NUMBER = 999999
+const LARGE_NUMBER = 999999.0
 
 
 function python_expression_eval_with_varmap(expr_dict, variable_map::Dict{String, <:Any})
@@ -69,7 +69,7 @@ function estimacion_ocupacion_suelo_viv_econ(superficieTerreno, max_deptos, sup_
     return sup_ocupacion_est
 end
 
-function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_instancia=nothing, id_combi=nothing)
+function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_opti=nothing, id_combi=nothing)
     # ============================================================================
     # MAIN BUILDING OPTIMIZATION FUNCTION
     # ============================================================================
@@ -349,7 +349,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_ins
     # 9. RESULTS COMPILATION
     # ============================================================================
     dict_resultados = OrderedDict(
-        "id_instancia" => id_instancia,
+        "id_opti" => id_opti,
         "id_combi" => id_combi,
         "tipo_edificio" => config_edificio["tipo_edificio"],
         "variante_normativa" => config_edificio["variante_str"],
@@ -358,11 +358,11 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_ins
         "proyecto_pisos_snt" => Int8(sum(vec_np_opt[i] for i in eachindex(vec_ps_opt))),
         "proyecto_sup_edificada_bnt" => areaEst_requerida,
         "proyecto_pisos_bnt" => 0,
-        "proyecto_vec_sup_deptos" => cabida_data["vec_sup_deptos"],
+        # "proyecto_vec_sup_deptos" => cabida_data["vec_sup_deptos"],
         "proyecto_vec_num_deptos" => cabida_data["vec_num_deptos"],
-        "proyecto_vec_sup_comercio" => cabida_data["vec_sup_comercio"],
+        # "proyecto_vec_sup_comercio" => cabida_data["vec_sup_comercio"],
         "proyecto_vec_num_comercio" => cabida_data["vec_num_comercio"],
-        "proyecto_vec_sup_oficinas" => cabida_data["vec_sup_oficinas"],
+        # "proyecto_vec_sup_oficinas" => cabida_data["vec_sup_oficinas"],
         "proyecto_vec_num_oficinas" => cabida_data["vec_num_oficinas"],
         "proyecto_estacionamientos_autos_oficina" => parking_data["estacionamientos_autos_oficina"],
         "proyecto_estacionamientos_autos_vivienda" => parking_data["estacionamientos_autos_vivienda"],
@@ -393,7 +393,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_ins
         "proyecto_supInteriorPisosSup" => dict_edificio_deptos["supInteriorPisosSup"],
         "proyecto_descuento_dfl2" => dict_edificio_deptos["descuento_dfl2"],
         "proyecto_supNoUtilizada" => dict_edificio_deptos["supNoUtilizada"],
-        "proyecto_vec_numDeptosTipo" => dict_edificio_deptos["vec_numDeptosTipo"],
+        # "proyecto_vec_numDeptosTipo" => dict_edificio_deptos["vec_numDeptosTipo"],
         "proyecto_numDeptos" => dict_edificio_deptos["numDeptos"],
         "proyecto_vec_ps_opt" => vec_ps_opt,
         "proyecto_vec_np_opt" => vec_np_opt,

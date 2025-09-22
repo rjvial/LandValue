@@ -2,7 +2,7 @@
 
 ## Module Hierarchy
 1. **polyShape** - Core geometry: `polyBox`, `polyArea`, `polyUnion`, `polyDifference`
-2. **polyGdal** - Conversions: `astext2shape`, `shape2geom`, `shapeBuffer`
+2. **polyGdal** - Conversions: `astext2shape`, `shape2gdal`, `shapeBuffer`
 3. **polyClipper** - Offsetting: `polyOffset`, `shape2clipper`
 4. **polyPlot** - Visualization: `plotPolyshape2D`, `plotPolyshape3D`
 

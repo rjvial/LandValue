@@ -25,33 +25,14 @@ if isempty(df_check_instancias_optimizacion) # En caso que no exista la tabla in
     query_str = """ 
     CREATE TABLE IF NOT EXISTS public.tabla_instancias_optimizacion
     (
-        "id_instancia" serial PRIMARY KEY,
+        "id_opti" serial PRIMARY KEY,
         "id_combi" text,
-        "list_predios" text,
-        "list_variantes" text,
-        "num_variantes" int,
+        "variante_norm" text,
         "status" int
     )
     """
     pg_julia.query(conn_postgres, query_str)
 end
-
-query_check_resultados_optimizacion = """
-SELECT 1 FROM information_schema.tables
-WHERE table_schema = 'public' AND table_name = 'tabla_resultados_optimizacion'
-"""
-df_check_resultados_optimizacion = pg_julia.query(conn_postgres, query_check_resultados_optimizacion)
-
-if isempty(df_check_resultados_optimizacion)
-    query_str = """ 
-    CREATE TABLE IF NOT EXISTS public.tabla_resultados_optimizacion
-    (
-    )
-    """
-    pg_julia.query(conn_postgres, query_str)
-
-end
-
 
 
 sup_combi_sii_min = 800;    sup_combi_sii_max = 4000
@@ -76,50 +57,38 @@ ORDER BY id_combi
 df_combis = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 
 all_predios = unique([split(strip(row.list_predios, ['(', ')']), ";")[1] for row in eachrow(df_combis)])
-println("All predios: ", all_predios[1:min(5, length(all_predios))])
-
 all_predios_int = [parse(Int64, p) for p in all_predios]
-println("All predios as int: ", all_predios_int[1:min(5, length(all_predios_int))])
 
 batch_query = """
-    MATCH (p:Predio)-[:SE_UBICA_EN_ZONA]->(z:Zona_Edificacion)-[:TIENE_REQUERIMIENTO]->(r:Requerimiento_Edificacion)
+    MATCH (c:Combi)-[]-(p:Predio)-[:SE_UBICA_EN_ZONA]->(z:Zona_Edificacion)-[:TIENE_REQUERIMIENTO]->(r:Requerimiento_Edificacion)
     WHERE p.codigo_predial IN [$(join(["\"$p\"" for p in unique(all_predios)], ","))]
-    RETURN DISTINCT p.codigo_predial AS codigo_predial, r.nombre_variante AS nombre_variante
+    AND c.length >= $length_min_combi AND c.length <= $length_max_combi
+    AND c.width >= $width_min_combi AND c.width <= $width_max_combi
+    AND c.length_to_width >= $length_to_width_min AND c.length_to_width <= $length_to_width_max
+    AND c.rectangularity >= $rectangularity_min AND c.rectangularity <= $rectangularity_max
+    AND c.convexity >= $convexity_min AND c.convexity <= $convexity_max
+    AND c.sup_combi_sii >= $sup_combi_sii_min AND c.sup_combi_sii <= $sup_combi_sii_max
+    AND c.num_predios >= $num_predios_min AND c.num_predios <= $num_predios_max
+    RETURN DISTINCT c.id_combi AS id_combi, r.nombre_variante AS nombre_variante
+    ORDER BY id_combi, nombre_variante
     """
 df_all_variants = neo4j_julia.cypher_to_dataframe(batch_query, conn_neo4j)
 
 insert_values = []
-
-for row in eachrow(df_combis)
-    println("Processing Combi ID: ", row.id_combi)
-    id_combi = row.id_combi
-    list_predios = row.list_predios
-    vec_predios = split(strip(list_predios, ['(', ')']), ";")
-
-    predio_variants = filter(r -> r.codigo_predial == parse(Int64, vec_predios[1]), df_all_variants)
-    if isempty(predio_variants)
-        list_variantes = ""
-        num_variantes = 0
-    else
-        list_variantes = join(predio_variants.nombre_variante, ",")
-        num_variantes = size(predio_variants, 1)
+let cont = 0
+    for row in eachrow(df_all_variants)
+        cont += 1
+        println("Processing Combi ID: ", row.id_combi, ", contador: ", string(cont))
+        push!(insert_values, "($(cont), '$(row.id_combi)', '$(row.nombre_variante)', 0)")
     end
-    status = num_variantes
-    
-    escaped_list_predios = replace(list_predios, "'" => "''")
-    escaped_list_variantes = replace(list_variantes, "'" => "''")
-    escaped_id_combi = replace(string(id_combi), "'" => "''")
-    
-    push!(insert_values, "('$(escaped_id_combi)', '$(escaped_list_predios)', '$(escaped_list_variantes)', $(num_variantes), $(status))")
+
+    if !isempty(insert_values)
+        bulk_insert_sql = """
+        INSERT INTO tabla_instancias_optimizacion (id_opti, id_combi, variante_norm, status) 
+        VALUES $(join(insert_values, ","))
+        """
+        pg_julia.query(conn_postgres, bulk_insert_sql)
+        println("Inserted $(length(insert_values)) rows in batch")
+    end
+
 end
-
-if !isempty(insert_values)
-    bulk_insert_sql = """
-    INSERT INTO tabla_instancias_optimizacion (id_combi, list_predios, list_variantes, num_variantes, status) 
-    VALUES $(join(insert_values, ","))
-    """
-    pg_julia.query(conn_postgres, bulk_insert_sql)
-    println("Inserted $(length(insert_values)) rows in batch")
-end
-
-
