@@ -43,6 +43,21 @@ fpe.sombraEdif_s = true
 #                          HELPER FUNCTIONS                                  #
 ################################################################################
 
+
+function update_optimization_status(conn_postgres, id_opti, status)
+    update_query = """
+    UPDATE public.tabla_instancias_optimizacion
+    SET status = $status
+    WHERE id_opti = $id_opti
+    """
+    pg_julia.query(conn_postgres, update_query)
+end
+
+function handle_optimization_error(conn_postgres, id_opti, error_msg, error)
+    println("$error_msg for ID $id_opti: $error")
+    update_optimization_status(conn_postgres, id_opti, -1)
+end
+
 function juliaTypeToPgType(juliaType::Type)
     if juliaType <: Integer
         return "int4"
@@ -73,19 +88,6 @@ function processValue(value, dict_geom)
         tuple_str = string(value)
         tuple_str = replace(tuple_str, r"[\"'\[\](){}]" => " ")
         return strip(tuple_str)
-    # elseif isa(value, PolyShape)
-    #     shape_adjusted = polyShape.ajustaCoordenadasInversa(value, dict_geom["dx"], dict_geom["dy"])
-    #     shape_4326 = polyShape.shape_32719to4326(shape_adjusted)
-    #     return polyGdal.shape2astext(shape_4326)
-    # elseif isa(value, Vector) && length(value) > 0 && isa(value[1], PolyShape)
-    #     wkt_vector = String[]
-    #     for shape in value
-    #         shape_adjusted = polyShape.ajustaCoordenadasInversa(shape, dict_geom["dx"], dict_geom["dy"])
-    #         shape_4326 = polyShape.shape_32719to4326(shape_adjusted)
-    #         wkt_str = polyGdal.shape2astext(shape_4326)
-    #         push!(wkt_vector, wkt_str)
-    #     end
-    #     return wkt_vector
     else
         return value
     end
@@ -164,7 +166,9 @@ let flag_create_table = false
     existing_table = pg_julia.query(conn_postgres, table_check_query)
     if isempty(existing_table)
         flag_create_table = true
-        println("Table '$TABLE_NAME' already exists, skipping creation.")
+        println("Table '$TABLE_NAME' does not exist, will create on first result")
+    else
+        println("Table '$TABLE_NAME' already exists")
     end
 
     combi_aux = ""
@@ -172,57 +176,70 @@ let flag_create_table = false
 
     for row in eachrow(df_instancias)
         id_combi = row.id_combi
+        id_opti = row.id_opti
 
         df_combis_row = filter(r -> r.id_combi == id_combi, df_combis)
         vec_predios = parse.(Int, split(strip(df_combis_row[1, "list_predios"], ['(', ')']), ';'))
 
+        # Process geometry once per combi
         if id_combi != combi_aux
             println("\nProcessing Combi ID: $id_combi\n")
             df_combined_row = filter(r -> r.id_combi == id_combi, df_combined)
+
+            if isempty(df_combined_row)
+                handle_optimization_error(conn_postgres, id_opti, "No geometries found", "")
+                continue
+            end
+
             dict_geom = obtiene_geometrias_combi(df_combined_row)
+
             combi_aux = id_combi
         end
 
-        println("Processing ID Opti: $(row.id_opti)")
+        println("Processing ID Opti: $(id_opti)")
 
         dict_arquitectura = createArchitectureDict(row.variante_norm)
         dict_requerimientos = obtiene_requerimientos_normativos(vec_predios[1], dict_arquitectura["arq_variante_normativa"], conn_neo4j)
 
-        dict_resultados, dict_proyecto_vs_normativa = opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, row.id_opti, row.id_combi)
+        try
+            dict_resultados, dict_proyecto_vs_normativa = opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_opti, id_combi)
+            # show(IOContext(stdout, :limit => false), MIME("text/plain"), dict_resultados)
+            dict_all = OrderedDict{String,Any}()
+            dicts = [dict_resultados, dict_proyecto_vs_normativa, dict_arquitectura]
 
-        dict_all = OrderedDict{String,Any}()
-        dicts = [dict_resultados, dict_proyecto_vs_normativa, dict_arquitectura]
-
-        for dict in dicts
-            for (key, value) in dict
-                dict_all[key] = processValue(value, dict_geom)
+            for dict in dicts
+                for (key, value) in dict
+                    dict_all[key] = processValue(value, dict_geom)
+                end
             end
+
+            dict_all = OrderedDict(sort(collect(dict_all), by=x -> (findfirst(==(x[1]), PRIORITY_KEYS) === nothing ? 1000 : findfirst(==(x[1]), PRIORITY_KEYS), x[1])))
+
+            vecColumnNames, vecColumnTypes = dict2tablevec(dict_all, PRIMARY_KEY)
+
+            if flag_create_table
+                pg_julia.createTable(conn_postgres, TABLE_NAME, vecColumnNames, vecColumnTypes, PRIMARY_KEY)
+                flag_create_table = false
+            end
+
+            vecColumnValue = Vector{Any}(undef, length(vecColumnNames))
+            for (idx, col_name) in enumerate(vecColumnNames)
+                vecColumnValue[idx] = haskey(dict_all, col_name) ? dict_all[col_name] : nothing
+            end
+
+            pg_julia.insertRow!(conn_postgres, TABLE_NAME, vecColumnNames, vecColumnValue, Symbol(PRIMARY_KEY))
+
+            update_optimization_status(conn_postgres, id_opti, 1)
+
+            # fig, ax, ax_mat = plotBaseEdificio3D(fpe, dict_arquitectura["arq_alturaPiso"], dict_geom["ps_combi"], dict_resultados)
+
+            println("Completed optimization for ID Opti: $(id_opti)\n")
+
+        catch e
+            handle_optimization_error(conn_postgres, id_opti, "Optimization failed", e)
+            continue
         end
 
-        dict_all = OrderedDict(sort(collect(dict_all), by=x -> (findfirst(==(x[1]), PRIORITY_KEYS) === nothing ? 1000 : findfirst(==(x[1]), PRIORITY_KEYS), x[1])))
-
-        vecColumnNames, vecColumnTypes = dict2tablevec(dict_all, PRIMARY_KEY)
-
-        if flag_create_table
-            pg_julia.createTable(conn_postgres, TABLE_NAME, vecColumnNames, vecColumnTypes, PRIMARY_KEY)
-            flag_create_table = false
-        end
-
-        vecColumnValue = Vector{Any}(undef, length(vecColumnNames))
-        for (idx, col_name) in enumerate(vecColumnNames)
-            vecColumnValue[idx] = haskey(dict_all, col_name) ? dict_all[col_name] : nothing
-        end
-
-        pg_julia.insertRow!(conn_postgres, TABLE_NAME, vecColumnNames, vecColumnValue, Symbol(PRIMARY_KEY))
-
-        update_query = """
-        UPDATE public.tabla_instancias_optimizacion
-        SET status = 1
-        WHERE id_opti = $(row.id_opti)
-        """
-        pg_julia.query(conn_postgres, update_query)
-
-        println("Completed optimization for ID Opti: $(row.id_opti)\n")
     end
 
     println("All optimizations completed successfully!")

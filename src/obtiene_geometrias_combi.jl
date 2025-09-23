@@ -1,8 +1,14 @@
 function obtiene_geometrias_combi(df_combined_row)
     # Unified query to get both Combi and Calle_Combi data in single database call
-    
+
     # Extract Combi data (first row contains all combi info)
-    sup_terreno_sii = df_combined_row[1,"sup_terreno_sii"]
+    if "sup_terreno_sii" in names(df_combined_row)
+        sup_terreno_sii = df_combined_row[1,"sup_terreno_sii"]
+    else
+        println("Warning: Column 'sup_terreno_sii' not found in DataFrame")
+        println("Available columns: ", names(df_combined_row))
+        sup_terreno_sii = 0.0
+    end
     ps_combi = polyGdal.astext2shape([df_combined_row[1, "geom_wkt"]])
     ps_combi = polyShape.setPolyOrientation(ps_combi,1)
     ps_combi = polyShape.shape_4326to32719(ps_combi)
@@ -23,7 +29,7 @@ function obtiene_geometrias_combi(df_combined_row)
     #################################
     
     display("Procesamiento del conjunto de calles en el entorno del predio")
-    @time ps_calles, ps_publico, ps_bruto, vecAnchoCalle, vecSecConCalle = obtieneCalles(calles_data, ps_combi, dx, dy)
+    ps_calles, ps_publico, ps_bruto, vecAnchoCalle, vecSecConCalle = obtieneCalles(calles_data, ps_combi, dx, dy)
 
 
     vec_edges_predio, aux = polyShape.shape2vector(ps_combi)

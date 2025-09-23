@@ -71,10 +71,10 @@ function obtieneCalles(calles_data, ps_combi, dx, dy)
     # ============================================================================
     # 5. VISUALIZATION
     # ============================================================================
-    fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_combi, "blue", 0.2)
-    fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_calles, "gray", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
-    fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_bruto, "green", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
-    fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_publico, "green", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+    # fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_combi, "blue", 0.2)
+    # fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_calles, "gray", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+    # fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_bruto, "green", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+    # fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_publico, "green", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
 
     return ps_calles, ps_publico, ps_bruto, vecAnchoCalle, vecSecConCalle
 
