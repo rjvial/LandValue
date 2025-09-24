@@ -470,6 +470,10 @@ function partialPolyOffset(ps::PolyShape, vec_partial_offset_id::Vector{Int}, ve
         return ps_out, vec_todos_offset_dist_
     end
 
+    if isempty(vec_partial_offset_dist)
+        return ps
+    end
+
     max_dist = maximum(vec_partial_offset_dist) #-4
     ps_offset_max = polyClipper.polyOffset(ps, max_dist)
     num_regions_offset_max = ps_offset_max.NumRegions
@@ -1943,6 +1947,10 @@ function polyHeight(ps::PolyShape, box::PolyShape, method::Symbol=:average, tole
         if d_i > 5
             push!(vec_dist, d_i)
         end
+    end
+
+    if isempty(vec_dist)
+        return 0.0
     end
 
     if method == :average

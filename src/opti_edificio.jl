@@ -402,8 +402,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_opt
                                     else
                                         density_config["max_ocupacion_suelo"]
                                     end,
-        "proyecto_pisos" => Int8(sum(vec_np_opt[i] for i in eachindex(vec_ps_opt))),
-        "norm_pisos" => Int8(get(dict_requerimientos, "norm_n_pisos", 9999)),
+        "norm_pisos_snt" => Int8(get(dict_requerimientos, "norm_n_pisos", 9999)),
         "proyecto_supNoUtilizada" => dict_edificio_deptos["supNoUtilizada"]
     )
 

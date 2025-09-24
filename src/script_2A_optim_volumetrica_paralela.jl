@@ -1,5 +1,6 @@
 ################################################################################
 #                    SCRIPT 2A - VOLUMETRIC OPTIMIZATION                     #
+#                        (PARALLEL DISTRIBUTED MODE)                        #
 ################################################################################
 
 using LandValue, DotEnv, LinearAlgebra, OrderedCollections, Distributed, DataFrames
@@ -66,41 +67,6 @@ using LandValue, DotEnv, LinearAlgebra, OrderedCollections, Distributed, DataFra
     end
 end
 
-function main()
-    # Main process connections
-    global my_env = DotEnv.config("secrets.env")
-    global conn_aws = aws_julia.connection(my_env["AWS_ACCESS_KEY"], my_env["AWS_SECRET_KEY"], my_env["AWS_REGION"])
-    global conn_neo4j, conn_postgres = setup_database_connections(my_env)
-
-    ################################################################################
-    #                         3D VISUALIZATION SETTINGS                          #
-    ################################################################################
-
-    global fpe = FlagPlotEdif3D()
-    fpe.predio = true
-    fpe.volTeorico = true
-    fpe.volConSombra = true
-    fpe.edif = true
-    fpe.sombraVolTeorico_p = true
-    fpe.sombraVolTeorico_o = true
-    fpe.sombraVolTeorico_s = true
-    fpe.sombraEdif_p = true
-    fpe.sombraEdif_o = true
-    fpe.sombraEdif_s = true
-
-    global worker_ids = setup_workers()
-
-    # Load optimization data after worker setup
-    global df_instancias, df_combis, df_combined = load_optimization_data(conn_postgres, conn_neo4j)
-
-    global num_instancias = size(df_instancias, 1)
-    global jobs, results = create_optimized_channels(num_instancias, length(worker_ids))
-
-    # Execute the optimization
-    success_count, fail_count, total_time = execute_parallel_optimization()
-
-    return success_count, fail_count, total_time
-end
 
 ################################################################################
 #                          HELPER FUNCTIONS                                  #
@@ -278,27 +244,10 @@ function setup_workers()
         println("Using existing $(nworkers()) workers")
     end
 
-    # Load required packages on all workers
-    @everywhere begin
-        using LandValue, Distributed, OrderedCollections, DataFrames
-        println("Worker $(myid()) initialized successfully")
-    end
-
     return workers()
 end
 
-worker_ids = setup_workers()
-
-# Load optimization data after worker setup
-df_instancias, df_combis, df_combined = load_optimization_data(conn_postgres, conn_neo4j)
-
-################################################################################
-#                      MAIN OPTIMIZATION PROCESSING LOOP                     #
-################################################################################
-
-const PRIMARY_KEY = "id_opti"
-const TABLE_NAME = "tabla_resultados_optimizacion"
-const PRIORITY_KEYS = ["id_opti", "id_combi", "flag_sombra", "arq_variante_normativa", "arq_tipo_edificio"]
+# Load required packages on all workers (must be at top level)
 
 function create_optimized_channels(num_jobs, num_workers)
     job_buffer_size = min(num_jobs, max(20, num_workers))
@@ -336,8 +285,7 @@ function populate_job_queue(df_instancias, df_combis, df_combined, my_env, jobs)
     println("Job queue populated: $jobs_created jobs + $termination_signals termination signals")
 end
 
-num_instancias = size(df_instancias, 1)
-jobs, results = create_optimized_channels(num_instancias, length(worker_ids))
+
 
 @everywhere function safe_obtiene_geometrias_combi(df_combined_row)
     # Validate input data
@@ -452,6 +400,8 @@ jobs, results = create_optimized_channels(num_instancias, length(worker_ids))
 end
 
 @everywhere function distributed_work(jobs, results)
+    println("Worker $(myid()) starting distributed_work function")
+    flush(stdout)
     conn_postgres = nothing
     conn_neo4j = nothing
 
@@ -459,17 +409,25 @@ end
         while true
             local job_data
             try
+                println("Worker $(myid()) attempting to take job from queue...")
+                flush(stdout)
                 job_data = take!(jobs)
                 if job_data === nothing
                     println("Worker $(myid()) received termination signal")
+                    flush(stdout)
                     break
                 end
+                println("Worker $(myid()) got job: $(job_data["id_opti"])")
+                flush(stdout)
             catch e
                 if isa(e, InvalidStateException) && e.state === :closed
                     println("Worker $(myid()) detected closed channel, shutting down")
+                    flush(stdout)
                     break
                 end
-                @error "Worker $(myid()) error taking job: $e"
+                println("Worker $(myid()) ERROR taking job: $e")
+                println("Worker $(myid()) ERROR stacktrace: $(stacktrace())")
+                flush(stdout)
                 continue
             end
 
@@ -510,10 +468,15 @@ end
             end
 
             println("Worker $(myid()) processing optimization ID: $id_opti (Combi: $id_combi)")
+            flush(stdout)
 
             try
                 # Establish database connections for this job
+                println("Worker $(myid()) establishing database connections...")
+                flush(stdout)
                 conn_neo4j, conn_postgres = setup_database_connections(my_env)
+                println("Worker $(myid()) database connections established")
+                flush(stdout)
 
                 # Process optimization with memory management
                 df_combis_row = filter(r -> r.id_combi == id_combi, df_combis)
@@ -531,11 +494,17 @@ end
                 end
 
                 # Process geometry with error handling
+                println("Worker $(myid()) processing geometry for combi: $id_combi")
+                flush(stdout)
                 dict_geom, geom_success, geom_error = process_geometry_for_combi(df_combined_row, id_combi)
                 if !geom_success
+                    println("Worker $(myid()) ERROR: Geometry processing failed for ID $id_opti: $geom_error")
+                    flush(stdout)
                     handle_optimization_error(conn_postgres, id_opti, "Geometry processing failed", geom_error)
                     continue
                 end
+                println("Worker $(myid()) geometry processed successfully")
+                flush(stdout)
 
                 # Clear intermediate data to save memory
                 df_combis_row = nothing
@@ -602,99 +571,147 @@ end
     end
 end
 
-function execute_parallel_optimization()
-    println("\n" * "="^80)
-    println("STARTING DISTRIBUTED OPTIMIZATION PROCESSING")
-    println("="^80)
 
-    start_time = time()
 
-    # Setup result table
-    flag_create_table = false
-    table_check_query = """
-    SELECT 1 FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_name = '$TABLE_NAME'
-    """
-    existing_table = pg_julia.query(conn_postgres, table_check_query)
-    if isempty(existing_table)
-        flag_create_table = true
-        println("Table '$TABLE_NAME' does not exist, will create on first result")
-    else
-        println("Table '$TABLE_NAME' already exists")
-    end
+################################################################################
+#                      MAIN OPTIMIZATION PROCESSING LOOP                     #
+################################################################################
 
-    # Start job distribution asynchronously
-    println("Starting job distribution...")
-    @async populate_job_queue(df_instancias, df_combis, df_combined, my_env, jobs)
+const PRIMARY_KEY = "id_opti"
+const TABLE_NAME = "tabla_resultados_optimizacion"
+const PRIORITY_KEYS = ["id_opti", "id_combi", "flag_sombra", "arq_variante_normativa", "arq_tipo_edificio"]
 
-    # Launch workers
-    println("Launching $(length(worker_ids)) workers...")
-    for worker_id in worker_ids
-        remote_do(distributed_work, worker_id, jobs, results)
-    end
 
-    # Process results with enhanced monitoring
-    completed_jobs = 0
-    successful_jobs = 0
-    failed_jobs = 0
+# Execute main function if script is run directly
+# Main process connections
+global my_env = DotEnv.config("secrets.env")
+global conn_aws = aws_julia.connection(my_env["AWS_ACCESS_KEY"], my_env["AWS_SECRET_KEY"], my_env["AWS_REGION"])
+global conn_neo4j, conn_postgres = setup_database_connections(my_env)
 
-    println("Processing results...")
-    println("Progress: [Completed/Total] [Success/Failed] - Latest ID")
 
-    while completed_jobs < num_instancias
-        try
-            dict_all, id_opti, status, worker_id = take!(results)
-            completed_jobs += 1
+################################################################################
+#                         3D VISUALIZATION SETTINGS                          #
+################################################################################
 
-            if status == "Optimo Encontrado"
-                successful_jobs += 1
+global fpe = FlagPlotEdif3D()
+fpe.predio = true
+fpe.volTeorico = true
+fpe.volConSombra = true
+fpe.edif = true
+fpe.sombraVolTeorico_p = true
+fpe.sombraVolTeorico_o = true
+fpe.sombraVolTeorico_s = true
+fpe.sombraEdif_p = true
+fpe.sombraEdif_o = true
+fpe.sombraEdif_s = true
 
-                # Sort results by priority
-                dict_all = OrderedDict(sort(collect(dict_all), by=x -> (findfirst(==(x[1]), PRIORITY_KEYS) === nothing ? 1000 : findfirst(==(x[1]), PRIORITY_KEYS), x[1])))
+global worker_ids = setup_workers()
 
-                vecColumnNames, vecColumnTypes = dict2tablevec(dict_all, PRIMARY_KEY)
+# Load packages on all workers BEFORE using any @everywhere functions
+@everywhere using LandValue, Distributed, OrderedCollections, DataFrames
+@everywhere println("Worker $(myid()) packages loaded successfully")
 
-                if flag_create_table
-                    println("Creating results table: $TABLE_NAME")
-                    pg_julia.createTable(conn_postgres, TABLE_NAME, vecColumnNames, vecColumnTypes, PRIMARY_KEY)
-                    flag_create_table = false
-                end
+# Give workers time to load packages
+sleep(3)
+println("All workers should have packages loaded now")
 
-                vecColumnValue = Vector{Any}(undef, length(vecColumnNames))
-                for (idx, col_name) in enumerate(vecColumnNames)
-                    vecColumnValue[idx] = haskey(dict_all, col_name) ? dict_all[col_name] : nothing
-                end
+# Load optimization data after worker setup
+global df_instancias, df_combis, df_combined = load_optimization_data(conn_postgres, conn_neo4j)
 
-                pg_julia.insertRow!(conn_postgres, TABLE_NAME, vecColumnNames, vecColumnValue, Symbol(PRIMARY_KEY))
-                update_optimization_status(conn_postgres, id_opti, 1)
+global num_instancias = size(df_instancias, 1)
+global jobs, results = create_optimized_channels(num_instancias, length(worker_ids))
 
-                println("Progress: [$completed_jobs/$num_instancias] [✓$successful_jobs/✗$failed_jobs] - ID $id_opti (Worker $worker_id)")
-            else
-                failed_jobs += 1
-                println("Progress: [$completed_jobs/$num_instancias] [✓$successful_jobs/✗$failed_jobs] - ID $id_opti FAILED")
-            end
+println("\n" * "="^80)
+println("STARTING DISTRIBUTED OPTIMIZATION PROCESSING")
+println("="^80)
 
-        catch e
-            @error "Error processing result: $e"
-            break
-        end
-    end
+start_time = time()
 
-    elapsed_time = time() - start_time
-
-    println("\n" * "="^80)
-    println("OPTIMIZATION PROCESSING COMPLETED")
-    println("="^80)
-    println("Total jobs: $num_instancias")
-    println("Successful: $successful_jobs")
-    println("Failed: $failed_jobs")
-    println("Success rate: $(round(successful_jobs/num_instancias*100, digits=1))%")
-    println("Total time: $(round(elapsed_time, digits=1)) seconds")
-    println("Average time per job: $(round(elapsed_time/num_instancias, digits=2)) seconds")
-    println("="^80)
-
-    return successful_jobs, failed_jobs, elapsed_time
+# Setup result table
+flag_create_table = false
+table_check_query = """
+SELECT 1 FROM information_schema.tables
+WHERE table_schema = 'public' AND table_name = '$TABLE_NAME'
+"""
+existing_table = pg_julia.query(conn_postgres, table_check_query)
+if isempty(existing_table)
+    flag_create_table = true
+    println("Table '$TABLE_NAME' does not exist, will create on first result")
+else
+    println("Table '$TABLE_NAME' already exists")
 end
 
-# Execute the optimization
-success_count, fail_count, total_time = execute_parallel_optimization()
+# Start job distribution synchronously to ensure jobs are ready
+println("Starting job distribution...")
+populate_job_queue(df_instancias, df_combis, df_combined, my_env, jobs)
+
+# Launch workers
+println("Launching $(length(worker_ids)) workers...")
+for worker_id in worker_ids
+    println("Starting worker $worker_id...")
+    remote_do(distributed_work, worker_id, jobs, results)
+end
+
+# Add timeout to detect stuck workers
+println("Waiting 10 seconds for workers to start processing...")
+sleep(10)
+
+# Process results with enhanced monitoring
+completed_jobs = 0
+successful_jobs = 0
+failed_jobs = 0
+
+println("Processing results...")
+println("Progress: [Completed/Total] [Success/Failed] - Latest ID")
+
+while completed_jobs < num_instancias
+    try
+        dict_all, id_opti, status, worker_id = take!(results)
+        completed_jobs += 1
+
+        if status == "Optimo Encontrado"
+            successful_jobs += 1
+
+            # Sort results by priority
+            dict_all = OrderedDict(sort(collect(dict_all), by=x -> (findfirst(==(x[1]), PRIORITY_KEYS) === nothing ? 1000 : findfirst(==(x[1]), PRIORITY_KEYS), x[1])))
+
+            vecColumnNames, vecColumnTypes = dict2tablevec(dict_all, PRIMARY_KEY)
+
+            if flag_create_table
+                println("Creating results table: $TABLE_NAME")
+                pg_julia.createTable(conn_postgres, TABLE_NAME, vecColumnNames, vecColumnTypes, PRIMARY_KEY)
+                flag_create_table = false
+            end
+
+            vecColumnValue = Vector{Any}(undef, length(vecColumnNames))
+            for (idx, col_name) in enumerate(vecColumnNames)
+                vecColumnValue[idx] = haskey(dict_all, col_name) ? dict_all[col_name] : nothing
+            end
+
+            pg_julia.insertRow!(conn_postgres, TABLE_NAME, vecColumnNames, vecColumnValue, Symbol(PRIMARY_KEY))
+            update_optimization_status(conn_postgres, id_opti, 1)
+
+            println("Progress: [$completed_jobs/$num_instancias] [✓$successful_jobs/✗$failed_jobs] - ID $id_opti (Worker $worker_id)")
+        else
+            failed_jobs += 1
+            println("Progress: [$completed_jobs/$num_instancias] [✓$successful_jobs/✗$failed_jobs] - ID $id_opti FAILED")
+        end
+
+    catch e
+        @error "Error processing result: $e"
+        break
+    end
+end
+
+elapsed_time = time() - start_time
+
+println("\n" * "="^80)
+println("OPTIMIZATION PROCESSING COMPLETED")
+println("="^80)
+println("Total jobs: $num_instancias")
+println("Successful: $successful_jobs")
+println("Failed: $failed_jobs")
+println("Success rate: $(round(successful_jobs/num_instancias*100, digits=1))%")
+println("Total time: $(round(elapsed_time, digits=1)) seconds")
+println("Average time per job: $(round(elapsed_time/num_instancias, digits=2)) seconds")
+println("="^80)
