@@ -61,6 +61,7 @@ rectangularity_min = 0.95;  rectangularity_max = 1
 convexity_min = 0.95;       convexity_max = 1
 num_predios_min = 1;        num_predios_max = 12
 
+
 #c.id_combi = '13132011001012_31' AND
 query = """
 MATCH (c:Combi) 
@@ -87,10 +88,12 @@ df_combis = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 # to detect which street segments are adjacent. Only processes edges not blocked by
 # private properties, generating precise frontage boxes that touch street infrastructure.
 
+const BOX_HEIGHT = 50 #30  # Height of street frontage boxes in meters
+
 query = """
-  MATCH (m:Manzana)<-[:SE_UBICA_EN_MANZANA]-(p:Predio)-[:TIENE_GEOM]->(gp:Geom_Predio)
-  WHERE p.comuna = 'vitacura'
-  RETURN p.codigo_predial AS codigo_predial, m.manzent AS manzent, gp.geom_wkt AS geom_wkt
+    MATCH (m:Manzana)<-[:SE_UBICA_EN_MANZANA]-(p:Predio)-[:TIENE_GEOM]->(gp:Geom_Predio)
+    WHERE p.comuna = 'vitacura'
+    RETURN p.codigo_predial AS codigo_predial, m.manzent AS manzent, gp.geom_wkt AS geom_wkt
 """
 df_predios = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 # lista_manzanas = unique(df_predios[:,"manzent"])
@@ -98,8 +101,9 @@ df_predios = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 
 # Create results array to store vec_box_calle_combi
 vec_box_calle_combi = []
-
+# 13132011002005_19
 # i=1; row = eachrow(df_combis)[i]
+
 for (i, row) in enumerate(eachrow(df_combis))
     println("Processing combi $(i)/$(nrow(df_combis)): $(row.id_combi)")
     
@@ -107,7 +111,7 @@ for (i, row) in enumerate(eachrow(df_combis))
     id_combi = row.id_combi
 
     # Convert combi to polyshape
-    ps_combi_i = polyGdal.astext2shape([combi_wkt])
+    ps_combi_i = polyGdal.astext2shape(combi_wkt)
     ps_combi_i = polyShape.shape_4326to32719(ps_combi_i)
     ps_combi_i = polyShape.ajustaCoordenadas(ps_combi_i, dx, dy)
     ps_combi_i = polyShape.setPolyOrientation(ps_combi_i, 1)
@@ -124,7 +128,7 @@ for (i, row) in enumerate(eachrow(df_combis))
     for edge = 1:num_sides_hull_i
 
         if polyShape.polyArea(polyShape.polyIntersection(polyShape.polyBoxFromEdge(ps_hull_i, edge, 5), ps_predios_manzana_i)) <= 3
-            box_i_edge = polyShape.polyBoxFromEdge(ps_hull_i, edge, 30)
+            box_i_edge = polyShape.polyBoxFromEdge(ps_hull_i, edge, BOX_HEIGHT)
             box_i_edge = polyShape.rotate_to_first_ccw(box_i_edge, box_i_edge.Vertices[1][1,:])
             # Check intersection with each street segment
             # j=1; seg_row = eachrow(df_semento_calle)[j]
@@ -202,7 +206,7 @@ RETURN poi.geom_wkt AS geom_wkt
 """
 df_areas_verdes = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 ps_areas_verdes = polyGdal.astext2shape(df_areas_verdes[:, "geom_wkt"])
-ps_areas_verdes = polyShape.setPolyOrientation(ps_areas_verdes,1)
+ps_areas_verdes = polyShape.setPolyOrientation(ps_areas_verdes, 1)
 ps_areas_verdes = polyShape.shape_4326to32719(ps_areas_verdes)
 ps_areas_verdes = polyShape.ajustaCoordenadas(ps_areas_verdes, dx, dy)
 

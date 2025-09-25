@@ -121,7 +121,7 @@ end
 
 query_pg = """
 SELECT * FROM public.tabla_instancias_optimizacion
-WHERE status = 0
+WHERE status <= 0 
 ORDER BY id_opti ASC
 """
 df_instancias = pg_julia.query(conn_postgres, query_pg)
