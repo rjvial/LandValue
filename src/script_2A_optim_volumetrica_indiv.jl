@@ -121,7 +121,7 @@ end
 
 query_pg = """
 SELECT * FROM public.tabla_instancias_optimizacion
-WHERE status <= 0 
+WHERE status = 0 
 ORDER BY id_opti ASC
 """
 df_instancias = pg_julia.query(conn_postgres, query_pg)
@@ -191,7 +191,13 @@ let flag_create_table = false
                 continue
             end
 
-            dict_geom = obtiene_geometrias_combi(df_combined_row)
+            try
+                dict_geom = obtiene_geometrias_combi(df_combined_row)
+            catch e
+                println("Geometry processing error for Combi ID $(id_combi): $(e). Skipping this optimization.")
+                handle_optimization_error(conn_postgres, id_opti, "Geometry processing error", string(e))
+                continue
+            end
 
             combi_aux = id_combi
         end

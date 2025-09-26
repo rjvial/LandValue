@@ -22,7 +22,14 @@ function obtieneCalles(calles_data, ps_combi, dx, dy)
     vec_edges_combi, _ = polyShape.shape2vector(ps_combi)
 
     # vec_combi_calle_intersect_ = [polyGdal.shapeIntersect(polyClipper.polyOffset(ps_calles_combi, .4), vec_edges_combi[i]) for i in eachindex(vec_edges_combi)]
-    vec_combi_calle_intersect_ = [polyGdal.shapeIntersect(vec_edges_combi[i], polyClipper.polyOffset(ps_calles_combi, .4)) for i in eachindex(vec_edges_combi)]
+    vec_combi_calle_intersect_ = [begin
+        try
+            polyGdal.shapeIntersect(vec_edges_combi[i], polyClipper.polyOffset(ps_calles_combi, .4))
+        catch e
+            @warn "GDAL intersection failed for edge $i: $e"
+            LineShape([[0 0]], 0)
+        end
+    end for i in eachindex(vec_edges_combi)]
 
     vec_combi_calle_intersect = Vector{LineShape}()
     for j in eachindex(vec_combi_calle_intersect_)

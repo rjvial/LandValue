@@ -24,15 +24,6 @@ const PRIORITY_KEYS = ["id_opti", "id_combi", "flag_sombra", "arq_variante_norma
 #                          HELPER FUNCTIONS                                  #
 ################################################################################
 
-function get_memory_usage_mb()
-    return Sys.maxrss() / 1024 / 1024  # Convert to MB
-end
-
-function monitor_worker_memory()
-    mem_mb = get_memory_usage_mb()
-    println("Worker $(myid()) memory usage: $(round(mem_mb, digits=1)) MB")
-    return mem_mb
-end
 
 
 function update_optimization_status(conn_postgres, id_opti, status)
@@ -74,7 +65,7 @@ end
 
 query_pg = """
 SELECT * FROM public.tabla_instancias_optimizacion
-WHERE status <> 0
+WHERE status = 0
 ORDER BY id_opti ASC
 """
 df_instancias = pg_julia.query(conn_postgres, query_pg)
@@ -139,12 +130,11 @@ let flag_create_table = false
     println("Geometry cache completed for $(length(global_geom_cache)) combis")
 
 
-    # Adaptive worker count based on available memory
-    total_memory_gb = Sys.total_memory() / 1024^3
-    max_workers = min(6, max(2, floor(Int, total_memory_gb / 2)))  # Limit workers based on memory
+    # worker count
+    max_workers = 4  # Limit workers 
     num_workers = min(max_workers, length(Sys.cpu_info()) - 2)
 
-    println("Starting $num_workers workers (system memory: $(round(total_memory_gb, digits=1)) GB)")
+    println("Starting $num_workers workers ")
     addprocs(num_workers; exeflags="--project")
     @everywhere using LandValue, Distributed, OrderedCollections
 
@@ -152,17 +142,6 @@ let flag_create_table = false
     @everywhere global_geom_cache = $global_geom_cache
     @everywhere global_combis_cache = $global_combis_cache
     @everywhere conn_neo4j = $conn_neo4j
-
-    # Share memory monitoring functions with workers
-    @everywhere function get_memory_usage_mb()
-        return Sys.maxrss() / 1024 / 1024  # Convert to MB
-    end
-
-    @everywhere function monitor_worker_memory()
-        mem_mb = get_memory_usage_mb()
-        println("Worker $(myid()) memory usage: $(round(mem_mb, digits=1)) MB")
-        return mem_mb
-    end
 
     @everywhere function createArchitectureDict(variante_norm)
         return OrderedDict(
@@ -221,13 +200,6 @@ let flag_create_table = false
 
             display("* Ejecutando optimizacion ID: " * string(id_opti) * " en el Worker N° " * string(myid()))
 
-            # Monitor memory every 5 jobs
-            if job_count % 5 == 0
-                mem_mb = monitor_worker_memory()
-                if mem_mb > 2000  # 2GB threshold
-                    println("WARNING: Worker $(myid()) memory usage high: $(round(mem_mb, digits=1)) MB")
-                end
-            end
 
             try
                 # Get cached combi data
@@ -259,17 +231,12 @@ let flag_create_table = false
                 dict_arquitectura = nothing
                 dict_requerimientos = nothing
 
-                # Explicit garbage collection after each job
-                GC.gc()
-
                 status_optim = "Optimo Encontrado"
                 put!(results, (dict_all, id_opti, status_optim, myid()))
 
             catch e
                 println("Error in worker $(myid()) for ID $id_opti: $e")
                 put!(results, (nothing, id_opti, "Error", myid()))
-                # Garbage collect on error too
-                GC.gc()
             end
         end
     end

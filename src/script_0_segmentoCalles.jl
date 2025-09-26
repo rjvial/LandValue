@@ -88,7 +88,7 @@ df_combis = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 # to detect which street segments are adjacent. Only processes edges not blocked by
 # private properties, generating precise frontage boxes that touch street infrastructure.
 
-const BOX_HEIGHT = 50 #30  # Height of street frontage boxes in meters
+const BOX_HEIGHT = 30  # Height of street frontage boxes in meters
 
 query = """
     MATCH (m:Manzana)<-[:SE_UBICA_EN_MANZANA]-(p:Predio)-[:TIENE_GEOM]->(gp:Geom_Predio)
