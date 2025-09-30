@@ -1,6 +1,6 @@
 module polyShape
 
-using LandValue, ArchGDAL, LazySets, DataFrames, LinearAlgebra, Proj, Combinatorics
+using LandValue, ArchGDAL, LazySets, DataFrames, LinearAlgebra, Proj, Combinatorics, JSON
 
 # polyShape Function Reference
 # =========================
@@ -1968,28 +1968,28 @@ function sampleEdgePoints(ps::PolyShape, sample_distance::Float64=1.0)::PointSha
     if ps.NumRegions == 0 || isempty(ps.Vertices)
         return PointShape(zeros(Float64, 0, 2), 0)
     end
-    
+
     all_points = Matrix{Float64}(undef, 0, 2)
-    
+
     for vertices in ps.Vertices
         n_vertices = size(vertices, 1)
         if n_vertices < 3
             continue
         end
-        
+
         for i in 1:n_vertices
             p1 = vertices[i, :]
             p2 = vertices[i % n_vertices + 1, :]
-            
+
             edge_vec = p2 - p1
             edge_len = sqrt(sum(edge_vec.^2))
-            
+
             if edge_len < sample_distance / 10
                 continue
             end
-            
+
             num_samples = max(1, round(Int, edge_len / sample_distance))
-            
+
             for j in 0:num_samples-1
                 t = j / num_samples
                 sample_point = p1 + t * edge_vec
@@ -1997,29 +1997,311 @@ function sampleEdgePoints(ps::PolyShape, sample_distance::Float64=1.0)::PointSha
             end
         end
     end
-    
+
     if size(all_points, 1) == 0
         return PointShape(zeros(Float64, 0, 2), 0)
     end
-    
+
     return PointShape(all_points, size(all_points, 1))
 end
 
 
+function simpleTriangulation(vertices::Matrix{Float64})::Vector{Vector{Int}}
+    n = size(vertices, 1)
+    triangles = Vector{Vector{Int}}()
 
-export isPolyConvex, 
-    polyArea, polyDifference, polyOrientation, polyUnion, polyIntersection, polyIntersects, polyOffset,  
+    if n < 3
+        return triangles
+    elseif n == 3
+        push!(triangles, [0, 1, 2])
+        return triangles
+    end
+
+    for i = 1:n-2
+        push!(triangles, [0, i, i+1])
+    end
+
+    return triangles
+end
+
+
+function threejs2json(threejs_data::Dict{String,Any}; material_color::UInt32=0x888888)::String
+    indices = threejs_data["indices"]
+    vertices = threejs_data["vertices"]
+
+    indices = [max(0, idx) for idx in indices]
+
+    json_obj = Dict{String,Any}(
+        "metadata" => Dict{String,Any}(
+            "version" => 4.5,
+            "type" => "BufferGeometry",
+            "generator" => "LandValue.polyShape"
+        ),
+        "uuid" => string(Base.UUID(rand(UInt128))),
+        "type" => "BufferGeometry",
+        "data" => Dict{String,Any}(
+            "attributes" => Dict{String,Any}(
+                "position" => Dict{String,Any}(
+                    "itemSize" => 3,
+                    "type" => "Float32Array",
+                    "array" => vertices
+                )
+            ),
+            "index" => Dict{String,Any}(
+                "type" => "Uint16Array",
+                "array" => indices
+            )
+        )
+    )
+
+    return JSON.json(json_obj)
+end
+
+
+function polyShapes2shellWithSides(vec_ps::Vector{PolyShape}, vec_heights::Vector{Float64})::String
+    if length(vec_ps) != length(vec_heights)
+        throw(ArgumentError("Number of polyshapes must equal number of heights"))
+    end
+
+    all_vertices = Float64[]
+    all_indices = Int[]
+    vertex_count = 0
+    level_regions_info = []
+
+    for (level_idx, (ps, height)) in enumerate(zip(vec_ps, vec_heights))
+        if ps.NumRegions == 0
+            continue
+        end
+
+        level_info = []
+        for region_idx = 1:ps.NumRegions
+            V = ps.Vertices[region_idx]
+            n_vertices = size(V, 1)
+
+            if n_vertices < 3
+                continue
+            end
+
+            region_start = vertex_count
+            for j = 1:n_vertices
+                append!(all_vertices, [V[j, 1], height, V[j, 2]])
+            end
+
+            vertex_count += n_vertices
+            push!(level_info, (region_start, n_vertices))
+        end
+        push!(level_regions_info, level_info)
+    end
+
+    if !isempty(level_regions_info)
+        bottom_level = level_regions_info[1]
+        for (region_start, n_verts) in bottom_level
+            for i in 1:n_verts-2
+                append!(all_indices, [region_start, region_start + i, region_start + i + 1])
+            end
+        end
+
+        top_level = level_regions_info[end]
+        for (region_start, n_verts) in top_level
+            for i in 1:n_verts-2
+                append!(all_indices, [region_start, region_start + i + 1, region_start + i])
+            end
+        end
+    end
+
+    for level_idx in 2:lastindex(level_regions_info)
+        curr_level = level_regions_info[level_idx]
+        prev_level = level_regions_info[level_idx - 1]
+
+        num_regions_to_connect = min(length(curr_level), length(prev_level))
+
+        for region_idx in 1:num_regions_to_connect
+            curr_region_start, curr_n = curr_level[region_idx]
+            prev_region_start, prev_n = prev_level[region_idx]
+
+            n_edges = min(curr_n, prev_n)
+            for j in 0:n_edges-1
+                next_j = (j + 1) % n_edges
+
+                bottom_current = prev_region_start + j
+                top_current = curr_region_start + j
+                bottom_next = prev_region_start + next_j
+                top_next = curr_region_start + next_j
+
+                append!(all_indices, [bottom_current, bottom_next, top_current])
+                append!(all_indices, [top_current, bottom_next, top_next])
+            end
+        end
+    end
+
+    geometry_data = Dict(
+        "vertices" => all_vertices,
+        "indices" => all_indices,
+        "vertexCount" => length(all_vertices) ÷ 3,
+        "triangleCount" => length(all_indices) ÷ 3,
+        "levels" => length(vec_ps)
+    )
+
+    return threejs2json(geometry_data)
+end
+
+
+function qemSimplifyMesh(vertices::Vector{Float64}, indices::Vector{Int}, target_triangle_count::Int)
+
+    function compute_plane_quadric(v1, v2, v3)
+        e1 = [v2[1] - v1[1], v2[2] - v1[2], v2[3] - v1[3]]
+        e2 = [v3[1] - v1[1], v3[2] - v1[2], v3[3] - v1[3]]
+
+        n = cross(e1, e2)
+        norm_n = sqrt(sum(n.^2))
+
+        if norm_n < 1e-10
+            return zeros(4, 4)
+        end
+
+        n = n / norm_n
+        d = -(n[1]*v1[1] + n[2]*v1[2] + n[3]*v1[3])
+
+        p = [n[1], n[2], n[3], d]
+        Q = p * p'
+
+        return Q
+    end
+
+    function compute_error(Q, v)
+        vh = [v[1], v[2], v[3], 1.0]
+        return dot(vh, Q * vh)
+    end
+
+    num_vertices = length(vertices) ÷ 3
+    num_triangles = length(indices) ÷ 3
+
+    vertex_quadrics = [zeros(4, 4) for _ in 1:num_vertices]
+
+    for i in 1:num_triangles
+        idx1 = indices[3*(i-1)+1] + 1
+        idx2 = indices[3*(i-1)+2] + 1
+        idx3 = indices[3*(i-1)+3] + 1
+
+        v1 = [vertices[3*(idx1-1)+1], vertices[3*(idx1-1)+2], vertices[3*(idx1-1)+3]]
+        v2 = [vertices[3*(idx2-1)+1], vertices[3*(idx2-1)+2], vertices[3*(idx2-1)+3]]
+        v3 = [vertices[3*(idx3-1)+1], vertices[3*(idx3-1)+2], vertices[3*(idx3-1)+3]]
+
+        Q = compute_plane_quadric(v1, v2, v3)
+
+        vertex_quadrics[idx1] += Q
+        vertex_quadrics[idx2] += Q
+        vertex_quadrics[idx3] += Q
+    end
+
+    vertex_to_triangles = [Int[] for _ in 1:num_vertices]
+    for i in 1:num_triangles
+        idx1 = indices[3*(i-1)+1] + 1
+        idx2 = indices[3*(i-1)+2] + 1
+        idx3 = indices[3*(i-1)+3] + 1
+
+        push!(vertex_to_triangles[idx1], i)
+        push!(vertex_to_triangles[idx2], i)
+        push!(vertex_to_triangles[idx3], i)
+    end
+
+    edges = Set{Tuple{Int,Int}}()
+    for i in 1:num_triangles
+        idx1 = indices[3*(i-1)+1] + 1
+        idx2 = indices[3*(i-1)+2] + 1
+        idx3 = indices[3*(i-1)+3] + 1
+
+        push!(edges, (min(idx1, idx2), max(idx1, idx2)))
+        push!(edges, (min(idx2, idx3), max(idx2, idx3)))
+        push!(edges, (min(idx3, idx1), max(idx3, idx1)))
+    end
+
+    edge_costs = Dict{Tuple{Int,Int}, Tuple{Float64, Vector{Float64}}}()
+
+    for (v1_idx, v2_idx) in edges
+        Q_bar = vertex_quadrics[v1_idx] + vertex_quadrics[v2_idx]
+
+        v1 = [vertices[3*(v1_idx-1)+1], vertices[3*(v1_idx-1)+2], vertices[3*(v1_idx-1)+3]]
+        v2 = [vertices[3*(v2_idx-1)+1], vertices[3*(v2_idx-1)+2], vertices[3*(v2_idx-1)+3]]
+
+        v_new = (v1 + v2) / 2.0
+
+        cost = compute_error(Q_bar, v_new)
+        edge_costs[(v1_idx, v2_idx)] = (cost, v_new)
+    end
+
+    sorted_edges = sort(collect(edges), by = e -> edge_costs[e][1])
+
+    active_triangles = Set(1:num_triangles)
+    vertex_remap = collect(1:num_vertices)
+    new_vertex_positions = Dict{Int, Vector{Float64}}()
+
+    while length(active_triangles) > target_triangle_count && !isempty(sorted_edges)
+        edge = popfirst!(sorted_edges)
+        v1_idx, v2_idx = edge
+
+        if !(edge in keys(edge_costs))
+            continue
+        end
+
+        _, v_new = edge_costs[edge]
+
+        triangles_to_remove = intersect(
+            Set(vertex_to_triangles[v1_idx]),
+            Set(vertex_to_triangles[v2_idx])
+        )
+
+        for tri_idx in triangles_to_remove
+            delete!(active_triangles, tri_idx)
+        end
+
+        vertex_remap[v2_idx] = v1_idx
+        new_vertex_positions[v1_idx] = v_new
+
+        for tri_idx in vertex_to_triangles[v2_idx]
+            if tri_idx in active_triangles
+                push!(vertex_to_triangles[v1_idx], tri_idx)
+            end
+        end
+    end
+
+    new_vertices = copy(vertices)
+    for (v_idx, new_pos) in new_vertex_positions
+        new_vertices[3*(v_idx-1)+1] = new_pos[1]
+        new_vertices[3*(v_idx-1)+2] = new_pos[2]
+        new_vertices[3*(v_idx-1)+3] = new_pos[3]
+    end
+
+    new_indices = Int[]
+    for tri_idx in sort(collect(active_triangles))
+        idx1 = vertex_remap[indices[3*(tri_idx-1)+1] + 1] - 1
+        idx2 = vertex_remap[indices[3*(tri_idx-1)+2] + 1] - 1
+        idx3 = vertex_remap[indices[3*(tri_idx-1)+3] + 1] - 1
+
+        if idx1 != idx2 && idx2 != idx3 && idx3 != idx1
+            push!(new_indices, idx1)
+            push!(new_indices, idx2)
+            push!(new_indices, idx3)
+        end
+    end
+
+    return new_vertices, new_indices
+end
+
+
+export isPolyConvex,
+    polyArea, polyDifference, polyOrientation, polyUnion, polyIntersection, polyIntersects, polyOffset,
     polyEliminaColineales, subShape, shapeVertex, numVertices,
     polyBox, polyRotate, polyReverse, setPolyOrientation,
-    polyCopy, intersectLines, 
+    polyCopy, intersectLines,
     lineAngle, halfspaceSignOfPointToLine,
     lineVec2polyShape,
     ajustaCoordenadas, polyBoxFromEdge,
     createLine, convHull, midPointSegment,
     lineLength, isLineLineParallel,
-    partialPolyOffset, 
+    partialPolyOffset,
     line2Box, lines2Polygons, poly2Constraints, constraints2poly, rotate_to_first_ccw,
     calculateDistance, shape2vector, transformLine, polySimplify,
     ajusteCoordenadasInversa, shape_32719to4326, shape_4326to32719, polyshape2wkt, dividePoly,
-    polyHasnan, sampleEdgePoints
+    polyHasnan, sampleEdgePoints, polyShapes2shellWithSides, threejs2json
 end

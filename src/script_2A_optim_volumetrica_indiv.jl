@@ -121,7 +121,7 @@ end
 
 query_pg = """
 SELECT * FROM public.tabla_instancias_optimizacion
-WHERE status = 0 
+WHERE status = 1 
 ORDER BY id_opti ASC
 """
 df_instancias = pg_julia.query(conn_postgres, query_pg)
@@ -210,6 +210,13 @@ let flag_create_table = false
         try
             dict_resultados, dict_proyecto_vs_normativa = opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_opti, id_combi)
             # show(IOContext(stdout, :limit => false), MIME("text/plain"), dict_resultados)
+
+            three_data = polyShape.polyShapes2shellWithSides(dict_resultados["proyecto_vec_psVolteor"], dict_resultados["proyecto_vec_altVolteor"])
+            file_json = "threejs_example.json"
+            open(file_json, "w") do file
+                write(file, three_data)
+            end
+
             dict_all = OrderedDict{String,Any}()
             dicts = [dict_resultados, dict_proyecto_vs_normativa, dict_arquitectura]
 
