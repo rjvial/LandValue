@@ -121,7 +121,7 @@ end
 
 query_pg = """
 SELECT * FROM public.tabla_instancias_optimizacion
-WHERE status = 1 
+WHERE status = 0 
 ORDER BY id_opti ASC
 """
 df_instancias = pg_julia.query(conn_postgres, query_pg)
@@ -211,12 +211,6 @@ let flag_create_table = false
             dict_resultados, dict_proyecto_vs_normativa = opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_opti, id_combi)
             # show(IOContext(stdout, :limit => false), MIME("text/plain"), dict_resultados)
 
-            three_data = polyShape.polyShapes2shellWithSides(dict_resultados["proyecto_vec_psVolteor"], dict_resultados["proyecto_vec_altVolteor"])
-            file_json = "threejs_example.json"
-            open(file_json, "w") do file
-                write(file, three_data)
-            end
-
             dict_all = OrderedDict{String,Any}()
             dicts = [dict_resultados, dict_proyecto_vs_normativa, dict_arquitectura]
 
@@ -227,6 +221,21 @@ let flag_create_table = false
             end
 
             dict_all = OrderedDict(sort(collect(dict_all), by=x -> (findfirst(==(x[1]), PRIORITY_KEYS) === nothing ? 1000 : findfirst(==(x[1]), PRIORITY_KEYS), x[1])))
+            dict_all["proyecto_json_edificio_opt"] = polyShape.buildingWithFloors(dict_resultados["proyecto_vec_ps_opt"], dict_resultados["proyecto_vec_np_opt"], dict_arquitectura["arq_alturaPiso"])
+            dict_all["proyecto_json_subte_opt"] = polyShape.buildingWithFloors(dict_resultados["proyecto_vec_ps_subte"], dict_resultados["proyecto_vec_np_subte"], dict_arquitectura["arq_alturaPiso"])
+            dict_all["proyecto_json_Volteor"] = polyShape.polyShapeShell2json(dict_resultados["proyecto_vec_psVolteor"], dict_resultados["proyecto_vec_altVolteor"])
+            dict_all["proyecto_json_sombraEdif_p"] = polyShape.polyShape2json(dict_resultados["proyecto_ps_sombraEdif_p"])
+            dict_all["proyecto_json_sombraEdif_o"] = polyShape.polyShape2json(dict_resultados["proyecto_ps_sombraEdif_o"])
+            dict_all["proyecto_json_sombraEdif_s"] = polyShape.polyShape2json(dict_resultados["proyecto_ps_sombraEdif_s"])
+            dict_all["proyecto_json_sombraVolTeorico_p"] = polyShape.polyShape2json(dict_resultados["proyecto_ps_sombraVolTeorico_p"])
+            dict_all["proyecto_json_sombraVolTeorico_o"] = polyShape.polyShape2json(dict_resultados["proyecto_ps_sombraVolTeorico_o"])
+            dict_all["proyecto_json_sombraVolTeorico_s"] = polyShape.polyShape2json(dict_resultados["proyecto_ps_sombraVolTeorico_s"])
+
+            # file_json = "proyecto_json_edificio_opt.json"
+            # open(file_json, "w") do file
+            #     write(file, dict_all["proyecto_json_edificio_opt"])
+            # end
+
 
             vecColumnNames, vecColumnTypes = dict2tablevec(dict_all, PRIMARY_KEY)
 

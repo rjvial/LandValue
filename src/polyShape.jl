@@ -2006,25 +2006,6 @@ function sampleEdgePoints(ps::PolyShape, sample_distance::Float64=1.0)::PointSha
 end
 
 
-function simpleTriangulation(vertices::Matrix{Float64})::Vector{Vector{Int}}
-    n = size(vertices, 1)
-    triangles = Vector{Vector{Int}}()
-
-    if n < 3
-        return triangles
-    elseif n == 3
-        push!(triangles, [0, 1, 2])
-        return triangles
-    end
-
-    for i = 1:n-2
-        push!(triangles, [0, i, i+1])
-    end
-
-    return triangles
-end
-
-
 function threejs2json(threejs_data::Dict{String,Any}; material_color::UInt32=0x888888)::String
     indices = threejs_data["indices"]
     vertices = threejs_data["vertices"]
@@ -2058,9 +2039,79 @@ function threejs2json(threejs_data::Dict{String,Any}; material_color::UInt32=0x8
 end
 
 
-function polyShapes2shellWithSides(vec_ps::Vector{PolyShape}, vec_heights::Vector{Float64})::String
+function compute_layer_slope(ps1::PolyShape, ps2::PolyShape, h1::Float64, h2::Float64)
+    if ps1.NumRegions == 0 || ps2.NumRegions == 0
+        return [0.0, 0.0, 0.0]
+    end
+
+    V1 = ps1.Vertices[1]
+    V2 = ps2.Vertices[1]
+    n = min(size(V1, 1), size(V2, 1))
+
+    avg_slope = [0.0, 0.0, 0.0]
+
+    for i in 1:n
+        avg_slope[1] += V2[i, 1] - V1[i, 1]
+        avg_slope[2] += h2 - h1
+        avg_slope[3] += V2[i, 2] - V1[i, 2]
+    end
+
+    avg_slope ./= n
+    return avg_slope
+end
+
+function angle_between_vectors(v1::Vector{Float64}, v2::Vector{Float64})
+    dot_prod = dot(v1, v2)
+    len1 = sqrt(sum(v1.^2))
+    len2 = sqrt(sum(v2.^2))
+
+    if len1 == 0.0 || len2 == 0.0
+        return 0.0
+    end
+
+    cos_angle = clamp(dot_prod / (len1 * len2), -1.0, 1.0)
+    return acos(cos_angle)
+end
+
+
+
+function polyShapeShell2json(vec_ps::Vector{PolyShape}, vec_heights::Vector{Float64}; simplify::Bool=true, angle_threshold::Float64=5.0)::String
+
+    function reduce_layers_by_slope(vec_ps::Vector{PolyShape}, vec_heights::Vector{Float64}, angle_threshold_deg::Float64=5.0)
+        if length(vec_ps) <= 2
+            return vec_ps, vec_heights
+        end
+
+        threshold_rad = angle_threshold_deg * π / 180.0
+
+        key_indices = [1]
+
+        prev_slope = compute_layer_slope(vec_ps[1], vec_ps[2], vec_heights[1], vec_heights[2])
+
+        for i in 2:(length(vec_ps)-1)
+            curr_slope = compute_layer_slope(vec_ps[i], vec_ps[i+1], vec_heights[i], vec_heights[i+1])
+            angle = angle_between_vectors(prev_slope, curr_slope)
+
+            if angle > threshold_rad
+                push!(key_indices, i)
+                prev_slope = curr_slope
+            end
+        end
+
+        push!(key_indices, length(vec_ps))
+
+        @info "Layer reduction: $(length(vec_ps)) -> $(length(key_indices)) layers ($(round((1 - length(key_indices)/length(vec_ps)) * 100, digits=1))% reduction)"
+
+        return vec_ps[key_indices], vec_heights[key_indices]
+    end
+
+
     if length(vec_ps) != length(vec_heights)
         throw(ArgumentError("Number of polyshapes must equal number of heights"))
+    end
+
+    if simplify
+        vec_ps, vec_heights = reduce_layers_by_slope(vec_ps, vec_heights, angle_threshold)
     end
 
     all_vertices = Float64[]
@@ -2084,7 +2135,7 @@ function polyShapes2shellWithSides(vec_ps::Vector{PolyShape}, vec_heights::Vecto
 
             region_start = vertex_count
             for j = 1:n_vertices
-                append!(all_vertices, [V[j, 1], height, V[j, 2]])
+                append!(all_vertices, [V[j, 2], height, V[j, 1]])
             end
 
             vertex_count += n_vertices
@@ -2145,147 +2196,102 @@ function polyShapes2shellWithSides(vec_ps::Vector{PolyShape}, vec_heights::Vecto
     return threejs2json(geometry_data)
 end
 
-
-function qemSimplifyMesh(vertices::Vector{Float64}, indices::Vector{Int}, target_triangle_count::Int)
-
-    function compute_plane_quadric(v1, v2, v3)
-        e1 = [v2[1] - v1[1], v2[2] - v1[2], v2[3] - v1[3]]
-        e2 = [v3[1] - v1[1], v3[2] - v1[2], v3[3] - v1[3]]
-
-        n = cross(e1, e2)
-        norm_n = sqrt(sum(n.^2))
-
-        if norm_n < 1e-10
-            return zeros(4, 4)
-        end
-
-        n = n / norm_n
-        d = -(n[1]*v1[1] + n[2]*v1[2] + n[3]*v1[3])
-
-        p = [n[1], n[2], n[3], d]
-        Q = p * p'
-
-        return Q
+function buildingWithFloors(vec_ps::Vector{PolyShape}, vec_np::Vector{Int}, alturaPiso::Float64)::String
+    if length(vec_ps) != length(vec_np)
+        throw(ArgumentError("Number of polyshapes must equal number of floor counts"))
     end
 
-    function compute_error(Q, v)
-        vh = [v[1], v[2], v[3], 1.0]
-        return dot(vh, Q * vh)
-    end
+    all_vertices = Float64[]
+    all_indices = Int[]
+    vertex_count = 0
 
-    num_vertices = length(vertices) ÷ 3
-    num_triangles = length(indices) ÷ 3
+    current_height = 0.0
 
-    vertex_quadrics = [zeros(4, 4) for _ in 1:num_vertices]
-
-    for i in 1:num_triangles
-        idx1 = indices[3*(i-1)+1] + 1
-        idx2 = indices[3*(i-1)+2] + 1
-        idx3 = indices[3*(i-1)+3] + 1
-
-        v1 = [vertices[3*(idx1-1)+1], vertices[3*(idx1-1)+2], vertices[3*(idx1-1)+3]]
-        v2 = [vertices[3*(idx2-1)+1], vertices[3*(idx2-1)+2], vertices[3*(idx2-1)+3]]
-        v3 = [vertices[3*(idx3-1)+1], vertices[3*(idx3-1)+2], vertices[3*(idx3-1)+3]]
-
-        Q = compute_plane_quadric(v1, v2, v3)
-
-        vertex_quadrics[idx1] += Q
-        vertex_quadrics[idx2] += Q
-        vertex_quadrics[idx3] += Q
-    end
-
-    vertex_to_triangles = [Int[] for _ in 1:num_vertices]
-    for i in 1:num_triangles
-        idx1 = indices[3*(i-1)+1] + 1
-        idx2 = indices[3*(i-1)+2] + 1
-        idx3 = indices[3*(i-1)+3] + 1
-
-        push!(vertex_to_triangles[idx1], i)
-        push!(vertex_to_triangles[idx2], i)
-        push!(vertex_to_triangles[idx3], i)
-    end
-
-    edges = Set{Tuple{Int,Int}}()
-    for i in 1:num_triangles
-        idx1 = indices[3*(i-1)+1] + 1
-        idx2 = indices[3*(i-1)+2] + 1
-        idx3 = indices[3*(i-1)+3] + 1
-
-        push!(edges, (min(idx1, idx2), max(idx1, idx2)))
-        push!(edges, (min(idx2, idx3), max(idx2, idx3)))
-        push!(edges, (min(idx3, idx1), max(idx3, idx1)))
-    end
-
-    edge_costs = Dict{Tuple{Int,Int}, Tuple{Float64, Vector{Float64}}}()
-
-    for (v1_idx, v2_idx) in edges
-        Q_bar = vertex_quadrics[v1_idx] + vertex_quadrics[v2_idx]
-
-        v1 = [vertices[3*(v1_idx-1)+1], vertices[3*(v1_idx-1)+2], vertices[3*(v1_idx-1)+3]]
-        v2 = [vertices[3*(v2_idx-1)+1], vertices[3*(v2_idx-1)+2], vertices[3*(v2_idx-1)+3]]
-
-        v_new = (v1 + v2) / 2.0
-
-        cost = compute_error(Q_bar, v_new)
-        edge_costs[(v1_idx, v2_idx)] = (cost, v_new)
-    end
-
-    sorted_edges = sort(collect(edges), by = e -> edge_costs[e][1])
-
-    active_triangles = Set(1:num_triangles)
-    vertex_remap = collect(1:num_vertices)
-    new_vertex_positions = Dict{Int, Vector{Float64}}()
-
-    while length(active_triangles) > target_triangle_count && !isempty(sorted_edges)
-        edge = popfirst!(sorted_edges)
-        v1_idx, v2_idx = edge
-
-        if !(edge in keys(edge_costs))
+    for (building_idx, (ps, n_floors)) in enumerate(zip(vec_ps, vec_np))
+        if ps.NumRegions == 0 || n_floors < 1
             continue
         end
 
-        _, v_new = edge_costs[edge]
+        V = ps.Vertices[1]
+        n_verts = size(V, 1)
 
-        triangles_to_remove = intersect(
-            Set(vertex_to_triangles[v1_idx]),
-            Set(vertex_to_triangles[v2_idx])
-        )
+        for floor_idx in 0:n_floors
+            floor_height = current_height + floor_idx * alturaPiso
+            floor_start = vertex_count
 
-        for tri_idx in triangles_to_remove
-            delete!(active_triangles, tri_idx)
-        end
+            for j in 1:n_verts
+                append!(all_vertices, [V[j, 2], floor_height, V[j, 1]])
+            end
 
-        vertex_remap[v2_idx] = v1_idx
-        new_vertex_positions[v1_idx] = v_new
+            vertex_count += n_verts
 
-        for tri_idx in vertex_to_triangles[v2_idx]
-            if tri_idx in active_triangles
-                push!(vertex_to_triangles[v1_idx], tri_idx)
+            if floor_idx == 0
+                for i in 1:n_verts-2
+                    append!(all_indices, [floor_start, floor_start + i, floor_start + i + 1])
+                end
+            elseif floor_idx == n_floors
+                for i in 1:n_verts-2
+                    append!(all_indices, [floor_start, floor_start + i + 1, floor_start + i])
+                end
+            end
+
+            if floor_idx > 0
+                prev_floor_start = floor_start - n_verts
+                for j in 0:n_verts-1
+                    next_j = (j + 1) % n_verts
+
+                    bottom_current = prev_floor_start + j
+                    top_current = floor_start + j
+                    bottom_next = prev_floor_start + next_j
+                    top_next = floor_start + next_j
+
+                    append!(all_indices, [bottom_current, bottom_next, top_current])
+                    append!(all_indices, [top_current, bottom_next, top_next])
+                end
             end
         end
+
+        current_height += n_floors * alturaPiso
     end
 
-    new_vertices = copy(vertices)
-    for (v_idx, new_pos) in new_vertex_positions
-        new_vertices[3*(v_idx-1)+1] = new_pos[1]
-        new_vertices[3*(v_idx-1)+2] = new_pos[2]
-        new_vertices[3*(v_idx-1)+3] = new_pos[3]
+    geometry_data = Dict{String, Any}(
+        "vertices" => all_vertices,
+        "indices" => all_indices
+    )
+
+    return threejs2json(geometry_data)
+end
+
+
+function polyShape2json(ps::PolyShape; height::Float64=0.0)::String
+    if ps.NumRegions == 0
+        return threejs2json(Dict{String, Any}("vertices" => Float64[], "indices" => Int[]))
     end
 
-    new_indices = Int[]
-    for tri_idx in sort(collect(active_triangles))
-        idx1 = vertex_remap[indices[3*(tri_idx-1)+1] + 1] - 1
-        idx2 = vertex_remap[indices[3*(tri_idx-1)+2] + 1] - 1
-        idx3 = vertex_remap[indices[3*(tri_idx-1)+3] + 1] - 1
+    all_vertices = Float64[]
+    all_indices = Int[]
 
-        if idx1 != idx2 && idx2 != idx3 && idx3 != idx1
-            push!(new_indices, idx1)
-            push!(new_indices, idx2)
-            push!(new_indices, idx3)
+    for region_idx in 1:ps.NumRegions
+        V = ps.Vertices[region_idx]
+        n_verts = size(V, 1)
+
+        region_start = length(all_vertices) ÷ 3
+
+        for i in 1:n_verts
+            push!(all_vertices, V[i, 2], height, V[i, 1])
+        end
+
+        for i in 1:n_verts-2
+            append!(all_indices, [region_start, region_start + i, region_start + i + 1])
         end
     end
 
-    return new_vertices, new_indices
+    geometry_data = Dict{String, Any}(
+        "vertices" => all_vertices,
+        "indices" => all_indices
+    )
+
+    return threejs2json(geometry_data)
 end
 
 
@@ -2303,5 +2309,6 @@ export isPolyConvex,
     line2Box, lines2Polygons, poly2Constraints, constraints2poly, rotate_to_first_ccw,
     calculateDistance, shape2vector, transformLine, polySimplify,
     ajusteCoordenadasInversa, shape_32719to4326, shape_4326to32719, polyshape2wkt, dividePoly,
-    polyHasnan, sampleEdgePoints, polyShapes2shellWithSides, threejs2json
+    polyHasnan, sampleEdgePoints, polyShapeShell2json, threejs2json,  
+    polyShape2json, buildingWithFloors
 end
