@@ -2039,27 +2039,6 @@ function threejs2json(threejs_data::Dict{String,Any}; material_color::UInt32=0x8
 end
 
 
-function compute_layer_slope(ps1::PolyShape, ps2::PolyShape, h1::Float64, h2::Float64)
-    if ps1.NumRegions == 0 || ps2.NumRegions == 0
-        return [0.0, 0.0, 0.0]
-    end
-
-    V1 = ps1.Vertices[1]
-    V2 = ps2.Vertices[1]
-    n = min(size(V1, 1), size(V2, 1))
-
-    avg_slope = [0.0, 0.0, 0.0]
-
-    for i in 1:n
-        avg_slope[1] += V2[i, 1] - V1[i, 1]
-        avg_slope[2] += h2 - h1
-        avg_slope[3] += V2[i, 2] - V1[i, 2]
-    end
-
-    avg_slope ./= n
-    return avg_slope
-end
-
 function angle_between_vectors(v1::Vector{Float64}, v2::Vector{Float64})
     dot_prod = dot(v1, v2)
     len1 = sqrt(sum(v1.^2))
@@ -2074,8 +2053,28 @@ function angle_between_vectors(v1::Vector{Float64}, v2::Vector{Float64})
 end
 
 
+function polyShapeLayers2json(vec_ps::Vector{PolyShape}, vec_heights::Vector{Float64}; simplify::Bool=true, angle_threshold::Float64=5.0)::String
 
-function polyShapeShell2json(vec_ps::Vector{PolyShape}, vec_heights::Vector{Float64}; simplify::Bool=true, angle_threshold::Float64=5.0)::String
+    function compute_layer_slope(ps1::PolyShape, ps2::PolyShape, h1::Float64, h2::Float64)
+        if ps1.NumRegions == 0 || ps2.NumRegions == 0
+            return [0.0, 0.0, 0.0]
+        end
+
+        V1 = ps1.Vertices[1]
+        V2 = ps2.Vertices[1]
+        n = min(size(V1, 1), size(V2, 1))
+
+        avg_slope = [0.0, 0.0, 0.0]
+
+        for i in 1:n
+            avg_slope[1] += V2[i, 1] - V1[i, 1]
+            avg_slope[2] += h2 - h1
+            avg_slope[3] += V2[i, 2] - V1[i, 2]
+        end
+
+        avg_slope ./= n
+        return avg_slope
+    end
 
     function reduce_layers_by_slope(vec_ps::Vector{PolyShape}, vec_heights::Vector{Float64}, angle_threshold_deg::Float64=5.0)
         if length(vec_ps) <= 2
@@ -2196,7 +2195,7 @@ function polyShapeShell2json(vec_ps::Vector{PolyShape}, vec_heights::Vector{Floa
     return threejs2json(geometry_data)
 end
 
-function buildingWithFloors(vec_ps::Vector{PolyShape}, vec_np::Vector{Int}, alturaPiso::Float64)::String
+function building2json(vec_ps::Vector{PolyShape}, vec_np::Vector{Int}, alturaPiso::Float64)::String
     if length(vec_ps) != length(vec_np)
         throw(ArgumentError("Number of polyshapes must equal number of floor counts"))
     end
@@ -2208,14 +2207,15 @@ function buildingWithFloors(vec_ps::Vector{PolyShape}, vec_np::Vector{Int}, altu
     current_height = 0.0
 
     for (building_idx, (ps, n_floors)) in enumerate(zip(vec_ps, vec_np))
-        if ps.NumRegions == 0 || n_floors < 1
+        if ps.NumRegions == 0 || n_floors == 0
             continue
         end
 
         V = ps.Vertices[1]
         n_verts = size(V, 1)
 
-        for floor_idx in 0:n_floors
+        floor_range = n_floors >= 0 ? (0:n_floors) : (n_floors:0)
+        for floor_idx in floor_range
             floor_height = current_height + floor_idx * alturaPiso
             floor_start = vertex_count
 
@@ -2225,17 +2225,20 @@ function buildingWithFloors(vec_ps::Vector{PolyShape}, vec_np::Vector{Int}, altu
 
             vertex_count += n_verts
 
-            if floor_idx == 0
+            first_floor = n_floors >= 0 ? 0 : n_floors
+            last_floor = n_floors >= 0 ? n_floors : 0
+
+            if floor_idx == first_floor
                 for i in 1:n_verts-2
                     append!(all_indices, [floor_start, floor_start + i, floor_start + i + 1])
                 end
-            elseif floor_idx == n_floors
+            elseif floor_idx == last_floor
                 for i in 1:n_verts-2
                     append!(all_indices, [floor_start, floor_start + i + 1, floor_start + i])
                 end
             end
 
-            if floor_idx > 0
+            if (n_floors >= 0 && floor_idx > 0) || (n_floors < 0 && floor_idx > n_floors)
                 prev_floor_start = floor_start - n_verts
                 for j in 0:n_verts-1
                     next_j = (j + 1) % n_verts
@@ -2264,6 +2267,73 @@ end
 
 
 function polyShape2json(ps::PolyShape; height::Float64=0.0)::String
+
+    function triangulatePolygon(V::Matrix{Float64})::Vector{Int}
+
+        function pointInTriangle(p::Vector{Float64}, a::Vector{Float64}, b::Vector{Float64}, c::Vector{Float64})::Bool
+            d1 = sign((p[1] - b[1]) * (a[2] - b[2]) - (a[1] - b[1]) * (p[2] - b[2]))
+            d2 = sign((p[1] - c[1]) * (b[2] - c[2]) - (b[1] - c[1]) * (p[2] - c[2]))
+            d3 = sign((p[1] - a[1]) * (c[2] - a[2]) - (c[1] - a[1]) * (p[2] - a[2]))
+
+            has_neg = (d1 < 0) || (d2 < 0) || (d3 < 0)
+            has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0)
+
+            return !(has_neg && has_pos)
+        end
+
+        n = size(V, 1)
+        if n < 3
+            return Int[]
+        end
+
+        indices = Int[]
+        remaining = collect(1:n)
+
+        while length(remaining) >= 3
+            n_remaining = length(remaining)
+            ear_found = false
+
+            for i in 1:n_remaining
+                prev_idx = remaining[i == 1 ? n_remaining : i - 1]
+                curr_idx = remaining[i]
+                next_idx = remaining[i == n_remaining ? 1 : i + 1]
+
+                p1 = V[prev_idx, :]
+                p2 = V[curr_idx, :]
+                p3 = V[next_idx, :]
+
+                cross_prod = (p2[1] - p1[1]) * (p3[2] - p1[2]) - (p2[2] - p1[2]) * (p3[1] - p1[1])
+
+                if cross_prod > 0
+                    is_ear = true
+                    for j in 1:n_remaining
+                        test_idx = remaining[j]
+                        if test_idx != prev_idx && test_idx != curr_idx && test_idx != next_idx
+                            pt = V[test_idx, :]
+                            if pointInTriangle(pt, p1, p2, p3)
+                                is_ear = false
+                                break
+                            end
+                        end
+                    end
+
+                    if is_ear
+                        append!(indices, [prev_idx - 1, curr_idx - 1, next_idx - 1])
+                        deleteat!(remaining, i)
+                        ear_found = true
+                        break
+                    end
+                end
+            end
+
+            if !ear_found
+                break
+            end
+        end
+
+        return indices
+    end
+
     if ps.NumRegions == 0
         return threejs2json(Dict{String, Any}("vertices" => Float64[], "indices" => Int[]))
     end
@@ -2281,8 +2351,9 @@ function polyShape2json(ps::PolyShape; height::Float64=0.0)::String
             push!(all_vertices, V[i, 2], height, V[i, 1])
         end
 
-        for i in 1:n_verts-2
-            append!(all_indices, [region_start, region_start + i, region_start + i + 1])
+        triangle_indices = triangulatePolygon(V)
+        for idx in triangle_indices
+            push!(all_indices, region_start + idx)
         end
     end
 
@@ -2298,17 +2369,12 @@ end
 export isPolyConvex,
     polyArea, polyDifference, polyOrientation, polyUnion, polyIntersection, polyIntersects, polyOffset,
     polyEliminaColineales, subShape, shapeVertex, numVertices,
-    polyBox, polyRotate, polyReverse, setPolyOrientation,
-    polyCopy, intersectLines,
-    lineAngle, halfspaceSignOfPointToLine,
-    lineVec2polyShape,
-    ajustaCoordenadas, polyBoxFromEdge,
-    createLine, convHull, midPointSegment,
-    lineLength, isLineLineParallel,
-    partialPolyOffset,
+    polyBox, polyRotate, polyReverse, setPolyOrientation, polyCopy, intersectLines,
+    lineAngle, halfspaceSignOfPointToLine, lineVec2polyShape, ajustaCoordenadas, polyBoxFromEdge,
+    createLine, convHull, midPointSegment, lineLength, isLineLineParallel, partialPolyOffset,
     line2Box, lines2Polygons, poly2Constraints, constraints2poly, rotate_to_first_ccw,
     calculateDistance, shape2vector, transformLine, polySimplify,
     ajusteCoordenadasInversa, shape_32719to4326, shape_4326to32719, polyshape2wkt, dividePoly,
-    polyHasnan, sampleEdgePoints, polyShapeShell2json, threejs2json,  
-    polyShape2json, buildingWithFloors
+    polyHasnan, sampleEdgePoints, polyShapeLayers2json, threejs2json,  
+    polyShape2json, building2json
 end
