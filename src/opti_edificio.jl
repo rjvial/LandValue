@@ -68,7 +68,7 @@ function estimacion_ocupacion_suelo_viv_econ(superficieTerreno, max_deptos, sup_
     return sup_ocupacion_est
 end
 
-function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_opti=nothing, id_combi=nothing)
+function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti=nothing, id_combi=nothing)
     # ============================================================================
     # MAIN BUILDING OPTIMIZATION FUNCTION
     # ============================================================================
@@ -87,10 +87,10 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_opt
 
     # Surface areas
     config_edificio["superficieTerreno"] = dict_geom["sup_terreno_sii"]
-    config_edificio["superficieTerrenoBruto"] = polyShape.polyArea(dict_geom["ps_bruto"])
+    config_edificio["superficieTerrenoBruto"] = dict_geom["sup_terreno_bruto"]
 
     # Constructibility calculation
-    coef_const_raw = dict_requerimientos["norm_coeficiente_de_constructibilidad"]
+    coef_const_raw = dict_normativa_raw["norm_coeficiente_de_constructibilidad"]
     if isa(coef_const_raw, Number)
         config_edificio["coefConstructibilidad"] = coef_const_raw
     elseif typeof(coef_const_raw[1]) == Float64
@@ -117,7 +117,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_opt
     end
     
     # Floor configuration
-    maxPisos = get(dict_requerimientos, "norm_n_pisos", 9999)
+    maxPisos = get(dict_normativa_raw, "norm_n_pisos", 9999)
     config_edificio["maxPisos"] = maxPisos
     config_edificio["default_min_pisos"] = max(MIN_FLOORS, maxPisos - DEFAULT_FLOOR_BUFFER)
     config_edificio["vec_pisos"] = collect(config_edificio["default_min_pisos"]:maxPisos)
@@ -128,17 +128,17 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_opt
     density_config = Dict{String, Any}()
     
     # Density calculation
-    flagDensidadBruta = haskey(dict_requerimientos, "norm_densidad_maxima_bruta")
+    flagDensidadBruta = haskey(dict_normativa_raw, "norm_densidad_maxima_bruta")
     density_config["flagDensidadBruta"] = flagDensidadBruta
 
     superficie_densidad = flagDensidadBruta ? config_edificio["superficieTerrenoBruto"] : config_edificio["superficieTerreno"]
-    max_densidad = flagDensidadBruta ? dict_requerimientos["norm_densidad_maxima_bruta"] : dict_requerimientos["norm_densidad_maxima_neta"]
+    max_densidad = flagDensidadBruta ? dict_normativa_raw["norm_densidad_maxima_bruta"] : dict_normativa_raw["norm_densidad_maxima_neta"]
     
     density_config["max_deptos"] = floor(max_densidad / DENSITY_DIVISOR * superficie_densidad / AREA_CONVERSION)
     
     # Ground occupation
 
-    sup_patio_vivienda_economica = config_edificio["flag_economica"] ? dict_requerimientos["norm_superficice_min_patio_x_depto"] : 0    
+    sup_patio_vivienda_economica = config_edificio["flag_economica"] ? dict_normativa_raw["norm_superficice_min_patio_x_depto"] : 0    
     density_config["sup_patio_vivienda_economica"] = sup_patio_vivienda_economica
     if config_edificio["flag_economica"]
         superficieTerreno = config_edificio["superficieTerreno"]
@@ -151,7 +151,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_opt
         density_config["max_ocupacion_suelo"] = estimacion_ocupacion_suelo_viv_econ(superficieTerreno, max_deptos, sup_patio_vivienda_economica, coefSupComun,
                                             vecSupInterior, vecSupTerraza, vecSupUtil)
     else
-        ocupacion_suelo = dict_requerimientos["norm_coeficiente_de_ocupacion_de_suelo"]
+        ocupacion_suelo = dict_normativa_raw["norm_coeficiente_de_ocupacion_de_suelo"]
         density_config["max_ocupacion_suelo"] = config_edificio["superficieTerreno"] * ocupacion_suelo
     end
 
@@ -163,7 +163,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_opt
     
     vec_ps_opt, vec_np_opt, max_sol, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, 
     ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s, 
-    ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s = opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, vec_pisos, 
+    ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s = opti_edificio_vol(dict_geom, dict_arquitectura, dict_normativa_raw, vec_pisos, 
                                                                                             max_ocupacion_suelo, max_losa_snt)
 
                                                                            
@@ -231,7 +231,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_opt
         "cabida_num_oficinas" => sum(cabida_data["vec_num_oficinas"])
     )
     
-    dict_estacionamientos = python_expression_eval_with_varmap(dict_requerimientos["norm_estacionamientos_autos"], car_parking_vars)
+    dict_estacionamientos = python_expression_eval_with_varmap(dict_normativa_raw["norm_estacionamientos_autos"], car_parking_vars)
     parking_data["estacionamientos_autos_oficina"] = Int(dict_estacionamientos["estacionamientos_autos_oficina"])
     parking_data["estacionamientos_autos_vivienda"] = Int(dict_estacionamientos["estacionamientos_autos_vivienda"])
     parking_data["estacionamientos_autos_comercio"] = Int(dict_estacionamientos["estacionamientos_autos_comercio"])
@@ -241,14 +241,14 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_opt
     
     # Visitor parking
     visitor_vars = Dict("estacionamientos_autos_vivienda" => parking_data["estacionamientos_autos_vivienda"])
-    parking_data["estacionamientos_visitas"] = Int(python_expression_eval_with_varmap(dict_requerimientos["norm_estacionamientos_visitas"], visitor_vars))
+    parking_data["estacionamientos_visitas"] = Int(python_expression_eval_with_varmap(dict_normativa_raw["norm_estacionamientos_visitas"], visitor_vars))
     
     # Total parking spots
     numEst = parking_data["estacionamientos_autos"] + parking_data["estacionamientos_visitas"]
     
     # Disabled parking
     disabled_vars = Dict("estacionamientos_autos" => numEst)
-    parking_data["estacionamientos_discapacitados"] = Int(python_expression_eval_with_varmap(dict_requerimientos["norm_estacionamientos_discapacitados"], disabled_vars))
+    parking_data["estacionamientos_discapacitados"] = Int(python_expression_eval_with_varmap(dict_normativa_raw["norm_estacionamientos_discapacitados"], disabled_vars))
     
     # Bicycle parking
     bike_vars = Dict(
@@ -256,7 +256,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_opt
         "estacionamientos_visitas" => parking_data["estacionamientos_visitas"],
         "carga_ocupacion" => DEFAULT_OCCUPATION_LOAD
     )
-    parking_data["estacionamientos_bicicletas"] = Int(python_expression_eval_with_varmap(dict_requerimientos["norm_estacionamientos_bicicletas"], bike_vars))
+    parking_data["estacionamientos_bicicletas"] = Int(python_expression_eval_with_varmap(dict_normativa_raw["norm_estacionamientos_bicicletas"], bike_vars))
     
     # Metro discount
     metro_vars = Dict(
@@ -265,7 +265,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_opt
         "estacionamientos_autos_oficina" => parking_data["estacionamientos_autos_oficina"],
         "distancia_al_metro" => DEFAULT_METRO_DISTANCE
     )
-    parking_data["descuento_estacionamientos_x_metro"] = Int(python_expression_eval_with_varmap(dict_requerimientos["norm_descuento_estacionamientos_x_metro"], metro_vars))
+    parking_data["descuento_estacionamientos_x_metro"] = Int(python_expression_eval_with_varmap(dict_normativa_raw["norm_descuento_estacionamientos_x_metro"], metro_vars))
 
     # Bicycle discount
     bike_discount_vars = Dict(
@@ -275,14 +275,14 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_opt
         "estacionamientos_bicicletas" => parking_data["estacionamientos_bicicletas"]
     )
     
-    dict_descuento_bici = python_expression_eval_with_varmap(dict_requerimientos["norm_descuento_estacionamientos_x_bici"], bike_discount_vars)
+    dict_descuento_bici = python_expression_eval_with_varmap(dict_normativa_raw["norm_descuento_estacionamientos_x_bici"], bike_discount_vars)
     parking_data["descuento_estacionamientos_x_bici_t1"] = Int(dict_descuento_bici["descuento_estacionamientos_x_bici_t1"])
     parking_data["descuento_estacionamientos_x_bici_t2"] = Int(dict_descuento_bici["descuento_estacionamientos_x_bici_t2"])
     parking_data["descuento_estacionamientos_x_bici"] = Int(dict_descuento_bici["descuento_estacionamientos_x_bici"])
 
     # Bicycle increase from discount
     bike_increase_vars = Dict("descuento_estacionamientos_x_bici_t2" => parking_data["descuento_estacionamientos_x_bici_t2"])
-    parking_data["aumento_bici_x_descuento_estacionamientos"] = python_expression_eval_with_varmap(dict_requerimientos["norm_aumento_bici_x_descuento_estacionamientos"], bike_increase_vars)
+    parking_data["aumento_bici_x_descuento_estacionamientos"] = python_expression_eval_with_varmap(dict_normativa_raw["norm_aumento_bici_x_descuento_estacionamientos"], bike_increase_vars)
 
     # Final calculations
     parking_data["estacionamientos_autos_final"] = parking_data["estacionamientos_autos"] + parking_data["estacionamientos_visitas"] - 
@@ -312,8 +312,8 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_opt
     vecSecTodos = dict_geom["vecSecTodos"]
     vecSecSinCalle = dict_geom["vecSecSinCalle"]
     vec_dist = Float64.(copy(vecSecTodos))
-    vec_dist .= -dict_requerimientos["norm_subterraneo_antejardin"]
-    vec_dist[vecSecSinCalle] .= -dict_requerimientos["norm_subterraneo_distanciamiento"]
+    vec_dist .= -dict_normativa_raw["norm_subterraneo_antejardin"]
+    vec_dist[vecSecSinCalle] .= -dict_normativa_raw["norm_subterraneo_distanciamiento"]
     
     ps_predio = deepcopy(dict_geom["ps_combi"])
     ps_areaEst = polyShape.partialPolyOffset(ps_predio, vecSecTodos, vec_dist)
@@ -402,7 +402,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_opt
                                     else
                                         density_config["max_ocupacion_suelo"]
                                     end,
-        "norm_pisos_snt" => Int8(get(dict_requerimientos, "norm_n_pisos", 9999)),
+        "norm_pisos_snt" => Int8(get(dict_normativa_raw, "norm_n_pisos", 9999)),
         "proyecto_supNoUtilizada" => dict_edificio_deptos["supNoUtilizada"]
     )
 

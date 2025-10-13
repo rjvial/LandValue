@@ -11,7 +11,8 @@ using LandValue, DotEnv, LinearAlgebra, OrderedCollections
 my_env = DotEnv.config("secrets.env")
 conn_aws = aws_julia.connection(my_env["AWS_ACCESS_KEY"], my_env["AWS_SECRET_KEY"], my_env["AWS_REGION"])
 
-neo4j_host = "bolt://localhost:7687"
+# neo4j_host = "bolt://localhost:7687"
+neo4j_host = "bolt://localhost:7688"
 neo4j_user = "neo4j"
 neo4j_password = "x67y1332"
 key_pair = "neo4j-key-pair.pem"
@@ -127,7 +128,7 @@ ORDER BY id_opti ASC
 df_instancias = pg_julia.query(conn_postgres, query_pg)
 
 query_combis = """
-MATCH (p:Predio)-[]-(c:Combi)
+MATCH (p:Predio)-[:CONFORMA_COMBI]->(c:Combi)
 RETURN DISTINCT c.id_combi AS id_combi, c.predios AS list_predios
 ORDER BY id_combi
 """
@@ -205,10 +206,10 @@ let flag_create_table = false
         println("Processing ID Opti: $(id_opti)")
 
         dict_arquitectura = createArchitectureDict(row.variante_norm)
-        dict_requerimientos = obtiene_requerimientos_normativos(vec_predios[1], dict_arquitectura["arq_variante_normativa"], conn_neo4j)
+        dict_normativa_raw = obtiene_requerimientos_normativos(vec_predios[1], dict_arquitectura["arq_variante_normativa"], conn_neo4j)
 
         try
-            dict_resultados, dict_proyecto_vs_normativa = opti_edificio(dict_geom, dict_arquitectura, dict_requerimientos, id_opti, id_combi)
+            dict_resultados, dict_proyecto_vs_normativa = opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti, id_combi)
             # show(IOContext(stdout, :limit => false), MIME("text/plain"), dict_resultados)
 
             dict_all = OrderedDict{String,Any}()

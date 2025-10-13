@@ -49,6 +49,7 @@ function obtiene_geometrias_combi(df_combined_row)
         "vecSecConCalle" => vecSecConCalle,
         "vecAnchoCalle" => vecAnchoCalle,
         "sup_terreno_sii" => sup_terreno_sii,
+        "sup_terreno_bruto" => polyShape.polyArea(ps_bruto),
         "dx" => dx,
         "dy" => dy
     )

@@ -16,7 +16,8 @@ ec2_user   = "ec2-user"
 public_dns = instance_info["dnsName"]
 
 folder = "/usr/bin/cypher-shell"
-neo4j_host = "bolt://localhost:7687"
+# neo4j_host = "bolt://localhost:7687"
+neo4j_host = "bolt://localhost:7688"
 neo4j_user = "neo4j"
 neo4j_password = "x67y1332"
 

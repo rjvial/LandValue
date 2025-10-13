@@ -66,7 +66,7 @@ function process_shadow_direction(shadow_poly, constraint_matrix, constraint_vec
     
     constraint_edges = if is_active
         centroid = polyGdal.shapeCentroid(shadow_poly)
-        constraint_values = constraint_matrix * centroid.Vertices'
+        constraint_values = vec(constraint_matrix * centroid.Vertices')
         edges[constraint_values .>= constraint_vector]
     else
         Int[]

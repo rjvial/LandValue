@@ -6,7 +6,7 @@ function obtiene_requerimientos_normativos(codigo_predial, variante_normativa, c
 
     query = """
         MATCH (p:Predio)-[:SE_UBICA_EN_ZONA]->(z:Zona_Edificacion)-[:TIENE_REQUERIMIENTO]->(r:Requerimiento_Edificacion)
-        WHERE p.codigo_predial = '$(codigo_predial)'
+        WHERE p.codigo_predial = $(codigo_predial)
         RETURN
         r.id_requerimiento_edificacion AS id_requerimiento_edificacion,
         r.id_zona_edificacion        AS id_zona_edificacion,
@@ -20,18 +20,18 @@ function obtiene_requerimientos_normativos(codigo_predial, variante_normativa, c
         r.formula               AS formula,
         r.nombre_requerimiento  AS nombre_req_condicional;
         """
-    df_normativa = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-    lista_requerimientos = sort(unique(skipmissing(df_normativa[!, :nombre_requerimiento])))
+    df_normativa_raw = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
+    lista_requerimientos = sort(unique(skipmissing(df_normativa_raw[!, :nombre_requerimiento])))
 
-    dict_requerimientos = OrderedDict{String,Any}()
+    dict_normativa_raw = OrderedDict{String,Any}()
 
     
     for r in lista_requerimientos
         # 1) filter down to the matching row
         mask = 
-        (df_normativa[!, :nombre_variante] .== variante_normativa) .&
-        (df_normativa[!, :nombre_requerimiento] .== r)
-        df_mask = df_normativa[mask, [:valor, :parametro_formula, :formula]]
+        (df_normativa_raw[!, :nombre_variante] .== variante_normativa) .&
+        (df_normativa_raw[!, :nombre_requerimiento] .== r)
+        df_mask = df_normativa_raw[mask, [:valor, :parametro_formula, :formula]]
 
         # 2) if there's at least one row for this requisito
         if size(df_mask, 1) ≥ 1
@@ -43,17 +43,17 @@ function obtiene_requerimientos_normativos(codigo_predial, variante_normativa, c
                 # ───────── sin parámetros ─────────
                 chosen = valor_str != "NULL" ? valor_str : formula_str
                 parsed = tryparse(Float64, String(chosen))
-                dict_requerimientos["norm_" * r] = parsed === nothing ? String(chosen) : parsed
+                dict_normativa_raw["norm_" * r] = parsed === nothing ? String(chosen) : parsed
 
             elseif valor_str == "NULL"
                 # ───────── con parámetros ─────────
-                dict_requerimientos["norm_" * r] = (
+                dict_normativa_raw["norm_" * r] = (
                     "",
                     String(parametros_str),
                     String(formula_str)
                 )
             else
-                dict_requerimientos["norm_" * r] = (
+                dict_normativa_raw["norm_" * r] = (
                     String(valor_str),
                     String(parametros_str),
                     String(formula_str)
@@ -62,10 +62,10 @@ function obtiene_requerimientos_normativos(codigo_predial, variante_normativa, c
         end
     end
 
-    dict_requerimientos["norm_rasante_sombra"] = 5.0
+    dict_normativa_raw["norm_rasante_sombra"] = 5.0
 
 
-    return dict_requerimientos
+    return dict_normativa_raw
 end
 
 
