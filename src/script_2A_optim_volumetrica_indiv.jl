@@ -2,7 +2,7 @@
 #                    SCRIPT 2A - VOLUMETRIC OPTIMIZATION                     #
 ################################################################################
 
-using LandValue, DotEnv, LinearAlgebra, OrderedCollections
+using LandValue, DotEnv, LinearAlgebra, OrderedCollections, JSON
 
 ################################################################################
 #                        DATABASE CONNECTION SETUP                           #
@@ -149,6 +149,18 @@ ORDER BY id_combi, id_calle_combi
 """
 df_combined = neo4j_julia.cypher_to_dataframe(query_geom, conn_neo4j)
 
+println("Loading tipo deptos from athena...")
+query = """
+SELECT * FROM portal_tipo_deptos
+WHERE comuna = 'vitacura'
+"""
+DB_NAME = "iceberg_db"
+athena_bucket = "landengines-data"
+athena_output = "query-results"
+athena_catalog_name = "AwsDataCatalog"
+df_tipo_deptos = aws_julia.query_to_dataframe(query, DB_NAME, athena_bucket, athena_output, athena_catalog_name, conn_aws)
+
+
 ################################################################################
 #                      MAIN OPTIMIZATION PROCESSING LOOP                     #
 ################################################################################
@@ -205,41 +217,50 @@ let flag_create_table = false
 
         println("Processing ID Opti: $(id_opti)")
 
+
         dict_arquitectura = createArchitectureDict(row.variante_norm)
-        dict_normativa_raw = obtiene_requerimientos_normativos(vec_predios[1], dict_arquitectura["arq_variante_normativa"], conn_neo4j)
+        dict_normativa_raw, id_zona_edificacion = obtiene_requerimientos_normativos(vec_predios[1], dict_arquitectura["arq_variante_normativa"], conn_neo4j)
+        id_zona_edificacion = "15160_e_am3_sz"
+        df_tipo_deptos_filtered = filter(r -> r.id_zona_edificacion == id_zona_edificacion, df_tipo_deptos)
+        dict_arquitectura["arq_vecSupUtil"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1,"sup_util_tipos"]))
+        dict_arquitectura["arq_vecSupInterior"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1,"sup_interior_tipos"]))
+        dict_arquitectura["arq_vecSupTerraza"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1,"sup_terraza_tipos"]))
 
         try
-            dict_resultados, dict_proyecto_vs_normativa = opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti, id_combi)
+            dict_proyecto, dict_normativa = opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti, id_combi)
             # show(IOContext(stdout, :limit => false), MIME("text/plain"), dict_resultados)
 
+            dict_json = OrderedDict()
+            dict_json["n_predios"] = dict_geom["n_predios"]
+            dict_json["sup_terreno_sii"] = dict_geom["sup_terreno_sii"]
+            dict_json["sup_terreno_bruto"] = dict_geom["sup_terreno_bruto"]
+            dict_json["json_edificio_opt"] = polyShape.building2json(dict_proyecto["proyecto_vec_ps_opt"], dict_proyecto["proyecto_vec_np_opt"], dict_arquitectura["arq_alturaPiso"])
+            dict_json["json_subte_opt"] = polyShape.building2json(dict_proyecto["proyecto_vec_ps_subte"], dict_proyecto["proyecto_vec_np_subte"], dict_arquitectura["arq_alturaPiso"])
+            dict_json["json_Volteor"] = polyShape.polyShapeLayers2json(dict_proyecto["proyecto_vec_psVolteor"], dict_proyecto["proyecto_vec_altVolteor"])
+            dict_json["json_sombraEdif_p"] = polyShape.polyShape2json(dict_proyecto["proyecto_ps_sombraEdif_p"])
+            dict_json["json_sombraEdif_o"] = polyShape.polyShape2json(dict_proyecto["proyecto_ps_sombraEdif_o"])
+            dict_json["json_sombraEdif_s"] = polyShape.polyShape2json(dict_proyecto["proyecto_ps_sombraEdif_s"])
+            dict_json["json_sombraVolTeorico_p"] = polyShape.polyShape2json(dict_proyecto["proyecto_ps_sombraVolTeorico_p"])
+            dict_json["json_sombraVolTeorico_o"] = polyShape.polyShape2json(dict_proyecto["proyecto_ps_sombraVolTeorico_o"])
+            dict_json["json_sombraVolTeorico_s"] = polyShape.polyShape2json(dict_proyecto["proyecto_ps_sombraVolTeorico_s"])
+            dict_json["json_combi"] = polyShape.polyShape2json(dict_geom["ps_combi"])
+            dict_json["json_bruto"] = polyShape.polyShape2json(dict_geom["ps_bruto"])
+            dict_json["json_calles"] = polyShape.polyShape2json(dict_geom["ps_calles"])
+            dict_json["json_calles_contexto"] = polyShape.polyShape2json(dict_geom["ps_calles_contexto"])
+
+            delete!(dict_normativa, "norm_coeficiente_de_ocupacion_de_suelo")
+            delete!(dict_normativa, "norm_superficice_util_max_depto")
+            delete!(dict_normativa, "norm_coeficiente_de_constructibilidad")
+            delete!(dict_normativa, "norm_superficice_min_patio_x_depto")
+
             dict_all = OrderedDict{String,Any}()
-            dicts = [dict_resultados, dict_proyecto_vs_normativa, dict_arquitectura]
+            dicts = [dict_normativa, dict_proyecto, dict_arquitectura, dict_json]
 
             for dict in dicts
                 for (key, value) in dict
                     dict_all[key] = processValue(value, dict_geom)
                 end
             end
-
-            dict_all = OrderedDict(sort(collect(dict_all), by=x -> (findfirst(==(x[1]), PRIORITY_KEYS) === nothing ? 1000 : findfirst(==(x[1]), PRIORITY_KEYS), x[1])))
-            dict_all["json_edificio_opt"] = polyShape.building2json(dict_resultados["proyecto_vec_ps_opt"], dict_resultados["proyecto_vec_np_opt"], dict_arquitectura["arq_alturaPiso"])
-            dict_all["json_subte_opt"] = polyShape.building2json(dict_resultados["proyecto_vec_ps_subte"], dict_resultados["proyecto_vec_np_subte"], dict_arquitectura["arq_alturaPiso"])
-            dict_all["json_Volteor"] = polyShape.polyShapeLayers2json(dict_resultados["proyecto_vec_psVolteor"], dict_resultados["proyecto_vec_altVolteor"])
-            dict_all["json_sombraEdif_p"] = polyShape.polyShape2json(dict_resultados["proyecto_ps_sombraEdif_p"])
-            dict_all["json_sombraEdif_o"] = polyShape.polyShape2json(dict_resultados["proyecto_ps_sombraEdif_o"])
-            dict_all["json_sombraEdif_s"] = polyShape.polyShape2json(dict_resultados["proyecto_ps_sombraEdif_s"])
-            dict_all["json_sombraVolTeorico_p"] = polyShape.polyShape2json(dict_resultados["proyecto_ps_sombraVolTeorico_p"])
-            dict_all["json_sombraVolTeorico_o"] = polyShape.polyShape2json(dict_resultados["proyecto_ps_sombraVolTeorico_o"])
-            dict_all["json_sombraVolTeorico_s"] = polyShape.polyShape2json(dict_resultados["proyecto_ps_sombraVolTeorico_s"])
-            dict_all["json_combi"] = polyShape.polyShape2json(dict_geom["ps_combi"])
-            dict_all["json_calles"] = polyShape.polyShape2json(dict_geom["ps_calles"])
-            dict_all["json_calles_contexto"] = polyShape.polyShape2json(dict_geom["ps_calles_contexto"])
-
-            # file_json = "proyecto_json_edificio_opt.json"
-            # open(file_json, "w") do file
-            #     write(file, dict_all["json_calles_contexto"])
-            # end
-
 
             vecColumnNames, vecColumnTypes = dict2tablevec(dict_all, PRIMARY_KEY)
 
@@ -257,7 +278,7 @@ let flag_create_table = false
 
             update_optimization_status(conn_postgres, id_opti, 1)
 
-            # fig, ax, ax_mat = plotBaseEdificio3D(fpe, dict_arquitectura["arq_alturaPiso"], dict_geom["ps_combi"], dict_resultados)
+            # fig, ax, ax_mat = plotBaseEdificio3D(fpe, dict_arquitectura["arq_alturaPiso"], dict_geom["ps_combi"], dict_all)
 
             println("Completed optimization for ID Opti: $(id_opti)\n")
 

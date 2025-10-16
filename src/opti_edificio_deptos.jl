@@ -30,6 +30,8 @@ function process_optimization_results(model,
             "descuento_dfl2" => 0.0,
             "supNoUtilizada" => 0.0,
             "vec_numDeptosTipo" => Int[],
+            "vec_numDeptosTipo_primerPiso" => Int[],
+            "vec_numDeptosTipo_pisosSup" => Int[],
             "numDeptos" => 0
         )
 
@@ -53,6 +55,8 @@ function process_optimization_results(model,
             "supInteriorPisosSup" => round(value(interior_area_upper_floors), digits=2),
             "descuento_dfl2" => round(value(dfl2_discount), digits=2),
             "supNoUtilizada" => round(value(unused_area), digits=2),
+            "vec_numDeptosTipo_primerPiso" => [round(Int, value(apartments_ground_floor[u])) for u in axes(apartments_ground_floor, 1)],
+            "vec_numDeptosTipo_pisosSup" => [round(Int, value(apartments_per_upper_floor[u]) * regular_floors) for u in axes(apartments_ground_floor, 1)],
             "vec_numDeptosTipo" => [round(Int, value(apartments_ground_floor[u]) + value(apartments_per_upper_floor[u]) * regular_floors) for u in axes(apartments_ground_floor, 1)],
             "numDeptos" => round(Int8, value(total_apartments))
         )
@@ -181,7 +185,9 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
     ############################################################################
     # Optimization Constraints
     ############################################################################
-    @constraint(model, total_apartments_constraint, sum(apartments_ground_floor) + sum(apartments_per_upper_floor) * regular_floors <= max_deptos)
+    @constraint(model, total_apartments_constraint_max, sum(apartments_ground_floor) + sum(apartments_per_upper_floor) * regular_floors <= max_deptos)
+    @constraint(model, total_apartments_constraint_min, sum(apartments_ground_floor) + sum(apartments_per_upper_floor) * regular_floors >= max_deptos - 2)
+
 
     # Common area constraints
     @constraint(model, dfl2_discount_useful_area_limit, dfl2_discount <= flag_dfl2 * 0.2 * total_useful_area)
@@ -195,7 +201,7 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
 
     for i in apartments, j in apartments
         if interior_areas[i] < interior_areas[j]  # avoid duplicate constraints
-            if interior_areas[j] > interior_areas[i] * 3.4
+            if interior_areas[j] > interior_areas[i] * 2.5 #3.4
                 @constraint(model, z[i] + z[j] <= 1)
             end
         end
@@ -246,31 +252,3 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
 end
 
 
-
-
-#  # Condition 1: If apartment type selected on ground floor, total units must be multiple of total_floors
-#   for u in 1:num_apartment_types
-#       @variable(model, k1[u] >= 0, Int)  # multiplier variable
-
-#       # If z[u] = 1 and apartments_ground_floor[u] > 0, then total must be multiple of total_floors
-#       # Using big-M formulation with existing z[u] variable
-#       M = max_deptos * total_floors  # big-M constant
-
-#       @constraint(model, apartments_ground_floor[u] + apartments_per_upper_floor[u] * regular_floors
-#                   <= k1[u] * total_floors + M * (1 - z[u]) + M * (max_deptos - apartments_ground_floor[u])/max_deptos)
-#       @constraint(model, apartments_ground_floor[u] + apartments_per_upper_floor[u] * regular_floors
-#                   >= k1[u] * total_floors - M * (1 - z[u]) - M * (max_deptos - apartments_ground_floor[u])/max_deptos)
-#   end
-
-#   # Condition 2: If apartment type only on upper floors, total must be multiple of regular_floors
-#   for u in 1:num_apartment_types
-#       @variable(model, k2[u] >= 0, Int)  # multiplier variable
-
-#       # If z[u] = 1 and apartments_ground_floor[u] = 0, then total must be multiple of regular_floors
-#       M = max_deptos * regular_floors
-
-#       @constraint(model, apartments_per_upper_floor[u] * regular_floors
-#                   <= k2[u] * regular_floors + M * (1 - z[u]) + M * apartments_ground_floor[u]/max_deptos)
-#       @constraint(model, apartments_per_upper_floor[u] * regular_floors
-#                   >= k2[u] * regular_floors - M * (1 - z[u]) - M * apartments_ground_floor[u]/max_deptos)
-#   end

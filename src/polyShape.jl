@@ -1617,7 +1617,9 @@ function shape_32719to4326(ps::PolyShape)::PolyShape
         y = ps_.Vertices[i][:, 2]
         points = ArchGDAL.createpoint.(x, y)
         ArchGDAL.createcoordtrans(source, target) do transform
-            ArchGDAL.transform!.(points, Ref(transform))
+            for point in points
+                ArchGDAL.transform!(point, transform)
+            end
         end
         for j in eachindex(points)
             transformed_x = ArchGDAL.getx(points[j], 0)

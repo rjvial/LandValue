@@ -23,6 +23,8 @@ function obtiene_requerimientos_normativos(codigo_predial, variante_normativa, c
     df_normativa_raw = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
     lista_requerimientos = sort(unique(skipmissing(df_normativa_raw[!, :nombre_requerimiento])))
 
+    zona_edificacion = 1
+
     dict_normativa_raw = OrderedDict{String,Any}()
 
     
@@ -64,8 +66,9 @@ function obtiene_requerimientos_normativos(codigo_predial, variante_normativa, c
 
     dict_normativa_raw["norm_rasante_sombra"] = 5.0
 
+    id_zona_edificacion = df_normativa_raw[!,"id_zona_edificacion"][1]
 
-    return dict_normativa_raw
+    return dict_normativa_raw, id_zona_edificacion
 end
 
 

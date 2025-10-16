@@ -99,8 +99,8 @@ for i_m in eachindex(unique_manzanas)
     unique_codigo_predial_m = unique(df_predios_combis_m.codigo_predial)
     num_codigo_predial_bruto = length(unique_codigo_predial_m)
 
-    first_N_combis = unique_combis_m[1:min(num_max_combis, num_combis_bruto)] 
-    df_predios_combis_m = df_predios_combis_m[in.(df_predios_combis_m.id_combi, Ref(first_N_combis)), :]
+    first_N_combis = unique_combis_m[1:min(num_max_combis, num_combis_bruto)]
+    df_predios_combis_m = filter(row -> row.id_combi in first_N_combis, df_predios_combis_m)
     unique_combis_m = unique(df_predios_combis_m.id_combi)
 
     unique_codigo_predial_m = unique(df_predios_combis_m.codigo_predial)
