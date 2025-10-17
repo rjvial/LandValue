@@ -1,12 +1,12 @@
 ################################################################################
 # RESULTS PROCESSING FUNCTION
 ################################################################################
-function process_optimization_results(model, 
+function process_optimization_results(model,
     total_useful_area, useful_area_ground_floor, useful_area_upper_floors,
     total_common_area, common_area_ground_floor, common_area_upper_floors,
     total_terrace_area, terrace_area_ground_floor, terrace_area_upper_floors,
     total_interior_area, interior_area_ground_floor, interior_area_upper_floors,
-    unused_area, dfl2_discount, total_apartments,
+    unused_area, unused_area_ground_floor, unused_area_upper_floors, dfl2_discount, total_apartments,
     apartments_ground_floor, apartments_per_upper_floor, regular_floors)
     
     ############################################################################
@@ -29,6 +29,8 @@ function process_optimization_results(model,
             "supInteriorPisosSup" => 0.0,
             "descuento_dfl2" => 0.0,
             "supNoUtilizada" => 0.0,
+            "supNoUtilizada_primerPiso" => 0.0, 
+            "supNoUtilizada_pisosSup" => 0.0,
             "vec_numDeptosTipo" => Int[],
             "vec_numDeptosTipo_primerPiso" => Int[],
             "vec_numDeptosTipo_pisosSup" => Int[],
@@ -55,6 +57,8 @@ function process_optimization_results(model,
             "supInteriorPisosSup" => round(value(interior_area_upper_floors), digits=2),
             "descuento_dfl2" => round(value(dfl2_discount), digits=2),
             "supNoUtilizada" => round(value(unused_area), digits=2),
+            "supNoUtilizada_primerPiso" => round(value(unused_area_ground_floor), digits=2), 
+            "supNoUtilizada_pisosSup" => round(value(unused_area_upper_floors), digits=2),
             "vec_numDeptosTipo_primerPiso" => [round(Int, value(apartments_ground_floor[u])) for u in axes(apartments_ground_floor, 1)],
             "vec_numDeptosTipo_pisosSup" => [round(Int, value(apartments_per_upper_floor[u]) * regular_floors) for u in axes(apartments_ground_floor, 1)],
             "vec_numDeptosTipo" => [round(Int, value(apartments_ground_floor[u]) + value(apartments_per_upper_floor[u]) * regular_floors) for u in axes(apartments_ground_floor, 1)],
@@ -71,7 +75,8 @@ function process_optimization_results(model,
         areas = [
             ("Common", "supComunPrimerPiso", "supComunPisosSup", "supComun"),
             ("Terrace", "supTerrazaPrimerPiso", "supTerrazaPisosSup", "supTerraza"),
-            ("Interior", "supInteriorPrimerPiso", "supInteriorPisosSup", "supInterior")
+            ("Interior", "supInteriorPrimerPiso", "supInteriorPisosSup", "supInterior"),
+            ("Unused", "supNoUtilizada_primerPiso", "supNoUtilizada_pisosSup", "supNoUtilizada")
         ]
         
         # Calculate column totals
@@ -152,7 +157,8 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
         common_area_ground_floor >= 0
         common_area_upper_floors >= 0
         dfl2_discount >= 0
-        unused_area >= 0
+        unused_area_ground_floor >= 0
+        unused_area_upper_floors >= 0
         z[u=1:num_apartment_types], Bin
         y[u=1:num_apartment_types], Bin
     end)
@@ -179,14 +185,15 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
     @expression(model, total_interior_area, interior_area_ground_floor + interior_area_upper_floors)
 
     @expression(model, total_common_area, common_area_ground_floor + common_area_upper_floors)
-    @expression(model, total_apartments, 
-        sum(apartments_ground_floor) + sum(apartments_per_upper_floor) * regular_floors)
+    @expression(model, total_apartments,
+        sum(apartments_ground_floor[u] + apartments_per_upper_floor[u] * regular_floors for u=1:num_apartment_types))
+    @expression(model, unused_area, unused_area_ground_floor + unused_area_upper_floors)
 
     ############################################################################
     # Optimization Constraints
     ############################################################################
-    @constraint(model, total_apartments_constraint_max, sum(apartments_ground_floor) + sum(apartments_per_upper_floor) * regular_floors <= max_deptos)
-    @constraint(model, total_apartments_constraint_min, sum(apartments_ground_floor) + sum(apartments_per_upper_floor) * regular_floors >= max_deptos - 2)
+    @constraint(model, total_apartments_constraint_max, sum(apartments_ground_floor[u] for u=1:num_apartment_types) + sum(apartments_per_upper_floor[u] for u=1:num_apartment_types) * regular_floors <= max_deptos)
+    @constraint(model, total_apartments_constraint_min, sum(apartments_ground_floor[u] for u=1:num_apartment_types) + sum(apartments_per_upper_floor[u] for u=1:num_apartment_types) * regular_floors >= max_deptos - 2)
 
 
     # Common area constraints
@@ -219,13 +226,16 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
         @constraint(model, apartments_ground_floor[u] >= apartments_per_upper_floor[u] - max_deptos * (1 - y[u]))
     end
 
-
     # Buildability constraint
     @constraint(model, buildability_limit, total_useful_area + total_common_area - dfl2_discount <= max_constructibilidad)
-    
-    # Total area balance
-    @constraint(model, total_area_balance, unused_area + total_common_area + total_terrace_area + total_interior_area == 
-        sum(basal_areas[k] * vec_np_opt[k] for k=1:num_stacks))
+
+    # Floor-by-floor area balance constraints
+    @constraint(model, ground_floor_area_balance,
+        unused_area_ground_floor + common_area_ground_floor + terrace_area_ground_floor + interior_area_ground_floor ==
+        basal_areas[1])
+    @constraint(model, upper_floors_area_balance,
+        unused_area_upper_floors + common_area_upper_floors + terrace_area_upper_floors + interior_area_upper_floors ==
+        basal_areas[1] * regular_floors)
 
     # DFL2 apartment type restrictions
     if flag_dfl2 || (sup_patio_vivienda_economica > 0)
@@ -242,12 +252,12 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
     ############################################################################
     # Return Results
     ############################################################################
-    return process_optimization_results(model, 
+    return process_optimization_results(model,
         total_useful_area, useful_area_ground_floor, useful_area_upper_floors,
         total_common_area, common_area_ground_floor, common_area_upper_floors,
         total_terrace_area, terrace_area_ground_floor, terrace_area_upper_floors,
         total_interior_area, interior_area_ground_floor, interior_area_upper_floors,
-        unused_area, dfl2_discount, total_apartments,
+        unused_area, unused_area_ground_floor, unused_area_upper_floors, dfl2_discount, total_apartments,
         apartments_ground_floor, apartments_per_upper_floor, regular_floors)
 end
 

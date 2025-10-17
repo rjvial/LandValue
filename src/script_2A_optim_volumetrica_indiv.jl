@@ -220,11 +220,14 @@ let flag_create_table = false
 
         dict_arquitectura = createArchitectureDict(row.variante_norm)
         dict_normativa_raw, id_zona_edificacion = obtiene_requerimientos_normativos(vec_predios[1], dict_arquitectura["arq_variante_normativa"], conn_neo4j)
-        id_zona_edificacion = "15160_e_am3_sz"
+
+        # id_zona_edificacion = "15160_e_aa1"
         df_tipo_deptos_filtered = filter(r -> r.id_zona_edificacion == id_zona_edificacion, df_tipo_deptos)
-        dict_arquitectura["arq_vecSupUtil"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1,"sup_util_tipos"]))
-        dict_arquitectura["arq_vecSupInterior"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1,"sup_interior_tipos"]))
-        dict_arquitectura["arq_vecSupTerraza"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1,"sup_terraza_tipos"]))
+        dict_arquitectura["arq_vecSupUtil"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1,"sup_util_tipos_comuna"]))
+        dict_arquitectura["arq_vecSupInterior"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1,"sup_interior_tipos_comuna"]))
+        dict_arquitectura["arq_vecSupTerraza"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1,"sup_terraza_tipos_comuna"]))
+        dict_arquitectura["arq_vecDormitorios"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1,"n_dorm_tipos_comuna"]))
+        dict_arquitectura["arq_vecBanos"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1,"n_banos_tipos_comuna"]))
 
         try
             dict_proyecto, dict_normativa = opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti, id_combi)
