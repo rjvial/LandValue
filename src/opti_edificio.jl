@@ -162,10 +162,11 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
 
     max_ocupacion_suelo = dict_normativa["norm_max_ocupacion_suelo"]
     
+    # Optimiza el volumen del edificio en base a: distanciamiento, antejardín, altura_max, rasante, 
+    # volumen teórico, crujía (NO considera max_constructibilidad)
     vec_ps_opt, vec_np_opt, max_sol, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, 
-    ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s, 
-    ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s = opti_edificio_vol(dict_geom, dict_arquitectura, dict_normativa_raw, vec_pisos, 
-                                                                                            max_ocupacion_suelo, max_losa_snt)
+    ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s, ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s = 
+                opti_edificio_vol(dict_geom, dict_arquitectura, dict_normativa_raw, vec_pisos, max_ocupacion_suelo, max_losa_snt)
 
     # distaciamiento y antejardín
     dict_normativa["norm_antejardin"] = dict_normativa_raw["norm_antejardin"]
@@ -189,6 +190,8 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
         max_deptos = dict_normativa["norm_max_unidades"]
         flag_dfl2 = dict_normativa["flag_dfl2"]
         superficie_terreno = dict_geom["sup_terreno_sii"]
+
+        # Optimiza la superficie util en base a: num pisos, area basal, constructibilidad, densidad 
         dict_edificio_deptos = opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_deptos, 
                                                     vec_ps_opt, vec_np_opt, flag_dfl2, 
                                                     sup_patio_vivienda_economica, superficie_terreno)

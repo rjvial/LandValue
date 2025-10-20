@@ -9,11 +9,21 @@ function connection(dbStr::String, userStr::String, pwStr::String)
     conn = LibPQ.Connection(connStr)
     return conn
 end
-function connection(dbStr::String, userStr::String, pwStr::String, hostStr::String)
-    #conn = pg_julia.connection("LandValue", "postgres", "lm4321")
-    connStr = string("dbname=", dbStr, " user=", userStr, " password=", pwStr, " host=", hostStr)
-    conn = LibPQ.Connection(connStr)
-    return conn
+function connection(dbStr::String, userStr::String, pwStr::String, hostStr::String; timeout::Int=10, fallback_local::Bool=false)
+    connStr = string("dbname=", dbStr, " user=", userStr, " password=", pwStr, " host=", hostStr, " connect_timeout=", timeout)
+    try
+        conn = LibPQ.Connection(connStr)
+        return conn
+    catch e
+        if fallback_local
+            @warn "Remote PostgreSQL connection failed. Attempting local connection..." exception=e
+            local_connStr = string("dbname=", dbStr, " user=", userStr, " password=", pwStr, " connect_timeout=", timeout)
+            conn = LibPQ.Connection(local_connStr)
+            return conn
+        else
+            rethrow(e)
+        end
+    end
 end
 
 function simpleQuery(conn::LibPQ.Connection; from_str::String, select_str::String = "*", where_str::String = "")

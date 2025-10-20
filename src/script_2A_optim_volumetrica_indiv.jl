@@ -109,9 +109,8 @@ function createArchitectureDict(variante_norm)
         "arq_supPorEstacionamiento" => 30,
         "arq_supPorBodega" => 5,
         "arq_supPorBicicleta" => 4,
-        "arq_coefSupComunPrimerPiso" => 0.10,
-        "arq_coefSupComunPisosSup" => 0.05,
-        "arq_coefSupComun" => 0.1,
+        "arq_coefSupComunPisosSup" => 0.12,
+        "arq_coefSupComun" => 0.18,
         "arq_variante_normativa" => variante_norm
     )
 end

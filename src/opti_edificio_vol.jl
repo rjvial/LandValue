@@ -35,7 +35,9 @@ function calculate_buildable_area(dict_geom, dict_requerimientos, dict_arquitect
     vec_partial_offset_id = dict_geom["vecSecTodos"]
     vec_partial_offset_dist = vec_dist
 
-    return polyShape.partialPolyOffset(ps, vec_partial_offset_id, vec_partial_offset_dist)
+    ps_areaEdif = polyShape.partialPolyOffset(ps, vec_partial_offset_id, vec_partial_offset_dist)
+
+    return ps_areaEdif
 end
 
 function calculate_theoretical_volumes(ps_bruto, ps_areaEdif, alturaMax, rasante)

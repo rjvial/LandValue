@@ -199,9 +199,8 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
     # Common area constraints
     @constraint(model, dfl2_discount_useful_area_limit, dfl2_discount <= flag_dfl2 * 0.2 * total_useful_area)
     @constraint(model, dfl2_discount_common_area_limit, dfl2_discount <= flag_dfl2 * total_common_area)
-    @constraint(model, common_area_ground_floor_min, common_area_ground_floor >= dict_arquitectura["arq_coefSupComunPrimerPiso"] * useful_area_ground_floor)
-    @constraint(model, common_area_upper_floors_min, common_area_upper_floors >= dict_arquitectura["arq_coefSupComunPisosSup"] * useful_area_upper_floors)
-    @constraint(model, total_common_area_min, total_common_area >= dict_arquitectura["arq_coefSupComun"] * total_useful_area)
+    @constraint(model, common_area_upper_floors_min, common_area_upper_floors >= dict_arquitectura["arq_coefSupComunPisosSup"] * useful_area_upper_floors) # "arq_coefSupComunPisosSup" => 0.12,
+    @constraint(model, total_common_area_min, total_common_area >= dict_arquitectura["arq_coefSupComun"] * total_useful_area) # "arq_coefSupComun" => 0.18,
     @constraint(model, total_common_area_max, total_common_area <= 0.25 * total_useful_area)
 
     @constraint(model, z_binary_constraints[u=1:num_apartment_types], apartments_ground_floor[u] + apartments_per_upper_floor[u] <= z[u] * max_deptos)
@@ -246,7 +245,7 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
     ############################################################################
     # Objective Function and Solve
     ############################################################################
-    @objective(model, Max, total_useful_area)
+    @objective(model, Max, total_useful_area - 0.3*(unused_area_ground_floor + unused_area_upper_floors))
     optimize!(model)
 
     ############################################################################
