@@ -46,46 +46,31 @@ function opti_floor_plan(floor_poly::PolyShape, apt_areas::Vector{Float64}, apt_
     total_apts = sum(apt_counts)
 
     # Sort apartments by area and distribute to north/south strips
-    all_apts = Tuple{Float64, Int, Int}[]
-    for i in 1:num_apt_types
-        for j in 1:apt_counts[i]
-            push!(all_apts, (apt_areas[i], i, j))
-        end
-    end
-
-    sort!(all_apts, by = x -> x[1], rev = true)
+    # Prioritize keeping same types in the same strip
+    apt_types_sorted = sort(collect(1:num_apt_types), by = i -> apt_areas[i], rev = true)
 
     apts_by_strip_north = Tuple{Float64, Int, Int}[]
     apts_by_strip_south = Tuple{Float64, Int, Int}[]
 
-    if total_apts >= 4
-        push!(apts_by_strip_north, all_apts[1])
-        push!(apts_by_strip_north, all_apts[2])
-        push!(apts_by_strip_south, all_apts[3])
-        push!(apts_by_strip_south, all_apts[4])
+    area_north = 0.0
+    area_south = 0.0
 
-        area_north = all_apts[1][1] + all_apts[2][1]
-        area_south = all_apts[3][1] + all_apts[4][1]
+    for apt_type in apt_types_sorted
+        apt_area = apt_areas[apt_type]
+        count = apt_counts[apt_type]
+        total_type_area = apt_area * count
 
-        for i in 5:total_apts
-            if area_south < area_north
-                push!(apts_by_strip_south, all_apts[i])
-                area_south += all_apts[i][1]
-            else
-                push!(apts_by_strip_north, all_apts[i])
-                area_north += all_apts[i][1]
+        if area_north <= area_south
+            for j in 1:count
+                push!(apts_by_strip_north, (apt_area, apt_type, j))
             end
+            area_north += total_type_area
+        else
+            for j in 1:count
+                push!(apts_by_strip_south, (apt_area, apt_type, j))
+            end
+            area_south += total_type_area
         end
-    else
-        half_total = total_apts ÷ 2
-        for i in 1:half_total
-            push!(apts_by_strip_north, all_apts[i])
-        end
-        for i in (half_total + 1):total_apts
-            push!(apts_by_strip_south, all_apts[i])
-        end
-        area_north = sum(apt[1] for apt in apts_by_strip_north)
-        area_south = sum(apt[1] for apt in apts_by_strip_south)
     end
 
     # Calculate strip heights
@@ -115,34 +100,34 @@ function opti_floor_plan(floor_poly::PolyShape, apt_areas::Vector{Float64}, apt_
     y_min += h_slack/2
 
     # Arrange apartments horizontally (largest at ends)
-    apt_order_north = Float64[]
-    apt_order_south = Float64[]
+    apt_order_north = Tuple{Float64, Int}[]
+    apt_order_south = Tuple{Float64, Int}[]
 
     n_north = length(apts_by_strip_north)
     n_south = length(apts_by_strip_south)
 
     if total_apts >= 4
-        push!(apt_order_north, apts_by_strip_north[2][1])
+        push!(apt_order_north, (apts_by_strip_north[2][1], apts_by_strip_north[2][2]))
         if n_north > 2
             for i in 3:n_north
-                push!(apt_order_north, apts_by_strip_north[i][1])
+                push!(apt_order_north, (apts_by_strip_north[i][1], apts_by_strip_north[i][2]))
             end
         end
-        push!(apt_order_north, apts_by_strip_north[1][1])
+        push!(apt_order_north, (apts_by_strip_north[1][1], apts_by_strip_north[1][2]))
 
-        push!(apt_order_south, apts_by_strip_south[2][1])
+        push!(apt_order_south, (apts_by_strip_south[2][1], apts_by_strip_south[2][2]))
         if n_south > 2
             for i in 3:n_south
-                push!(apt_order_south, apts_by_strip_south[i][1])
+                push!(apt_order_south, (apts_by_strip_south[i][1], apts_by_strip_south[i][2]))
             end
         end
-        push!(apt_order_south, apts_by_strip_south[1][1])
+        push!(apt_order_south, (apts_by_strip_south[1][1], apts_by_strip_south[1][2]))
     else
         for apt in apts_by_strip_north
-            push!(apt_order_north, apt[1])
+            push!(apt_order_north, (apt[1], apt[2]))
         end
         for apt in apts_by_strip_south
-            push!(apt_order_south, apt[1])
+            push!(apt_order_south, (apt[1], apt[2]))
         end
     end
 
@@ -153,25 +138,23 @@ function opti_floor_plan(floor_poly::PolyShape, apt_areas::Vector{Float64}, apt_
     x_end_north = Float64[]
     apt_widths_north = Float64[]
 
-    cr = [0.0, 0.0]
+    cr = [centroid_x, centroid_y]
 
     x_current_north = x_min
     y_north_base = y_min + h_south
-    for apt_area in apt_order_north
+    for (apt_area, apt_type) in apt_order_north
         apt_width = apt_area / h_north
+        apt_height = h_north
 
         vertices_local = [
             x_current_north y_north_base;
             x_current_north + apt_width y_north_base;
-            x_current_north + apt_width y_north_base + h_north;
-            x_current_north y_north_base + h_north
+            x_current_north + apt_width y_north_base + apt_height;
+            x_current_north y_north_base + apt_height
         ]
 
         local_poly = PolyShape([vertices_local], 1)
         rotated_poly = polyShape.polyRotate(local_poly, -rotation_angle, cr)
-
-        rotated_poly.Vertices[1][:, 1] .+= centroid_x
-        rotated_poly.Vertices[1][:, 2] .+= centroid_y
 
         push!(vec_polyshapes_north, rotated_poly)
         push!(x_start_north, x_current_north)
@@ -186,21 +169,19 @@ function opti_floor_plan(floor_poly::PolyShape, apt_areas::Vector{Float64}, apt_
 
     x_current_south = x_min
 
-    for apt_area in apt_order_south
+    for (apt_area, apt_type) in apt_order_south
         apt_width = apt_area / h_south
+        apt_height = h_south
 
         vertices_local = [
             x_current_south y_min;
             x_current_south + apt_width y_min;
-            x_current_south + apt_width y_min + h_south;
-            x_current_south y_min + h_south
+            x_current_south + apt_width y_min + apt_height;
+            x_current_south y_min + apt_height
         ]
 
         local_poly = PolyShape([vertices_local], 1)
         rotated_poly = polyShape.polyRotate(local_poly, -rotation_angle, cr)
-
-        rotated_poly.Vertices[1][:, 1] .+= centroid_x
-        rotated_poly.Vertices[1][:, 2] .+= centroid_y
 
         push!(vec_polyshapes_south, rotated_poly)
         push!(x_start_south, x_current_south)
@@ -231,9 +212,6 @@ function opti_floor_plan(floor_poly::PolyShape, apt_areas::Vector{Float64}, apt_
     core_local_poly = PolyShape([vertices_core_local], 1)
     core_polyshape = polyShape.polyRotate(core_local_poly, -rotation_angle, cr)
 
-    core_polyshape.Vertices[1][:, 1] .+= centroid_x
-    core_polyshape.Vertices[1][:, 2] .+= centroid_y
-
     # Calculate core-apartment intersections
     intersection_areas_north = Float64[]
     for i in eachindex(vec_polyshapes_north)
@@ -262,9 +240,6 @@ function opti_floor_plan(floor_poly::PolyShape, apt_areas::Vector{Float64}, apt_
 
         extended_local_poly = PolyShape([vertices_extended_local], 1)
         vec_polyshapes_north[i] = polyShape.polyRotate(extended_local_poly, -rotation_angle, cr)
-
-        vec_polyshapes_north[i].Vertices[1][:, 1] .+= centroid_x
-        vec_polyshapes_north[i].Vertices[1][:, 2] .+= centroid_y
     end
 
     for i in eachindex(vec_polyshapes_south)
@@ -279,9 +254,6 @@ function opti_floor_plan(floor_poly::PolyShape, apt_areas::Vector{Float64}, apt_
 
         extended_local_poly = PolyShape([vertices_extended_local], 1)
         vec_polyshapes_south[i] = polyShape.polyRotate(extended_local_poly, -rotation_angle, cr)
-
-        vec_polyshapes_south[i].Vertices[1][:, 1] .+= centroid_x
-        vec_polyshapes_south[i].Vertices[1][:, 2] .+= centroid_y
     end
 
     # Subtract core from apartments
@@ -298,8 +270,8 @@ function opti_floor_plan(floor_poly::PolyShape, apt_areas::Vector{Float64}, apt_
         "status" => "LOCALLY_SOLVED",
         "n_apts_north" => n_north,
         "n_apts_south" => n_south,
-        "apt_areas_north" => apt_order_north,
-        "apt_areas_south" => apt_order_south,
+        "apt_areas_north" => [apt[1] for apt in apt_order_north],
+        "apt_areas_south" => [apt[1] for apt in apt_order_south],
         "height_north" => round(h_north, digits=2),
         "height_south" => round(h_south, digits=2),
         "unused_north" => round(unused_north, digits=2),
