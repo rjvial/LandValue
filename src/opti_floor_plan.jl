@@ -1,8 +1,14 @@
-function opti_floor_plan(floor_poly::PolyShape, apt_areas::Vector{Float64}, apt_counts::Vector{Int}; core_width::Float64 = 2.0)
+function opti_floor_plan(floor_poly::PolyShape, apt_areas::Vector{Float64}, apt_counts::Vector{Int}; core_width::Float64 = 2.0, terrace_areas::Vector{Float64} = Float64[])
 
     if length(apt_areas) != length(apt_counts)
         error("apt_areas and apt_counts must have the same length")
     end
+
+    if !isempty(terrace_areas) && length(terrace_areas) != length(apt_areas)
+        error("terrace_areas must have the same length as apt_areas")
+    end
+
+    has_terraces = !isempty(terrace_areas)
 
     if floor_poly.NumRegions != 1
         error("floor_poly must be a single rectangular polygon")
@@ -228,8 +234,12 @@ function opti_floor_plan(floor_poly::PolyShape, apt_areas::Vector{Float64}, apt_
     end
 
     # Extend apartments into core area
+    extension_heights_north = Float64[]
+    extension_heights_south = Float64[]
+
     for i in eachindex(vec_polyshapes_north)
         extension_height = intersection_areas_north[i] / apt_widths_north[i]
+        push!(extension_heights_north, extension_height)
 
         vertices_extended_local = [
             x_start_north[i] y_north_base;
@@ -244,6 +254,7 @@ function opti_floor_plan(floor_poly::PolyShape, apt_areas::Vector{Float64}, apt_
 
     for i in eachindex(vec_polyshapes_south)
         extension_height = intersection_areas_south[i] / apt_widths_south[i]
+        push!(extension_heights_south, extension_height)
 
         vertices_extended_local = [
             x_start_south[i] y_min - extension_height;
@@ -265,6 +276,82 @@ function opti_floor_plan(floor_poly::PolyShape, apt_areas::Vector{Float64}, apt_
         vec_polyshapes_south[i] = polyShape.polyDifference(vec_polyshapes_south[i], core_polyshape)
     end
 
+    # Create terraces if specified
+    # Note: Different apartment types can have different terrace heights
+    # Width is constrained to apartment width, then height adjusts to maintain area
+    vec_terraces_north = PolyShape[]
+    vec_terraces_south = PolyShape[]
+
+    if has_terraces
+        for (i, (apt_area, apt_type)) in enumerate(apt_order_north)
+            terrace_area = terrace_areas[apt_type]
+            if terrace_area > 0.0
+                apt_width = apt_widths_north[i]
+                terrace_height = 1.75
+
+                terrace_width = terrace_area / terrace_height
+
+                if terrace_width > apt_width
+                    terrace_width = apt_width
+                    terrace_height = terrace_area / terrace_width
+                end
+
+                x_apt_start = x_start_north[i]
+                apt_top = y_north_base + h_north + extension_heights_north[i]
+
+                x_terrace_start = x_apt_start + (apt_width - terrace_width) / 2
+                y_terrace_start = apt_top
+
+                vertices_terrace_local = [
+                    x_terrace_start y_terrace_start;
+                    x_terrace_start + terrace_width y_terrace_start;
+                    x_terrace_start + terrace_width y_terrace_start + terrace_height;
+                    x_terrace_start y_terrace_start + terrace_height
+                ]
+
+                terrace_poly = PolyShape([vertices_terrace_local], 1)
+                terrace_rotated = polyShape.polyRotate(terrace_poly, -rotation_angle, cr)
+                push!(vec_terraces_north, terrace_rotated)
+            else
+                push!(vec_terraces_north, PolyShape([zeros(0, 2)], 0))
+            end
+        end
+
+        for (i, (apt_area, apt_type)) in enumerate(apt_order_south)
+            terrace_area = terrace_areas[apt_type]
+            if terrace_area > 0.0
+                apt_width = apt_widths_south[i]
+                terrace_height = 1.75
+
+                terrace_width = terrace_area / terrace_height
+
+                if terrace_width > apt_width
+                    terrace_width = apt_width
+                    terrace_height = terrace_area / terrace_width
+                end
+
+                x_apt_start = x_start_south[i]
+                apt_bottom = y_min - extension_heights_south[i]
+
+                x_terrace_start = x_apt_start + (apt_width - terrace_width) / 2
+                y_terrace_start = apt_bottom - terrace_height
+
+                vertices_terrace_local = [
+                    x_terrace_start y_terrace_start;
+                    x_terrace_start + terrace_width y_terrace_start;
+                    x_terrace_start + terrace_width y_terrace_start + terrace_height;
+                    x_terrace_start y_terrace_start + terrace_height
+                ]
+
+                terrace_poly = PolyShape([vertices_terrace_local], 1)
+                terrace_rotated = polyShape.polyRotate(terrace_poly, -rotation_angle, cr)
+                push!(vec_terraces_south, terrace_rotated)
+            else
+                push!(vec_terraces_south, PolyShape([zeros(0, 2)], 0))
+            end
+        end
+    end
+
     results = Dict(
         "feasible" => true,
         "status" => "LOCALLY_SOLVED",
@@ -282,7 +369,9 @@ function opti_floor_plan(floor_poly::PolyShape, apt_areas::Vector{Float64}, apt_
         "core_width" => core_width,
         "core_length" => core_length,
         "core_polyshape" => core_polyshape,
-        "vec_polyshapes_all" => vcat(vec_polyshapes_north, vec_polyshapes_south)
+        "vec_polyshapes_all" => vcat(vec_polyshapes_north, vec_polyshapes_south),
+        "vec_terraces_all" => vcat(vec_terraces_north, vec_terraces_south),
+        "has_terraces" => has_terraces
     )
 
 

@@ -5,11 +5,11 @@ println("APARTMENT FLOOR OPTIMIZATION - 5 EXAMPLES")
 println("=" ^ 60)
 
 examples = [
-    (width=30.0, height=20.0, rotation=π/6, apt_areas=[50.0, 75.0, 100.0], apt_counts=[2, 3, 2], core_width=2.0),
-    (width=25.0, height=25.0, rotation=π/4, apt_areas=[60.0, 80.0], apt_counts=[3, 3], core_width=2.5),
-    (width=35.0, height=18.0, rotation=0.0, apt_areas=[45.0, 65.0, 85.0, 110.0], apt_counts=[2, 2, 2, 1], core_width=2.0),
-    (width=28.0, height=22.0, rotation=-π/8, apt_areas=[55.0, 90.0], apt_counts=[4, 2], core_width=2.2),
-    (width=32.0, height=16.0, rotation=π/3, apt_areas=[40.0, 70.0, 100.0], apt_counts=[3, 2, 2], core_width=1.8)
+    (width=30.0, height=20.0, rotation=π/6, apt_areas=[50.0, 75.0, 100.0], apt_counts=[2, 3, 2], core_width=2.0, terrace_areas=[50.0/6, 75.0/6, 100.0/6]),
+    (width=25.0, height=25.0, rotation=π/4, apt_areas=[60.0, 80.0], apt_counts=[3, 3], core_width=2.5, terrace_areas=[60.0/6, 80.0/6]),
+    (width=35.0, height=18.0, rotation=0.0, apt_areas=[45.0, 65.0, 85.0, 110.0], apt_counts=[2, 2, 2, 1], core_width=2.0, terrace_areas=[45.0/6, 65.0/6, 85.0/6, 110.0/6]),
+    (width=28.0, height=22.0, rotation=-π/8, apt_areas=[55.0, 90.0], apt_counts=[4, 2], core_width=2.2, terrace_areas=[55.0/6, 90.0/6]),
+    (width=32.0, height=16.0, rotation=π/3, apt_areas=[40.0, 70.0, 100.0], apt_counts=[3, 2, 2], core_width=1.8, terrace_areas=[40.0/6, 70.0/6, 100.0/6])
 ]
 
 for (idx, example) in enumerate(examples)
@@ -47,6 +47,7 @@ for (idx, example) in enumerate(examples)
 
     apt_areas = example.apt_areas
     apt_counts = example.apt_counts
+    terrace_areas = example.terrace_areas
 
     println("\nInput Parameters:")
     println("  Floor dimensions: $(floor_width)m × $(floor_height)m")
@@ -57,8 +58,9 @@ for (idx, example) in enumerate(examples)
     println("  Total apartments: $(sum(apt_counts))")
     println("  Total required area: $(sum(apt_areas .* apt_counts))m²")
     println("  Core width: $(example.core_width)m")
+    println("  Terrace areas: $(terrace_areas)m²")
 
-    results = opti_floor_plan(floor_poly, apt_areas, apt_counts, core_width=example.core_width)
+    results = opti_floor_plan(floor_poly, apt_areas, apt_counts, core_width=example.core_width, terrace_areas=terrace_areas)
 
     if results["feasible"]
         println("\nOptimization successful!")
@@ -85,9 +87,46 @@ for (idx, example) in enumerate(examples)
         println("\nApartment PolyShapes:")
         println("  Total apartment polygons: $(length(results["vec_polyshapes_all"]))")
 
+        if results["has_terraces"]
+            println("  Total terrace polygons: $(length(results["vec_terraces_all"]))")
+
+            println("\nTerrace Dimensions by Apartment Type:")
+            for (i, terrace_area) in enumerate(terrace_areas)
+                if terrace_area > 0.0
+                    apt_area = apt_areas[i]
+                    strip_height = i <= length(results["apt_areas_north"]) ? results["height_north"] : results["height_south"]
+                    apt_width = apt_area / strip_height
+
+                    terrace_height_default = 1.75
+                    terrace_width_calc = terrace_area / terrace_height_default
+
+                    if terrace_width_calc > apt_width
+                        terrace_width_final = apt_width
+                        terrace_height_final = terrace_area / terrace_width_final
+                    else
+                        terrace_width_final = terrace_width_calc
+                        terrace_height_final = terrace_height_default
+                    end
+
+                    println("  Type $(i): Area=$(apt_area)m², Terrace=$(terrace_area)m² → $(round(terrace_width_final, digits=2))m × $(round(terrace_height_final, digits=2))m")
+                end
+            end
+        end
+
         fig, ax, ax_mat = polyPlot.plotPolyshape2D(floor_poly, "green", 0.2)
-        fig, ax, ax_mat = polyPlot.plotPolyshape2D(results["core_polyshape"], "gray", 0.5, fig=fig, ax=ax, ax_mat=ax_mat)
-        fig, ax, ax_mat = polyPlot.plotPolyshape2D.(results["vec_polyshapes_all"], "red", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+        polyPlot.plotPolyshape2D(results["core_polyshape"], "gray", 0.5, fig=fig, ax=ax, ax_mat=ax_mat)
+
+        for apt_poly in results["vec_polyshapes_all"]
+            polyPlot.plotPolyshape2D(apt_poly, "red", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+        end
+
+        if results["has_terraces"]
+            for terrace in results["vec_terraces_all"]
+                if terrace.NumRegions > 0
+                    polyPlot.plotPolyshape2D(terrace, "blue", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
+                end
+            end
+        end
     else
         println("\nOptimization failed!")
         println("Status: $(results["status"])")
