@@ -11,8 +11,8 @@ using LandValue, DotEnv, LinearAlgebra, OrderedCollections, JSON
 my_env = DotEnv.config("secrets.env")
 conn_aws = aws_julia.connection(my_env["AWS_ACCESS_KEY"], my_env["AWS_SECRET_KEY"], my_env["AWS_REGION"])
 
-# neo4j_host = "bolt://localhost:7687"
-neo4j_host = "bolt://localhost:7688"
+neo4j_host = "bolt://localhost:7687"
+# neo4j_host = "bolt://localhost:7688"
 neo4j_user = "neo4j"
 neo4j_password = "x67y1332"
 key_pair = "neo4j-key-pair.pem"

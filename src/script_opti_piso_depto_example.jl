@@ -44,22 +44,28 @@ println("  Apartment counts: $(apt_counts)")
 println("  Total apartments: $(sum(apt_counts))")
 println("  Total required area: $(sum(apt_areas .* apt_counts))m²")
 
-results = opti_piso_depto(floor_poly, apt_areas, apt_counts)
+results = opti_floor_plan(floor_poly, apt_areas, apt_counts)
 
 if results["feasible"]
     println("\nOptimization successful!")
 
-    total_used_north = sum(results["widths_north"]) * results["height_north"]
-    total_used_south = sum(results["widths_south"]) * results["height_south"]
-    total_used = total_used_north + total_used_south
-    total_area = floor_width * floor_height
-    efficiency = (total_used / total_area) * 100
+    total_apt_area = sum(apt_areas .* apt_counts)
+    total_floor_area = floor_width * floor_height
+    core_area = results["core_width"] * results["core_length"]
+    efficiency = (total_apt_area / total_floor_area) * 100
+
+    println("\nResults:")
+    println("  North strip: $(results["n_apts_north"]) apartments, height: $(results["height_north"])m")
+    println("    Areas (W→E): $(results["apt_areas_north"])m²")
+    println("  South strip: $(results["n_apts_south"]) apartments, height: $(results["height_south"])m")
+    println("    Areas (W→E): $(results["apt_areas_south"])m²")
+    println("  Core: $(results["core_width"])m × $(results["core_length"])m = $(round(core_area, digits=2))m²")
 
     println("\nArea Analysis:")
-    println("  North strip area: $(round(results["height_north"] * floor_width, digits=2))m²")
-    println("  South strip area: $(round(results["height_south"] * floor_width, digits=2))m²")
-    println("  Used area: $(round(total_used, digits=2))m²")
-    println("  Total floor area: $(round(total_area, digits=2))m²")
+    println("  Total apartment area: $(round(total_apt_area, digits=2))m²")
+    println("  Core area: $(round(core_area, digits=2))m²")
+    println("  Unused area: $(round(results["total_unused"], digits=2))m²")
+    println("  Total floor area: $(round(total_floor_area, digits=2))m²")
     println("  Efficiency: $(round(efficiency, digits=1))%")
 
     println("\nApartment PolyShapes:")
