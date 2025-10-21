@@ -76,6 +76,7 @@ for (idx, example) in enumerate(examples)
         println("  South strip: $(results["n_apts_south"]) apartments, height: $(results["height_south"])m")
         println("    Areas (W→E): $(results["apt_areas_south"])m²")
         println("  Core: $(results["core_width"])m × $(results["core_length"])m = $(round(core_area, digits=2))m²")
+        println("  Stair: $(results["stair_width"])m × $(results["stair_height"])m = $(results["stair_area"])m²")
 
         println("\nArea Analysis:")
         println("  Total apartment area: $(round(total_apt_area, digits=2))m²")
@@ -115,6 +116,7 @@ for (idx, example) in enumerate(examples)
 
         fig, ax, ax_mat = polyPlot.plotPolyshape2D(floor_poly, "green", 0.2)
         polyPlot.plotPolyshape2D(results["core_polyshape"], "gray", 0.5, fig=fig, ax=ax, ax_mat=ax_mat)
+        polyPlot.plotPolyshape2D(results["stair_polyshape"], "orange", 0.5, fig=fig, ax=ax, ax_mat=ax_mat)
 
         for apt_poly in results["vec_polyshapes_all"]
             polyPlot.plotPolyshape2D(apt_poly, "red", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
