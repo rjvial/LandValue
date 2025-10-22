@@ -1,349 +1,338 @@
-function create_strip_apartments(apt_order::Vector{Tuple{Float64, Int}}, x_min::Float64, y_base::Float64, strip_height::Float64)
-    x_start = Float64[]
-    x_end = Float64[]
-    apt_widths = Float64[]
-    apt_types = Int[]
+function genera_deptos_franja(apt_order::Vector{Tuple{Float64, Int}}, x_min_planta::Float64, y_base::Float64, alto_franja::Float64)
+    vec_x_ini = Float64[]
+    vec_x_fin = Float64[]
+    vec_ancho_deptos = Float64[]
+    vec_tipo_deptos = Int[]
 
-    x_current = x_min
+    x_current = x_min_planta
 
-    for (apt_area, apt_type) in apt_order
-        apt_width = apt_area / strip_height
+    for (sup_depto, tipo_depto) in apt_order
+        ancho_depto = sup_depto / alto_franja
 
-        push!(x_start, x_current)
-        push!(x_end, x_current + apt_width)
-        push!(apt_widths, apt_width)
-        push!(apt_types, apt_type)
-        x_current += apt_width
+        push!(vec_x_ini, x_current)
+        push!(vec_x_fin, x_current + ancho_depto)
+        push!(vec_ancho_deptos, ancho_depto)
+        push!(vec_tipo_deptos, tipo_depto)
+        x_current += ancho_depto
     end
 
-    return x_start, x_end, apt_widths, apt_types
+    return vec_x_ini, vec_x_fin, vec_ancho_deptos, vec_tipo_deptos
 end
 
-function extend_apartments_to_core(x_start::Vector{Float64}, x_end::Vector{Float64}, apt_widths::Vector{Float64}, y_base::Float64, strip_height::Float64, x_core_start::Float64, x_core_end::Float64, y_core::Float64, core_width::Float64, rotation_angle::Float64, cr::Vector{Float64}, extend_direction::Symbol)
-    extension_heights = Float64[]
-    extended_polyshapes = PolyShape[]
+function extiende_deptos_interseccion_pasillo(vec_x_ini::Vector{Float64}, vec_x_fin::Vector{Float64}, vec_ancho_deptos::Vector{Float64}, y_base::Float64, alto_franja::Float64, x_ini_pasillo::Float64, x_fin_pasillo::Float64, y_pasillo::Float64, ancho_pasillo::Float64, angulo_rotacion::Float64, cr::Vector{Float64}, extend_direction::Symbol)
+    vec_extension_alto_deptos = Float64[]
+    ps_deptos_extendidos = PolyShape[]
 
-    core_vertices_local = [
-        x_core_start y_core;
-        x_core_end y_core;
-        x_core_end y_core + core_width;
-        x_core_start y_core + core_width
-    ]
-    core_local_poly = PolyShape([core_vertices_local], 1)
-    core_poly_rotated = polyShape.polyRotate(core_local_poly, -rotation_angle, cr)
+    largo_pasillo = x_fin_pasillo - x_ini_pasillo
+    ps_pasillo_aux = polyShape.polyBox(x_ini_pasillo, y_pasillo, largo_pasillo, ancho_pasillo, 0.0)
+    ps_pasillo = polyShape.polyRotate(ps_pasillo_aux, -angulo_rotacion, cr)
 
-    for i in eachindex(x_start)
-        x_overlap_start = max(x_start[i], x_core_start)
-        x_overlap_end = min(x_end[i], x_core_end)
+    for i in eachindex(vec_x_ini)
+        x_overlap_start = max(vec_x_ini[i], x_ini_pasillo)
+        x_overlap_end = min(vec_x_fin[i], x_fin_pasillo)
 
         if x_overlap_start < x_overlap_end
             overlap_width = x_overlap_end - x_overlap_start
-            intersection_area = overlap_width * core_width
-            extension_height = intersection_area / apt_widths[i]
+            intersection_area = overlap_width * ancho_pasillo
+            extension_height = intersection_area / vec_ancho_deptos[i]
         else
             extension_height = 0.0
         end
 
-        push!(extension_heights, extension_height)
+        push!(vec_extension_alto_deptos, extension_height)
 
-        if extend_direction == :north
-            vertices_extended_local = [
-                x_start[i] y_base;
-                x_end[i] y_base;
-                x_end[i] y_base + strip_height + extension_height;
-                x_start[i] y_base + strip_height + extension_height
-            ]
+        alto_total_depto = alto_franja + extension_height
+        ancho_depto = vec_x_fin[i] - vec_x_ini[i]
+
+        if extend_direction == :norte
+            y_ini_depto = y_base
         else
-            vertices_extended_local = [
-                x_start[i] y_base - extension_height;
-                x_end[i] y_base - extension_height;
-                x_end[i] y_base + strip_height;
-                x_start[i] y_base + strip_height
-            ]
+            y_ini_depto = y_base - extension_height
         end
 
-        extended_local_poly = PolyShape([vertices_extended_local], 1)
-        extended_poly_rotated = polyShape.polyRotate(extended_local_poly, -rotation_angle, cr)
+        extended_local_poly = polyShape.polyBox(vec_x_ini[i], y_ini_depto, ancho_depto, alto_total_depto, 0.0)
+        extended_poly_rotated = polyShape.polyRotate(extended_local_poly, -angulo_rotacion, cr)
 
-        extended_poly = polyShape.polyDifference(extended_poly_rotated, core_poly_rotated)
-        push!(extended_polyshapes, extended_poly)
+        extended_poly = polyShape.polyDifference(extended_poly_rotated, ps_pasillo)
+        push!(ps_deptos_extendidos, extended_poly)
     end
 
-    return extended_polyshapes, extension_heights
+    return ps_deptos_extendidos, vec_extension_alto_deptos
 end
 
-function create_strip_terraces(apt_order::Vector{Tuple{Float64, Int}}, terrace_areas::Vector{Float64}, apt_widths::Vector{Float64}, x_start::Vector{Float64}, y_terrace_base::Vector{Float64}, rotation_angle::Float64, cr::Vector{Float64}, terrace_direction::Symbol)
-    vec_terraces = PolyShape[]
+function genera_terrazas_franja(apt_order::Vector{Tuple{Float64, Int}}, vec_sup_terraza::Vector{Float64}, vec_ancho_deptos::Vector{Float64}, vec_x_ini::Vector{Float64}, y_terrace_base::Vector{Float64}, angulo_rotacion::Float64, cr::Vector{Float64}, terrace_direction::Symbol)
+    vec_terrazas = PolyShape[]
 
-    for (i, (_, apt_type)) in enumerate(apt_order)
-        if apt_type == -1
-            push!(vec_terraces, PolyShape([zeros(0, 2)], 0))
+    for (i, (_, tipo_depto)) in enumerate(apt_order)
+        if tipo_depto == -1
+            push!(vec_terrazas, PolyShape([zeros(0, 2)], 0))
         else
-            terrace_area = terrace_areas[apt_type]
-            if terrace_area > 0.0
-                apt_width = apt_widths[i]
-                terrace_height = 1.75
+            area_terraza = vec_sup_terraza[tipo_depto]
+            if area_terraza > 0.0
+                ancho_depto = vec_ancho_deptos[i]
+                alto_terraza = 1.75
 
-                terrace_width = terrace_area / terrace_height
+                ancho_terraza = area_terraza / alto_terraza
 
-                if terrace_width > apt_width
-                    terrace_width = apt_width
-                    terrace_height = terrace_area / terrace_width
+                if ancho_terraza > ancho_depto
+                    ancho_terraza = ancho_depto
+                    alto_terraza = area_terraza / ancho_terraza
                 end
 
-                x_apt_start = x_start[i]
-                x_terrace_start = x_apt_start + (apt_width - terrace_width) / 2
+                y_depto_ini = vec_x_ini[i]
+                x_terraza_ini = y_depto_ini + (ancho_depto - ancho_terraza) / 2
 
-                if terrace_direction == :north
-                    y_terrace_start = y_terrace_base[i]
-                    vertices_terrace_local = [
-                        x_terrace_start y_terrace_start;
-                        x_terrace_start + terrace_width y_terrace_start;
-                        x_terrace_start + terrace_width y_terrace_start + terrace_height;
-                        x_terrace_start y_terrace_start + terrace_height
-                    ]
+                if terrace_direction == :norte
+                    y_terraza_ini = y_terrace_base[i]
                 else
-                    y_terrace_start = y_terrace_base[i] - terrace_height
-                    vertices_terrace_local = [
-                        x_terrace_start y_terrace_start;
-                        x_terrace_start + terrace_width y_terrace_start;
-                        x_terrace_start + terrace_width y_terrace_start + terrace_height;
-                        x_terrace_start y_terrace_start + terrace_height
-                    ]
+                    y_terraza_ini = y_terrace_base[i] - alto_terraza
                 end
 
-                terrace_poly = PolyShape([vertices_terrace_local], 1)
-                terrace_rotated = polyShape.polyRotate(terrace_poly, -rotation_angle, cr)
-                push!(vec_terraces, terrace_rotated)
+                terrace_poly = polyShape.polyBox(x_terraza_ini, y_terraza_ini, ancho_terraza, alto_terraza, 0.0)
+                terrace_rotated = polyShape.polyRotate(terrace_poly, -angulo_rotacion, cr)
+                push!(vec_terrazas, terrace_rotated)
             else
-                push!(vec_terraces, PolyShape([zeros(0, 2)], 0))
+                push!(vec_terrazas, PolyShape([zeros(0, 2)], 0))
             end
         end
     end
 
-    return vec_terraces
+    return vec_terrazas
 end
 
-function opti_floor_plan(floor_poly::PolyShape, apt_areas::Vector{Float64}, apt_counts::Vector{Int}; core_width::Float64 = 2.0, terrace_areas::Vector{Float64} = Float64[], stair_area::Float64 = 25.0, min_stair_width::Float64 = 5.0)
+function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int}; ancho_pasillo::Float64 = 2.0, vec_sup_terraza::Vector{Float64} = Float64[], area_escala::Float64 = 25.0, min_ancho_escala::Float64 = 5.0)
 
-    if length(apt_areas) != length(apt_counts)
-        error("apt_areas and apt_counts must have the same length")
-    end
+    # Optimize floor plan layout by distributing apartments in two horizontal strips
+    # Algorithm:
+    # 1. Normalize floor polygon to axis-aligned rectangle (W x H, where W > H)
+    # 2. Distribute apartments to north and south strips, balancing total areas
+    # 3. Calculate strip heights based on area requirements
+    # 4. Arrange apartments horizontally within each strip
+    # 5. Create core (circulation hallway) at boundary between strips
+    # 6. Extend apartments into core area and subtract overlap
+    # 7. Create terrace geometries (if specified)
+    # 8. Rotate all geometries back to original coordinate system
+    #
+    # Parameters:
+    # - ps_planta: Floor polygon (must be rectangular, single region)
+    # - vec_sup_deptos: Area for each apartment type
+    # - vec_num_deptos: Count for each apartment type
+    # - ancho_pasillo: Core hallway width (default 2.0m)
+    # - vec_sup_terraza: Terrace area for each apartment type (optional)
+    # - area_escala: Staircase area (default 25.0m²)
+    # - min_ancho_escala: Minimum staircase width (default 5.0m)
+    #
+    # Returns: Dictionary with apartment polygons, core, terraces, and metrics
 
-    if !isempty(terrace_areas) && length(terrace_areas) != length(apt_areas)
-        error("terrace_areas must have the same length as apt_areas")
-    end
 
-    has_terraces = !isempty(terrace_areas)
+    # Normalize coordinate system: rotate floor polygon to align with axes
+    # Goal: make floor rectangle axis-aligned with width (W) > height (H)
+    V_planta = ps_planta.Vertices[1]
 
-    if floor_poly.NumRegions != 1
-        error("floor_poly must be a single rectangular polygon")
-    end
+    x_cr = sum(V_planta[1:end-1, 1]) / (size(V_planta, 1) - 1)
+    y_cr = sum(V_planta[1:end-1, 2]) / (size(V_planta, 1) - 1)
 
-    # Align floor polygon to axis (width > height)
-    vertices_original = floor_poly.Vertices[1]
+    edge1 = V_planta[2, :] - V_planta[1, :]
+    angulo_planta = atan(edge1[2], edge1[1])
 
-    centroid_x = sum(vertices_original[1:end-1, 1]) / (size(vertices_original, 1) - 1)
-    centroid_y = sum(vertices_original[1:end-1, 2]) / (size(vertices_original, 1) - 1)
+    angulo_rotacion = -angulo_planta
+    cr = [x_cr, y_cr]
 
-    edge1 = vertices_original[2, :] - vertices_original[1, :]
-    angle_original = atan(edge1[2], edge1[1])
+    ps_planta_rotada = polyShape.polyRotate(ps_planta, angulo_rotacion, cr)
+    V_planta_rotada = ps_planta_rotada.Vertices[1]
 
-    rotation_angle = -angle_original
-    cr_centroid = [centroid_x, centroid_y]
+    vec_x_planta = V_planta_rotada[:, 1]
+    vec_y_planta = V_planta_rotada[:, 2]
+    W_aux = maximum(vec_x_planta) - minimum(vec_x_planta)
+    H_aux = maximum(vec_y_planta) - minimum(vec_y_planta)
 
-    rotated_poly = polyShape.polyRotate(floor_poly, rotation_angle, cr_centroid)
-    vertices_rotated = rotated_poly.Vertices[1]
+    if H_aux > W_aux
+        angulo_rotacion += π/2
+        ps_planta_rotada = polyShape.polyRotate(ps_planta, angulo_rotacion, cr)
+        V_planta_rotada = ps_planta_rotada.Vertices[1]
 
-    x_coords = vertices_rotated[:, 1]
-    y_coords = vertices_rotated[:, 2]
-    W_calc = maximum(x_coords) - minimum(x_coords)
-    H_calc = maximum(y_coords) - minimum(y_coords)
-
-    if H_calc > W_calc
-        rotation_angle += π/2
-        rotated_poly = polyShape.polyRotate(floor_poly, rotation_angle, cr_centroid)
-        vertices_rotated = rotated_poly.Vertices[1]
-
-        x_coords = vertices_rotated[:, 1]
-        y_coords = vertices_rotated[:, 2]
-        W = maximum(x_coords) - minimum(x_coords)
-        H = maximum(y_coords) - minimum(y_coords)
+        vec_x_planta = V_planta_rotada[:, 1]
+        vec_y_planta = V_planta_rotada[:, 2]
+        W = maximum(vec_x_planta) - minimum(vec_x_planta)
+        H = maximum(vec_y_planta) - minimum(vec_y_planta)
     else
-        W = W_calc
-        H = H_calc
+        W = W_aux
+        H = H_aux
     end
 
-    num_apt_types = length(apt_areas)
-    total_apts = sum(apt_counts)
+    num_tipo_deptos = length(vec_sup_deptos)
+    deptos_total = sum(vec_num_deptos)
 
-    # Sort apartments by area and distribute to north/south strips
-    # Prioritize keeping same types in the same strip
-    apt_types_sorted = sort(collect(1:num_apt_types), by = i -> apt_areas[i], rev = true)
+    # Distribute apartments to north and south strips
+    # Strategy: balance areas between strips, sort by size (largest first)
+    # All apartments of same type go to same strip when possible
+    vec_ordenado_tipo_deptos = sort(collect(1:num_tipo_deptos), by = i -> vec_sup_deptos[i], rev = true)
 
-    apts_by_strip_north = Tuple{Float64, Int, Int}[]
-    apts_by_strip_south = Tuple{Float64, Int, Int}[]
+    deptos_franja_norte = Tuple{Float64, Int, Int}[]
+    deptos_franja_sur = Tuple{Float64, Int, Int}[]
 
-    area_north = 0.0
-    area_south = 0.0
+    area_norte = 0.0
+    area_sur = 0.0
 
-    for apt_type in apt_types_sorted
-        apt_area = apt_areas[apt_type]
-        count = apt_counts[apt_type]
-        total_type_area = apt_area * count
+    for tipo_depto in vec_ordenado_tipo_deptos
+        sup_depto = vec_sup_deptos[tipo_depto]
+        num_deptos = vec_num_deptos[tipo_depto]
+        total_type_area = sup_depto * num_deptos
 
-        if area_north <= area_south + stair_area
-            for j in 1:count
-                push!(apts_by_strip_north, (apt_area, apt_type, j))
+        if area_norte <= area_sur + area_escala
+            for j in 1:num_deptos
+                push!(deptos_franja_norte, (sup_depto, tipo_depto, j))
             end
-            area_north += total_type_area
+            area_norte += total_type_area
         else
-            for j in 1:count
-                push!(apts_by_strip_south, (apt_area, apt_type, j))
+            for j in 1:num_deptos
+                push!(deptos_franja_sur, (sup_depto, tipo_depto, j))
             end
-            area_south += total_type_area
+            area_sur += total_type_area
         end
     end
 
-    push!(apts_by_strip_south, (stair_area, -1, 1))
-    area_south += stair_area
+    push!(deptos_franja_sur, (area_escala, -1, 1))
+    area_sur += area_escala
 
     # Calculate strip heights
-    h_north_needed = area_north / W
-    h_south_needed = area_south / W
+    # Each strip height = total area in strip / floor width
+    # Scale down if combined height exceeds floor height
+    alto_norte_requerido = area_norte / W
+    alto_sur_requerido = area_sur / W
 
-    if h_north_needed + h_south_needed > H
-        scale_factor = H / (h_north_needed + h_south_needed)
-        h_north = h_north_needed * scale_factor
-        h_south = h_south_needed * scale_factor
+    if alto_norte_requerido + alto_sur_requerido > H
+        scale_factor = H / (alto_norte_requerido + alto_sur_requerido)
+        alto_norte = alto_norte_requerido * scale_factor
+        alto_sur = alto_sur_requerido * scale_factor
     else
-        h_north = h_north_needed
-        h_south = h_south_needed
+        alto_norte = alto_norte_requerido
+        alto_sur = alto_sur_requerido
     end
 
-    h_slack = H - (h_north + h_south)
+    ancho_total_norte = sum(apt[1] for apt in deptos_franja_norte) / alto_norte
+    ancho_total_sur = sum(apt[1] for apt in deptos_franja_sur) / alto_sur
 
-    total_width_north = sum(apt[1] for apt in apts_by_strip_north) / h_north
-    total_width_south = sum(apt[1] for apt in apts_by_strip_south) / h_south
+    holgura_ancho_norte = W - ancho_total_norte
+    holgura_ancho_sur = W - ancho_total_sur
+    holgura_total = holgura_ancho_norte * alto_norte + holgura_ancho_sur * alto_sur
 
-    unused_north = W - total_width_north
-    unused_south = W - total_width_south
-    total_unused = unused_north * h_north + unused_south * h_south
+    x_min_planta = minimum(vec_x_planta)
+    y_min_planta = minimum(vec_y_planta)
 
-    x_min = minimum(x_coords)
-    y_min = minimum(y_coords)
-    y_min += h_slack/2
+    holgura_alto = H - (alto_norte + alto_sur)
+    y_min_planta += holgura_alto/2
 
-    # Arrange apartments horizontally (largest at ends)
-    apt_order_north = Tuple{Float64, Int}[]
-    apt_order_south = Tuple{Float64, Int}[]
+    # Arrange apartments horizontally within each strip
+    # North: 2nd largest, middle units, largest (for balance)
+    # South: first half, stair (center), second half
+    deptos_ordenados_norte = Tuple{Float64, Int}[]
+    deptos_ordenados_sur = Tuple{Float64, Int}[]
 
-    n_north = length(apts_by_strip_north)
-    n_south_with_stair = length(apts_by_strip_south)
-    n_south = n_south_with_stair - 1
+    num_deptos_norte = length(deptos_franja_norte)
+    num_deptos_sur_con_escala = length(deptos_franja_sur)
+    num_deptos_sur = num_deptos_sur_con_escala - 1
 
-    if total_apts >= 4
-        push!(apt_order_north, (apts_by_strip_north[2][1], apts_by_strip_north[2][2]))
-        if n_north > 2
-            for i in 3:n_north
-                push!(apt_order_north, (apts_by_strip_north[i][1], apts_by_strip_north[i][2]))
+    if deptos_total >= 4
+        push!(deptos_ordenados_norte, (deptos_franja_norte[2][1], deptos_franja_norte[2][2]))
+        if num_deptos_norte > 2
+            for i in 3:num_deptos_norte
+                push!(deptos_ordenados_norte, (deptos_franja_norte[i][1], deptos_franja_norte[i][2]))
             end
         end
-        push!(apt_order_north, (apts_by_strip_north[1][1], apts_by_strip_north[1][2]))
+        push!(deptos_ordenados_norte, (deptos_franja_norte[1][1], deptos_franja_norte[1][2]))
 
-        n_south_half = div(n_south, 2)
-        for i in 1:n_south_half
-            push!(apt_order_south, (apts_by_strip_south[i][1], apts_by_strip_south[i][2]))
+        num_deptos_sur_half = div(num_deptos_sur, 2)
+        for i in 1:num_deptos_sur_half
+            push!(deptos_ordenados_sur, (deptos_franja_sur[i][1], deptos_franja_sur[i][2]))
         end
-        push!(apt_order_south, (stair_area, -1))
-        for i in (n_south_half + 1):n_south
-            push!(apt_order_south, (apts_by_strip_south[i][1], apts_by_strip_south[i][2]))
+        push!(deptos_ordenados_sur, (area_escala, -1))
+        for i in (num_deptos_sur_half + 1):num_deptos_sur
+            push!(deptos_ordenados_sur, (deptos_franja_sur[i][1], deptos_franja_sur[i][2]))
         end
     else
-        for apt in apts_by_strip_north
-            push!(apt_order_north, (apt[1], apt[2]))
+        for depto in deptos_franja_norte
+            push!(depto_order_norte, (depto[1], depto[2]))
         end
-        n_south_half = div(n_south, 2)
-        for i in 1:n_south_half
-            push!(apt_order_south, (apts_by_strip_south[i][1], apts_by_strip_south[i][2]))
+        num_deptos_sur_half = div(num_deptos_sur, 2)
+        for i in 1:num_deptos_sur_half
+            push!(deptos_ordenados_sur, (deptos_franja_sur[i][1], deptos_franja_sur[i][2]))
         end
-        push!(apt_order_south, (stair_area, -1))
-        for i in (n_south_half + 1):n_south
-            push!(apt_order_south, (apts_by_strip_south[i][1], apts_by_strip_south[i][2]))
+        push!(deptos_ordenados_sur, (area_escala, -1))
+        for i in (num_deptos_sur_half + 1):num_deptos_sur
+            push!(deptos_ordenados_sur, (deptos_franja_sur[i][1], deptos_franja_sur[i][2]))
         end
     end
 
-    cr = [centroid_x, centroid_y]
-    y_north_base = y_min + h_south
+    # Create apartment geometries
+    # Apartments are created in normalized coordinate system, then rotated back
+    y_norte_base = y_min_planta + alto_sur
+    vec_x_ini_norte, vec_x_fin_norte, vec_ancho_deptos_norte, _ = genera_deptos_franja(deptos_ordenados_norte, x_min_planta, y_norte_base, alto_norte)
+    vec_x_ini_sur, vec_x_fin_sur, vec_ancho_deptos_sur, vec_tipo_deptos_sur = genera_deptos_franja(deptos_ordenados_sur, x_min_planta, y_min_planta, alto_sur)
 
-    x_start_north, x_end_north, apt_widths_north, _ = create_strip_apartments(apt_order_north, x_min, y_north_base, h_north)
+    # Define core (circulation hallway) position
+    # Core runs horizontally between the two strips at their boundary
+    # Starts at min of first apartment east walls, ends at max of last apartment west walls
+    x_east_wall_first_norte = vec_x_fin_norte[1]
+    x_east_wall_first_sur = vec_x_fin_sur[1]
+    x_ini_pasillo = min(x_east_wall_first_norte, x_east_wall_first_sur)
 
-    x_start_south, x_end_south, apt_widths_south, apt_types_south = create_strip_apartments(apt_order_south, x_min, y_min, h_south)
+    x_west_wall_last_norte = vec_x_ini_norte[end]
+    x_west_wall_last_sur = vec_x_ini_sur[end]
+    x_fin_pasillo = max(x_west_wall_last_norte, x_west_wall_last_sur)
 
-    x_east_wall_first_north = x_end_north[1]
-    x_east_wall_first_south = x_end_south[1]
-    x_core_start = min(x_east_wall_first_north, x_east_wall_first_south)
+    largo_pasillo = x_fin_pasillo - x_ini_pasillo
+    y_pasillo = y_min_planta + alto_sur - ancho_pasillo / 2
 
-    x_west_wall_last_north = x_start_north[end]
-    x_west_wall_last_south = x_start_south[end]
-    x_core_end = max(x_west_wall_last_north, x_west_wall_last_south)
+    ps_pasillo_aux = polyShape.polyBox(x_ini_pasillo, y_pasillo, largo_pasillo, ancho_pasillo, 0.0)
+    ps_pasillo = polyShape.polyRotate(ps_pasillo_aux, -angulo_rotacion, cr)
 
-    core_length = x_core_end - x_core_start
-    y_core = y_min + h_south - core_width / 2
+    # Extend apartments into core area and subtract core overlap
+    vec_ps_deptos_norte, vec_extension_alto_deptos_norte = extiende_deptos_interseccion_pasillo(vec_x_ini_norte, vec_x_fin_norte, vec_ancho_deptos_norte, y_norte_base, alto_norte, x_ini_pasillo, x_fin_pasillo, y_pasillo, ancho_pasillo, angulo_rotacion, cr, :norte)
 
-    vertices_core_local = [
-        x_core_start y_core;
-        x_core_end y_core;
-        x_core_end y_core + core_width;
-        x_core_start y_core + core_width
-    ]
+    vec_ps_deptos_sur, vec_extension_alto_deptos_sur = extiende_deptos_interseccion_pasillo(vec_x_ini_sur, vec_x_fin_sur, vec_ancho_deptos_sur, y_min_planta, alto_sur, x_ini_pasillo, x_fin_pasillo, y_pasillo, ancho_pasillo, angulo_rotacion, cr, :sur)
 
-    core_local_poly = PolyShape([vertices_core_local], 1)
-    core_polyshape = polyShape.polyRotate(core_local_poly, -rotation_angle, cr)
+    # Create terrace geometries (if specified)
+    vec_terrazas_norte = PolyShape[]
+    vec_terrazas_sur = PolyShape[]
 
-    vec_polyshapes_north, extension_heights_north = extend_apartments_to_core(x_start_north, x_end_north, apt_widths_north, y_north_base, h_north, x_core_start, x_core_end, y_core, core_width, rotation_angle, cr, :north)
+    if !isempty(vec_sup_terraza)
+        y_terrace_base_norte = [y_norte_base + alto_norte + vec_extension_alto_deptos_norte[i] for i in eachindex(deptos_ordenados_norte)]
+        vec_terrazas_norte = genera_terrazas_franja(deptos_ordenados_norte, vec_sup_terraza, vec_ancho_deptos_norte, vec_x_ini_norte, y_terrace_base_norte, angulo_rotacion, cr, :norte)
 
-    vec_polyshapes_south, extension_heights_south = extend_apartments_to_core(x_start_south, x_end_south, apt_widths_south, y_min, h_south, x_core_start, x_core_end, y_core, core_width, rotation_angle, cr, :south)
-
-    vec_terraces_north = PolyShape[]
-    vec_terraces_south = PolyShape[]
-
-    if has_terraces
-        y_terrace_base_north = [y_north_base + h_north + extension_heights_north[i] for i in eachindex(apt_order_north)]
-        vec_terraces_north = create_strip_terraces(apt_order_north, terrace_areas, apt_widths_north, x_start_north, y_terrace_base_north, rotation_angle, cr, :north)
-
-        y_terrace_base_south = [y_min - extension_heights_south[i] for i in eachindex(apt_order_south)]
-        vec_terraces_south = create_strip_terraces(apt_order_south, terrace_areas, apt_widths_south, x_start_south, y_terrace_base_south, rotation_angle, cr, :south)
+        y_terrace_base_sur = [y_min_planta - vec_extension_alto_deptos_sur[i] for i in eachindex(deptos_ordenados_sur)]
+        vec_terrazas_sur = genera_terrazas_franja(deptos_ordenados_sur, vec_sup_terraza, vec_ancho_deptos_sur, vec_x_ini_sur, y_terrace_base_sur, angulo_rotacion, cr, :sur)
     end
 
-    stair_idx = findfirst(t -> t == -1, apt_types_south)
-    stair_polyshape = vec_polyshapes_south[stair_idx]
-    stair_width = apt_widths_south[stair_idx]
+    # Extract staircase information
+    id_escala = findfirst(t -> t == -1, vec_tipo_deptos_sur)
+    ps_escala = vec_ps_deptos_sur[id_escala]
+    ancho_escala = vec_ancho_deptos_sur[id_escala]
 
+    # Package results
     results = Dict(
         "feasible" => true,
         "status" => "LOCALLY_SOLVED",
-        "n_apts_north" => n_north,
-        "n_apts_south" => n_south,
-        "apt_areas_north" => [apt[1] for apt in apt_order_north],
-        "apt_areas_south" => [apt[1] for apt in apt_order_south if apt[2] != -1],
-        "height_north" => round(h_north, digits=2),
-        "height_south" => round(h_south, digits=2),
-        "unused_north" => round(unused_north, digits=2),
-        "unused_south" => round(unused_south, digits=2),
-        "total_unused" => round(total_unused, digits=2),
+        "n_apts_norte" => num_deptos_norte,
+        "n_apts_sur" => num_deptos_sur,
+        "vec_sup_deptos_norte" => [apt[1] for apt in deptos_ordenados_norte],
+        "vec_sup_deptos_sur" => [apt[1] for apt in deptos_ordenados_sur if apt[2] != -1],
+        "height_norte" => round(alto_norte, digits=2),
+        "height_sur" => round(alto_sur, digits=2),
+        "holgura_ancho_norte" => round(holgura_ancho_norte, digits=2),
+        "holgura_ancho_sur" => round(holgura_ancho_sur, digits=2),
+        "holgura_total" => round(holgura_total, digits=2),
         "floor_width" => W,
         "floor_height" => H,
-        "core_width" => core_width,
-        "core_length" => core_length,
-        "core_polyshape" => core_polyshape,
-        "stair_polyshape" => stair_polyshape,
-        "stair_width" => round(stair_width, digits=2),
-        "stair_height" => round(h_south, digits=2),
-        "stair_area" => round(stair_area, digits=2),
-        "vec_polyshapes_all" => vcat(vec_polyshapes_north, vec_polyshapes_south),
-        "vec_terraces_all" => vcat(vec_terraces_north, vec_terraces_south),
-        "has_terraces" => has_terraces
+        "ancho_pasillo" => ancho_pasillo,
+        "largo_pasillo" => largo_pasillo,
+        "ps_pasillo" => ps_pasillo,
+        "ps_escala" => ps_escala,
+        "ancho_escala" => round(ancho_escala, digits=2),
+        "alto_escala" => round(alto_sur, digits=2),
+        "area_escala" => round(area_escala, digits=2),
+        "vec_polyshapes_all" => vcat(vec_ps_deptos_norte, vec_ps_deptos_sur),
+        "vec_terrazas_all" => vcat(vec_terrazas_norte, vec_terrazas_sur)
     )
 
 
