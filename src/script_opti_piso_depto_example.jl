@@ -5,11 +5,11 @@ println("APARTMENT FLOOR OPTIMIZATION - 5 EXAMPLES")
 println("=" ^ 60)
 
 examples = [
-    (width=30.0, height=20.0, rotation=π/6, vec_sup_deptos=[50.0, 75.0, 100.0], vec_num_deptos=[2, 3, 2], ancho_pasillo=2.0, vec_sup_terraza=[50.0/6, 75.0/6, 100.0/6], vec_min_ancho_deptos=[7, 4.0, 4.5], min_ancho_escala=5.0),
-    (width=25.0, height=25.0, rotation=π/4, vec_sup_deptos=[60.0, 80.0], vec_num_deptos=[3, 3], ancho_pasillo=2.5, vec_sup_terraza=[60.0/6, 80.0/6], vec_min_ancho_deptos=[3.8, 4.2], min_ancho_escala=5.0),
-    (width=35.0, height=18.0, rotation=0.0, vec_sup_deptos=[45.0, 65.0, 85.0, 110.0], vec_num_deptos=[2, 2, 2, 1], ancho_pasillo=2.0, vec_sup_terraza=[45.0/6, 65.0/6, 85.0/6, 110.0/6], vec_min_ancho_deptos=[3.2, 3.8, 4.0, 4.5], min_ancho_escala=5.0),
-    (width=28.0, height=22.0, rotation=-π/8, vec_sup_deptos=[55.0, 90.0], vec_num_deptos=[4, 2], ancho_pasillo=2.2, vec_sup_terraza=[55.0/6, 90.0/6], vec_min_ancho_deptos=[3.5, 4.5], min_ancho_escala=5.0),
-    (width=32.0, height=16.0, rotation=π/3, vec_sup_deptos=[40.0, 70.0, 100.0], vec_num_deptos=[3, 2, 2], ancho_pasillo=1.8, vec_sup_terraza=[40.0/6, 70.0/6, 100.0/6], vec_min_ancho_deptos=[3.0, 4.0, 4.8], min_ancho_escala=5.0)
+    (width=30.0, height=20.0, rotation=π/6, vec_sup_deptos=[50.0, 75.0, 100.0], vec_num_deptos=[2, 2, 1], ancho_pasillo=2.0, vec_sup_terraza=[5.0, 7.5, 10.0], vec_min_ancho_deptos=[4.0, 4.5, 5.0], min_ancho_escala=4.0, area_escala=20.0),
+    (width=25.0, height=25.0, rotation=π/4, vec_sup_deptos=[60.0, 80.0], vec_num_deptos=[2, 2], ancho_pasillo=2.0, vec_sup_terraza=[6.0, 8.0], vec_min_ancho_deptos=[3.8, 4.2], min_ancho_escala=4.0, area_escala=20.0),
+    (width=35.0, height=18.0, rotation=0.0, vec_sup_deptos=[45.0, 65.0, 85.0, 110.0], vec_num_deptos=[2, 2, 1, 1], ancho_pasillo=2.0, vec_sup_terraza=[4.5, 6.5, 8.5, 11.0], vec_min_ancho_deptos=[3.2, 3.8, 4.0, 4.5], min_ancho_escala=4.0, area_escala=20.0),
+    (width=28.0, height=22.0, rotation=-π/8, vec_sup_deptos=[55.0, 90.0], vec_num_deptos=[3, 2], ancho_pasillo=2.0, vec_sup_terraza=[5.5, 9.0], vec_min_ancho_deptos=[3.5, 4.5], min_ancho_escala=4.0, area_escala=20.0),
+    (width=32.0, height=16.0, rotation=π/3, vec_sup_deptos=[40.0, 70.0, 100.0], vec_num_deptos=[2, 2, 1], ancho_pasillo=1.8, vec_sup_terraza=[4.0, 7.0, 10.0], vec_min_ancho_deptos=[3.0, 4.0, 4.8], min_ancho_escala=4.0, area_escala=20.0)
 ]
 
 for (idx, example) in enumerate(examples)
@@ -50,6 +50,12 @@ for (idx, example) in enumerate(examples)
     vec_sup_terraza = example.vec_sup_terraza
     vec_min_ancho_deptos = example.vec_min_ancho_deptos
     min_ancho_escala = example.min_ancho_escala
+    area_escala = example.area_escala
+
+    total_apt_area_input = sum(vec_sup_deptos .* vec_num_deptos)
+    total_terrace_area = sum(vec_sup_terraza .* vec_num_deptos)
+    estimated_hallway = example.ancho_pasillo * ancho_planta
+    total_required = total_apt_area_input + total_terrace_area + area_escala + estimated_hallway
 
     println("\nInput Parameters:")
     println("  Floor dimensions: $(ancho_planta)m × $(alto_planta)m")
@@ -58,13 +64,17 @@ for (idx, example) in enumerate(examples)
     println("  Apartment areas: $(vec_sup_deptos)m²")
     println("  Apartment counts: $(vec_num_deptos)")
     println("  Total apartments: $(sum(vec_num_deptos))")
-    println("  Total required area: $(sum(vec_sup_deptos .* vec_num_deptos))m²")
+    println("  Apartment area: $(round(total_apt_area_input, digits=2))m²")
+    println("  Terrace area: $(round(total_terrace_area, digits=2))m²")
+    println("  Staircase area: $(area_escala)m²")
+    println("  Estimated hallway: $(round(estimated_hallway, digits=2))m²")
+    println("  Total required: $(round(total_required, digits=2))m² ($(round(100*total_required/(ancho_planta*alto_planta), digits=1))%)")
     println("  Core width: $(example.ancho_pasillo)m")
-    println("  Terrace areas: $(vec_sup_terraza)m²")
+    println("  Terrace areas per type: $(vec_sup_terraza)m²")
     println("  Minimum apartment widths: $(vec_min_ancho_deptos)m")
     println("  Minimum staircase width: $(min_ancho_escala)m")
 
-    results = opti_floor_plan(ps_planta, vec_sup_deptos, vec_num_deptos, ancho_pasillo=example.ancho_pasillo, vec_sup_terraza=vec_sup_terraza, vec_min_ancho_deptos=vec_min_ancho_deptos, min_ancho_escala=min_ancho_escala)
+    results = opti_floor_plan(ps_planta, vec_sup_deptos, vec_num_deptos, ancho_pasillo=example.ancho_pasillo, vec_sup_terraza=vec_sup_terraza, vec_min_ancho_deptos=vec_min_ancho_deptos, min_ancho_escala=min_ancho_escala, area_escala=area_escala)
 
     if results["feasible"]
         println("\nOptimization successful!")
@@ -85,7 +95,6 @@ for (idx, example) in enumerate(examples)
         println("\nArea Analysis:")
         println("  Total apartment area: $(round(total_apt_area, digits=2))m²")
         println("  Core area: $(round(core_area, digits=2))m²")
-        println("  Unused area: $(round(results["holgura_total"], digits=2))m²")
         println("  Total floor area: $(round(total_floor_area, digits=2))m²")
         println("  Efficiency: $(round(efficiency, digits=1))%")
 
