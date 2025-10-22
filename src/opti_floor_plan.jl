@@ -1,32 +1,7 @@
-function genera_deptos_franja(apt_order::Vector{Tuple{Float64, Int}}, x_min_planta::Float64, y_base::Float64, alto_franja::Float64, direction::Symbol, vec_min_ancho_deptos::Vector{Float64}, ancho_disponible::Float64, min_ancho_escala::Float64)
-    # Generate apartment geometries for a strip with minimum width constraints
-    # Algorithm:
-    # 1. Start with initial strip height (alto_franja)
-    # 2. For each apartment/staircase:
-    #    - Calculate width = area / strip_height
-    #    - If width < minimum_width: use minimum_width, adjust individual height = area / min_width
-    #    - Otherwise: use calculated width with strip height
-    # 3. Calculate total width of all apartments
-    # 4. If total_width ≠ available_width: adjust strip height iteratively
-    #    - If too wide: increase height → apartments narrower
-    #    - If too narrow: decrease height → apartments wider
-    # 5. Repeat until total_width ≈ available_width (tolerance 0.01m) or max iterations
-    # 6. Minimum width constraints always respected, non-constrained apartments adjust
-    #
-    # This ensures apartments fill entire floor width while respecting minimum width requirements
-    #
-    # Parameters:
-    # - apt_order: Ordered list of (area, type_id) for apartments in strip
-    # - x_min_planta: Minimum x-coordinate of floor (starting point)
-    # - y_base: Central dividing line y-coordinate (reference for strip positioning)
-    # - alto_franja: Initial strip height estimate
-    # - direction: :norte or :sur (determines strip orientation)
-    # - vec_min_ancho_deptos: Minimum width constraint for each apartment type
-    # - ancho_disponible: Available floor width (W) that apartments must fill
-    # - min_ancho_escala: Minimum width constraint for staircase
-    #
+function genera_deptos_franja(vec_orden_deptos::Vector{Tuple{Float64, Int}}, x_min_planta::Float64, y_base::Float64, alto_franja::Float64, direction::Symbol, vec_min_ancho_deptos::Vector{Float64}, ancho_disponible::Float64, min_ancho_escala::Float64)
+    # Generate apartment geometries for strip with minimum width constraints
+    # Iteratively adjusts strip height until apartments fill available width while respecting min widths
     # Returns: (vec_x_ini, vec_x_fin, vec_ancho_deptos, vec_alto_deptos, vec_tipo_deptos)
-    #          Starting x, ending x, widths, individual heights, and type IDs for each apartment
     vec_x_ini = Float64[]
     vec_x_fin = Float64[]
     vec_ancho_deptos = Float64[]
@@ -46,7 +21,7 @@ function genera_deptos_franja(apt_order::Vector{Tuple{Float64, Int}}, x_min_plan
         x_current = x_min_planta
         total_width = 0.0
 
-        for (sup_depto, tipo_depto) in apt_order
+        for (sup_depto, tipo_depto) in vec_orden_deptos
             if tipo_depto == -1
                 ancho_depto = sup_depto / alto_franja_adjusted
                 if ancho_depto < min_ancho_escala
@@ -89,34 +64,9 @@ function genera_deptos_franja(apt_order::Vector{Tuple{Float64, Int}}, x_min_plan
 end
 
 function extiende_deptos_interseccion_pasillo(vec_x_ini::Vector{Float64}, vec_x_fin::Vector{Float64}, vec_ancho_deptos::Vector{Float64}, vec_alto_deptos::Vector{Float64}, y_base::Float64, x_ini_pasillo::Float64, x_fin_pasillo::Float64, y_pasillo::Float64, ancho_pasillo::Float64, angulo_rotacion::Float64, cr::Vector{Float64}, extend_direction::Symbol)
-    # Extend apartments into hallway (core) area and subtract hallway overlap
-    # Algorithm:
-    # 1. Calculate horizontal overlap between each apartment and hallway
-    # 2. Compute intersection area = overlap_width × hallway_width
-    # 3. Calculate extension height needed to compensate: extension = intersection_area / apartment_width
-    # 4. Create extended apartment polygon with base height + extension
-    # 5. Position apartment relative to y_base (norte: upward from y_base, sur: downward from y_base)
-    # 6. Rotate extended apartment to original coordinate system
-    # 7. Subtract hallway geometry from apartment to create final shape
-    #
-    # This ensures apartments maintain their required area by extending into hallway space,
-    # then subtracting the actual hallway corridor to create proper circulation
-    #
-    # Parameters:
-    # - vec_x_ini: Starting x-coordinates of apartments
-    # - vec_x_fin: Ending x-coordinates of apartments
-    # - vec_ancho_deptos: Width of each apartment
-    # - vec_alto_deptos: Individual height of each apartment (may vary due to min width constraints)
-    # - y_base: Central dividing line y-coordinate (boundary between strips)
-    # - x_ini_pasillo: Hallway starting x-coordinate
-    # - x_fin_pasillo: Hallway ending x-coordinate
-    # - y_pasillo: Hallway center y-coordinate
-    # - ancho_pasillo: Hallway width
-    # - angulo_rotacion: Rotation angle for coordinate transformation
-    # - cr: Center of rotation
-    # - extend_direction: :norte (extend upward from y_base) or :sur (extend downward from y_base)
-    #
-    # Returns: (vec_ps_deptos, vec_extension_heights) - Extended apartment polygons and their extension heights
+    # Extend apartments into hallway area to maintain required area, then subtract hallway overlap
+    # Calculates extension height based on hallway intersection, positions relative to y_base
+    # Returns: (vec_ps_deptos, vec_extension_heights)
     vec_extension_alto_deptos = Float64[]
     ps_deptos_extendidos = PolyShape[]
 
@@ -157,33 +107,14 @@ function extiende_deptos_interseccion_pasillo(vec_x_ini::Vector{Float64}, vec_x_
     return ps_deptos_extendidos, vec_extension_alto_deptos
 end
 
-function genera_terrazas_franja(apt_order::Vector{Tuple{Float64, Int}}, vec_sup_terraza::Vector{Float64}, vec_ancho_deptos::Vector{Float64}, vec_x_ini::Vector{Float64}, y_terrace_base::Vector{Float64}, angulo_rotacion::Float64, cr::Vector{Float64}, terrace_direction::Symbol, max_alto_terraza::Float64)
-    # Generate terrace geometries for apartments in a strip
-    # Algorithm:
-    # 1. For each apartment, create terrace with default height 1.75m
-    # 2. If terrace width exceeds apartment width, constrain to apartment width
-    # 3. Adjust terrace height to maintain required area, limited by max_alto_terraza
-    # 4. If constrained height still insufficient, expand terrace width beyond apartment
-    # 5. Center terrace horizontally on apartment
-    # 6. Position terrace perpendicular to strip (norte: above, sur: below)
-    # 7. Rotate terrace back to original coordinate system
-    #
-    # Parameters:
-    # - apt_order: Ordered list of (area, type_id) for apartments
-    # - vec_sup_terraza: Required terrace area for each apartment type
-    # - vec_ancho_deptos: Width of each apartment
-    # - vec_x_ini: Starting x-coordinate of each apartment
-    # - y_terrace_base: Base y-coordinate for terrace placement
-    # - angulo_rotacion: Rotation angle for coordinate transformation
-    # - cr: Center of rotation
-    # - terrace_direction: :norte (extend upward) or :sur (extend downward)
-    # - max_alto_terraza: Maximum allowed terrace depth perpendicular to strip
-    #
-    # Returns: Vector of terrace PolyShapes (rotated to original coordinates)
+function genera_terrazas_franja(vec_orden_deptos::Vector{Tuple{Float64, Int}}, vec_sup_terraza::Vector{Float64}, vec_ancho_deptos::Vector{Float64}, vec_x_ini::Vector{Float64}, y_terrace_base::Vector{Float64}, angulo_rotacion::Float64, cr::Vector{Float64}, terrace_direction::Symbol, max_alto_terraza::Float64)
+    # Generate terrace geometries for apartments, constrained by max depth and apartment width
+    # Adjusts dimensions to maintain required area, centers terraces on apartments
+    # Returns: Vector of terrace PolyShapes
 
     vec_terrazas = PolyShape[]
 
-    for (i, (_, tipo_depto)) in enumerate(apt_order)
+    for (i, (_, tipo_depto)) in enumerate(vec_orden_deptos)
         if tipo_depto == -1
             push!(vec_terrazas, PolyShape([zeros(0, 2)], 0))
         else
@@ -223,81 +154,49 @@ function genera_terrazas_franja(apt_order::Vector{Tuple{Float64, Int}}, vec_sup_
     return vec_terrazas
 end
 
-function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int}; ancho_pasillo::Float64 = 2.0, vec_sup_terraza::Vector{Float64} = Float64[], area_escala::Float64 = 25.0, vec_min_ancho_deptos::Vector{Float64} = Float64[], min_ancho_escala::Float64 = 0.0)
+function normaliza_planta_rectangular(ps_planta::PolyShape)
+    # Normalize floor polygon to axis-aligned rectangle with width > height
+    # Rotates floor so longest dimension is horizontal (W > H)
+    # Returns: W, H, vec_x_planta, vec_y_planta, angulo_rotacion, cr
 
-    # Optimize floor plan layout by distributing apartments in two horizontal strips
-    # Algorithm:
-    # 1. Normalize floor polygon to axis-aligned rectangle (W x H, where W > H)
-    # 2. Distribute apartments to north and south strips, balancing total areas
-    # 3. Calculate strip heights based on area requirements
-    # 4. Arrange apartments horizontally within each strip
-    # 5. Create core (circulation hallway) at boundary between strips
-    # 6. Extend apartments into core area and subtract overlap
-    # 7. Create terrace geometries (if specified)
-    # 8. Rotate all geometries back to original coordinate system
-    #
-    # Parameters:
-    # - ps_planta: Floor polygon (must be rectangular, single region)
-    # - vec_sup_deptos: Area for each apartment type
-    # - vec_num_deptos: Count for each apartment type
-    # - ancho_pasillo: Core hallway width (default 2.0m)
-    # - vec_sup_terraza: Terrace area for each apartment type (optional)
-    # - area_escala: Staircase area (default 25.0m²)
-    # - vec_min_ancho_deptos: Minimum width for each apartment type (optional)
-    # - min_ancho_escala: Minimum width for staircase (default 0.0m)
-    #
-    # Returns: Dictionary with apartment polygons, core, terraces, and metrics
-
-    if isempty(vec_min_ancho_deptos)
-        vec_min_ancho_deptos = zeros(Float64, length(vec_sup_deptos))
-    end
-
-    # Normalize coordinate system: rotate floor polygon to align with axes
-    # Goal: make floor rectangle axis-aligned with width (W) > height (H)
     V_planta = ps_planta.Vertices[1]
-
     x_cr = sum(V_planta[1:end-1, 1]) / (size(V_planta, 1) - 1)
     y_cr = sum(V_planta[1:end-1, 2]) / (size(V_planta, 1) - 1)
+    cr = [x_cr, y_cr]
 
     edge1 = V_planta[2, :] - V_planta[1, :]
-    angulo_planta = atan(edge1[2], edge1[1])
-
-    angulo_rotacion = -angulo_planta
-    cr = [x_cr, y_cr]
+    angulo_rotacion = -atan(edge1[2], edge1[1])
 
     ps_planta_rotada = polyShape.polyRotate(ps_planta, angulo_rotacion, cr)
     V_planta_rotada = ps_planta_rotada.Vertices[1]
 
     vec_x_planta = V_planta_rotada[:, 1]
     vec_y_planta = V_planta_rotada[:, 2]
-    W_aux = maximum(vec_x_planta) - minimum(vec_x_planta)
-    H_aux = maximum(vec_y_planta) - minimum(vec_y_planta)
+    W = maximum(vec_x_planta) - minimum(vec_x_planta)
+    H = maximum(vec_y_planta) - minimum(vec_y_planta)
 
-    if H_aux > W_aux
+    if H > W
         angulo_rotacion += π/2
         ps_planta_rotada = polyShape.polyRotate(ps_planta, angulo_rotacion, cr)
         V_planta_rotada = ps_planta_rotada.Vertices[1]
-
         vec_x_planta = V_planta_rotada[:, 1]
         vec_y_planta = V_planta_rotada[:, 2]
-        W = maximum(vec_x_planta) - minimum(vec_x_planta)
-        H = maximum(vec_y_planta) - minimum(vec_y_planta)
-    else
-        W = W_aux
-        H = H_aux
+        W, H = H, W
     end
 
-    num_tipo_deptos = length(vec_sup_deptos)
-    deptos_total = sum(vec_num_deptos)
+    return W, H, vec_x_planta, vec_y_planta, angulo_rotacion, cr
+end
 
-    # Distribute apartments to north and south strips
-    # Strategy: balance areas between strips, sort by size (largest first)
-    # All apartments of same type go to same strip when possible
+function distribuye_deptos_entre_franjas(vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int}, area_escala::Float64)
+    # Distribute apartments between north and south strips, balancing total areas
+    # Staircase assigned to south strip, apartments sorted by size (largest first)
+    # Returns: deptos_franja_norte, deptos_franja_sur, area_norte, area_sur
+
+    num_tipo_deptos = length(vec_sup_deptos)
     vec_ordenado_tipo_deptos = sort(collect(1:num_tipo_deptos), by = i -> vec_sup_deptos[i], rev = true)
 
     deptos_franja_norte = Tuple{Float64, Int, Int}[]
     deptos_franja_sur = Tuple{Float64, Int, Int}[]
-
     area_norte = 0.0
     area_sur = 0.0
 
@@ -322,43 +221,41 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
     push!(deptos_franja_sur, (area_escala, -1, 1))
     area_sur += area_escala
 
-    # Estimate maximum terrace depth (perpendicular to strips)
-    alto_terraza_max = 1.75
+    return deptos_franja_norte, deptos_franja_sur, area_norte, area_sur
+end
 
-    # Calculate available height for apartment strips
-    # Total H = terrace_norte + strip_norte + hallway + strip_sur + terrace_sur
+function calcula_alturas_franjas(area_norte::Float64, area_sur::Float64, W::Float64, H::Float64, ancho_pasillo::Float64, alto_terraza_max::Float64)
+    # Calculate strip heights based on apartment areas and available floor space
+    # Reserves space for terraces and hallway, scales down if total exceeds available height
+    # Returns: alto_norte, alto_sur
+
     alto_disponible_franja = H - 2 * alto_terraza_max - ancho_pasillo
 
-    # Calculate strip heights based on apartment areas only
-    # Terraces will extend beyond strips
-    alto_depto_norte_requerido = area_norte / W
-    alto_depto_sur_requerido = area_sur / W
+    alto_norte_requerido = area_norte / W
+    alto_sur_requerido = area_sur / W
 
-    if alto_depto_norte_requerido + alto_depto_sur_requerido > alto_disponible_franja
-        scale_factor = alto_disponible_franja / (alto_depto_norte_requerido + alto_depto_sur_requerido)
-        alto_depto_norte = alto_depto_norte_requerido * scale_factor
-        alto_depto_sur = alto_depto_sur_requerido * scale_factor
+    if alto_norte_requerido + alto_sur_requerido > alto_disponible_franja
+        scale_factor = alto_disponible_franja / (alto_norte_requerido + alto_sur_requerido)
+        alto_norte = alto_norte_requerido * scale_factor
+        alto_sur = alto_sur_requerido * scale_factor
     else
-        alto_depto_norte = alto_depto_norte_requerido
-        alto_depto_sur = alto_depto_sur_requerido
+        alto_norte = alto_norte_requerido
+        alto_sur = alto_sur_requerido
     end
 
-    x_min_planta = minimum(vec_x_planta)
-    y_min_planta = minimum(vec_y_planta)
+    return alto_norte, alto_sur
+end
 
-    total_altura_utilizada = alto_terraza_max + alto_depto_sur + ancho_pasillo + alto_depto_norte + alto_terraza_max
-    holgura_alto = H - total_altura_utilizada
-    y_min_planta += alto_terraza_max + holgura_alto/2
+function ordena_deptos_en_franja(deptos_franja_norte::Vector{Tuple{Float64, Int, Int}}, deptos_franja_sur::Vector{Tuple{Float64, Int, Int}}, area_escala::Float64, deptos_total::Int)
+    # Arrange apartments horizontally within each strip for visual balance
+    # North: 2nd largest, middle units, largest (ends). South: first half, staircase (center), second half
+    # Returns: deptos_ordenados_norte, deptos_ordenados_sur
 
-    # Arrange apartments horizontally within each strip
-    # North: 2nd largest, middle units, largest (for balance)
-    # South: first half, stair (center), second half
     deptos_ordenados_norte = Tuple{Float64, Int}[]
     deptos_ordenados_sur = Tuple{Float64, Int}[]
 
     num_deptos_norte = length(deptos_franja_norte)
-    num_deptos_sur_con_escala = length(deptos_franja_sur)
-    num_deptos_sur = num_deptos_sur_con_escala - 1
+    num_deptos_sur = length(deptos_franja_sur) - 1
 
     if deptos_total >= 4
         push!(deptos_ordenados_norte, (deptos_franja_norte[2][1], deptos_franja_norte[2][2]))
@@ -379,7 +276,7 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
         end
     else
         for depto in deptos_franja_norte
-            push!(depto_order_norte, (depto[1], depto[2]))
+            push!(deptos_ordenados_norte, (depto[1], depto[2]))
         end
         num_deptos_sur_half = div(num_deptos_sur, 2)
         for i in 1:num_deptos_sur_half
@@ -391,30 +288,94 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
         end
     end
 
-    # Create apartment geometries
-    # Apartments are created in normalized coordinate system, then rotated back
-    y_base = y_min_planta + alto_depto_sur
-    vec_x_ini_norte, vec_x_fin_norte, vec_ancho_deptos_norte, vec_alto_deptos_norte, _ = genera_deptos_franja(deptos_ordenados_norte, x_min_planta, y_base, alto_depto_norte, :norte, vec_min_ancho_deptos, W, min_ancho_escala)
-    vec_x_ini_sur, vec_x_fin_sur, vec_ancho_deptos_sur, vec_alto_deptos_sur, vec_tipo_deptos_sur = genera_deptos_franja(deptos_ordenados_sur, x_min_planta, y_base, alto_depto_sur, :sur, vec_min_ancho_deptos, W, min_ancho_escala)
+    return deptos_ordenados_norte, deptos_ordenados_sur
+end
 
-    # Define core (circulation hallway) position
-    # Core runs horizontally between the two strips at their boundary
-    # Starts at min of first apartment east walls, ends at max of last apartment west walls
+function calcula_geometria_pasillo(vec_x_fin_norte::Vector{Float64}, vec_x_fin_sur::Vector{Float64}, vec_x_ini_norte::Vector{Float64}, vec_x_ini_sur::Vector{Float64}, y_base::Float64, ancho_pasillo::Float64, angulo_rotacion::Float64, cr::Vector{Float64})
+    # Calculate hallway geometry at boundary between north and south strips
+    # Hallway spans from first apartment end to last apartment start, rotated to original coordinates
+    # Returns: x_ini_pasillo, x_fin_pasillo, largo_pasillo, y_pasillo, ps_pasillo
 
     x_ini_pasillo = min(vec_x_fin_norte[1], vec_x_fin_sur[1])
     x_fin_pasillo = max(vec_x_ini_norte[end], vec_x_ini_sur[end])
-
     largo_pasillo = x_fin_pasillo - x_ini_pasillo
     y_pasillo = y_base - ancho_pasillo / 2
 
     ps_pasillo_aux = polyShape.polyBox(x_ini_pasillo, y_pasillo, largo_pasillo, ancho_pasillo, 0.0)
     ps_pasillo = polyShape.polyRotate(ps_pasillo_aux, -angulo_rotacion, cr)
 
-    # Extend apartments into core area and subtract core overlap
+    return x_ini_pasillo, x_fin_pasillo, largo_pasillo, y_pasillo, ps_pasillo
+end
+
+function empaqueta_resultados(num_deptos_norte::Int, num_deptos_sur::Int, deptos_ordenados_norte::Vector{Tuple{Float64, Int}}, deptos_ordenados_sur::Vector{Tuple{Float64, Int}}, alto_norte::Float64, alto_sur::Float64, W::Float64, H::Float64, ancho_pasillo::Float64, largo_pasillo::Float64, ps_pasillo::PolyShape, vec_ps_deptos_norte::Vector{PolyShape}, vec_ps_deptos_sur::Vector{PolyShape}, vec_ancho_deptos_sur::Vector{Float64}, vec_tipo_deptos_sur::Vector{Int}, area_escala::Float64, vec_terrazas_norte::Vector{PolyShape}, vec_terrazas_sur::Vector{PolyShape})
+    # Package all optimization results into dictionary format
+    # Extracts staircase info and combines apartment/terrace geometries
+    # Returns: Dictionary with all floor plan data and metrics
+
+    id_escala = findfirst(t -> t == -1, vec_tipo_deptos_sur)
+    ps_escala = vec_ps_deptos_sur[id_escala]
+    ancho_escala = vec_ancho_deptos_sur[id_escala]
+
+    results = Dict(
+        "feasible" => true,
+        "status" => "LOCALLY_SOLVED",
+        "n_apts_norte" => num_deptos_norte,
+        "n_apts_sur" => num_deptos_sur,
+        "vec_sup_deptos_norte" => [apt[1] for apt in deptos_ordenados_norte],
+        "vec_sup_deptos_sur" => [apt[1] for apt in deptos_ordenados_sur if apt[2] != -1],
+        "height_norte" => round(alto_norte, digits=2),
+        "height_sur" => round(alto_sur, digits=2),
+        "floor_width" => W,
+        "floor_height" => H,
+        "ancho_pasillo" => ancho_pasillo,
+        "largo_pasillo" => largo_pasillo,
+        "ps_pasillo" => ps_pasillo,
+        "ps_escala" => ps_escala,
+        "ancho_escala" => round(ancho_escala, digits=2),
+        "alto_escala" => round(alto_sur, digits=2),
+        "area_escala" => round(area_escala, digits=2),
+        "vec_polyshapes_all" => vcat(vec_ps_deptos_norte, vec_ps_deptos_sur),
+        "vec_terrazas_all" => vcat(vec_terrazas_norte, vec_terrazas_sur)
+    )
+
+    return results
+end
+
+function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int}; ancho_pasillo::Float64 = 2.0, vec_sup_terraza::Vector{Float64} = Float64[], area_escala::Float64 = 25.0, vec_min_ancho_deptos::Vector{Float64} = Float64[], min_ancho_escala::Float64 = 0.0)
+    # Optimize floor plan layout by distributing apartments in two horizontal strips
+    # Normalizes floor, balances apartments between strips, generates geometries with minimum width constraints
+    # Returns: Dictionary with apartment polygons, hallway, terraces, staircase, and metrics
+
+    if isempty(vec_min_ancho_deptos)
+        vec_min_ancho_deptos = zeros(Float64, length(vec_sup_deptos))
+    end
+
+    W, H, vec_x_planta, vec_y_planta, angulo_rotacion, cr = normaliza_planta_rectangular(ps_planta)
+
+    deptos_total = sum(vec_num_deptos)
+    deptos_franja_norte, deptos_franja_sur, area_norte, area_sur = distribuye_deptos_entre_franjas(vec_sup_deptos, vec_num_deptos, area_escala)
+
+    alto_terraza_max = 1.75
+    alto_depto_norte, alto_depto_sur = calcula_alturas_franjas(area_norte, area_sur, W, H, ancho_pasillo, alto_terraza_max)
+
+    x_min_planta = minimum(vec_x_planta)
+    y_min_planta = minimum(vec_y_planta)
+
+    total_altura_utilizada = alto_terraza_max + alto_depto_sur + ancho_pasillo + alto_depto_norte + alto_terraza_max
+    holgura_alto = H - total_altura_utilizada
+    y_min_planta += alto_terraza_max + holgura_alto/2
+
+    deptos_ordenados_norte, deptos_ordenados_sur = ordena_deptos_en_franja(deptos_franja_norte, deptos_franja_sur, area_escala, deptos_total)
+
+    y_base = y_min_planta + alto_depto_sur
+    vec_x_ini_norte, vec_x_fin_norte, vec_ancho_deptos_norte, vec_alto_deptos_norte, _ = genera_deptos_franja(deptos_ordenados_norte, x_min_planta, y_base, alto_depto_norte, :norte, vec_min_ancho_deptos, W, min_ancho_escala)
+    vec_x_ini_sur, vec_x_fin_sur, vec_ancho_deptos_sur, vec_alto_deptos_sur, vec_tipo_deptos_sur = genera_deptos_franja(deptos_ordenados_sur, x_min_planta, y_base, alto_depto_sur, :sur, vec_min_ancho_deptos, W, min_ancho_escala)
+
+    x_ini_pasillo, x_fin_pasillo, largo_pasillo, y_pasillo, ps_pasillo = calcula_geometria_pasillo(vec_x_fin_norte, vec_x_fin_sur, vec_x_ini_norte, vec_x_ini_sur, y_base, ancho_pasillo, angulo_rotacion, cr)
+
     vec_ps_deptos_norte, vec_extension_alto_deptos_norte = extiende_deptos_interseccion_pasillo(vec_x_ini_norte, vec_x_fin_norte, vec_ancho_deptos_norte, vec_alto_deptos_norte, y_base, x_ini_pasillo, x_fin_pasillo, y_pasillo, ancho_pasillo, angulo_rotacion, cr, :norte)
     vec_ps_deptos_sur, vec_extension_alto_deptos_sur = extiende_deptos_interseccion_pasillo(vec_x_ini_sur, vec_x_fin_sur, vec_ancho_deptos_sur, vec_alto_deptos_sur, y_base, x_ini_pasillo, x_fin_pasillo, y_pasillo, ancho_pasillo, angulo_rotacion, cr, :sur)
 
-    # Create terrace geometries (if specified)
     vec_terrazas_norte = PolyShape[]
     vec_terrazas_sur = PolyShape[]
 
@@ -426,33 +387,10 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
         vec_terrazas_sur = genera_terrazas_franja(deptos_ordenados_sur, vec_sup_terraza, vec_ancho_deptos_sur, vec_x_ini_sur, y_terrace_base_sur, angulo_rotacion, cr, :sur, alto_terraza_max)
     end
 
-    # Extract staircase information
-    id_escala = findfirst(t -> t == -1, vec_tipo_deptos_sur)
-    ps_escala = vec_ps_deptos_sur[id_escala]
-    ancho_escala = vec_ancho_deptos_sur[id_escala]
+    num_deptos_norte = length(deptos_ordenados_norte)
+    num_deptos_sur = length(deptos_ordenados_sur) - 1
 
-    # Package results
-    results = Dict(
-        "feasible" => true,
-        "status" => "LOCALLY_SOLVED",
-        "n_apts_norte" => num_deptos_norte,
-        "n_apts_sur" => num_deptos_sur,
-        "vec_sup_deptos_norte" => [apt[1] for apt in deptos_ordenados_norte],
-        "vec_sup_deptos_sur" => [apt[1] for apt in deptos_ordenados_sur if apt[2] != -1],
-        "height_norte" => round(alto_depto_norte, digits=2),
-        "height_sur" => round(alto_depto_sur, digits=2),
-        "floor_width" => W,
-        "floor_height" => H,
-        "ancho_pasillo" => ancho_pasillo,
-        "largo_pasillo" => largo_pasillo,
-        "ps_pasillo" => ps_pasillo,
-        "ps_escala" => ps_escala,
-        "ancho_escala" => round(ancho_escala, digits=2),
-        "alto_escala" => round(alto_depto_sur, digits=2),
-        "area_escala" => round(area_escala, digits=2),
-        "vec_polyshapes_all" => vcat(vec_ps_deptos_norte, vec_ps_deptos_sur),
-        "vec_terrazas_all" => vcat(vec_terrazas_norte, vec_terrazas_sur)
-    )
+    results = empaqueta_resultados(num_deptos_norte, num_deptos_sur, deptos_ordenados_norte, deptos_ordenados_sur, alto_depto_norte, alto_depto_sur, W, H, ancho_pasillo, largo_pasillo, ps_pasillo, vec_ps_deptos_norte, vec_ps_deptos_sur, vec_ancho_deptos_sur, vec_tipo_deptos_sur, area_escala, vec_terrazas_norte, vec_terrazas_sur)
 
     return results
 end
