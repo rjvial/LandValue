@@ -23,6 +23,7 @@ using LandValue, ArchGDAL, LazySets, DataFrames, LinearAlgebra, Proj, Combinator
 #
 # Shape Manipulation
 # - polyRotate: Rotate polygon by specified angle around a center point
+# - polyTranslate: Translate polygon by specified x and y offsets
 # - polyReverse: Reverse the order of polygon vertices (flip orientation)
 # - setPolyOrientation: Force polygon to have specific vertex orientation (CW/CCW)
 # - polyCopy: Create deep copy of polygon, line, or point shape
@@ -691,6 +692,15 @@ function polyRotate(ps::PolyShape, angulo::Real, cr)::PolyShape
     V_rot = mapreduce(permutedims, vcat, V_aux)
     ps_rot = PolyShape([V_rot], 1)
     return ps_rot
+end
+
+function polyTranslate(ps::PolyShape, dx::Real, dy::Real)::PolyShape
+    translation = [dx, dy]
+    V = ps.Vertices[1]
+    numVertices = size(V, 1)
+    V_translated = V .+ translation'
+    ps_translated = PolyShape([V_translated], 1)
+    return ps_translated
 end
 
 

@@ -49,15 +49,11 @@ function genera_deptos_franja(vec_orden_deptos::Vector{Tuple{Float64, Int}}, x_m
             total_width += ancho_depto
         end
 
-        if abs(total_width - ancho_disponible) < 0.01
+        if abs(total_width - ancho_disponible) / ancho_disponible < 0.005
             break
         end
 
-        if total_width > ancho_disponible
-            alto_franja_adjusted = alto_franja_adjusted * (total_width / ancho_disponible)
-        else
-            alto_franja_adjusted = alto_franja_adjusted * (total_width / ancho_disponible)
-        end
+        alto_franja_adjusted = alto_franja_adjusted * (total_width / ancho_disponible)
     end
 
     return vec_x_ini, vec_x_fin, vec_ancho_deptos, vec_alto_deptos, vec_tipo_deptos
@@ -128,8 +124,8 @@ function genera_terrazas_franja(vec_orden_deptos::Vector{Tuple{Float64, Int}}, v
                     end
                 end
 
-                y_depto_ini = vec_x_ini[i]
-                x_terraza_ini = y_depto_ini + (ancho_depto - ancho_terraza) / 2
+                x_depto_ini = vec_x_ini[i]
+                x_terraza_ini = x_depto_ini + (ancho_depto - ancho_terraza) / 2
 
                 if terrace_direction == :norte
                     y_terraza_ini = y_terrace_base[i]
@@ -306,7 +302,7 @@ end
 function calcula_geometria_pasillo(vec_x_fin_norte::Vector{Float64}, vec_x_fin_sur::Vector{Float64}, vec_x_ini_norte::Vector{Float64}, vec_x_ini_sur::Vector{Float64}, y_base::Float64, ancho_pasillo::Float64)
     # Calculate hallway geometry at boundary between north and south strips
     # Hallway spans from first apartment end to last apartment start in normalized coordinates
-    # Returns: x_ini_pasillo, x_fin_pasillo, largo_pasillo, y_pasillo, ps_pasillo
+    # Returns: x_ini_pasillo, x_fin_pasillo, largo_pasillo, ps_pasillo
 
     x_ini_pasillo = min(vec_x_fin_norte[1], vec_x_fin_sur[1])
     x_fin_pasillo = max(vec_x_ini_norte[end], vec_x_ini_sur[end])
@@ -327,6 +323,9 @@ function empaqueta_resultados(num_deptos_norte::Int, num_deptos_sur::Int, deptos
     ps_escala = vec_ps_deptos_sur[id_escala]
     ancho_escala = vec_ancho_deptos_sur[id_escala]
 
+    vec_ps_deptos_sur_sin_escala = [vec_ps_deptos_sur[i] for i in eachindex(vec_ps_deptos_sur) if i != id_escala]
+    vec_terrazas_sur_sin_escala = [vec_terrazas_sur[i] for i in eachindex(vec_terrazas_sur) if i != id_escala]
+
     results = Dict(
         "feasible" => true,
         "status" => "LOCALLY_SOLVED",
@@ -345,8 +344,8 @@ function empaqueta_resultados(num_deptos_norte::Int, num_deptos_sur::Int, deptos
         "ancho_escala" => round(ancho_escala, digits=2),
         "alto_escala" => round(alto_sur, digits=2),
         "area_escala" => round(area_escala, digits=2),
-        "vec_polyshapes_all" => vcat(vec_ps_deptos_norte, vec_ps_deptos_sur),
-        "vec_terrazas_all" => vcat(vec_terrazas_norte, vec_terrazas_sur)
+        "vec_polyshapes_all" => vcat(vec_ps_deptos_norte, vec_ps_deptos_sur_sin_escala),
+        "vec_terrazas_all" => vcat(vec_terrazas_norte, vec_terrazas_sur_sin_escala)
     )
 
     return results
@@ -419,11 +418,38 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
         flag_inscripcion_norte = verifica_inscripcion_terrazas(ps_planta_normalizado, vec_terrazas_norte_normalizado)
         flag_inscripcion_sur = verifica_inscripcion_terrazas(ps_planta_normalizado, vec_terrazas_sur_normalizado)
 
-        if !flag_inscripcion_norte && total_altura_sur_utilizada < H
-            println("Warning: Some north terraces exceed floor boundaries in normalized space")
-        end
-        if !flag_inscripcion_sur && total_altura_norte_utilizada < H
-            println("Warning: Some south terraces exceed floor boundaries in normalized space")
+        if !flag_inscripcion_norte && total_altura_sur_utilizada < H/2
+            y_max_planta = maximum(vec_y_planta)
+            terrazas_norte_con_area = [t for t in vec_terrazas_norte_normalizado if polyShape.polyArea(t) > 0.0]
+
+            if !isempty(terrazas_norte_con_area)
+                max_y_terrazas_norte = maximum([maximum(t.Vertices[1][:, 2]) for t in terrazas_norte_con_area])
+                delta_y = max_y_terrazas_norte - y_max_planta
+
+                vec_ps_deptos_norte_normalizado = [polyShape.polyTranslate(p, 0.0, -delta_y) for p in vec_ps_deptos_norte_normalizado]
+                vec_ps_deptos_sur_normalizado = [polyShape.polyTranslate(p, 0.0, -delta_y) for p in vec_ps_deptos_sur_normalizado]
+                vec_terrazas_norte_normalizado = [polyShape.polyTranslate(t, 0.0, -delta_y) for t in vec_terrazas_norte_normalizado]
+                vec_terrazas_sur_normalizado = [polyShape.polyTranslate(t, 0.0, -delta_y) for t in vec_terrazas_sur_normalizado]
+                ps_pasillo_normalizado = polyShape.polyTranslate(ps_pasillo_normalizado, 0.0, -delta_y)
+
+                println("Translated all elements south by $(round(delta_y, digits=2)) to fit north terraces")
+            end
+        elseif !flag_inscripcion_sur && total_altura_norte_utilizada < H/2
+            y_min_planta = minimum(vec_y_planta)
+            terrazas_sur_con_area = [t for t in vec_terrazas_sur_normalizado if polyShape.polyArea(t) > 0.0]
+
+            if !isempty(terrazas_sur_con_area)
+                min_y_terrazas_sur = minimum([minimum(t.Vertices[1][:, 2]) for t in terrazas_sur_con_area])
+                delta_y = y_min_planta - min_y_terrazas_sur
+
+                vec_ps_deptos_norte_normalizado = [polyShape.polyTranslate(p, 0.0, delta_y) for p in vec_ps_deptos_norte_normalizado]
+                vec_ps_deptos_sur_normalizado = [polyShape.polyTranslate(p, 0.0, delta_y) for p in vec_ps_deptos_sur_normalizado]
+                vec_terrazas_norte_normalizado = [polyShape.polyTranslate(t, 0.0, delta_y) for t in vec_terrazas_norte_normalizado]
+                vec_terrazas_sur_normalizado = [polyShape.polyTranslate(t, 0.0, delta_y) for t in vec_terrazas_sur_normalizado]
+                ps_pasillo_normalizado = polyShape.polyTranslate(ps_pasillo_normalizado, 0.0, delta_y)
+
+                println("Translated all elements north by $(round(delta_y, digits=2)) to fit south terraces")
+            end
         end
     end
 

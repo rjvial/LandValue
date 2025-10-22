@@ -5,11 +5,11 @@ println("APARTMENT FLOOR OPTIMIZATION - 5 EXAMPLES")
 println("=" ^ 60)
 
 examples = [
-    (width=30.0, height=20.0, rotation=π/6, vec_sup_deptos=[50.0, 75.0, 100.0], vec_num_deptos=[2, 2, 1], ancho_pasillo=2.0, vec_sup_terraza=[5.0, 7.5, 10.0], vec_min_ancho_deptos=[4.0, 4.5, 5.0], min_ancho_escala=4.0, area_escala=20.0),
-    (width=25.0, height=25.0, rotation=π/4, vec_sup_deptos=[60.0, 80.0], vec_num_deptos=[2, 2], ancho_pasillo=2.0, vec_sup_terraza=[6.0, 8.0], vec_min_ancho_deptos=[3.8, 4.2], min_ancho_escala=4.0, area_escala=20.0),
-    (width=35.0, height=18.0, rotation=0.0, vec_sup_deptos=[45.0, 65.0, 85.0, 110.0], vec_num_deptos=[2, 2, 1, 1], ancho_pasillo=2.0, vec_sup_terraza=[4.5, 6.5, 8.5, 11.0], vec_min_ancho_deptos=[3.2, 3.8, 4.0, 4.5], min_ancho_escala=4.0, area_escala=20.0),
-    (width=28.0, height=22.0, rotation=-π/8, vec_sup_deptos=[55.0, 90.0], vec_num_deptos=[3, 2], ancho_pasillo=2.0, vec_sup_terraza=[5.5, 9.0], vec_min_ancho_deptos=[3.5, 4.5], min_ancho_escala=4.0, area_escala=20.0),
-    (width=32.0, height=16.0, rotation=π/3, vec_sup_deptos=[40.0, 70.0, 100.0], vec_num_deptos=[2, 2, 1], ancho_pasillo=1.8, vec_sup_terraza=[4.0, 7.0, 10.0], vec_min_ancho_deptos=[3.0, 4.0, 4.8], min_ancho_escala=4.0, area_escala=20.0)
+    (width=30.0, height=20.0, rotation=π/6, vec_sup_deptos=[50.0, 75.0, 100.0], vec_num_deptos=[2, 2, 1], ancho_pasillo=1.5, vec_sup_terraza=[5.0, 7.5, 10.0], vec_min_ancho_deptos=[4.0, 4.5, 5.0], min_ancho_escala=4.0, area_escala=20.0),
+    (width=25.0, height=25.0, rotation=π/4, vec_sup_deptos=[60.0, 80.0], vec_num_deptos=[2, 2], ancho_pasillo=1.5, vec_sup_terraza=[6.0, 8.0], vec_min_ancho_deptos=[3.8, 4.2], min_ancho_escala=4.0, area_escala=20.0),
+    (width=35.0, height=18.0, rotation=0.0, vec_sup_deptos=[45.0, 65.0, 85.0, 110.0], vec_num_deptos=[2, 2, 1, 1], ancho_pasillo=1.5, vec_sup_terraza=[4.5, 6.5, 8.5, 11.0], vec_min_ancho_deptos=[3.2, 3.8, 4.0, 4.5], min_ancho_escala=4.0, area_escala=20.0),
+    (width=28.0, height=22.0, rotation=-π/8, vec_sup_deptos=[55.0, 90.0], vec_num_deptos=[3, 2], ancho_pasillo=1.5, vec_sup_terraza=[5.5, 9.0], vec_min_ancho_deptos=[3.5, 4.5], min_ancho_escala=4.0, area_escala=20.0),
+    (width=32.0, height=16.0, rotation=π/3, vec_sup_deptos=[40.0, 70.0, 100.0], vec_num_deptos=[2, 2, 1], ancho_pasillo=1.5, vec_sup_terraza=[4.0, 7.0, 10.0], vec_min_ancho_deptos=[3.0, 4.0, 4.8], min_ancho_escala=4.0, area_escala=20.0)
 ]
 
 for (idx, example) in enumerate(examples)
@@ -127,15 +127,15 @@ for (idx, example) in enumerate(examples)
 
 
         fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
-        polyPlot.plotPolyshape2D(results["ps_pasillo"], "gray", 0.5, fig=fig, ax=ax, ax_mat=ax_mat)
-        polyPlot.plotPolyshape2D(results["ps_escala"], "orange", 0.5, fig=fig, ax=ax, ax_mat=ax_mat)
+        polyPlot.plotPolyshape2D(results["ps_pasillo"], "#505050", 0.8, fig=fig, ax=ax, ax_mat=ax_mat)
+        polyPlot.plotPolyshape2D(results["ps_escala"], "#505050", 0.8, fig=fig, ax=ax, ax_mat=ax_mat)
 
         for apt_poly in results["vec_polyshapes_all"]
             polyPlot.plotPolyshape2D(apt_poly, "red", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
         end
 
         for terrace in results["vec_terrazas_all"]
-            if terrace.NumRegions > 0
+            if polyShape.polyArea(terrace) > 0.0
                 polyPlot.plotPolyshape2D(terrace, "blue", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
             end
         end
