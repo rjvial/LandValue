@@ -1,4 +1,4 @@
-function genera_deptos_franja(apt_order::Vector{Tuple{Float64, Int}}, x_min_planta::Float64, y_base::Float64, alto_franja::Float64, direction::Symbol, vec_min_ancho_deptos::Vector{Float64}, ancho_disponible::Float64)
+function genera_deptos_franja(apt_order::Vector{Tuple{Float64, Int}}, x_min_planta::Float64, y_base::Float64, alto_franja::Float64, direction::Symbol, vec_min_ancho_deptos::Vector{Float64}, ancho_disponible::Float64, min_ancho_escala::Float64)
     vec_x_ini = Float64[]
     vec_x_fin = Float64[]
     vec_ancho_deptos = Float64[]
@@ -21,7 +21,12 @@ function genera_deptos_franja(apt_order::Vector{Tuple{Float64, Int}}, x_min_plan
         for (sup_depto, tipo_depto) in apt_order
             if tipo_depto == -1
                 ancho_depto = sup_depto / alto_franja_adjusted
-                alto_depto = alto_franja_adjusted
+                if ancho_depto < min_ancho_escala
+                    ancho_depto = min_ancho_escala
+                    alto_depto = sup_depto / ancho_depto
+                else
+                    alto_depto = alto_franja_adjusted
+                end
             else
                 ancho_depto = sup_depto / alto_franja_adjusted
                 if ancho_depto < vec_min_ancho_deptos[tipo_depto]
@@ -132,7 +137,7 @@ function genera_terrazas_franja(apt_order::Vector{Tuple{Float64, Int}}, vec_sup_
     return vec_terrazas
 end
 
-function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int}; ancho_pasillo::Float64 = 2.0, vec_sup_terraza::Vector{Float64} = Float64[], area_escala::Float64 = 25.0, vec_min_ancho_deptos::Vector{Float64} = Float64[])
+function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int}; ancho_pasillo::Float64 = 2.0, vec_sup_terraza::Vector{Float64} = Float64[], area_escala::Float64 = 25.0, vec_min_ancho_deptos::Vector{Float64} = Float64[], min_ancho_escala::Float64 = 0.0)
 
     # Optimize floor plan layout by distributing apartments in two horizontal strips
     # Algorithm:
@@ -153,6 +158,7 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
     # - vec_sup_terraza: Terrace area for each apartment type (optional)
     # - area_escala: Staircase area (default 25.0m²)
     # - vec_min_ancho_deptos: Minimum width for each apartment type (optional)
+    # - min_ancho_escala: Minimum width for staircase (default 0.0m)
     #
     # Returns: Dictionary with apartment polygons, core, terraces, and metrics
 
@@ -302,8 +308,8 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
     # Create apartment geometries
     # Apartments are created in normalized coordinate system, then rotated back
     y_base = y_min_planta + alto_sur
-    vec_x_ini_norte, vec_x_fin_norte, vec_ancho_deptos_norte, vec_alto_deptos_norte, _ = genera_deptos_franja(deptos_ordenados_norte, x_min_planta, y_base, alto_norte, :norte, vec_min_ancho_deptos, W)
-    vec_x_ini_sur, vec_x_fin_sur, vec_ancho_deptos_sur, vec_alto_deptos_sur, vec_tipo_deptos_sur = genera_deptos_franja(deptos_ordenados_sur, x_min_planta, y_base, alto_sur, :sur, vec_min_ancho_deptos, W)
+    vec_x_ini_norte, vec_x_fin_norte, vec_ancho_deptos_norte, vec_alto_deptos_norte, _ = genera_deptos_franja(deptos_ordenados_norte, x_min_planta, y_base, alto_norte, :norte, vec_min_ancho_deptos, W, min_ancho_escala)
+    vec_x_ini_sur, vec_x_fin_sur, vec_ancho_deptos_sur, vec_alto_deptos_sur, vec_tipo_deptos_sur = genera_deptos_franja(deptos_ordenados_sur, x_min_planta, y_base, alto_sur, :sur, vec_min_ancho_deptos, W, min_ancho_escala)
 
     # Define core (circulation hallway) position
     # Core runs horizontally between the two strips at their boundary
