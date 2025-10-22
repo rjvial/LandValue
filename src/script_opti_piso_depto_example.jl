@@ -88,31 +88,30 @@ for (idx, example) in enumerate(examples)
         println("\nApartment PolyShapes:")
         println("  Total apartment polygons: $(length(results["vec_polyshapes_all"]))")
 
-        if results["has_terrazas"]
-            println("  Total terrace polygons: $(length(results["vec_terrazas_all"]))")
+        println("  Total terrace polygons: $(length(results["vec_terrazas_all"]))")
 
-            println("\nTerrace Dimensions by Apartment Type:")
-            for (i, terrace_area) in enumerate(vec_sup_terraza)
-                if terrace_area > 0.0
-                    apt_area = vec_sup_deptos[i]
-                    franja_height = i <= length(results["vec_sup_deptos_norte"]) ? results["height_norte"] : results["height_sur"]
-                    apt_width = apt_area / franja_height
+        println("\nTerrace Dimensions by Apartment Type:")
+        for (i, terrace_area) in enumerate(vec_sup_terraza)
+            if terrace_area > 0.0
+                apt_area = vec_sup_deptos[i]
+                franja_height = i <= length(results["vec_sup_deptos_norte"]) ? results["height_norte"] : results["height_sur"]
+                apt_width = apt_area / franja_height
 
-                    terrace_height_default = 1.75
-                    terrace_width_calc = terrace_area / terrace_height_default
+                terrace_height_default = 1.75
+                terrace_width_calc = terrace_area / terrace_height_default
 
-                    if terrace_width_calc > apt_width
-                        terrace_width_final = apt_width
-                        terrace_height_final = terrace_area / terrace_width_final
-                    else
-                        terrace_width_final = terrace_width_calc
-                        terrace_height_final = terrace_height_default
-                    end
-
-                    println("  Type $(i): Area=$(apt_area)m², Terrace=$(terrace_area)m² → $(round(terrace_width_final, digits=2))m × $(round(terrace_height_final, digits=2))m")
+                if terrace_width_calc > apt_width
+                    terrace_width_final = apt_width
+                    terrace_height_final = terrace_area / terrace_width_final
+                else
+                    terrace_width_final = terrace_width_calc
+                    terrace_height_final = terrace_height_default
                 end
+
+                println("  Type $(i): Area=$(apt_area)m², Terrace=$(terrace_area)m² → $(round(terrace_width_final, digits=2))m × $(round(terrace_height_final, digits=2))m")
             end
         end
+
 
         fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
         polyPlot.plotPolyshape2D(results["ps_pasillo"], "gray", 0.5, fig=fig, ax=ax, ax_mat=ax_mat)
@@ -122,11 +121,9 @@ for (idx, example) in enumerate(examples)
             polyPlot.plotPolyshape2D(apt_poly, "red", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
         end
 
-        if results["has_terrazas"]
-            for terrace in results["vec_terrazas_all"]
-                if terrace.NumRegions > 0
-                    polyPlot.plotPolyshape2D(terrace, "blue", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
-                end
+        for terrace in results["vec_terrazas_all"]
+            if terrace.NumRegions > 0
+                polyPlot.plotPolyshape2D(terrace, "blue", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
             end
         end
     else

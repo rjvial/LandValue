@@ -1,4 +1,4 @@
-function genera_deptos_franja(apt_order::Vector{Tuple{Float64, Int}}, x_min_planta::Float64, y_base::Float64, alto_franja::Float64)
+function genera_deptos_franja(apt_order::Vector{Tuple{Float64, Int}}, x_min_planta::Float64, y_base::Float64, alto_franja::Float64, direction::Symbol)
     vec_x_ini = Float64[]
     vec_x_fin = Float64[]
     vec_ancho_deptos = Float64[]
@@ -47,7 +47,7 @@ function extiende_deptos_interseccion_pasillo(vec_x_ini::Vector{Float64}, vec_x_
         if extend_direction == :norte
             y_ini_depto = y_base
         else
-            y_ini_depto = y_base - extension_height
+            y_ini_depto = y_base - alto_total_depto
         end
 
         extended_local_poly = polyShape.polyBox(vec_x_ini[i], y_ini_depto, ancho_depto, alto_total_depto, 0.0)
@@ -266,20 +266,16 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
 
     # Create apartment geometries
     # Apartments are created in normalized coordinate system, then rotated back
-    y_norte_base = y_min_planta + alto_sur
-    vec_x_ini_norte, vec_x_fin_norte, vec_ancho_deptos_norte, _ = genera_deptos_franja(deptos_ordenados_norte, x_min_planta, y_norte_base, alto_norte)
-    vec_x_ini_sur, vec_x_fin_sur, vec_ancho_deptos_sur, vec_tipo_deptos_sur = genera_deptos_franja(deptos_ordenados_sur, x_min_planta, y_min_planta, alto_sur)
+    y_base = y_min_planta + alto_sur
+    vec_x_ini_norte, vec_x_fin_norte, vec_ancho_deptos_norte, _ = genera_deptos_franja(deptos_ordenados_norte, x_min_planta, y_base, alto_norte, :norte)
+    vec_x_ini_sur, vec_x_fin_sur, vec_ancho_deptos_sur, vec_tipo_deptos_sur = genera_deptos_franja(deptos_ordenados_sur, x_min_planta, y_base, alto_sur, :sur)
 
     # Define core (circulation hallway) position
     # Core runs horizontally between the two strips at their boundary
     # Starts at min of first apartment east walls, ends at max of last apartment west walls
-    x_east_wall_first_norte = vec_x_fin_norte[1]
-    x_east_wall_first_sur = vec_x_fin_sur[1]
-    x_ini_pasillo = min(x_east_wall_first_norte, x_east_wall_first_sur)
 
-    x_west_wall_last_norte = vec_x_ini_norte[end]
-    x_west_wall_last_sur = vec_x_ini_sur[end]
-    x_fin_pasillo = max(x_west_wall_last_norte, x_west_wall_last_sur)
+    x_ini_pasillo = min(vec_x_fin_norte[1], vec_x_fin_sur[1])
+    x_fin_pasillo = max(vec_x_ini_norte[end], vec_x_ini_sur[end])
 
     largo_pasillo = x_fin_pasillo - x_ini_pasillo
     y_pasillo = y_min_planta + alto_sur - ancho_pasillo / 2
@@ -288,19 +284,18 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
     ps_pasillo = polyShape.polyRotate(ps_pasillo_aux, -angulo_rotacion, cr)
 
     # Extend apartments into core area and subtract core overlap
-    vec_ps_deptos_norte, vec_extension_alto_deptos_norte = extiende_deptos_interseccion_pasillo(vec_x_ini_norte, vec_x_fin_norte, vec_ancho_deptos_norte, y_norte_base, alto_norte, x_ini_pasillo, x_fin_pasillo, y_pasillo, ancho_pasillo, angulo_rotacion, cr, :norte)
-
-    vec_ps_deptos_sur, vec_extension_alto_deptos_sur = extiende_deptos_interseccion_pasillo(vec_x_ini_sur, vec_x_fin_sur, vec_ancho_deptos_sur, y_min_planta, alto_sur, x_ini_pasillo, x_fin_pasillo, y_pasillo, ancho_pasillo, angulo_rotacion, cr, :sur)
+    vec_ps_deptos_norte, vec_extension_alto_deptos_norte = extiende_deptos_interseccion_pasillo(vec_x_ini_norte, vec_x_fin_norte, vec_ancho_deptos_norte, y_base, alto_norte, x_ini_pasillo, x_fin_pasillo, y_pasillo, ancho_pasillo, angulo_rotacion, cr, :norte)
+    vec_ps_deptos_sur, vec_extension_alto_deptos_sur = extiende_deptos_interseccion_pasillo(vec_x_ini_sur, vec_x_fin_sur, vec_ancho_deptos_sur, y_base, alto_sur, x_ini_pasillo, x_fin_pasillo, y_pasillo, ancho_pasillo, angulo_rotacion, cr, :sur)
 
     # Create terrace geometries (if specified)
     vec_terrazas_norte = PolyShape[]
     vec_terrazas_sur = PolyShape[]
 
     if !isempty(vec_sup_terraza)
-        y_terrace_base_norte = [y_norte_base + alto_norte + vec_extension_alto_deptos_norte[i] for i in eachindex(deptos_ordenados_norte)]
+        y_terrace_base_norte = [y_base + alto_norte + vec_extension_alto_deptos_norte[i] for i in eachindex(deptos_ordenados_norte)]
         vec_terrazas_norte = genera_terrazas_franja(deptos_ordenados_norte, vec_sup_terraza, vec_ancho_deptos_norte, vec_x_ini_norte, y_terrace_base_norte, angulo_rotacion, cr, :norte)
 
-        y_terrace_base_sur = [y_min_planta - vec_extension_alto_deptos_sur[i] for i in eachindex(deptos_ordenados_sur)]
+        y_terrace_base_sur = [y_base - alto_sur - vec_extension_alto_deptos_sur[i] for i in eachindex(deptos_ordenados_sur)]
         vec_terrazas_sur = genera_terrazas_franja(deptos_ordenados_sur, vec_sup_terraza, vec_ancho_deptos_sur, vec_x_ini_sur, y_terrace_base_sur, angulo_rotacion, cr, :sur)
     end
 
