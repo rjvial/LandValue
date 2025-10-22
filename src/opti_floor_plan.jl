@@ -63,16 +63,13 @@ function genera_deptos_franja(vec_orden_deptos::Vector{Tuple{Float64, Int}}, x_m
     return vec_x_ini, vec_x_fin, vec_ancho_deptos, vec_alto_deptos, vec_tipo_deptos
 end
 
-function extiende_deptos_interseccion_pasillo(vec_x_ini::Vector{Float64}, vec_x_fin::Vector{Float64}, vec_ancho_deptos::Vector{Float64}, vec_alto_deptos::Vector{Float64}, y_base::Float64, x_ini_pasillo::Float64, x_fin_pasillo::Float64, y_pasillo::Float64, ancho_pasillo::Float64, angulo_rotacion::Float64, cr::Vector{Float64}, extend_direction::Symbol)
+function extiende_deptos_interseccion_pasillo(vec_x_ini::Vector{Float64}, vec_x_fin::Vector{Float64}, vec_ancho_deptos::Vector{Float64}, vec_alto_deptos::Vector{Float64}, y_base::Float64, x_ini_pasillo::Float64, x_fin_pasillo::Float64, ancho_pasillo::Float64, ps_pasillo::PolyShape, extend_direction::Symbol)
     # Extend apartments into hallway area to maintain required area, then subtract hallway overlap
     # Calculates extension height based on hallway intersection, positions relative to y_base
+    # Works in normalized (unrotated) coordinate system
     # Returns: (vec_ps_deptos, vec_extension_heights)
     vec_extension_alto_deptos = Float64[]
     ps_deptos_extendidos = PolyShape[]
-
-    largo_pasillo = x_fin_pasillo - x_ini_pasillo
-    ps_pasillo_aux = polyShape.polyBox(x_ini_pasillo, y_pasillo, largo_pasillo, ancho_pasillo, 0.0)
-    ps_pasillo = polyShape.polyRotate(ps_pasillo_aux, -angulo_rotacion, cr)
 
     for i in eachindex(vec_x_ini)
         x_overlap_start = max(vec_x_ini[i], x_ini_pasillo)
@@ -98,16 +95,14 @@ function extiende_deptos_interseccion_pasillo(vec_x_ini::Vector{Float64}, vec_x_
         end
 
         extended_local_poly = polyShape.polyBox(vec_x_ini[i], y_ini_depto, ancho_depto, alto_total_depto, 0.0)
-        extended_poly_rotated = polyShape.polyRotate(extended_local_poly, -angulo_rotacion, cr)
-
-        extended_poly = polyShape.polyDifference(extended_poly_rotated, ps_pasillo)
-        push!(ps_deptos_extendidos, extended_poly)
+        extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
+        push!(ps_deptos_extendidos, extended_poly_final)
     end
 
     return ps_deptos_extendidos, vec_extension_alto_deptos
 end
 
-function genera_terrazas_franja(vec_orden_deptos::Vector{Tuple{Float64, Int}}, vec_sup_terraza::Vector{Float64}, vec_ancho_deptos::Vector{Float64}, vec_x_ini::Vector{Float64}, y_terrace_base::Vector{Float64}, angulo_rotacion::Float64, cr::Vector{Float64}, terrace_direction::Symbol, max_alto_terraza::Float64)
+function genera_terrazas_franja(vec_orden_deptos::Vector{Tuple{Float64, Int}}, vec_sup_terraza::Vector{Float64}, vec_ancho_deptos::Vector{Float64}, vec_x_ini::Vector{Float64}, y_terrace_base::Vector{Float64}, terrace_direction::Symbol, max_alto_terraza::Float64)
     # Generate terrace geometries for apartments, constrained by max depth and apartment width
     # Adjusts dimensions to maintain required area, centers terraces on apartments
     # Returns: Vector of terrace PolyShapes
@@ -143,8 +138,7 @@ function genera_terrazas_franja(vec_orden_deptos::Vector{Tuple{Float64, Int}}, v
                 end
 
                 terrace_poly = polyShape.polyBox(x_terraza_ini, y_terraza_ini, ancho_terraza, alto_terraza, 0.0)
-                terrace_rotated = polyShape.polyRotate(terrace_poly, -angulo_rotacion, cr)
-                push!(vec_terrazas, terrace_rotated)
+                push!(vec_terrazas, terrace_poly)
             else
                 push!(vec_terrazas, PolyShape([zeros(0, 2)], 0))
             end
@@ -154,10 +148,28 @@ function genera_terrazas_franja(vec_orden_deptos::Vector{Tuple{Float64, Int}}, v
     return vec_terrazas
 end
 
+function rota_polyshapes(vec_polyshapes::Vector{PolyShape}, angulo_rotacion::Float64, cr::Vector{Float64})
+    # Rotate PolyShape geometries to original coordinates
+    # Returns: Vector of rotated PolyShapes
+
+    vec_polyshapes_rotados = PolyShape[]
+
+    for polyshape in vec_polyshapes
+        if polyShape.polyArea(polyshape) > 0.0
+            polyshape_rotado = polyShape.polyRotate(polyshape, -angulo_rotacion, cr)
+            push!(vec_polyshapes_rotados, polyshape_rotado)
+        else
+            push!(vec_polyshapes_rotados, polyshape)
+        end
+    end
+
+    return vec_polyshapes_rotados
+end
+
 function normaliza_planta_rectangular(ps_planta::PolyShape)
     # Normalize floor polygon to axis-aligned rectangle with width > height
     # Rotates floor so longest dimension is horizontal (W > H)
-    # Returns: W, H, vec_x_planta, vec_y_planta, angulo_rotacion, cr
+    # Returns: W, H, vec_x_planta, vec_y_planta, angulo_rotacion, cr, ps_planta_normalizado
 
     V_planta = ps_planta.Vertices[1]
     x_cr = sum(V_planta[1:end-1, 1]) / (size(V_planta, 1) - 1)
@@ -167,24 +179,24 @@ function normaliza_planta_rectangular(ps_planta::PolyShape)
     edge1 = V_planta[2, :] - V_planta[1, :]
     angulo_rotacion = -atan(edge1[2], edge1[1])
 
-    ps_planta_rotada = polyShape.polyRotate(ps_planta, angulo_rotacion, cr)
-    V_planta_rotada = ps_planta_rotada.Vertices[1]
+    ps_planta_normalizado = polyShape.polyRotate(ps_planta, angulo_rotacion, cr)
+    V_planta_normalizado = ps_planta_normalizado.Vertices[1]
 
-    vec_x_planta = V_planta_rotada[:, 1]
-    vec_y_planta = V_planta_rotada[:, 2]
+    vec_x_planta = V_planta_normalizado[:, 1]
+    vec_y_planta = V_planta_normalizado[:, 2]
     W = maximum(vec_x_planta) - minimum(vec_x_planta)
     H = maximum(vec_y_planta) - minimum(vec_y_planta)
 
     if H > W
         angulo_rotacion += π/2
-        ps_planta_rotada = polyShape.polyRotate(ps_planta, angulo_rotacion, cr)
-        V_planta_rotada = ps_planta_rotada.Vertices[1]
-        vec_x_planta = V_planta_rotada[:, 1]
-        vec_y_planta = V_planta_rotada[:, 2]
+        ps_planta_normalizado = polyShape.polyRotate(ps_planta, angulo_rotacion, cr)
+        V_planta_normalizado = ps_planta_normalizado.Vertices[1]
+        vec_x_planta = V_planta_normalizado[:, 1]
+        vec_y_planta = V_planta_normalizado[:, 2]
         W, H = H, W
     end
 
-    return W, H, vec_x_planta, vec_y_planta, angulo_rotacion, cr
+    return W, H, vec_x_planta, vec_y_planta, angulo_rotacion, cr, ps_planta_normalizado
 end
 
 function distribuye_deptos_entre_franjas(vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int}, area_escala::Float64)
@@ -291,9 +303,9 @@ function ordena_deptos_en_franja(deptos_franja_norte::Vector{Tuple{Float64, Int,
     return deptos_ordenados_norte, deptos_ordenados_sur
 end
 
-function calcula_geometria_pasillo(vec_x_fin_norte::Vector{Float64}, vec_x_fin_sur::Vector{Float64}, vec_x_ini_norte::Vector{Float64}, vec_x_ini_sur::Vector{Float64}, y_base::Float64, ancho_pasillo::Float64, angulo_rotacion::Float64, cr::Vector{Float64})
+function calcula_geometria_pasillo(vec_x_fin_norte::Vector{Float64}, vec_x_fin_sur::Vector{Float64}, vec_x_ini_norte::Vector{Float64}, vec_x_ini_sur::Vector{Float64}, y_base::Float64, ancho_pasillo::Float64)
     # Calculate hallway geometry at boundary between north and south strips
-    # Hallway spans from first apartment end to last apartment start, rotated to original coordinates
+    # Hallway spans from first apartment end to last apartment start in normalized coordinates
     # Returns: x_ini_pasillo, x_fin_pasillo, largo_pasillo, y_pasillo, ps_pasillo
 
     x_ini_pasillo = min(vec_x_fin_norte[1], vec_x_fin_sur[1])
@@ -301,10 +313,9 @@ function calcula_geometria_pasillo(vec_x_fin_norte::Vector{Float64}, vec_x_fin_s
     largo_pasillo = x_fin_pasillo - x_ini_pasillo
     y_pasillo = y_base - ancho_pasillo / 2
 
-    ps_pasillo_aux = polyShape.polyBox(x_ini_pasillo, y_pasillo, largo_pasillo, ancho_pasillo, 0.0)
-    ps_pasillo = polyShape.polyRotate(ps_pasillo_aux, -angulo_rotacion, cr)
+    ps_pasillo = polyShape.polyBox(x_ini_pasillo, y_pasillo, largo_pasillo, ancho_pasillo, 0.0)
 
-    return x_ini_pasillo, x_fin_pasillo, largo_pasillo, y_pasillo, ps_pasillo
+    return x_ini_pasillo, x_fin_pasillo, largo_pasillo, ps_pasillo
 end
 
 function empaqueta_resultados(num_deptos_norte::Int, num_deptos_sur::Int, deptos_ordenados_norte::Vector{Tuple{Float64, Int}}, deptos_ordenados_sur::Vector{Tuple{Float64, Int}}, alto_norte::Float64, alto_sur::Float64, W::Float64, H::Float64, ancho_pasillo::Float64, largo_pasillo::Float64, ps_pasillo::PolyShape, vec_ps_deptos_norte::Vector{PolyShape}, vec_ps_deptos_sur::Vector{PolyShape}, vec_ancho_deptos_sur::Vector{Float64}, vec_tipo_deptos_sur::Vector{Int}, area_escala::Float64, vec_terrazas_norte::Vector{PolyShape}, vec_terrazas_sur::Vector{PolyShape})
@@ -341,6 +352,23 @@ function empaqueta_resultados(num_deptos_norte::Int, num_deptos_sur::Int, deptos
     return results
 end
 
+function verifica_inscripcion_terrazas(ps_planta::PolyShape, vec_terrazas::Vector{PolyShape})
+    # Verify that all terrace geometries are inscribed within the floor polygon
+    # Returns: true if all terraces fit within floor, false otherwise
+
+    for terraza in vec_terrazas
+        inters = polyShape.polyIntersection(ps_planta, terraza)
+        area_inters = polyShape.polyArea(inters)
+        area_terraza = polyShape.polyArea(terraza)
+        if abs(area_inters - area_terraza) > .1
+            return false
+        end
+    end
+
+    return true
+
+end
+
 function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int}; ancho_pasillo::Float64 = 2.0, vec_sup_terraza::Vector{Float64} = Float64[], area_escala::Float64 = 25.0, vec_min_ancho_deptos::Vector{Float64} = Float64[], min_ancho_escala::Float64 = 0.0)
     # Optimize floor plan layout by distributing apartments in two horizontal strips
     # Normalizes floor, balances apartments between strips, generates geometries with minimum width constraints
@@ -350,7 +378,7 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
         vec_min_ancho_deptos = zeros(Float64, length(vec_sup_deptos))
     end
 
-    W, H, vec_x_planta, vec_y_planta, angulo_rotacion, cr = normaliza_planta_rectangular(ps_planta)
+    W, H, vec_x_planta, vec_y_planta, angulo_rotacion, cr, ps_planta_normalizado = normaliza_planta_rectangular(ps_planta)
 
     deptos_total = sum(vec_num_deptos)
     deptos_franja_norte, deptos_franja_sur, area_norte, area_sur = distribuye_deptos_entre_franjas(vec_sup_deptos, vec_num_deptos, area_escala)
@@ -361,7 +389,9 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
     x_min_planta = minimum(vec_x_planta)
     y_min_planta = minimum(vec_y_planta)
 
-    total_altura_utilizada = alto_terraza_max + alto_depto_sur + ancho_pasillo + alto_depto_norte + alto_terraza_max
+    total_altura_norte_utilizada = alto_terraza_max + alto_depto_norte + ancho_pasillo / 2
+    total_altura_sur_utilizada = alto_terraza_max + alto_depto_sur + ancho_pasillo / 2
+    total_altura_utilizada = total_altura_norte_utilizada + total_altura_sur_utilizada
     holgura_alto = H - total_altura_utilizada
     y_min_planta += alto_terraza_max + holgura_alto/2
 
@@ -371,26 +401,45 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
     vec_x_ini_norte, vec_x_fin_norte, vec_ancho_deptos_norte, vec_alto_deptos_norte, _ = genera_deptos_franja(deptos_ordenados_norte, x_min_planta, y_base, alto_depto_norte, :norte, vec_min_ancho_deptos, W, min_ancho_escala)
     vec_x_ini_sur, vec_x_fin_sur, vec_ancho_deptos_sur, vec_alto_deptos_sur, vec_tipo_deptos_sur = genera_deptos_franja(deptos_ordenados_sur, x_min_planta, y_base, alto_depto_sur, :sur, vec_min_ancho_deptos, W, min_ancho_escala)
 
-    x_ini_pasillo, x_fin_pasillo, largo_pasillo, y_pasillo, ps_pasillo = calcula_geometria_pasillo(vec_x_fin_norte, vec_x_fin_sur, vec_x_ini_norte, vec_x_ini_sur, y_base, ancho_pasillo, angulo_rotacion, cr)
+    x_ini_pasillo, x_fin_pasillo, largo_pasillo, ps_pasillo_normalizado = calcula_geometria_pasillo(vec_x_fin_norte, vec_x_fin_sur, vec_x_ini_norte, vec_x_ini_sur, y_base, ancho_pasillo)
 
-    vec_ps_deptos_norte, vec_extension_alto_deptos_norte = extiende_deptos_interseccion_pasillo(vec_x_ini_norte, vec_x_fin_norte, vec_ancho_deptos_norte, vec_alto_deptos_norte, y_base, x_ini_pasillo, x_fin_pasillo, y_pasillo, ancho_pasillo, angulo_rotacion, cr, :norte)
-    vec_ps_deptos_sur, vec_extension_alto_deptos_sur = extiende_deptos_interseccion_pasillo(vec_x_ini_sur, vec_x_fin_sur, vec_ancho_deptos_sur, vec_alto_deptos_sur, y_base, x_ini_pasillo, x_fin_pasillo, y_pasillo, ancho_pasillo, angulo_rotacion, cr, :sur)
+    vec_ps_deptos_norte_normalizado, vec_extension_alto_deptos_norte = extiende_deptos_interseccion_pasillo(vec_x_ini_norte, vec_x_fin_norte, vec_ancho_deptos_norte, vec_alto_deptos_norte, y_base, x_ini_pasillo, x_fin_pasillo, ancho_pasillo, ps_pasillo_normalizado, :norte)
+    vec_ps_deptos_sur_normalizado, vec_extension_alto_deptos_sur = extiende_deptos_interseccion_pasillo(vec_x_ini_sur, vec_x_fin_sur, vec_ancho_deptos_sur, vec_alto_deptos_sur, y_base, x_ini_pasillo, x_fin_pasillo, ancho_pasillo, ps_pasillo_normalizado, :sur)
 
-    vec_terrazas_norte = PolyShape[]
-    vec_terrazas_sur = PolyShape[]
+    vec_terrazas_norte_normalizado = PolyShape[]
+    vec_terrazas_sur_normalizado = PolyShape[]
 
     if !isempty(vec_sup_terraza)
         y_terrace_base_norte = [y_base + vec_alto_deptos_norte[i] + vec_extension_alto_deptos_norte[i] for i in eachindex(deptos_ordenados_norte)]
-        vec_terrazas_norte = genera_terrazas_franja(deptos_ordenados_norte, vec_sup_terraza, vec_ancho_deptos_norte, vec_x_ini_norte, y_terrace_base_norte, angulo_rotacion, cr, :norte, alto_terraza_max)
+        vec_terrazas_norte_normalizado = genera_terrazas_franja(deptos_ordenados_norte, vec_sup_terraza, vec_ancho_deptos_norte, vec_x_ini_norte, y_terrace_base_norte, :norte, alto_terraza_max)
 
         y_terrace_base_sur = [y_base - vec_alto_deptos_sur[i] - vec_extension_alto_deptos_sur[i] for i in eachindex(deptos_ordenados_sur)]
-        vec_terrazas_sur = genera_terrazas_franja(deptos_ordenados_sur, vec_sup_terraza, vec_ancho_deptos_sur, vec_x_ini_sur, y_terrace_base_sur, angulo_rotacion, cr, :sur, alto_terraza_max)
+        vec_terrazas_sur_normalizado = genera_terrazas_franja(deptos_ordenados_sur, vec_sup_terraza, vec_ancho_deptos_sur, vec_x_ini_sur, y_terrace_base_sur, :sur, alto_terraza_max)
+
+        flag_inscripcion_norte = verifica_inscripcion_terrazas(ps_planta_normalizado, vec_terrazas_norte_normalizado)
+        flag_inscripcion_sur = verifica_inscripcion_terrazas(ps_planta_normalizado, vec_terrazas_sur_normalizado)
+
+        if !flag_inscripcion_norte && total_altura_sur_utilizada < H
+            println("Warning: Some north terraces exceed floor boundaries in normalized space")
+        end
+        if !flag_inscripcion_sur && total_altura_norte_utilizada < H
+            println("Warning: Some south terraces exceed floor boundaries in normalized space")
+        end
     end
+
+    vec_ps_deptos_norte = rota_polyshapes(vec_ps_deptos_norte_normalizado, angulo_rotacion, cr)
+    vec_ps_deptos_sur = rota_polyshapes(vec_ps_deptos_sur_normalizado, angulo_rotacion, cr)
+    vec_terrazas_norte = rota_polyshapes(vec_terrazas_norte_normalizado, angulo_rotacion, cr)
+    vec_terrazas_sur = rota_polyshapes(vec_terrazas_sur_normalizado, angulo_rotacion, cr)
+    ps_pasillo = polyShape.polyRotate(ps_pasillo_normalizado, -angulo_rotacion, cr)
 
     num_deptos_norte = length(deptos_ordenados_norte)
     num_deptos_sur = length(deptos_ordenados_sur) - 1
 
-    results = empaqueta_resultados(num_deptos_norte, num_deptos_sur, deptos_ordenados_norte, deptos_ordenados_sur, alto_depto_norte, alto_depto_sur, W, H, ancho_pasillo, largo_pasillo, ps_pasillo, vec_ps_deptos_norte, vec_ps_deptos_sur, vec_ancho_deptos_sur, vec_tipo_deptos_sur, area_escala, vec_terrazas_norte, vec_terrazas_sur)
+    results = empaqueta_resultados(num_deptos_norte, num_deptos_sur, deptos_ordenados_norte, deptos_ordenados_sur,
+                                    alto_depto_norte, alto_depto_sur, W, H, ancho_pasillo, largo_pasillo, ps_pasillo,
+                                    vec_ps_deptos_norte, vec_ps_deptos_sur, vec_ancho_deptos_sur, vec_tipo_deptos_sur,
+                                    area_escala, vec_terrazas_norte, vec_terrazas_sur)
 
     return results
 end
