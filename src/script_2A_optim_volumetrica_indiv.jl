@@ -232,6 +232,35 @@ let flag_create_table = false
             dict_proyecto, dict_normativa = opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti, id_combi)
             # show(IOContext(stdout, :limit => false), MIME("text/plain"), dict_resultados)
 
+
+            ####################################
+            vec_sup_deptos = dict_arquitectura["arq_vecSupInterior"][dict_proyecto["proyecto_vec_num_deptos_primerPiso"].>=1]
+            vec_num_deptos = dict_proyecto["proyecto_vec_num_deptos_primerPiso"][dict_proyecto["proyecto_vec_num_deptos_primerPiso"].>=1]
+            vec_sup_terraza = dict_arquitectura["arq_vecSupTerraza"][dict_proyecto["proyecto_vec_num_deptos_primerPiso"].>=1]
+
+            ps_planta = dict_proyecto["proyecto_vec_ps_opt"][1]
+
+            results = opti_floor_plan(ps_planta, vec_sup_deptos, vec_num_deptos, ancho_pasillo=1.5, 
+                                        vec_sup_terraza=vec_sup_terraza, 
+                                        min_ancho_escala=0.0, area_escala=25.0, balance_mode = :heuristic)
+
+            fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
+            polyPlot.plotPolyshape2D(results["ps_pasillo"], "#505050", 0.8, fig=fig, ax=ax, ax_mat=ax_mat)
+            polyPlot.plotPolyshape2D(results["ps_escala"], "#505050", 0.8, fig=fig, ax=ax, ax_mat=ax_mat)
+
+            for apt_poly in results["vec_polyshapes_all"]
+                polyPlot.plotPolyshape2D(apt_poly, "red", 0.2, fig=fig, ax=ax, ax_mat=ax_mat)
+            end
+
+            for terrace in results["vec_terrazas_all"]
+                if polyShape.polyArea(terrace) > 0.0
+                    polyPlot.plotPolyshape2D(terrace, "blue", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
+                end
+            end
+            ####################################
+
+
+
             dict_json = OrderedDict()
             dict_json["n_predios"] = dict_geom["n_predios"]
             dict_json["sup_terreno_sii"] = dict_geom["sup_terreno_sii"]
@@ -264,21 +293,21 @@ let flag_create_table = false
                 end
             end
 
-            vecColumnNames, vecColumnTypes = dict2tablevec(dict_all, PRIMARY_KEY)
+            # vecColumnNames, vecColumnTypes = dict2tablevec(dict_all, PRIMARY_KEY)
 
-            if flag_create_table
-                pg_julia.createTable(conn_postgres, TABLE_NAME, vecColumnNames, vecColumnTypes, PRIMARY_KEY)
-                flag_create_table = false
-            end
+            # if flag_create_table
+            #     pg_julia.createTable(conn_postgres, TABLE_NAME, vecColumnNames, vecColumnTypes, PRIMARY_KEY)
+            #     flag_create_table = false
+            # end
 
-            vecColumnValue = Vector{Any}(undef, length(vecColumnNames))
-            for (idx, col_name) in enumerate(vecColumnNames)
-                vecColumnValue[idx] = haskey(dict_all, col_name) ? dict_all[col_name] : nothing
-            end
+            # vecColumnValue = Vector{Any}(undef, length(vecColumnNames))
+            # for (idx, col_name) in enumerate(vecColumnNames)
+            #     vecColumnValue[idx] = haskey(dict_all, col_name) ? dict_all[col_name] : nothing
+            # end
 
-            pg_julia.insertRow!(conn_postgres, TABLE_NAME, vecColumnNames, vecColumnValue, Symbol(PRIMARY_KEY))
+            # pg_julia.insertRow!(conn_postgres, TABLE_NAME, vecColumnNames, vecColumnValue, Symbol(PRIMARY_KEY))
 
-            update_optimization_status(conn_postgres, id_opti, 1)
+            # update_optimization_status(conn_postgres, id_opti, 1)
 
             # fig, ax, ax_mat = plotBaseEdificio3D(fpe, dict_arquitectura["arq_alturaPiso"], dict_geom["ps_combi"], dict_all)
 
