@@ -168,7 +168,7 @@ const PRIMARY_KEY = "id_opti"
 const TABLE_NAME = "tabla_resultados_optimizacion"
 const PRIORITY_KEYS = ["id_opti", "id_combi", "flag_sombra", "arq_variante_normativa", "arq_tipo_edificio"]
 
-let flag_create_table = false
+flag_create_table = false # let flag_create_table = false
 
     # Check if results table already exists
     table_check_query = """
@@ -198,18 +198,18 @@ let flag_create_table = false
             println("\nProcessing Combi ID: $id_combi\n")
             df_combined_row = filter(r -> r.id_combi == id_combi, df_combined)
 
-            if isempty(df_combined_row)
-                handle_optimization_error(conn_postgres, id_opti, "No geometries found", "")
-                continue
-            end
+            # if isempty(df_combined_row)
+            #     handle_optimization_error(conn_postgres, id_opti, "No geometries found", "")
+            #     continue
+            # end
 
-            try
+            # try
                 dict_geom = obtiene_geometrias_combi(df_combined_row)
-            catch e
-                println("Geometry processing error for Combi ID $(id_combi): $(e). Skipping this optimization.")
-                handle_optimization_error(conn_postgres, id_opti, "Geometry processing error", string(e))
-                continue
-            end
+            # catch e
+            #     println("Geometry processing error for Combi ID $(id_combi): $(e). Skipping this optimization.")
+            #     handle_optimization_error(conn_postgres, id_opti, "Geometry processing error", string(e))
+            #     continue
+            # end
 
             combi_aux = id_combi
         end
@@ -228,11 +228,12 @@ let flag_create_table = false
         dict_arquitectura["arq_vecDormitorios"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1,"n_dorm_tipos_comuna"]))
         dict_arquitectura["arq_vecBanos"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1,"n_banos_tipos_comuna"]))
 
-        try
+        # try
             dict_proyecto, dict_normativa = opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti, id_combi)
             # show(IOContext(stdout, :limit => false), MIME("text/plain"), dict_resultados)
 
 
+            ####################################
             ####################################
             vec_sup_deptos = dict_arquitectura["arq_vecSupInterior"][dict_proyecto["proyecto_vec_num_deptos_primerPiso"].>=1]
             vec_num_deptos = dict_proyecto["proyecto_vec_num_deptos_primerPiso"][dict_proyecto["proyecto_vec_num_deptos_primerPiso"].>=1]
@@ -243,8 +244,10 @@ let flag_create_table = false
                              layout=:ns,
                              ancho_pasillo=1.5,
                              vec_sup_terraza=vec_sup_terraza,
-                             min_dimension_escala=4.0,
-                             area_escala=25.0)
+                             min_dimension_escala=0*4.0,
+                             area_escala=0*25.0,
+                             min_largo_pasillo=5.0,
+                             pasillo_centrado=true)
             fig_ns, ax_ns, ax_mat_ns = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
             polyPlot.plotPolyshape2D(results_ns["ps_pasillo"], "#505050", 0.9, fig=fig_ns, ax=ax_ns, ax_mat=ax_mat_ns)
             polyPlot.plotPolyshape2D(results_ns["ps_escala"], "#303030", 0.9, fig=fig_ns, ax=ax_ns, ax_mat=ax_mat_ns)
@@ -262,8 +265,10 @@ let flag_create_table = false
                              layout=:oe,
                              ancho_pasillo=1.5,
                              vec_sup_terraza=vec_sup_terraza,
-                             min_dimension_escala=4.0,
-                             area_escala=25.0)
+                             min_dimension_escala=0*4.0,
+                             area_escala=0*25.0,
+                             min_largo_pasillo=5.0,
+                             pasillo_centrado=false)
             fig_oe, ax_oe, ax_mat_oe = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
             polyPlot.plotPolyshape2D(results_oe["ps_pasillo"], "#505050", 0.9, fig=fig_oe, ax=ax_oe, ax_mat=ax_mat_oe)
             polyPlot.plotPolyshape2D(results_oe["ps_escala"], "#303030", 0.9, fig=fig_oe, ax=ax_oe, ax_mat=ax_mat_oe)
@@ -275,8 +280,7 @@ let flag_create_table = false
                     polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig_oe, ax=ax_oe, ax_mat=ax_mat_oe)
                 end
             end
-
-
+            ####################################
             ####################################
 
 
@@ -333,12 +337,12 @@ let flag_create_table = false
 
             println("Completed optimization for ID Opti: $(id_opti)\n")
 
-        catch e
-            handle_optimization_error(conn_postgres, id_opti, "Optimization failed", e)
-            continue
-        end
+        # catch e
+        #     handle_optimization_error(conn_postgres, id_opti, "Optimization failed", e)
+        #     continue
+        # end
 
     end
 
     println("All optimizations completed successfully!")
-end
+# end

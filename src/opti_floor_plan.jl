@@ -6,7 +6,9 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                         area_escala::Float64 = 25.0,
                         vec_min_dimensiones::Vector{Float64} = Float64[],
                         min_dimension_escala::Float64 = 0.0,
-                        balance_mode::Symbol = :heuristic)
+                        balance_mode::Symbol = :heuristic,
+                        min_largo_pasillo::Float64 = 0.0,
+                        pasillo_centrado::Bool = false)
 
     is_vertical = (layout == :oe)
 
@@ -198,6 +200,15 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
         return vec_polyshapes_rotados
     end
 
+    # Safely translates a polyshape, handling empty polyshapes
+    function safe_translate(ps::PolyShape, dx::Float64, dy::Float64)
+        if isempty(ps.Vertices) || polyShape.polyArea(ps) == 0.0
+            return ps
+        else
+            return polyShape.polyTranslate(ps, dx, dy)
+        end
+    end
+
     # Rotates floor plan to axis-aligned rectangle with width > height, returns dimensions and transformation
     function normaliza_planta_rectangular(ps_planta::PolyShape)
         V_planta = ps_planta.Vertices[1]
@@ -346,10 +357,43 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
     end
 
     # Computes corridor geometry spanning both strips based on apartment coordinates
-    function calcula_geometria_pasillo(vec_coord_fin1::Vector{Float64}, vec_coord_fin2::Vector{Float64}, vec_coord_ini1::Vector{Float64}, vec_coord_ini2::Vector{Float64}, coord_base::Float64, ancho_pasillo::Float64, is_vertical::Bool)
+    function calcula_geometria_pasillo(vec_coord_fin1::Vector{Float64}, vec_coord_fin2::Vector{Float64}, vec_coord_ini1::Vector{Float64}, vec_coord_ini2::Vector{Float64}, coord_base::Float64, ancho_pasillo::Float64, is_vertical::Bool, W::Float64, H::Float64, coord_min::Float64, min_largo_pasillo::Float64, pasillo_centrado::Bool, vec_tipo_deptos1::Vector{Int}, vec_tipo_deptos2::Vector{Int})
+        num_deptos_franja1 = count(t -> t != -1, vec_tipo_deptos1)
+        num_deptos_franja2 = count(t -> t != -1, vec_tipo_deptos2)
+        num_deptos_total = num_deptos_franja1 + num_deptos_franja2
+
         coord_ini_pasillo = min(vec_coord_fin1[1], vec_coord_fin2[1])
         coord_fin_pasillo = max(vec_coord_ini1[end], vec_coord_ini2[end])
         largo_pasillo = coord_fin_pasillo - coord_ini_pasillo
+
+        if largo_pasillo < min_largo_pasillo
+            centro_pasillo = (coord_ini_pasillo + coord_fin_pasillo) / 2
+            coord_ini_pasillo = centro_pasillo - min_largo_pasillo / 2
+            coord_fin_pasillo = centro_pasillo + min_largo_pasillo / 2
+            largo_pasillo = min_largo_pasillo
+        end
+
+        if pasillo_centrado || num_deptos_total == 2
+            if is_vertical
+                centro_planta = coord_min + H / 2
+            else
+                centro_planta = coord_min + W / 2
+            end
+
+            if num_deptos_total == 2
+                coord_ini_pasillo = centro_planta - largo_pasillo / 2
+                coord_fin_pasillo = centro_planta + largo_pasillo / 2
+            else
+                if centro_planta < coord_ini_pasillo
+                    coord_ini_pasillo = centro_planta
+                elseif centro_planta > coord_fin_pasillo
+                    coord_fin_pasillo = centro_planta
+                end
+            end
+
+            largo_pasillo = coord_fin_pasillo - coord_ini_pasillo
+        end
+
         coord_pasillo = coord_base - ancho_pasillo / 2
 
         if is_vertical
@@ -484,7 +528,7 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
     end
 
     # Computes all strip geometries including apartments, corridor, terraces, and adjusts for fit
-    function compute_strip_geometries(inputs, ancho_pasillo::Float64, vec_sup_terraza::Vector{Float64}, min_dimension_escala::Float64, is_vertical::Bool)
+    function compute_strip_geometries(inputs, ancho_pasillo::Float64, vec_sup_terraza::Vector{Float64}, min_dimension_escala::Float64, is_vertical::Bool, min_largo_pasillo::Float64, pasillo_centrado::Bool)
         if is_vertical
             coord_base = inputs.coord_min_x + inputs.dimension_depto2
             coord_disponible = inputs.H
@@ -499,10 +543,10 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
             direction2 = :sur
         end
 
-        vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, _ = genera_deptos_franja(inputs.deptos_ordenados1, coord_min, inputs.dimension_depto1, inputs.vec_min_dimensiones, coord_disponible, min_dimension_escala, is_vertical)
+        vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, vec_tipo_deptos1 = genera_deptos_franja(inputs.deptos_ordenados1, coord_min, inputs.dimension_depto1, inputs.vec_min_dimensiones, coord_disponible, min_dimension_escala, is_vertical)
         vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, vec_tipo_deptos2 = genera_deptos_franja(inputs.deptos_ordenados2, coord_min, inputs.dimension_depto2, inputs.vec_min_dimensiones, coord_disponible, min_dimension_escala, is_vertical)
 
-        coord_ini_pasillo, coord_fin_pasillo, largo_pasillo, ps_pasillo_normalizado = calcula_geometria_pasillo(vec_coord_fin1, vec_coord_fin2, vec_coord_ini1, vec_coord_ini2, coord_base, ancho_pasillo, is_vertical)
+        coord_ini_pasillo, coord_fin_pasillo, largo_pasillo, ps_pasillo_normalizado = calcula_geometria_pasillo(vec_coord_fin1, vec_coord_fin2, vec_coord_ini1, vec_coord_ini2, coord_base, ancho_pasillo, is_vertical, inputs.W, inputs.H, coord_min, min_largo_pasillo, pasillo_centrado, vec_tipo_deptos1, vec_tipo_deptos2)
 
         vec_ps_deptos1_normalizado, vec_extension_dimension1_1 = extiende_deptos_interseccion_pasillo(vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, coord_base, coord_ini_pasillo, coord_fin_pasillo, ancho_pasillo, ps_pasillo_normalizado, direction1, is_vertical)
         vec_ps_deptos2_normalizado, vec_extension_dimension1_2 = extiende_deptos_interseccion_pasillo(vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, coord_base, coord_ini_pasillo, coord_fin_pasillo, ancho_pasillo, ps_pasillo_normalizado, direction2, is_vertical)
@@ -529,11 +573,11 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                         max_coord_terrazas = maximum([maximum(t.Vertices[1][:, 1]) for t in terrazas_con_area])
                         delta = max_coord_terrazas - coord_max
 
-                        vec_ps_deptos1_normalizado = [polyShape.polyTranslate(p, -delta, 0.0) for p in vec_ps_deptos1_normalizado]
-                        vec_ps_deptos2_normalizado = [polyShape.polyTranslate(p, -delta, 0.0) for p in vec_ps_deptos2_normalizado]
-                        vec_terrazas1_normalizado = [polyShape.polyTranslate(t, -delta, 0.0) for t in vec_terrazas1_normalizado]
-                        vec_terrazas2_normalizado = [polyShape.polyTranslate(t, -delta, 0.0) for t in vec_terrazas2_normalizado]
-                        ps_pasillo_normalizado = polyShape.polyTranslate(ps_pasillo_normalizado, -delta, 0.0)
+                        vec_ps_deptos1_normalizado = [safe_translate(p, -delta, 0.0) for p in vec_ps_deptos1_normalizado]
+                        vec_ps_deptos2_normalizado = [safe_translate(p, -delta, 0.0) for p in vec_ps_deptos2_normalizado]
+                        vec_terrazas1_normalizado = [safe_translate(t, -delta, 0.0) for t in vec_terrazas1_normalizado]
+                        vec_terrazas2_normalizado = [safe_translate(t, -delta, 0.0) for t in vec_terrazas2_normalizado]
+                        ps_pasillo_normalizado = safe_translate(ps_pasillo_normalizado, -delta, 0.0)
 
                         println("Translated all elements west by $(round(delta, digits=2)) to fit este terraces")
                     end
@@ -545,11 +589,11 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                         min_coord_terrazas = minimum([minimum(t.Vertices[1][:, 1]) for t in terrazas_con_area])
                         delta = coord_min_local - min_coord_terrazas
 
-                        vec_ps_deptos1_normalizado = [polyShape.polyTranslate(p, delta, 0.0) for p in vec_ps_deptos1_normalizado]
-                        vec_ps_deptos2_normalizado = [polyShape.polyTranslate(p, delta, 0.0) for p in vec_ps_deptos2_normalizado]
-                        vec_terrazas1_normalizado = [polyShape.polyTranslate(t, delta, 0.0) for t in vec_terrazas1_normalizado]
-                        vec_terrazas2_normalizado = [polyShape.polyTranslate(t, delta, 0.0) for t in vec_terrazas2_normalizado]
-                        ps_pasillo_normalizado = polyShape.polyTranslate(ps_pasillo_normalizado, delta, 0.0)
+                        vec_ps_deptos1_normalizado = [safe_translate(p, delta, 0.0) for p in vec_ps_deptos1_normalizado]
+                        vec_ps_deptos2_normalizado = [safe_translate(p, delta, 0.0) for p in vec_ps_deptos2_normalizado]
+                        vec_terrazas1_normalizado = [safe_translate(t, delta, 0.0) for t in vec_terrazas1_normalizado]
+                        vec_terrazas2_normalizado = [safe_translate(t, delta, 0.0) for t in vec_terrazas2_normalizado]
+                        ps_pasillo_normalizado = safe_translate(ps_pasillo_normalizado, delta, 0.0)
 
                         println("Translated all elements east by $(round(delta, digits=2)) to fit oeste terraces")
                     end
@@ -572,11 +616,11 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                         max_coord_terrazas = maximum([maximum(t.Vertices[1][:, 2]) for t in terrazas_con_area])
                         delta = max_coord_terrazas - coord_max
 
-                        vec_ps_deptos1_normalizado = [polyShape.polyTranslate(p, 0.0, -delta) for p in vec_ps_deptos1_normalizado]
-                        vec_ps_deptos2_normalizado = [polyShape.polyTranslate(p, 0.0, -delta) for p in vec_ps_deptos2_normalizado]
-                        vec_terrazas1_normalizado = [polyShape.polyTranslate(t, 0.0, -delta) for t in vec_terrazas1_normalizado]
-                        vec_terrazas2_normalizado = [polyShape.polyTranslate(t, 0.0, -delta) for t in vec_terrazas2_normalizado]
-                        ps_pasillo_normalizado = polyShape.polyTranslate(ps_pasillo_normalizado, 0.0, -delta)
+                        vec_ps_deptos1_normalizado = [safe_translate(p, 0.0, -delta) for p in vec_ps_deptos1_normalizado]
+                        vec_ps_deptos2_normalizado = [safe_translate(p, 0.0, -delta) for p in vec_ps_deptos2_normalizado]
+                        vec_terrazas1_normalizado = [safe_translate(t, 0.0, -delta) for t in vec_terrazas1_normalizado]
+                        vec_terrazas2_normalizado = [safe_translate(t, 0.0, -delta) for t in vec_terrazas2_normalizado]
+                        ps_pasillo_normalizado = safe_translate(ps_pasillo_normalizado, 0.0, -delta)
 
                         println("Translated all elements south by $(round(delta, digits=2)) to fit north terraces")
                     end
@@ -588,11 +632,11 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                         min_coord_terrazas = minimum([minimum(t.Vertices[1][:, 2]) for t in terrazas_con_area])
                         delta = coord_min_local - min_coord_terrazas
 
-                        vec_ps_deptos1_normalizado = [polyShape.polyTranslate(p, 0.0, delta) for p in vec_ps_deptos1_normalizado]
-                        vec_ps_deptos2_normalizado = [polyShape.polyTranslate(p, 0.0, delta) for p in vec_ps_deptos2_normalizado]
-                        vec_terrazas1_normalizado = [polyShape.polyTranslate(t, 0.0, delta) for t in vec_terrazas1_normalizado]
-                        vec_terrazas2_normalizado = [polyShape.polyTranslate(t, 0.0, delta) for t in vec_terrazas2_normalizado]
-                        ps_pasillo_normalizado = polyShape.polyTranslate(ps_pasillo_normalizado, 0.0, delta)
+                        vec_ps_deptos1_normalizado = [safe_translate(p, 0.0, delta) for p in vec_ps_deptos1_normalizado]
+                        vec_ps_deptos2_normalizado = [safe_translate(p, 0.0, delta) for p in vec_ps_deptos2_normalizado]
+                        vec_terrazas1_normalizado = [safe_translate(t, 0.0, delta) for t in vec_terrazas1_normalizado]
+                        vec_terrazas2_normalizado = [safe_translate(t, 0.0, delta) for t in vec_terrazas2_normalizado]
+                        ps_pasillo_normalizado = safe_translate(ps_pasillo_normalizado, 0.0, delta)
 
                         println("Translated all elements north by $(round(delta, digits=2)) to fit south terraces")
                     end
@@ -608,7 +652,7 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
 
     inputs = prepare_floor_inputs(ps_planta, vec_sup_deptos, vec_num_deptos, area_escala, ancho_pasillo, vec_min_dimensiones, balance_mode, is_vertical)
 
-    geometries = compute_strip_geometries(inputs, ancho_pasillo, vec_sup_terraza, min_dimension_escala, is_vertical)
+    geometries = compute_strip_geometries(inputs, ancho_pasillo, vec_sup_terraza, min_dimension_escala, is_vertical, min_largo_pasillo, pasillo_centrado)
 
     vec_ps_deptos1 = rota_polyshapes(geometries.vec_ps_deptos1_normalizado, inputs.angulo_rotacion, inputs.cr)
     vec_ps_deptos2 = rota_polyshapes(geometries.vec_ps_deptos2_normalizado, inputs.angulo_rotacion, inputs.cr)
