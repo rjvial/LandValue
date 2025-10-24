@@ -23,6 +23,14 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
     get_tipo(t::Tuple{Float64, Int, Int}) = t[2]
     get_index(t::Tuple{Float64, Int, Int}) = t[3]
 
+    # ══════════════════════════════════════════════════════════════════════════════════
+    # HELPER FUNCTIONS
+    # ══════════════════════════════════════════════════════════════════════════════════
+
+    # ──────────────────────────────────────────────────────────────────────────────────
+    # Geometry generation helpers
+    # ──────────────────────────────────────────────────────────────────────────────────
+
     # Generates apartment geometries along one strip, adjusting dimensions iteratively to fit available space
     function genera_deptos_franja(vec_orden_deptos::Vector{Tuple{Float64, Int}}, coord_min_planta::Float64, dimension_franja::Float64, vec_min_dimensiones::Vector{Float64}, dimension_disponible::Float64, min_ancho_escala::Float64, is_vertical::Bool)
         vec_coord_ini = Float64[]
@@ -148,6 +156,10 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
         return vec_terrazas
     end
 
+    # ──────────────────────────────────────────────────────────────────────────────────
+    # Geometric transformation helpers
+    # ──────────────────────────────────────────────────────────────────────────────────
+
     # Rotates vector of polyshapes back to original orientation around center point
     function rota_polyshapes(vec_polyshapes::Vector{PolyShape}, angulo_rotacion::Float64, cr::Vector{Float64})
         vec_polyshapes_rotados = PolyShape[]
@@ -183,6 +195,10 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
             return polyShape.polyBox(base2, offset, dim2, dim1, 0.0)
         end
     end
+
+    # ──────────────────────────────────────────────────────────────────────────────────
+    # Coordinate and bounds helpers
+    # ──────────────────────────────────────────────────────────────────────────────────
 
     # Returns coordinate index for axis (1 for X, 2 for Y)
     function get_coord_index(is_vertical::Bool)
@@ -271,6 +287,10 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
 
         return vec_ps_deptos1, vec_ps_deptos2, vec_terrazas1, vec_terrazas2, ps_pasillo
     end
+
+    # ──────────────────────────────────────────────────────────────────────────────────
+    # Floor normalization and distribution helpers
+    # ──────────────────────────────────────────────────────────────────────────────────
 
     # Rotates floor plan to axis-aligned rectangle with width > height, returns dimensions and transformation
     function normaliza_planta_rectangular(ps_planta::PolyShape)
@@ -429,6 +449,10 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
         return deptos_ordenados1, deptos_ordenados2
     end
 
+    # ──────────────────────────────────────────────────────────────────────────────────
+    # Corridor and results packaging helpers
+    # ──────────────────────────────────────────────────────────────────────────────────
+
     # Computes corridor geometry spanning both strips based on apartment coordinates
     function calcula_geometria_pasillo(vec_coord_fin1::Vector{Float64}, vec_coord_fin2::Vector{Float64}, vec_coord_ini1::Vector{Float64}, vec_coord_ini2::Vector{Float64}, coord_base::Float64, ancho_pasillo::Float64, is_vertical::Bool, W::Float64, H::Float64, coord_min::Float64, min_largo_pasillo::Float64, pasillo_centrado::Bool, vec_tipo_deptos1::Vector{Int}, vec_tipo_deptos2::Vector{Int})
         num_deptos_franja1 = count(t -> t != -1, vec_tipo_deptos1)
@@ -543,6 +567,10 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
 
         return true
     end
+
+    # ──────────────────────────────────────────────────────────────────────────────────
+    # High-level computation functions
+    # ──────────────────────────────────────────────────────────────────────────────────
 
     # Prepares normalized floor plan, distributes apartments, and calculates strip dimensions
     function prepare_floor_inputs(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int}, area_escala::Float64, ancho_pasillo::Float64, vec_min_dimensiones::Vector{Float64}, balance_mode::Symbol, is_vertical::Bool, tipo_escala::Symbol, max_ancho_terraza::Float64)
@@ -673,15 +701,35 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                 vec_dimension_deptos2=vec_dimension2_deptos2, vec_tipo_deptos2=vec_tipo_deptos2)
     end
 
+    # ══════════════════════════════════════════════════════════════════════════════════
+    # MAIN EXECUTION LOGIC
+    # ══════════════════════════════════════════════════════════════════════════════════
+
+    # ──────────────────────────────────────────────────────────────────────────────────
+    # Stage 1: Input preparation and normalization
+    # ──────────────────────────────────────────────────────────────────────────────────
+
     planta_normalizada = prepare_floor_inputs(ps_planta, vec_sup_deptos, vec_num_deptos, area_escala, ancho_pasillo, vec_min_dimensiones, balance_mode, is_vertical, tipo_escala, max_ancho_terraza)
 
+    # ──────────────────────────────────────────────────────────────────────────────────
+    # Stage 2: Strip geometry computation
+    # ──────────────────────────────────────────────────────────────────────────────────
+
     franjas_computadas = compute_strip_geometries(planta_normalizada, ancho_pasillo, vec_sup_terraza, min_ancho_escala, is_vertical, min_largo_pasillo, pasillo_centrado)
+
+    # ──────────────────────────────────────────────────────────────────────────────────
+    # Stage 3: Rotation back to original coordinates
+    # ──────────────────────────────────────────────────────────────────────────────────
 
     vec_ps_deptos1 = rota_polyshapes(franjas_computadas.vec_ps_deptos1_normalizado, planta_normalizada.angulo_rotacion, planta_normalizada.cr)
     vec_ps_deptos2 = rota_polyshapes(franjas_computadas.vec_ps_deptos2_normalizado, planta_normalizada.angulo_rotacion, planta_normalizada.cr)
     vec_terrazas1 = rota_polyshapes(franjas_computadas.vec_terrazas1_normalizado, planta_normalizada.angulo_rotacion, planta_normalizada.cr)
     vec_terrazas2 = rota_polyshapes(franjas_computadas.vec_terrazas2_normalizado, planta_normalizada.angulo_rotacion, planta_normalizada.cr)
     ps_pasillo = polyShape.polyRotate(franjas_computadas.ps_pasillo_normalizado, -planta_normalizada.angulo_rotacion, planta_normalizada.cr)
+
+    # ──────────────────────────────────────────────────────────────────────────────────
+    # Stage 4: Results packaging
+    # ──────────────────────────────────────────────────────────────────────────────────
 
     num_deptos1 = length(planta_normalizada.deptos_ordenados1)
     num_deptos2 = (tipo_escala == :exterior) ? length(planta_normalizada.deptos_ordenados2) - 1 : length(planta_normalizada.deptos_ordenados2)
