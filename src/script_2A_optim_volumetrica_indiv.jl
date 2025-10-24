@@ -247,6 +247,7 @@ flag_create_table = false # let flag_create_table = false
                         pasillo_centrado=false,
                         area_escala=20.0,
                         min_ancho_escala=0*4.0,
+                        max_dimension_terraza=4.0,
                         tipo_escala=:exterior,
                         layout=:ns,
                         balance_mode=:heuristic)
@@ -256,7 +257,7 @@ flag_create_table = false # let flag_create_table = false
                 polyPlot.plotPolyshape2D(results_ns["ps_pasillo"], "#505050", 0.9, fig=fig_ns, ax=ax_ns, ax_mat=ax_mat_ns)
             end
             if !isnothing(results_ns["ps_escala"])
-                polyPlot.plotPolyshape2D(results_ns["ps_escala"], "#303030", 0.9, fig=fig_ns, ax=ax_ns, ax_mat=ax_mat_ns)
+                polyPlot.plotPolyshape2D(results_ns["ps_escala"], "#505050", 0.9, fig=fig_ns, ax=ax_ns, ax_mat=ax_mat_ns)
             end
             for apt_poly in results_ns["vec_polyshapes_all"]
                 polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig_ns, ax=ax_ns, ax_mat=ax_mat_ns)
@@ -275,6 +276,7 @@ flag_create_table = false # let flag_create_table = false
                         pasillo_centrado=false,
                         area_escala=20.0,
                         min_ancho_escala=0*4.0,
+                        max_dimension_terraza=4.0,
                         tipo_escala=:exterior,
                         layout=:oe,
                         balance_mode=:heuristic)
@@ -284,7 +286,7 @@ flag_create_table = false # let flag_create_table = false
                 polyPlot.plotPolyshape2D(results_oe["ps_pasillo"], "#505050", 0.9, fig=fig_oe, ax=ax_oe, ax_mat=ax_mat_oe)
             end
             if !isnothing(results_oe["ps_escala"])
-                polyPlot.plotPolyshape2D(results_oe["ps_escala"], "#303030", 0.9, fig=fig_oe, ax=ax_oe, ax_mat=ax_mat_oe)
+                polyPlot.plotPolyshape2D(results_oe["ps_escala"], "#505050", 0.9, fig=fig_oe, ax=ax_oe, ax_mat=ax_mat_oe)
             end
             for apt_poly in results_oe["vec_polyshapes_all"]
                 polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig_oe, ax=ax_oe, ax_mat=ax_mat_oe)
