@@ -71,8 +71,8 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
         return vec_coord_ini, vec_coord_fin, vec_dimension1_deptos, vec_dimension2_deptos, vec_tipo_deptos
     end
 
-    # Extends apartments into corridor space where they overlap, then subtracts corridor geometry
-    function extiende_deptos_interseccion_pasillo(vec_coord_ini::Vector{Float64}, vec_coord_fin::Vector{Float64}, vec_dimension1_deptos::Vector{Float64}, vec_dimension2_deptos::Vector{Float64}, coord_base::Float64, coord_ini_pasillo::Float64, coord_fin_pasillo::Float64, ancho_pasillo::Float64, ps_pasillo::PolyShape, extend_direction::Symbol, is_vertical::Bool)
+    # Extends apartments with corridor space overlap, then subtracts corridor geometry
+    function extiende_deptos_con_interseccion_pasillo(vec_coord_ini::Vector{Float64}, vec_coord_fin::Vector{Float64}, vec_dimension1_deptos::Vector{Float64}, vec_dimension2_deptos::Vector{Float64}, coord_base::Float64, coord_ini_pasillo::Float64, coord_fin_pasillo::Float64, ancho_pasillo::Float64, ps_pasillo::PolyShape, extend_direction::Symbol, is_vertical::Bool)
         vec_extension_dimension1 = Float64[]
         ps_deptos_extendidos = PolyShape[]
 
@@ -552,8 +552,8 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
 
         coord_ini_pasillo, coord_fin_pasillo, largo_pasillo, ps_pasillo_normalizado = calcula_geometria_pasillo(vec_coord_fin1, vec_coord_fin2, vec_coord_ini1, vec_coord_ini2, coord_base, ancho_pasillo, is_vertical, inputs.W, inputs.H, coord_min, min_largo_pasillo, pasillo_centrado, vec_tipo_deptos1, vec_tipo_deptos2)
 
-        vec_ps_deptos1_normalizado, vec_extension_dimension1_1 = extiende_deptos_interseccion_pasillo(vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, coord_base, coord_ini_pasillo, coord_fin_pasillo, ancho_pasillo, ps_pasillo_normalizado, direction1, is_vertical)
-        vec_ps_deptos2_normalizado, vec_extension_dimension1_2 = extiende_deptos_interseccion_pasillo(vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, coord_base, coord_ini_pasillo, coord_fin_pasillo, ancho_pasillo, ps_pasillo_normalizado, direction2, is_vertical)
+        vec_ps_deptos1_normalizado, vec_extension_dimension1_1 = extiende_deptos_con_interseccion_pasillo(vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, coord_base, coord_ini_pasillo, coord_fin_pasillo, ancho_pasillo, ps_pasillo_normalizado, direction1, is_vertical)
+        vec_ps_deptos2_normalizado, vec_extension_dimension1_2 = extiende_deptos_con_interseccion_pasillo(vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, coord_base, coord_ini_pasillo, coord_fin_pasillo, ancho_pasillo, ps_pasillo_normalizado, direction2, is_vertical)
 
         vec_terrazas1_normalizado = PolyShape[]
         vec_terrazas2_normalizado = PolyShape[]

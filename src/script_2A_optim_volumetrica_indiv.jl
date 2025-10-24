@@ -245,7 +245,7 @@ flag_create_table = false # let flag_create_table = false
                              ancho_pasillo=1.5,
                              vec_sup_terraza=vec_sup_terraza,
                              min_dimension_escala=0*4.0,
-                             area_escala=0*25.0,
+                             area_escala=1*20.0,
                              min_largo_pasillo=5.0,
                              pasillo_centrado=true)
             fig_ns, ax_ns, ax_mat_ns = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
@@ -266,7 +266,7 @@ flag_create_table = false # let flag_create_table = false
                              ancho_pasillo=1.5,
                              vec_sup_terraza=vec_sup_terraza,
                              min_dimension_escala=0*4.0,
-                             area_escala=0*25.0,
+                             area_escala=1*20.0,
                              min_largo_pasillo=5.0,
                              pasillo_centrado=false)
             fig_oe, ax_oe, ax_mat_oe = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
