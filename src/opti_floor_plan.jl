@@ -93,22 +93,7 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
             dimension1_total = vec_dimension1_deptos[i] + extension_dimension
             dimension2 = vec_coord_fin[i] - vec_coord_ini[i]
 
-            if is_vertical
-                if extend_direction == :este
-                    coord_ini_depto = coord_base
-                else
-                    coord_ini_depto = coord_base - dimension1_total
-                end
-                extended_local_poly = polyShape.polyBox(coord_ini_depto, vec_coord_ini[i], dimension1_total, dimension2, 0.0)
-            else
-                if extend_direction == :norte
-                    coord_ini_depto = coord_base
-                else
-                    coord_ini_depto = coord_base - dimension1_total
-                end
-                extended_local_poly = polyShape.polyBox(vec_coord_ini[i], coord_ini_depto, dimension2, dimension1_total, 0.0)
-            end
-
+            extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini[i], dimension1_total, dimension2, extend_direction, is_vertical)
             extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
             push!(ps_deptos_extendidos, extended_poly_final)
         end
@@ -128,52 +113,21 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                 if area_terraza > 0.0
                     dimension2_depto = vec_dimension2_deptos[i]
 
-                    if is_vertical
-                        ancho_terraza = 1.75
-                        alto_terraza = area_terraza / ancho_terraza
+                    dim_perpendicular = 1.75
+                    dim_parallel = area_terraza / dim_perpendicular
 
-                        if alto_terraza > dimension2_depto
-                            alto_terraza = dimension2_depto
-                            ancho_terraza = min(area_terraza / alto_terraza, max_dimension_terraza)
-                            if ancho_terraza < area_terraza / alto_terraza
-                                alto_terraza = area_terraza / ancho_terraza
-                            end
+                    if dim_parallel > dimension2_depto
+                        dim_parallel = dimension2_depto
+                        dim_perpendicular = min(area_terraza / dim_parallel, max_dimension_terraza)
+                        if dim_perpendicular < area_terraza / dim_parallel
+                            dim_parallel = area_terraza / dim_perpendicular
                         end
-
-                        coord_depto_ini = vec_coord_ini[i]
-                        coord_terraza_ini = coord_depto_ini + (dimension2_depto - alto_terraza) / 2
-
-                        if terrace_direction == :este
-                            coord_terrace_perpendicular = coord_terrace_base[i]
-                        else
-                            coord_terrace_perpendicular = coord_terrace_base[i] - ancho_terraza
-                        end
-
-                        terrace_poly = polyShape.polyBox(coord_terrace_perpendicular, coord_terraza_ini, ancho_terraza, alto_terraza, 0.0)
-                    else
-                        alto_terraza = 1.75
-                        ancho_terraza = area_terraza / alto_terraza
-
-                        if ancho_terraza > dimension2_depto
-                            ancho_terraza = dimension2_depto
-                            alto_terraza = min(area_terraza / ancho_terraza, max_dimension_terraza)
-                            if alto_terraza < area_terraza / ancho_terraza
-                                ancho_terraza = area_terraza / alto_terraza
-                            end
-                        end
-
-                        coord_depto_ini = vec_coord_ini[i]
-                        coord_terraza_ini = coord_depto_ini + (dimension2_depto - ancho_terraza) / 2
-
-                        if terrace_direction == :norte
-                            coord_terrace_perpendicular = coord_terrace_base[i]
-                        else
-                            coord_terrace_perpendicular = coord_terrace_base[i] - alto_terraza
-                        end
-
-                        terrace_poly = polyShape.polyBox(coord_terraza_ini, coord_terrace_perpendicular, ancho_terraza, alto_terraza, 0.0)
                     end
 
+                    coord_depto_ini = vec_coord_ini[i]
+                    coord_terraza_ini = coord_depto_ini + (dimension2_depto - dim_parallel) / 2
+
+                    terrace_poly = polyBoxAligned(coord_terrace_base[i], coord_terraza_ini, dim_perpendicular, dim_parallel, terrace_direction, is_vertical)
                     push!(vec_terrazas, terrace_poly)
                 else
                     push!(vec_terrazas, PolyShape([zeros(0, 2)], 0))
@@ -207,6 +161,83 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
         else
             return polyShape.polyTranslate(ps, dx, dy)
         end
+    end
+
+    # Creates axis-aligned box with direction-aware positioning (vertical: X-axis, horizontal: Y-axis)
+    function polyBoxAligned(base1::Float64, base2::Float64, dim1::Float64, dim2::Float64, direction::Symbol, is_vertical::Bool)
+        if is_vertical
+            offset = (direction == :este) ? base1 : base1 - dim1
+            return polyShape.polyBox(offset, base2, dim1, dim2, 0.0)
+        else
+            offset = (direction == :norte) ? base1 : base1 - dim1
+            return polyShape.polyBox(base2, offset, dim2, dim1, 0.0)
+        end
+    end
+
+    # Returns coordinate index for axis (1 for X, 2 for Y)
+    function get_coord_index(is_vertical::Bool)
+        return is_vertical ? 1 : 2
+    end
+
+    # Returns floor plan min and max coordinates
+    function get_floor_bounds(vec_planta::Vector{Float64})
+        return minimum(vec_planta), maximum(vec_planta)
+    end
+
+    # Returns min or max coordinate from non-empty terraces along axis
+    function get_terrace_bounds(vec_terrazas::Vector{PolyShape}, is_vertical::Bool, get_max::Bool)
+        terrazas_con_area = [t for t in vec_terrazas if polyShape.polyArea(t) > 0.0]
+        isempty(terrazas_con_area) && return nothing
+
+        coord_idx = get_coord_index(is_vertical)
+        return get_max ? maximum([maximum(t.Vertices[1][:, coord_idx]) for t in terrazas_con_area]) :
+                         minimum([minimum(t.Vertices[1][:, coord_idx]) for t in terrazas_con_area])
+    end
+
+    # Translates all geometries by delta in specified direction
+    function apply_terrace_correction(vec_ps_deptos1::Vector{PolyShape}, vec_ps_deptos2::Vector{PolyShape},
+                                     vec_terrazas1::Vector{PolyShape}, vec_terrazas2::Vector{PolyShape},
+                                     ps_pasillo::PolyShape, delta::Float64, is_vertical::Bool, direction::Symbol)
+        dx, dy = is_vertical ? ((direction == :oeste ? delta : -delta), 0.0) : (0.0, (direction == :norte ? delta : -delta))
+
+        return ([safe_translate(p, dx, dy) for p in vec_ps_deptos1],
+                [safe_translate(p, dx, dy) for p in vec_ps_deptos2],
+                [safe_translate(t, dx, dy) for t in vec_terrazas1],
+                [safe_translate(t, dx, dy) for t in vec_terrazas2],
+                safe_translate(ps_pasillo, dx, dy))
+    end
+
+    # Corrects outbound terraces by shifting geometries; limits shift to prevent opposite side outbound
+    function correct_outbound_terraces(vec_terrazas1::Vector{PolyShape}, vec_terrazas2::Vector{PolyShape},
+                                       vec_ps_deptos1::Vector{PolyShape}, vec_ps_deptos2::Vector{PolyShape},
+                                       ps_pasillo::PolyShape, vec_floor_coords::Vector{Float64},
+                                       is_vertical::Bool, franja1_outbound::Bool, get_max_outbound::Bool)
+
+        outbound_terraces = franja1_outbound ? vec_terrazas1 : vec_terrazas2
+        inbound_terraces = franja1_outbound ? vec_terrazas2 : vec_terrazas1
+
+        outbound_coord = get_terrace_bounds(outbound_terraces, is_vertical, get_max_outbound)
+        outbound_coord === nothing && return vec_ps_deptos1, vec_ps_deptos2, vec_terrazas1, vec_terrazas2, ps_pasillo
+
+        floor_min, floor_max = get_floor_bounds(vec_floor_coords)
+        target_coord = get_max_outbound ? floor_max : floor_min
+        delta = abs(outbound_coord - target_coord)
+
+        inbound_coord = get_terrace_bounds(inbound_terraces, is_vertical, !get_max_outbound)
+        if inbound_coord !== nothing
+            inbound_limit = get_max_outbound ? floor_min : floor_max
+            max_safe_delta = abs(inbound_coord - inbound_limit)
+            delta = min(delta, max_safe_delta)
+        end
+
+        if delta > 0.0
+            shift_direction = get_max_outbound ? (is_vertical ? :oeste : :sur) : (is_vertical ? :este : :norte)
+            vec_ps_deptos1, vec_ps_deptos2, vec_terrazas1, vec_terrazas2, ps_pasillo =
+                apply_terrace_correction(vec_ps_deptos1, vec_ps_deptos2, vec_terrazas1, vec_terrazas2,
+                                       ps_pasillo, delta, is_vertical, shift_direction)
+        end
+
+        return vec_ps_deptos1, vec_ps_deptos2, vec_terrazas1, vec_terrazas2, ps_pasillo
     end
 
     # Rotates floor plan to axis-aligned rectangle with width > height, returns dimensions and transformation
@@ -408,14 +439,10 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
     # Packages all computed geometries and parameters into results dictionary
     function empaqueta_resultados(num_deptos1::Int, num_deptos2::Int, deptos_ordenados1::Vector{Tuple{Float64, Int}}, deptos_ordenados2::Vector{Tuple{Float64, Int}}, dimension1::Float64, dimension2::Float64, W::Float64, H::Float64, ancho_pasillo::Float64, largo_pasillo::Float64, ps_pasillo::PolyShape, vec_ps_deptos1::Vector{PolyShape}, vec_ps_deptos2::Vector{PolyShape}, vec_dimension_deptos2::Vector{Float64}, vec_tipo_deptos2::Vector{Int}, area_escala::Float64, vec_terrazas1::Vector{PolyShape}, vec_terrazas2::Vector{PolyShape}, is_vertical::Bool)
         id_escala = findfirst(==(- 1), vec_tipo_deptos2)
-        if id_escala === nothing
-            error("No staircase found in strip 2 (tipo_depto == -1)")
-        end
+        id_escala === nothing && error("No staircase found in strip 2 (tipo_depto == -1)")
 
         num_escalas = count(==(- 1), vec_tipo_deptos2)
-        if num_escalas > 1
-            @warn "Multiple staircases found in strip 2 (count=$num_escalas). Using first occurrence at index $id_escala"
-        end
+        num_escalas > 1 && @warn "Multiple staircases found in strip 2 (count=$num_escalas). Using first occurrence at index $id_escala"
 
         ps_escala = vec_ps_deptos2[id_escala]
         dimension_escala = vec_dimension_deptos2[id_escala]
@@ -423,53 +450,30 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
         vec_ps_deptos2_sin_escala = [vec_ps_deptos2[i] for i in eachindex(vec_ps_deptos2) if i != id_escala]
         vec_terrazas2_sin_escala = [vec_terrazas2[i] for i in eachindex(vec_terrazas2) if i != id_escala]
 
-        if is_vertical
-            results = Dict(
-                "feasible" => true,
-                "status" => "LOCALLY_SOLVED",
-                "n_apts_este" => num_deptos1,
-                "n_apts_oeste" => num_deptos2,
-                "vec_sup_deptos_este" => [apt[1] for apt in deptos_ordenados1],
-                "vec_sup_deptos_oeste" => [apt[1] for apt in deptos_ordenados2 if apt[2] != -1],
-                "width_este" => round(dimension1, digits=2),
-                "width_oeste" => round(dimension2, digits=2),
-                "floor_width" => W,
-                "floor_height" => H,
-                "ancho_pasillo" => ancho_pasillo,
-                "largo_pasillo" => largo_pasillo,
-                "ps_pasillo" => ps_pasillo,
-                "ps_escala" => ps_escala,
-                "ancho_escala" => round(dimension2, digits=2),
-                "alto_escala" => round(dimension_escala, digits=2),
-                "area_escala" => round(area_escala, digits=2),
-                "vec_polyshapes_all" => vcat(vec_ps_deptos1, vec_ps_deptos2_sin_escala),
-                "vec_terrazas_all" => vcat(vec_terrazas1, vec_terrazas2_sin_escala)
-            )
-        else
-            results = Dict(
-                "feasible" => true,
-                "status" => "LOCALLY_SOLVED",
-                "n_apts_norte" => num_deptos1,
-                "n_apts_sur" => num_deptos2,
-                "vec_sup_deptos_norte" => [apt[1] for apt in deptos_ordenados1],
-                "vec_sup_deptos_sur" => [apt[1] for apt in deptos_ordenados2 if apt[2] != -1],
-                "height_norte" => round(dimension1, digits=2),
-                "height_sur" => round(dimension2, digits=2),
-                "floor_width" => W,
-                "floor_height" => H,
-                "ancho_pasillo" => ancho_pasillo,
-                "largo_pasillo" => largo_pasillo,
-                "ps_pasillo" => ps_pasillo,
-                "ps_escala" => ps_escala,
-                "ancho_escala" => round(dimension_escala, digits=2),
-                "alto_escala" => round(dimension2, digits=2),
-                "area_escala" => round(area_escala, digits=2),
-                "vec_polyshapes_all" => vcat(vec_ps_deptos1, vec_ps_deptos2_sin_escala),
-                "vec_terrazas_all" => vcat(vec_terrazas1, vec_terrazas2_sin_escala)
-            )
-        end
+        prefix1, prefix2 = is_vertical ? ("este", "oeste") : ("norte", "sur")
+        dim_key = is_vertical ? "width" : "height"
 
-        return results
+        return Dict(
+            "feasible" => true,
+            "status" => "LOCALLY_SOLVED",
+            "n_apts_$prefix1" => num_deptos1,
+            "n_apts_$prefix2" => num_deptos2,
+            "vec_sup_deptos_$prefix1" => [apt[1] for apt in deptos_ordenados1],
+            "vec_sup_deptos_$prefix2" => [apt[1] for apt in deptos_ordenados2 if apt[2] != -1],
+            "$(dim_key)_$prefix1" => round(dimension1, digits=2),
+            "$(dim_key)_$prefix2" => round(dimension2, digits=2),
+            "floor_width" => W,
+            "floor_height" => H,
+            "ancho_pasillo" => ancho_pasillo,
+            "largo_pasillo" => largo_pasillo,
+            "ps_pasillo" => ps_pasillo,
+            "ps_escala" => ps_escala,
+            "ancho_escala" => round(dimension2, digits=2),
+            "alto_escala" => round(dimension_escala, digits=2),
+            "area_escala" => round(area_escala, digits=2),
+            "vec_polyshapes_all" => vcat(vec_ps_deptos1, vec_ps_deptos2_sin_escala),
+            "vec_terrazas_all" => vcat(vec_terrazas1, vec_terrazas2_sin_escala)
+        )
     end
 
     # Checks if all terraces are fully contained within floor plan boundaries
@@ -566,63 +570,15 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                 flag_inscripcion2 = verifica_inscripcion_terrazas(inputs.ps_planta_normalizado, vec_terrazas2_normalizado)
 
                 if !flag_inscripcion1
-                    coord_max = maximum(inputs.vec_x_planta)
-                    terrazas_con_area = [t for t in vec_terrazas1_normalizado if polyShape.polyArea(t) > 0.0]
-
-                    if !isempty(terrazas_con_area)
-                        max_coord_terrazas = maximum([maximum(t.Vertices[1][:, 1]) for t in terrazas_con_area])
-                        delta = max_coord_terrazas - coord_max
-
-                        terrazas2_con_area = [t for t in vec_terrazas2_normalizado if polyShape.polyArea(t) > 0.0]
-                        if !isempty(terrazas2_con_area)
-                            min_coord_terrazas2 = minimum([minimum(t.Vertices[1][:, 1]) for t in terrazas2_con_area])
-                            coord_min_local = minimum(inputs.vec_x_planta)
-
-                            max_safe_delta = min_coord_terrazas2 - coord_min_local
-                            if delta > max_safe_delta
-                                delta = max_safe_delta
-                            end
-                        end
-
-                        if delta > 0.0
-                            vec_ps_deptos1_normalizado = [safe_translate(p, -delta, 0.0) for p in vec_ps_deptos1_normalizado]
-                            vec_ps_deptos2_normalizado = [safe_translate(p, -delta, 0.0) for p in vec_ps_deptos2_normalizado]
-                            vec_terrazas1_normalizado = [safe_translate(t, -delta, 0.0) for t in vec_terrazas1_normalizado]
-                            vec_terrazas2_normalizado = [safe_translate(t, -delta, 0.0) for t in vec_terrazas2_normalizado]
-                            ps_pasillo_normalizado = safe_translate(ps_pasillo_normalizado, -delta, 0.0)
-
-                            println("Translated all elements west by $(round(delta, digits=2)) to fit este terraces")
-                        end
-                    end
+                    vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado, vec_terrazas1_normalizado, vec_terrazas2_normalizado, ps_pasillo_normalizado =
+                        correct_outbound_terraces(vec_terrazas1_normalizado, vec_terrazas2_normalizado,
+                                                 vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado,
+                                                 ps_pasillo_normalizado, inputs.vec_x_planta, true, true, true)
                 elseif !flag_inscripcion2
-                    coord_min_local = minimum(inputs.vec_x_planta)
-                    terrazas_con_area = [t for t in vec_terrazas2_normalizado if polyShape.polyArea(t) > 0.0]
-
-                    if !isempty(terrazas_con_area)
-                        min_coord_terrazas = minimum([minimum(t.Vertices[1][:, 1]) for t in terrazas_con_area])
-                        delta = coord_min_local - min_coord_terrazas
-
-                        terrazas1_con_area = [t for t in vec_terrazas1_normalizado if polyShape.polyArea(t) > 0.0]
-                        if !isempty(terrazas1_con_area)
-                            max_coord_terrazas1 = maximum([maximum(t.Vertices[1][:, 1]) for t in terrazas1_con_area])
-                            coord_max = maximum(inputs.vec_x_planta)
-
-                            max_safe_delta = coord_max - max_coord_terrazas1
-                            if delta > max_safe_delta
-                                delta = max_safe_delta
-                            end
-                        end
-
-                        if delta > 0.0
-                            vec_ps_deptos1_normalizado = [safe_translate(p, delta, 0.0) for p in vec_ps_deptos1_normalizado]
-                            vec_ps_deptos2_normalizado = [safe_translate(p, delta, 0.0) for p in vec_ps_deptos2_normalizado]
-                            vec_terrazas1_normalizado = [safe_translate(t, delta, 0.0) for t in vec_terrazas1_normalizado]
-                            vec_terrazas2_normalizado = [safe_translate(t, delta, 0.0) for t in vec_terrazas2_normalizado]
-                            ps_pasillo_normalizado = safe_translate(ps_pasillo_normalizado, delta, 0.0)
-
-                            println("Translated all elements east by $(round(delta, digits=2)) to fit oeste terraces")
-                        end
-                    end
+                    vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado, vec_terrazas1_normalizado, vec_terrazas2_normalizado, ps_pasillo_normalizado =
+                        correct_outbound_terraces(vec_terrazas1_normalizado, vec_terrazas2_normalizado,
+                                                 vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado,
+                                                 ps_pasillo_normalizado, inputs.vec_x_planta, true, false, false)
                 end
             else
                 coord_terrace_base1 = [coord_base + vec_dimension1_deptos1[i] + vec_extension_dimension1_1[i] for i in eachindex(inputs.deptos_ordenados1)]
@@ -634,73 +590,16 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                 flag_inscripcion1 = verifica_inscripcion_terrazas(inputs.ps_planta_normalizado, vec_terrazas1_normalizado)
                 flag_inscripcion2 = verifica_inscripcion_terrazas(inputs.ps_planta_normalizado, vec_terrazas2_normalizado)
 
-                println("Horizontal layout - flag_inscripcion1 (NORTE): $flag_inscripcion1, flag_inscripcion2 (SUR): $flag_inscripcion2")
-
                 if !flag_inscripcion1
-                    coord_max = maximum(inputs.vec_y_planta)
-                    terrazas_con_area = [t for t in vec_terrazas1_normalizado if polyShape.polyArea(t) > 0.0]
-
-                    if !isempty(terrazas_con_area)
-                        max_coord_terrazas = maximum([maximum(t.Vertices[1][:, 2]) for t in terrazas_con_area])
-                        delta = max_coord_terrazas - coord_max
-
-                        terrazas2_con_area = [t for t in vec_terrazas2_normalizado if polyShape.polyArea(t) > 0.0]
-                        if !isempty(terrazas2_con_area)
-                            min_coord_terrazas2 = minimum([minimum(t.Vertices[1][:, 2]) for t in terrazas2_con_area])
-                            coord_min_local = minimum(inputs.vec_y_planta)
-
-                            max_safe_delta = min_coord_terrazas2 - coord_min_local
-                            if delta > max_safe_delta
-                                delta = max_safe_delta
-                            end
-                        end
-
-                        if delta > 0.0
-                            vec_ps_deptos1_normalizado = [safe_translate(p, 0.0, -delta) for p in vec_ps_deptos1_normalizado]
-                            vec_ps_deptos2_normalizado = [safe_translate(p, 0.0, -delta) for p in vec_ps_deptos2_normalizado]
-                            vec_terrazas1_normalizado = [safe_translate(t, 0.0, -delta) for t in vec_terrazas1_normalizado]
-                            vec_terrazas2_normalizado = [safe_translate(t, 0.0, -delta) for t in vec_terrazas2_normalizado]
-                            ps_pasillo_normalizado = safe_translate(ps_pasillo_normalizado, 0.0, -delta)
-
-                            println("Translated all elements south by $(round(delta, digits=2)) to fit north terraces")
-                        end
-                    end
+                    vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado, vec_terrazas1_normalizado, vec_terrazas2_normalizado, ps_pasillo_normalizado =
+                        correct_outbound_terraces(vec_terrazas1_normalizado, vec_terrazas2_normalizado,
+                                                 vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado,
+                                                 ps_pasillo_normalizado, inputs.vec_y_planta, false, true, true)
                 elseif !flag_inscripcion2
-                    println("SUR terraces are outbound, attempting correction...")
-                    coord_min_local = minimum(inputs.vec_y_planta)
-                    terrazas_con_area = [t for t in vec_terrazas2_normalizado if polyShape.polyArea(t) > 0.0]
-
-                    if !isempty(terrazas_con_area)
-                        min_coord_terrazas = minimum([minimum(t.Vertices[1][:, 2]) for t in terrazas_con_area])
-                        delta = coord_min_local - min_coord_terrazas
-                        println("  Delta needed to move north: $(round(delta, digits=2))")
-                        println("  Floor min Y: $(round(coord_min_local, digits=2)), SUR terraces min Y: $(round(min_coord_terrazas, digits=2))")
-
-                        terrazas1_con_area = [t for t in vec_terrazas1_normalizado if polyShape.polyArea(t) > 0.0]
-                        if !isempty(terrazas1_con_area)
-                            max_coord_terrazas1 = maximum([maximum(t.Vertices[1][:, 2]) for t in terrazas1_con_area])
-                            coord_max = maximum(inputs.vec_y_planta)
-                            println("  Floor max Y: $(round(coord_max, digits=2)), NORTE terraces max Y: $(round(max_coord_terrazas1, digits=2))")
-                            println("  After full shift, NORTE max Y would be: $(round(max_coord_terrazas1 + delta, digits=2))")
-
-                            max_safe_delta = coord_max - max_coord_terrazas1
-                            if delta > max_safe_delta
-                                delta = max_safe_delta
-                                println("  Limiting delta to max safe value: $(round(delta, digits=2))")
-                            end
-                        end
-
-                        if delta > 0.0
-                            println("  Applying translation of $(round(delta, digits=2))...")
-                            vec_ps_deptos1_normalizado = [safe_translate(p, 0.0, delta) for p in vec_ps_deptos1_normalizado]
-                            vec_ps_deptos2_normalizado = [safe_translate(p, 0.0, delta) for p in vec_ps_deptos2_normalizado]
-                            vec_terrazas1_normalizado = [safe_translate(t, 0.0, delta) for t in vec_terrazas1_normalizado]
-                            vec_terrazas2_normalizado = [safe_translate(t, 0.0, delta) for t in vec_terrazas2_normalizado]
-                            ps_pasillo_normalizado = safe_translate(ps_pasillo_normalizado, 0.0, delta)
-
-                            println("Translated all elements north by $(round(delta, digits=2)) to fit south terraces")
-                        end
-                    end
+                    vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado, vec_terrazas1_normalizado, vec_terrazas2_normalizado, ps_pasillo_normalizado =
+                        correct_outbound_terraces(vec_terrazas1_normalizado, vec_terrazas2_normalizado,
+                                                 vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado,
+                                                 ps_pasillo_normalizado, inputs.vec_y_planta, false, false, false)
                 end
             end
         end
