@@ -6,15 +6,23 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                         min_largo_pasillo::Float64 = 0.0,
                         pasillo_centrado::Bool = false,
                         area_escala::Float64 = 25.0,
-                        min_dimension_escala::Float64 = 0.0,
-                        con_escala::Bool = true,
+                        min_ancho_escala::Float64 = 0.0,
+                        tipo_escala::Symbol = :exterior,
                         layout::Symbol = :ns,
                         balance_mode::Symbol = :heuristic)
 
     is_vertical = (layout == :oe)
 
+    tipo_escala in [:exterior, :interior, :none] || error("tipo_escala must be :exterior, :interior, or :none")
+
+    if tipo_escala == :interior
+        error("tipo_escala = :interior is not yet implemented")
+    end
+
+    con_escala = (tipo_escala == :exterior)
+
     # Generates apartment geometries along one strip, adjusting dimensions iteratively to fit available space
-    function genera_deptos_franja(vec_orden_deptos::Vector{Tuple{Float64, Int}}, coord_min_planta::Float64, dimension_franja::Float64, vec_min_dimensiones::Vector{Float64}, dimension_disponible::Float64, min_dimension_escala::Float64, is_vertical::Bool)
+    function genera_deptos_franja(vec_orden_deptos::Vector{Tuple{Float64, Int}}, coord_min_planta::Float64, dimension_franja::Float64, vec_min_dimensiones::Vector{Float64}, dimension_disponible::Float64, min_ancho_escala::Float64, is_vertical::Bool)
         vec_coord_ini = Float64[]
         vec_coord_fin = Float64[]
         vec_dimension1_deptos = Float64[]
@@ -37,8 +45,8 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
             for (sup_depto, tipo_depto) in vec_orden_deptos
                 if tipo_depto == -1
                     dim2 = sup_depto / dimension_franja_adjusted
-                    if dim2 < min_dimension_escala
-                        dim2 = min_dimension_escala
+                    if dim2 < min_ancho_escala
+                        dim2 = min_ancho_escala
                         dim1 = sup_depto / dim2
                     else
                         dim1 = dimension_franja_adjusted
@@ -555,7 +563,7 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
     end
 
     # Computes all strip geometries including apartments, corridor, terraces, and adjusts for fit
-    function compute_strip_geometries(inputs, ancho_pasillo::Float64, vec_sup_terraza::Vector{Float64}, min_dimension_escala::Float64, is_vertical::Bool, min_largo_pasillo::Float64, pasillo_centrado::Bool)
+    function compute_strip_geometries(inputs, ancho_pasillo::Float64, vec_sup_terraza::Vector{Float64}, min_ancho_escala::Float64, is_vertical::Bool, min_largo_pasillo::Float64, pasillo_centrado::Bool)
         if is_vertical
             coord_base = inputs.coord_min_x + inputs.dimension_depto2
             coord_disponible = inputs.H
@@ -570,8 +578,8 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
             direction2 = :sur
         end
 
-        vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, vec_tipo_deptos1 = genera_deptos_franja(inputs.deptos_ordenados1, coord_min, inputs.dimension_depto1, inputs.vec_min_dimensiones, coord_disponible, min_dimension_escala, is_vertical)
-        vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, vec_tipo_deptos2 = genera_deptos_franja(inputs.deptos_ordenados2, coord_min, inputs.dimension_depto2, inputs.vec_min_dimensiones, coord_disponible, min_dimension_escala, is_vertical)
+        vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, vec_tipo_deptos1 = genera_deptos_franja(inputs.deptos_ordenados1, coord_min, inputs.dimension_depto1, inputs.vec_min_dimensiones, coord_disponible, min_ancho_escala, is_vertical)
+        vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, vec_tipo_deptos2 = genera_deptos_franja(inputs.deptos_ordenados2, coord_min, inputs.dimension_depto2, inputs.vec_min_dimensiones, coord_disponible, min_ancho_escala, is_vertical)
 
         coord_ini_pasillo, coord_fin_pasillo, largo_pasillo, ps_pasillo_normalizado = calcula_geometria_pasillo(vec_coord_fin1, vec_coord_fin2, vec_coord_ini1, vec_coord_ini2, coord_base, ancho_pasillo, is_vertical, inputs.W, inputs.H, coord_min, min_largo_pasillo, pasillo_centrado, vec_tipo_deptos1, vec_tipo_deptos2)
 
@@ -635,7 +643,7 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
 
     inputs = prepare_floor_inputs(ps_planta, vec_sup_deptos, vec_num_deptos, area_escala, ancho_pasillo, vec_min_dimensiones, balance_mode, is_vertical, con_escala)
 
-    geometries = compute_strip_geometries(inputs, ancho_pasillo, vec_sup_terraza, min_dimension_escala, is_vertical, min_largo_pasillo, pasillo_centrado)
+    geometries = compute_strip_geometries(inputs, ancho_pasillo, vec_sup_terraza, min_ancho_escala, is_vertical, min_largo_pasillo, pasillo_centrado)
 
     vec_ps_deptos1 = rota_polyshapes(geometries.vec_ps_deptos1_normalizado, inputs.angulo_rotacion, inputs.cr)
     vec_ps_deptos2 = rota_polyshapes(geometries.vec_ps_deptos2_normalizado, inputs.angulo_rotacion, inputs.cr)
