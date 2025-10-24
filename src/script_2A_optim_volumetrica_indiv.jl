@@ -247,8 +247,8 @@ flag_create_table = false # let flag_create_table = false
                         pasillo_centrado=false,
                         area_escala=20.0,
                         min_ancho_escala=0*4.0,
-                        max_dimension_terraza=4.0,
-                        tipo_escala=:exterior,
+                        max_ancho_terraza=4.0,
+                        tipo_escala=:interior,
                         layout=:ns,
                         balance_mode=:heuristic)
 
@@ -276,7 +276,7 @@ flag_create_table = false # let flag_create_table = false
                         pasillo_centrado=false,
                         area_escala=20.0,
                         min_ancho_escala=0*4.0,
-                        max_dimension_terraza=4.0,
+                        max_ancho_terraza=4.0,
                         tipo_escala=:exterior,
                         layout=:oe,
                         balance_mode=:heuristic)
