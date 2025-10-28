@@ -6,7 +6,6 @@ const MAX_ADJUSTMENT_ITERATIONS = 10
 struct CorridorConfig
     ancho_pasillo::Float64
     min_largo_pasillo::Float64
-    pasillo_centrado::Bool
 end
 
 struct StairConfig
@@ -25,7 +24,6 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                         vec_sup_terraza::Vector{Float64} = Float64[],
                         ancho_pasillo::Float64 = 2.0,
                         min_largo_pasillo::Float64 = 0.0,
-                        pasillo_centrado::Bool = false,
                         area_escala::Float64 = 25.0,
                         min_ancho_escala::Float64 = 0.0,
                         max_ancho_terraza::Float64 = 2.0,
@@ -37,7 +35,7 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
 
     tipo_escala in [:exterior, :interior, :none] || error("tipo_escala must be :exterior, :interior, or :none")
 
-    corridor_cfg = CorridorConfig(ancho_pasillo, min_largo_pasillo, pasillo_centrado)
+    corridor_cfg = CorridorConfig(ancho_pasillo, min_largo_pasillo)
     stair_cfg = StairConfig(area_escala, min_ancho_escala, tipo_escala)
     terrace_cfg = TerraceConfig(vec_sup_terraza, max_ancho_terraza)
 
@@ -533,11 +531,36 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
     # Corridor and results packaging helpers
     # ──────────────────────────────────────────────────────────────────────────────────
 
+    function analiza_forma_apartamentos(vec_apartamentos1::Vector{PolyShape}, vec_apartamentos2::Vector{PolyShape})
+        vec_ratios = Float64[]
+
+        for vec_apts in [vec_apartamentos1, vec_apartamentos2]
+            for ps in vec_apts
+                min_x = minimum([minimum(region[:, 1]) for region in ps.Vertices])
+                max_x = maximum([maximum(region[:, 1]) for region in ps.Vertices])
+                min_y = minimum([minimum(region[:, 2]) for region in ps.Vertices])
+                max_y = maximum([maximum(region[:, 2]) for region in ps.Vertices])
+
+                width = max_x - min_x
+                height = max_y - min_y
+                ratio = width > 0.0 ? height / width : 0.0
+
+                push!(vec_ratios, ratio)
+            end
+        end
+
+        if isempty(vec_ratios)
+            return Dict("max_ratio" => 0.0, "min_ratio" => 0.0)
+        end
+
+        return Dict("max_ratio" => maximum(vec_ratios), "min_ratio" => minimum(vec_ratios))
+    end
+
     # Computes corridor geometry spanning both strips based on apartment coordinates
-    function calcula_geometria_pasillo(vec_coord_fin1::Vector{Float64}, vec_coord_fin2::Vector{Float64}, 
-                        vec_coord_ini1::Vector{Float64}, vec_coord_ini2::Vector{Float64}, coord_base::Float64, 
-                        ancho_pasillo::Float64, is_vertical::Bool, W::Float64, H::Float64, coord_min::Float64, 
-                        min_largo_pasillo::Float64, pasillo_centrado::Bool, vec_tipo_deptos1::Vector{Int}, 
+    function calcula_geometria_pasillo(vec_coord_fin1::Vector{Float64}, vec_coord_fin2::Vector{Float64},
+                        vec_coord_ini1::Vector{Float64}, vec_coord_ini2::Vector{Float64}, coord_base::Float64,
+                        ancho_pasillo::Float64, is_vertical::Bool, W::Float64, H::Float64, coord_min::Float64,
+                        min_largo_pasillo::Float64, vec_tipo_deptos1::Vector{Int},
                         vec_tipo_deptos2::Vector{Int}, tipo_escala::Symbol, ancho_escala, area_escala)
 
         num_deptos_franja1 = count(t -> t != -1, vec_tipo_deptos1)
@@ -555,23 +578,21 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
             largo_pasillo = min_largo_pasillo
         end
 
-        if pasillo_centrado || num_deptos_total == 2
-            dimension_planta = is_vertical ? H : W
-            centro_planta = coord_min + dimension_planta / 2
+        dimension_planta = is_vertical ? H : W
+        centro_planta = coord_min + dimension_planta / 2
 
-            if num_deptos_total == 2
-                coord_ini_pasillo = centro_planta - largo_pasillo / 2
-                coord_fin_pasillo = centro_planta + largo_pasillo / 2
-            else
-                if centro_planta < coord_ini_pasillo
-                    coord_ini_pasillo = centro_planta
-                elseif centro_planta > coord_fin_pasillo
-                    coord_fin_pasillo = centro_planta
-                end
+        if num_deptos_total == 2
+            coord_ini_pasillo = centro_planta - largo_pasillo / 2
+            coord_fin_pasillo = centro_planta + largo_pasillo / 2
+        else
+            if centro_planta < coord_ini_pasillo
+                coord_ini_pasillo = centro_planta
+            elseif centro_planta > coord_fin_pasillo
+                coord_fin_pasillo = centro_planta
             end
-
-            largo_pasillo = coord_fin_pasillo - coord_ini_pasillo
         end
+
+        largo_pasillo = coord_fin_pasillo - coord_ini_pasillo
 
         coord_pasillo = coord_base - ancho_pasillo / 2
 
@@ -651,6 +672,8 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
             result["area_escala"] = round(area_escala, digits=2)
             result["vec_polyshapes_all"] = vcat(vec_ps_deptos1, vec_ps_deptos2_sin_escala)
             result["vec_terrazas_all"] = vcat(vec_terrazas1, vec_terrazas2_sin_escala)
+
+            shape_analysis = analiza_forma_apartamentos(vec_ps_deptos1, vec_ps_deptos2_sin_escala)
         elseif tipo_escala == :interior || tipo_escala == :none
             result["ps_escala"] = nothing
             result["ancho_escala"] = nothing
@@ -658,7 +681,12 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
             result["area_escala"] = nothing
             result["vec_polyshapes_all"] = vcat(vec_ps_deptos1, vec_ps_deptos2)
             result["vec_terrazas_all"] = vcat(vec_terrazas1, vec_terrazas2)
+
+            shape_analysis = analiza_forma_apartamentos(vec_ps_deptos1, vec_ps_deptos2)
         end
+
+        result["max_apt_height_to_width_ratio"] = round(shape_analysis["max_ratio"], digits=3)
+        result["min_apt_height_to_width_ratio"] = round(shape_analysis["min_ratio"], digits=3)
 
         return result
     end
@@ -757,11 +785,11 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                                             is_vertical, coord_base, franja2)
 
     coord_ini_pasillo, coord_fin_pasillo, largo_pasillo, ps_pasillo_normalizado = calcula_geometria_pasillo(
-                                            vec_coord_fin1, vec_coord_fin2, vec_coord_ini1, vec_coord_ini2, 
-                                            coord_base, ancho_pasillo, is_vertical, 
-                                            planta_normalizada.W, planta_normalizada.H, 
-                                            coord_min, min_largo_pasillo, pasillo_centrado, 
-                                            vec_tipo_deptos1, vec_tipo_deptos2, 
+                                            vec_coord_fin1, vec_coord_fin2, vec_coord_ini1, vec_coord_ini2,
+                                            coord_base, ancho_pasillo, is_vertical,
+                                            planta_normalizada.W, planta_normalizada.H,
+                                            coord_min, min_largo_pasillo,
+                                            vec_tipo_deptos1, vec_tipo_deptos2,
                                             tipo_escala, min_ancho_escala, area_escala)
 
     vec_ps_deptos1_normalizado, vec_extension_dimension1_1 = extiende_deptos_con_interseccion_pasillo(vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, coord_base, ps_pasillo_normalizado, franja1, is_vertical, vec_ps_deptos1_normalizado, ps_pasillo_normalizado)
