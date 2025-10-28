@@ -705,7 +705,7 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                         vec_ps_deptos1::Vector{PolyShape}, vec_ps_deptos2::Vector{PolyShape},
                         vec_dimension_deptos2::Vector{Float64}, vec_tipo_deptos2::Vector{Int}, area_escala::Float64,
                         vec_terrazas1::Vector{PolyShape}, vec_terrazas2::Vector{PolyShape}, is_vertical::Bool,
-                        tipo_escala::Symbol)
+                        tipo_escala::Symbol, ps_planta::PolyShape)
         if is_vertical
             prefix1, prefix2 = "este", "oeste"
             dim_key = "width"
@@ -763,6 +763,23 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
         end
 
         result["max_apt_height_to_width_ratio_deviation"] = round(shape_analysis, digits=3)
+
+        ps_union_all = polyShape.polyUnion(ps_pasillo)
+        for ps_apt in result["vec_polyshapes_all"]
+            ps_union_all = polyShape.polyUnion(ps_union_all, ps_apt)
+        end
+        for ps_terr in result["vec_terrazas_all"]
+            if polyShape.polyArea(ps_terr) > 0.0
+                ps_union_all = polyShape.polyUnion(ps_union_all, ps_terr)
+            end
+        end
+        if !isnothing(result["ps_escala"])
+            ps_union_all = polyShape.polyUnion(ps_union_all, result["ps_escala"])
+        end
+
+        ps_outbound = polyShape.polyDifference(ps_union_all, ps_planta)
+        area_outbound = polyShape.polyArea(ps_outbound)
+        result["area_outbound"] = round(area_outbound, digits=2)
 
         return result
     end
@@ -910,7 +927,7 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
     results = empaqueta_resultados(num_deptos1, num_deptos2, planta_normalizada.deptos_ordenados1, planta_normalizada.deptos_ordenados2,
                                     planta_normalizada.dimension_depto1, planta_normalizada.dimension_depto2, planta_normalizada.W, planta_normalizada.H, ancho_pasillo, franjas_computadas.largo_pasillo, ps_pasillo,
                                     vec_ps_deptos1, vec_ps_deptos2, franjas_computadas.vec_dimension_deptos2, franjas_computadas.vec_tipo_deptos2,
-                                    area_escala, vec_terrazas1, vec_terrazas2, is_vertical, tipo_escala)
+                                    area_escala, vec_terrazas1, vec_terrazas2, is_vertical, tipo_escala, ps_planta)
 
     return results
 end

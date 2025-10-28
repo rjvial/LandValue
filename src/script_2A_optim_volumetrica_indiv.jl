@@ -235,9 +235,9 @@ flag_create_table = false # let flag_create_table = false
 
             ####################################
             ####################################
-            vec_sup_deptos = dict_arquitectura["arq_vecSupInterior"][dict_proyecto["proyecto_vec_num_deptos_primerPiso"].>=1]
-            vec_num_deptos = dict_proyecto["proyecto_vec_num_deptos_primerPiso"][dict_proyecto["proyecto_vec_num_deptos_primerPiso"].>=1]
-            vec_sup_terraza = dict_arquitectura["arq_vecSupTerraza"][dict_proyecto["proyecto_vec_num_deptos_primerPiso"].>=1]
+            vec_sup_deptos = dict_arquitectura["arq_vecSupInterior"][dict_proyecto["proyecto_vec_num_deptos_pisosSup"].>=1]
+            vec_num_deptos = round.(Int, dict_proyecto["proyecto_vec_num_deptos_pisosSup"][dict_proyecto["proyecto_vec_num_deptos_pisosSup"].>=1] ./ (dict_proyecto["proyecto_pisos_snt"] - 1))
+            vec_sup_terraza = dict_arquitectura["arq_vecSupTerraza"][dict_proyecto["proyecto_vec_num_deptos_pisosSup"].>=1]
             ps_planta = dict_proyecto["proyecto_vec_ps_opt"][1]
 
             ancho_pasillo = 1.5
@@ -298,13 +298,17 @@ flag_create_table = false # let flag_create_table = false
             ]
 
             best_result = nothing
+            best_outbound = Inf
             best_deviation = Inf
             best_name = ""
 
             for (result, name) in all_results
                 if result["feasible"]
+                    outbound = result["area_outbound"]
                     deviation = result["max_apt_height_to_width_ratio_deviation"]
-                    if deviation < best_deviation
+
+                    if outbound < best_outbound || (outbound == best_outbound && deviation < best_deviation)
+                        best_outbound = outbound
                         best_deviation = deviation
                         best_result = result
                         best_name = name
@@ -317,7 +321,7 @@ flag_create_table = false # let flag_create_table = false
                 results = all_results[1][1]
             else
                 results = best_result
-                println("Selected configuration: $best_name with deviation: $best_deviation")
+                println("Selected configuration: $best_name with outbound area: $best_outbound, deviation: $best_deviation")
             end
 
             fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
