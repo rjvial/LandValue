@@ -1,7 +1,6 @@
 # Main floor plan optimization function: distributes apartments in two strips with corridor and terraces
 function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int};
                         vec_sup_terraza::Vector{Float64} = Float64[],
-                        vec_min_dimensiones::Vector{Float64} = Float64[],
                         ancho_pasillo::Float64 = 2.0,
                         min_largo_pasillo::Float64 = 0.0,
                         pasillo_centrado::Bool = false,
@@ -32,7 +31,7 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
     # ──────────────────────────────────────────────────────────────────────────────────
 
     # Generates apartment geometries along one strip, adjusting dimensions iteratively to fit available space
-    function genera_deptos_franja(vec_orden_deptos::Vector{Tuple{Float64, Int}}, coord_min_planta::Float64, dimension_franja::Float64, vec_min_dimensiones::Vector{Float64}, dimension_disponible::Float64, min_ancho_escala::Float64, is_vertical::Bool)
+    function genera_deptos_franja(vec_orden_deptos::Vector{Tuple{Float64, Int}}, coord_min_planta::Float64, dimension_franja::Float64, dimension_disponible::Float64, min_ancho_escala::Float64, is_vertical::Bool, coord_base::Float64, franja::Symbol)
         vec_coord_ini = Float64[]
         vec_coord_fin = Float64[]
         vec_dimension1_deptos = Float64[]
@@ -65,12 +64,7 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                     end
                 else
                     dim2 = sup_depto / dimension_franja_adjusted
-                    if dim2 < vec_min_dimensiones[tipo_depto]
-                        dim2 = vec_min_dimensiones[tipo_depto]
-                        dim1 = sup_depto / dim2
-                    else
-                        dim1 = dimension_franja_adjusted
-                    end
+                    dim1 = dimension_franja_adjusted
                 end
 
                 push!(vec_coord_ini, coord_current)
@@ -89,21 +83,30 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
             dimension_franja_adjusted = dimension_franja_adjusted * (total_dimension / dimension_disponible)
         end
 
-        return vec_coord_ini, vec_coord_fin, vec_dimension1_deptos, vec_dimension2_deptos, vec_tipo_deptos
+        vec_ps_deptos_normalizado = PolyShape[]
+        for i in eachindex(vec_coord_ini)
+            ps_depto = polyBoxAligned(coord_base, vec_coord_ini[i], vec_dimension1_deptos[i], vec_dimension2_deptos[i], franja, is_vertical)
+            push!(vec_ps_deptos_normalizado, ps_depto)
+        end
+
+        return vec_coord_ini, vec_coord_fin, vec_dimension1_deptos, vec_dimension2_deptos, vec_tipo_deptos, vec_ps_deptos_normalizado
     end
 
     # Extends apartments with corridor space overlap, then subtracts corridor geometry
-    function extiende_deptos_con_interseccion_pasillo(vec_coord_ini::Vector{Float64}, vec_coord_fin::Vector{Float64}, vec_dimension1_deptos::Vector{Float64}, vec_dimension2_deptos::Vector{Float64}, coord_base::Float64, coord_ini_pasillo::Float64, coord_fin_pasillo::Float64, ancho_pasillo::Float64, ps_pasillo::PolyShape, extend_direction::Symbol, is_vertical::Bool)
+    function extiende_deptos_con_interseccion_pasillo(vec_coord_ini::Vector{Float64}, vec_coord_fin::Vector{Float64}, 
+                vec_dimension1_deptos::Vector{Float64}, vec_dimension2_deptos::Vector{Float64}, coord_base::Float64, 
+                ps_pasillo::PolyShape, extend_franja::Symbol, is_vertical::Bool, vec_ps_deptos_normalizado::Vector{PolyShape}, 
+                ps_pasillo_normalizado::PolyShape)
+
         vec_extension_dimension1 = Float64[]
         ps_deptos_extendidos = PolyShape[]
 
         for i in eachindex(vec_coord_ini)
-            coord_overlap_start = max(vec_coord_ini[i], coord_ini_pasillo)
-            coord_overlap_end = min(vec_coord_fin[i], coord_fin_pasillo)
+            ps_depto_normalizado = vec_ps_deptos_normalizado[i]
+            ps_intersection = polyShape.polyIntersection(ps_depto_normalizado, ps_pasillo_normalizado)
+            intersection_area = polyShape.polyArea(ps_intersection)
 
-            if coord_overlap_start < coord_overlap_end
-                overlap_dimension = coord_overlap_end - coord_overlap_start
-                intersection_area = overlap_dimension * ancho_pasillo
+            if intersection_area > 0.0
                 extension_dimension = intersection_area / vec_dimension2_deptos[i]
             else
                 extension_dimension = 0.0
@@ -114,7 +117,7 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
             dimension1_total = vec_dimension1_deptos[i] + extension_dimension
             dimension2 = vec_coord_fin[i] - vec_coord_ini[i]
 
-            extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini[i], dimension1_total, dimension2, extend_direction, is_vertical)
+            extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini[i], dimension1_total, dimension2, extend_franja, is_vertical)
             extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
             push!(ps_deptos_extendidos, extended_poly_final)
         end
@@ -123,7 +126,11 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
     end
 
     # Creates terrace geometries for each apartment based on required areas and available dimensions
-    function genera_terrazas_franja(vec_orden_deptos::Vector{Tuple{Float64, Int}}, vec_sup_terraza::Vector{Float64}, vec_dimension2_deptos::Vector{Float64}, vec_coord_ini::Vector{Float64}, coord_terrace_base::Vector{Float64}, terrace_direction::Symbol, max_ancho_terraza::Float64, is_vertical::Bool)
+    function genera_terrazas_franja(vec_orden_deptos::Vector{Tuple{Float64, Int}}, vec_sup_terraza::Vector{Float64}, 
+                        vec_dimension2_deptos::Vector{Float64}, vec_coord_ini::Vector{Float64}, 
+                        coord_terrace_base::Vector{Float64}, terrace_franja::Symbol, max_ancho_terraza::Float64, 
+                        is_vertical::Bool)
+        
         vec_terrazas = PolyShape[]
 
         for (i, depto) in enumerate(vec_orden_deptos)
@@ -145,7 +152,7 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                     coord_depto_ini = vec_coord_ini[i]
                     coord_terraza_ini = coord_depto_ini + (dimension2_depto - dim_parallel) / 2
 
-                    terrace_poly = polyBoxAligned(coord_terrace_base[i], coord_terraza_ini, dim_perpendicular, dim_parallel, terrace_direction, is_vertical)
+                    terrace_poly = polyBoxAligned(coord_terrace_base[i], coord_terraza_ini, dim_perpendicular, dim_parallel, terrace_franja, is_vertical)
                     push!(vec_terrazas, terrace_poly)
                 else
                     push!(vec_terrazas, PolyShape([zeros(0, 2)], 0))
@@ -185,13 +192,13 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
         end
     end
 
-    # Creates axis-aligned box with direction-aware positioning (vertical: X-axis, horizontal: Y-axis)
-    function polyBoxAligned(base1::Float64, base2::Float64, dim1::Float64, dim2::Float64, direction::Symbol, is_vertical::Bool)
+    # Creates axis-aligned box with franja-aware positioning (vertical: X-axis, horizontal: Y-axis)
+    function polyBoxAligned(base1::Float64, base2::Float64, dim1::Float64, dim2::Float64, franja::Symbol, is_vertical::Bool)
         if is_vertical
-            offset = (direction == :este) ? base1 : base1 - dim1
+            offset = (franja == :este) ? base1 : base1 - dim1
             return polyShape.polyBox(offset, base2, dim1, dim2, 0.0)
         else
-            offset = (direction == :norte) ? base1 : base1 - dim1
+            offset = (franja == :norte) ? base1 : base1 - dim1
             return polyShape.polyBox(base2, offset, dim2, dim1, 0.0)
         end
     end
@@ -241,11 +248,11 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
         return get_max ? maximum(all_coords) : minimum(all_coords)
     end
 
-    # Translates all geometries by delta in specified direction
+    # Translates all geometries by delta in specified franja
     function apply_terrace_correction(vec_ps_deptos1::Vector{PolyShape}, vec_ps_deptos2::Vector{PolyShape},
                                      vec_terrazas1::Vector{PolyShape}, vec_terrazas2::Vector{PolyShape},
-                                     ps_pasillo::PolyShape, delta::Float64, is_vertical::Bool, direction::Symbol)
-        dx, dy = is_vertical ? ((direction == :este ? delta : -delta), 0.0) : (0.0, (direction == :norte ? delta : -delta))
+                                     ps_pasillo::PolyShape, delta::Float64, is_vertical::Bool, franja::Symbol)
+        dx, dy = is_vertical ? ((franja == :este ? delta : -delta), 0.0) : (0.0, (franja == :norte ? delta : -delta))
 
         return ([safe_translate(p, dx, dy) for p in vec_ps_deptos1],
                 [safe_translate(p, dx, dy) for p in vec_ps_deptos2],
@@ -279,10 +286,9 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
         end
 
         if delta > 0.0
-            shift_direction = get_max_outbound ? (is_vertical ? :oeste : :sur) : (is_vertical ? :este : :norte)
-            vec_ps_deptos1, vec_ps_deptos2, vec_terrazas1, vec_terrazas2, ps_pasillo =
-                apply_terrace_correction(vec_ps_deptos1, vec_ps_deptos2, vec_terrazas1, vec_terrazas2,
-                                       ps_pasillo, delta, is_vertical, shift_direction)
+            shift_franja = get_max_outbound ? (is_vertical ? :oeste : :sur) : (is_vertical ? :este : :norte)
+            return apply_terrace_correction(vec_ps_deptos1, vec_ps_deptos2, vec_terrazas1, vec_terrazas2,
+                                       ps_pasillo, delta, is_vertical, shift_franja)
         end
 
         return vec_ps_deptos1, vec_ps_deptos2, vec_terrazas1, vec_terrazas2, ps_pasillo
@@ -392,7 +398,7 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
         num_deptos1 = length(deptos_franja1)
         num_deptos2 = (tipo_escala == :exterior) ? length(deptos_franja2) - 1 : length(deptos_franja2)
 
-        area_escala = (tipo_escala == :exterior) ? get_area(deptos_franja2[end]) : 0.0
+        area_escala_local = (tipo_escala == :exterior) ? get_area(deptos_franja2[end]) : 0.0
 
         if balance_mode == :area
             for i in 1:num_deptos1
@@ -404,7 +410,7 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                 push!(deptos_ordenados2, (get_area(deptos_franja2[i]), get_tipo(deptos_franja2[i])))
             end
             if tipo_escala == :exterior
-                push!(deptos_ordenados2, (area_escala, -1))
+                push!(deptos_ordenados2, (area_escala_local, -1))
             end
             for i in (num_deptos2_half + 1):num_deptos2
                 push!(deptos_ordenados2, (get_area(deptos_franja2[i]), get_tipo(deptos_franja2[i])))
@@ -424,7 +430,7 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                     push!(deptos_ordenados2, (get_area(deptos_franja2[i]), get_tipo(deptos_franja2[i])))
                 end
                 if tipo_escala == :exterior
-                    push!(deptos_ordenados2, (area_escala, -1))
+                    push!(deptos_ordenados2, (area_escala_local, -1))
                 end
                 for i in (num_deptos2_half + 1):num_deptos2
                     push!(deptos_ordenados2, (get_area(deptos_franja2[i]), get_tipo(deptos_franja2[i])))
@@ -438,7 +444,7 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                     push!(deptos_ordenados2, (get_area(deptos_franja2[i]), get_tipo(deptos_franja2[i])))
                 end
                 if tipo_escala == :exterior
-                    push!(deptos_ordenados2, (area_escala, -1))
+                    push!(deptos_ordenados2, (area_escala_local, -1))
                 end
                 for i in (num_deptos2_half + 1):num_deptos2
                     push!(deptos_ordenados2, (get_area(deptos_franja2[i]), get_tipo(deptos_franja2[i])))
@@ -454,7 +460,12 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
     # ──────────────────────────────────────────────────────────────────────────────────
 
     # Computes corridor geometry spanning both strips based on apartment coordinates
-    function calcula_geometria_pasillo(vec_coord_fin1::Vector{Float64}, vec_coord_fin2::Vector{Float64}, vec_coord_ini1::Vector{Float64}, vec_coord_ini2::Vector{Float64}, coord_base::Float64, ancho_pasillo::Float64, is_vertical::Bool, W::Float64, H::Float64, coord_min::Float64, min_largo_pasillo::Float64, pasillo_centrado::Bool, vec_tipo_deptos1::Vector{Int}, vec_tipo_deptos2::Vector{Int})
+    function calcula_geometria_pasillo(vec_coord_fin1::Vector{Float64}, vec_coord_fin2::Vector{Float64}, 
+                        vec_coord_ini1::Vector{Float64}, vec_coord_ini2::Vector{Float64}, coord_base::Float64, 
+                        ancho_pasillo::Float64, is_vertical::Bool, W::Float64, H::Float64, coord_min::Float64, 
+                        min_largo_pasillo::Float64, pasillo_centrado::Bool, vec_tipo_deptos1::Vector{Int}, 
+                        vec_tipo_deptos2::Vector{Int}, tipo_escala::Symbol, ancho_escala, area_escala)
+
         num_deptos_franja1 = count(t -> t != -1, vec_tipo_deptos1)
         num_deptos_franja2 = count(t -> t != -1, vec_tipo_deptos2)
         num_deptos_total = num_deptos_franja1 + num_deptos_franja2
@@ -495,15 +506,37 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
 
         if is_vertical
             ps_pasillo = polyShape.polyBox(coord_pasillo, coord_ini_pasillo, ancho_pasillo, largo_pasillo, 0.0)
+            x_centroide = coord_base
+            y_centroide = (coord_ini_pasillo + coord_fin_pasillo) / 2
         else
             ps_pasillo = polyShape.polyBox(coord_ini_pasillo, coord_pasillo, largo_pasillo, ancho_pasillo, 0.0)
+            x_centroide = (coord_ini_pasillo + coord_fin_pasillo) / 2
+            y_centroide = coord_base
+        end
+
+        largo_escala = area_escala / ancho_escala
+
+
+        if tipo_escala == :interior
+            if is_vertical
+                ps_escala = polyShape.polyBox(x_centroide - largo_escala / 2, y_centroide - ancho_escala / 2, largo_escala, ancho_escala, 0.0)
+            else
+                ps_escala = polyShape.polyBox(x_centroide - ancho_escala / 2, y_centroide - largo_escala / 2, ancho_escala, largo_escala, 0.0)                
+            end
+            ps_pasillo = polyShape.polyUnion(ps_pasillo, ps_escala)            
         end
 
         return coord_ini_pasillo, coord_fin_pasillo, largo_pasillo, ps_pasillo
     end
 
     # Packages all computed geometries and parameters into results dictionary
-    function empaqueta_resultados(num_deptos1::Int, num_deptos2::Int, deptos_ordenados1::Vector{Tuple{Float64, Int}}, deptos_ordenados2::Vector{Tuple{Float64, Int}}, dimension1::Float64, dimension2::Float64, W::Float64, H::Float64, ancho_pasillo::Float64, largo_pasillo::Float64, ps_pasillo::PolyShape, vec_ps_deptos1::Vector{PolyShape}, vec_ps_deptos2::Vector{PolyShape}, vec_dimension_deptos2::Vector{Float64}, vec_tipo_deptos2::Vector{Int}, area_escala::Float64, vec_terrazas1::Vector{PolyShape}, vec_terrazas2::Vector{PolyShape}, is_vertical::Bool, tipo_escala::Symbol)
+    function empaqueta_resultados(num_deptos1::Int, num_deptos2::Int, deptos_ordenados1::Vector{Tuple{Float64, Int}}, 
+                        deptos_ordenados2::Vector{Tuple{Float64, Int}}, dimension1::Float64, dimension2::Float64, 
+                        W::Float64, H::Float64, ancho_pasillo::Float64, largo_pasillo::Float64, ps_pasillo::PolyShape, 
+                        vec_ps_deptos1::Vector{PolyShape}, vec_ps_deptos2::Vector{PolyShape}, 
+                        vec_dimension_deptos2::Vector{Float64}, vec_tipo_deptos2::Vector{Int}, area_escala::Float64, 
+                        vec_terrazas1::Vector{PolyShape}, vec_terrazas2::Vector{PolyShape}, is_vertical::Bool, 
+                        tipo_escala::Symbol)
         prefix1, prefix2 = is_vertical ? ("este", "oeste") : ("norte", "sur")
         dim_key = is_vertical ? "width" : "height"
 
@@ -573,10 +606,7 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
     # ──────────────────────────────────────────────────────────────────────────────────
 
     # Prepares normalized floor plan, distributes apartments, and calculates strip dimensions
-    function prepare_floor_inputs(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int}, area_escala::Float64, ancho_pasillo::Float64, vec_min_dimensiones::Vector{Float64}, balance_mode::Symbol, is_vertical::Bool, tipo_escala::Symbol, max_ancho_terraza::Float64)
-        if isempty(vec_min_dimensiones)
-            vec_min_dimensiones = zeros(Float64, length(vec_sup_deptos))
-        end
+    function prepare_floor_inputs(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int}, area_escala::Float64, ancho_pasillo::Float64, balance_mode::Symbol, is_vertical::Bool, tipo_escala::Symbol, max_ancho_terraza::Float64)
 
         W, H, vec_x_planta, vec_y_planta, angulo_rotacion, cr, ps_planta_normalizado = normaliza_planta_rectangular(ps_planta)
 
@@ -608,98 +638,9 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                 cr=cr, ps_planta_normalizado=ps_planta_normalizado, deptos_ordenados1=deptos_ordenados1,
                 deptos_ordenados2=deptos_ordenados2, dimension_depto1=dimension_depto1, dimension_depto2=dimension_depto2,
                 coord_min_x=coord_min_x, coord_min_y=coord_min_y, dimension_terraza_max=max_ancho_terraza,
-                total_dimension1_utilizada=total_dimension1_utilizada, total_dimension2_utilizada=total_dimension2_utilizada,
-                vec_min_dimensiones=vec_min_dimensiones)
+                total_dimension1_utilizada=total_dimension1_utilizada, total_dimension2_utilizada=total_dimension2_utilizada)
     end
 
-    # Computes all strip geometries including apartments, corridor, terraces, and adjusts for fit
-    function compute_strip_geometries(planta_normalizada, ancho_pasillo::Float64, vec_sup_terraza::Vector{Float64}, min_ancho_escala::Float64, is_vertical::Bool, min_largo_pasillo::Float64, pasillo_centrado::Bool)
-        if is_vertical
-            coord_base = planta_normalizada.coord_min_x + planta_normalizada.dimension_depto2
-            coord_disponible = planta_normalizada.H
-            coord_min = planta_normalizada.coord_min_y
-            direction1 = :este
-            direction2 = :oeste
-        else
-            coord_base = planta_normalizada.coord_min_y + planta_normalizada.dimension_depto2
-            coord_disponible = planta_normalizada.W
-            coord_min = planta_normalizada.coord_min_x
-            direction1 = :norte
-            direction2 = :sur
-        end
-
-        vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, vec_tipo_deptos1 = genera_deptos_franja(planta_normalizada.deptos_ordenados1, coord_min, planta_normalizada.dimension_depto1, planta_normalizada.vec_min_dimensiones, coord_disponible, min_ancho_escala, is_vertical)
-        vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, vec_tipo_deptos2 = genera_deptos_franja(planta_normalizada.deptos_ordenados2, coord_min, planta_normalizada.dimension_depto2, planta_normalizada.vec_min_dimensiones, coord_disponible, min_ancho_escala, is_vertical)
-
-        coord_ini_pasillo, coord_fin_pasillo, largo_pasillo, ps_pasillo_normalizado = calcula_geometria_pasillo(vec_coord_fin1, vec_coord_fin2, vec_coord_ini1, vec_coord_ini2, coord_base, ancho_pasillo, is_vertical, planta_normalizada.W, planta_normalizada.H, coord_min, min_largo_pasillo, pasillo_centrado, vec_tipo_deptos1, vec_tipo_deptos2)
-
-        vec_ps_deptos1_normalizado, vec_extension_dimension1_1 = extiende_deptos_con_interseccion_pasillo(vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, coord_base, coord_ini_pasillo, coord_fin_pasillo, ancho_pasillo, ps_pasillo_normalizado, direction1, is_vertical)
-        vec_ps_deptos2_normalizado, vec_extension_dimension1_2 = extiende_deptos_con_interseccion_pasillo(vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, coord_base, coord_ini_pasillo, coord_fin_pasillo, ancho_pasillo, ps_pasillo_normalizado, direction2, is_vertical)
-
-        vec_terrazas1_normalizado = PolyShape[]
-        vec_terrazas2_normalizado = PolyShape[]
-
-        if !isempty(vec_sup_terraza)
-            if is_vertical
-                coord_terrace_base1 = [coord_base + vec_dimension1_deptos1[i] + vec_extension_dimension1_1[i] for i in eachindex(planta_normalizada.deptos_ordenados1)]
-                vec_terrazas1_normalizado = genera_terrazas_franja(planta_normalizada.deptos_ordenados1, vec_sup_terraza, vec_dimension2_deptos1, vec_coord_ini1, coord_terrace_base1, direction1, planta_normalizada.dimension_terraza_max, is_vertical)
-
-                coord_terrace_base2 = [coord_base - vec_dimension1_deptos2[i] - vec_extension_dimension1_2[i] for i in eachindex(planta_normalizada.deptos_ordenados2)]
-                vec_terrazas2_normalizado = genera_terrazas_franja(planta_normalizada.deptos_ordenados2, vec_sup_terraza, vec_dimension2_deptos2, vec_coord_ini2, coord_terrace_base2, direction2, planta_normalizada.dimension_terraza_max, is_vertical)
-
-                flag_inscripcion1 = verifica_inscripcion_terrazas(planta_normalizada.ps_planta_normalizado, vec_terrazas1_normalizado)
-                flag_inscripcion2 = verifica_inscripcion_terrazas(planta_normalizada.ps_planta_normalizado, vec_terrazas2_normalizado)
-
-                if !flag_inscripcion1 && !flag_inscripcion2
-                    @warn "Both strips have outbound terraces - layout may not fit properly"
-                end
-
-                if !flag_inscripcion1
-                    vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado, vec_terrazas1_normalizado, vec_terrazas2_normalizado, ps_pasillo_normalizado =
-                        correct_outbound_terraces(vec_terrazas1_normalizado, vec_terrazas2_normalizado,
-                                                 vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado,
-                                                 ps_pasillo_normalizado, planta_normalizada.vec_x_planta, true, true, true)
-                end
-                if !flag_inscripcion2
-                    vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado, vec_terrazas1_normalizado, vec_terrazas2_normalizado, ps_pasillo_normalizado =
-                        correct_outbound_terraces(vec_terrazas1_normalizado, vec_terrazas2_normalizado,
-                                                 vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado,
-                                                 ps_pasillo_normalizado, planta_normalizada.vec_x_planta, true, false, false)
-                end
-            else
-                coord_terrace_base1 = [coord_base + vec_dimension1_deptos1[i] + vec_extension_dimension1_1[i] for i in eachindex(planta_normalizada.deptos_ordenados1)]
-                vec_terrazas1_normalizado = genera_terrazas_franja(planta_normalizada.deptos_ordenados1, vec_sup_terraza, vec_dimension2_deptos1, vec_coord_ini1, coord_terrace_base1, direction1, planta_normalizada.dimension_terraza_max, is_vertical)
-
-                coord_terrace_base2 = [coord_base - vec_dimension1_deptos2[i] - vec_extension_dimension1_2[i] for i in eachindex(planta_normalizada.deptos_ordenados2)]
-                vec_terrazas2_normalizado = genera_terrazas_franja(planta_normalizada.deptos_ordenados2, vec_sup_terraza, vec_dimension2_deptos2, vec_coord_ini2, coord_terrace_base2, direction2, planta_normalizada.dimension_terraza_max, is_vertical)
-
-                flag_inscripcion1 = verifica_inscripcion_terrazas(planta_normalizada.ps_planta_normalizado, vec_terrazas1_normalizado)
-                flag_inscripcion2 = verifica_inscripcion_terrazas(planta_normalizada.ps_planta_normalizado, vec_terrazas2_normalizado)
-
-                if !flag_inscripcion1 && !flag_inscripcion2
-                    @warn "Both strips have outbound terraces - layout may not fit properly"
-                end
-
-                if !flag_inscripcion1
-                    vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado, vec_terrazas1_normalizado, vec_terrazas2_normalizado, ps_pasillo_normalizado =
-                        correct_outbound_terraces(vec_terrazas1_normalizado, vec_terrazas2_normalizado,
-                                                 vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado,
-                                                 ps_pasillo_normalizado, planta_normalizada.vec_y_planta, false, true, true)
-                end
-                if !flag_inscripcion2
-                    vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado, vec_terrazas1_normalizado, vec_terrazas2_normalizado, ps_pasillo_normalizado =
-                        correct_outbound_terraces(vec_terrazas1_normalizado, vec_terrazas2_normalizado,
-                                                 vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado,
-                                                 ps_pasillo_normalizado, planta_normalizada.vec_y_planta, false, false, false)
-                end
-            end
-        end
-
-        return (vec_ps_deptos1_normalizado=vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado=vec_ps_deptos2_normalizado,
-                vec_terrazas1_normalizado=vec_terrazas1_normalizado, vec_terrazas2_normalizado=vec_terrazas2_normalizado,
-                ps_pasillo_normalizado=ps_pasillo_normalizado, largo_pasillo=largo_pasillo,
-                vec_dimension_deptos2=vec_dimension2_deptos2, vec_tipo_deptos2=vec_tipo_deptos2)
-    end
 
     # ══════════════════════════════════════════════════════════════════════════════════
     # MAIN EXECUTION LOGIC
@@ -708,19 +649,115 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
     # ──────────────────────────────────────────────────────────────────────────────────
     # Stage 1: Input preparation and normalization
     # ──────────────────────────────────────────────────────────────────────────────────
-
-    planta_normalizada = prepare_floor_inputs(ps_planta, vec_sup_deptos, vec_num_deptos, area_escala, ancho_pasillo, vec_min_dimensiones, balance_mode, is_vertical, tipo_escala, max_ancho_terraza)
+    planta_normalizada = prepare_floor_inputs(ps_planta, vec_sup_deptos, vec_num_deptos, 
+                                        area_escala, ancho_pasillo, 
+                                    balance_mode, is_vertical, tipo_escala, max_ancho_terraza)
 
     # ──────────────────────────────────────────────────────────────────────────────────
     # Stage 2: Strip geometry computation
     # ──────────────────────────────────────────────────────────────────────────────────
+    if is_vertical
+        coord_base = planta_normalizada.coord_min_x + planta_normalizada.dimension_depto2
+        coord_disponible = planta_normalizada.H
+        coord_min = planta_normalizada.coord_min_y
+        franja1 = :este
+        franja2 = :oeste
+    else
+        coord_base = planta_normalizada.coord_min_y + planta_normalizada.dimension_depto2
+        coord_disponible = planta_normalizada.W
+        coord_min = planta_normalizada.coord_min_x
+        franja1 = :norte
+        franja2 = :sur
+    end
 
-    franjas_computadas = compute_strip_geometries(planta_normalizada, ancho_pasillo, vec_sup_terraza, min_ancho_escala, is_vertical, min_largo_pasillo, pasillo_centrado)
+    
+    vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, vec_tipo_deptos1, 
+            vec_ps_deptos1_normalizado = genera_deptos_franja(planta_normalizada.deptos_ordenados1, coord_min, 
+                                            planta_normalizada.dimension_depto1, coord_disponible, min_ancho_escala, 
+                                            is_vertical, coord_base, franja1)
+    vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, vec_tipo_deptos2, 
+            vec_ps_deptos2_normalizado = genera_deptos_franja(planta_normalizada.deptos_ordenados2, coord_min, 
+                                            planta_normalizada.dimension_depto2, coord_disponible, min_ancho_escala, 
+                                            is_vertical, coord_base, franja2)
+
+    coord_ini_pasillo, coord_fin_pasillo, largo_pasillo, ps_pasillo_normalizado = calcula_geometria_pasillo(
+                                            vec_coord_fin1, vec_coord_fin2, vec_coord_ini1, vec_coord_ini2, 
+                                            coord_base, ancho_pasillo, is_vertical, 
+                                            planta_normalizada.W, planta_normalizada.H, 
+                                            coord_min, min_largo_pasillo, pasillo_centrado, 
+                                            vec_tipo_deptos1, vec_tipo_deptos2, 
+                                            tipo_escala, min_ancho_escala, area_escala)
+
+    vec_ps_deptos1_normalizado, vec_extension_dimension1_1 = extiende_deptos_con_interseccion_pasillo(vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, coord_base, ps_pasillo_normalizado, franja1, is_vertical, vec_ps_deptos1_normalizado, ps_pasillo_normalizado)
+    vec_ps_deptos2_normalizado, vec_extension_dimension1_2 = extiende_deptos_con_interseccion_pasillo(vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, coord_base, ps_pasillo_normalizado, franja2, is_vertical, vec_ps_deptos2_normalizado, ps_pasillo_normalizado)
+
+    vec_terrazas1_normalizado = PolyShape[]
+    vec_terrazas2_normalizado = PolyShape[]
+
+    if !isempty(vec_sup_terraza)
+        if is_vertical
+            coord_terrace_base1 = [coord_base + vec_dimension1_deptos1[i] + vec_extension_dimension1_1[i] for i in eachindex(planta_normalizada.deptos_ordenados1)]
+            vec_terrazas1_normalizado = genera_terrazas_franja(planta_normalizada.deptos_ordenados1, vec_sup_terraza, vec_dimension2_deptos1, vec_coord_ini1, coord_terrace_base1, franja1, planta_normalizada.dimension_terraza_max, is_vertical)
+
+            coord_terrace_base2 = [coord_base - vec_dimension1_deptos2[i] - vec_extension_dimension1_2[i] for i in eachindex(planta_normalizada.deptos_ordenados2)]
+            vec_terrazas2_normalizado = genera_terrazas_franja(planta_normalizada.deptos_ordenados2, vec_sup_terraza, vec_dimension2_deptos2, vec_coord_ini2, coord_terrace_base2, franja2, planta_normalizada.dimension_terraza_max, is_vertical)
+
+            flag_inscripcion1 = verifica_inscripcion_terrazas(planta_normalizada.ps_planta_normalizado, vec_terrazas1_normalizado)
+            flag_inscripcion2 = verifica_inscripcion_terrazas(planta_normalizada.ps_planta_normalizado, vec_terrazas2_normalizado)
+
+            if !flag_inscripcion1 && !flag_inscripcion2
+                @warn "Both strips have outbound terraces - layout may not fit properly"
+            end
+
+            if !flag_inscripcion1
+                vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado, vec_terrazas1_normalizado, vec_terrazas2_normalizado, ps_pasillo_normalizado =
+                    correct_outbound_terraces(vec_terrazas1_normalizado, vec_terrazas2_normalizado,
+                                                vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado,
+                                                ps_pasillo_normalizado, planta_normalizada.vec_x_planta, true, true, true)
+            end
+            if !flag_inscripcion2
+                vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado, vec_terrazas1_normalizado, vec_terrazas2_normalizado, ps_pasillo_normalizado =
+                    correct_outbound_terraces(vec_terrazas1_normalizado, vec_terrazas2_normalizado,
+                                                vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado,
+                                                ps_pasillo_normalizado, planta_normalizada.vec_x_planta, true, false, false)
+            end
+        else
+            coord_terrace_base1 = [coord_base + vec_dimension1_deptos1[i] + vec_extension_dimension1_1[i] for i in eachindex(planta_normalizada.deptos_ordenados1)]
+            vec_terrazas1_normalizado = genera_terrazas_franja(planta_normalizada.deptos_ordenados1, vec_sup_terraza, vec_dimension2_deptos1, vec_coord_ini1, coord_terrace_base1, franja1, planta_normalizada.dimension_terraza_max, is_vertical)
+
+            coord_terrace_base2 = [coord_base - vec_dimension1_deptos2[i] - vec_extension_dimension1_2[i] for i in eachindex(planta_normalizada.deptos_ordenados2)]
+            vec_terrazas2_normalizado = genera_terrazas_franja(planta_normalizada.deptos_ordenados2, vec_sup_terraza, vec_dimension2_deptos2, vec_coord_ini2, coord_terrace_base2, franja2, planta_normalizada.dimension_terraza_max, is_vertical)
+
+            flag_inscripcion1 = verifica_inscripcion_terrazas(planta_normalizada.ps_planta_normalizado, vec_terrazas1_normalizado)
+            flag_inscripcion2 = verifica_inscripcion_terrazas(planta_normalizada.ps_planta_normalizado, vec_terrazas2_normalizado)
+
+            if !flag_inscripcion1 && !flag_inscripcion2
+                @warn "Both strips have outbound terraces - layout may not fit properly"
+            end
+
+            if !flag_inscripcion1
+                vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado, vec_terrazas1_normalizado, vec_terrazas2_normalizado, ps_pasillo_normalizado =
+                    correct_outbound_terraces(vec_terrazas1_normalizado, vec_terrazas2_normalizado,
+                                                vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado,
+                                                ps_pasillo_normalizado, planta_normalizada.vec_y_planta, false, true, true)
+            end
+            if !flag_inscripcion2
+                vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado, vec_terrazas1_normalizado, vec_terrazas2_normalizado, ps_pasillo_normalizado =
+                    correct_outbound_terraces(vec_terrazas1_normalizado, vec_terrazas2_normalizado,
+                                                vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado,
+                                                ps_pasillo_normalizado, planta_normalizada.vec_y_planta, false, false, false)
+            end
+        end
+    end
+
+    franjas_computadas = (vec_ps_deptos1_normalizado=vec_ps_deptos1_normalizado, vec_ps_deptos2_normalizado=vec_ps_deptos2_normalizado,
+            vec_terrazas1_normalizado=vec_terrazas1_normalizado, vec_terrazas2_normalizado=vec_terrazas2_normalizado,
+            ps_pasillo_normalizado=ps_pasillo_normalizado, largo_pasillo=largo_pasillo,
+            vec_dimension_deptos2=vec_dimension2_deptos2, vec_tipo_deptos2=vec_tipo_deptos2)
 
     # ──────────────────────────────────────────────────────────────────────────────────
     # Stage 3: Rotation back to original coordinates
     # ──────────────────────────────────────────────────────────────────────────────────
-
     vec_ps_deptos1 = rota_polyshapes(franjas_computadas.vec_ps_deptos1_normalizado, planta_normalizada.angulo_rotacion, planta_normalizada.cr)
     vec_ps_deptos2 = rota_polyshapes(franjas_computadas.vec_ps_deptos2_normalizado, planta_normalizada.angulo_rotacion, planta_normalizada.cr)
     vec_terrazas1 = rota_polyshapes(franjas_computadas.vec_terrazas1_normalizado, planta_normalizada.angulo_rotacion, planta_normalizada.cr)

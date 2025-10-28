@@ -112,9 +112,9 @@ function polyDifference(ps_s_::PolyShape, ps_c_::PolyShape)::PolyShape
     if ps_s_.NumRegions == 0
         return PolyShape(Vector{Matrix{Float64}}(), 0)
     end
-    
+
     if ps_c_.NumRegions == 0
-        return ps_s_
+        return deepcopy(ps_s_)
     end
 
     ps_c_bounds = [minimum([minimum(region[:, 1]) for region in ps_c_.Vertices]),
@@ -126,10 +126,10 @@ function polyDifference(ps_s_::PolyShape, ps_c_::PolyShape)::PolyShape
                    minimum([minimum(region[:, 2]) for region in ps_s_.Vertices]),
                    maximum([maximum(region[:, 1]) for region in ps_s_.Vertices]),
                    maximum([maximum(region[:, 2]) for region in ps_s_.Vertices])]
-    
+
     if ps_s_bounds[1] > ps_c_bounds[3] || ps_s_bounds[3] < ps_c_bounds[1] ||
        ps_s_bounds[2] > ps_c_bounds[4] || ps_s_bounds[4] < ps_c_bounds[2]
-        return ps_s_
+        return deepcopy(ps_s_)
     end
     
     path_s = polyClipper.shape2clipper(ps_s_)
@@ -696,8 +696,8 @@ end
 
 function polyTranslate(ps::PolyShape, dx::Real, dy::Real)::PolyShape
     translation = [dx, dy]
-    V = ps.Vertices[1]
-    numVertices = size(V, 1)
+    ps_ = deepcopy(ps)
+    V = ps_.Vertices[1]
     V_translated = V .+ translation'
     ps_translated = PolyShape([V_translated], 1)
     return ps_translated

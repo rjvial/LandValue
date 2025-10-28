@@ -240,13 +240,13 @@ flag_create_table = false # let flag_create_table = false
             vec_sup_terraza = dict_arquitectura["arq_vecSupTerraza"][dict_proyecto["proyecto_vec_num_deptos_primerPiso"].>=1]
             ps_planta = dict_proyecto["proyecto_vec_ps_opt"][1]
 
-           results_ns = opti_floor_plan(ps_planta, vec_sup_deptos, vec_num_deptos,
+            results_ns = opti_floor_plan(ps_planta, vec_sup_deptos, vec_num_deptos,
                         vec_sup_terraza=vec_sup_terraza,
                         ancho_pasillo=1.5,
                         min_largo_pasillo=5.0,
-                        pasillo_centrado=false,
+                        pasillo_centrado=true,
                         area_escala=20.0,
-                        min_ancho_escala=0*4.0,
+                        min_ancho_escala=4.0,
                         max_ancho_terraza=4.0,
                         tipo_escala=:interior,
                         layout=:ns,
