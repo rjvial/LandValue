@@ -240,7 +240,7 @@ flag_create_table = false # let flag_create_table = false
             vec_sup_terraza = dict_arquitectura["arq_vecSupTerraza"][dict_proyecto["proyecto_vec_num_deptos_primerPiso"].>=1]
             ps_planta = dict_proyecto["proyecto_vec_ps_opt"][1]
 
-            results_ns = opti_floor_plan(ps_planta, vec_sup_deptos, vec_num_deptos,
+            results_ns_int = opti_floor_plan(ps_planta, vec_sup_deptos, vec_num_deptos,
                         vec_sup_terraza=vec_sup_terraza,
                         ancho_pasillo=1.5,
                         min_largo_pasillo=5.0,
@@ -251,49 +251,102 @@ flag_create_table = false # let flag_create_table = false
                         tipo_escala=:interior,
                         layout=:ns,
                         balance_mode=:heuristic)
-
-            fig_ns, ax_ns, ax_mat_ns = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
-            if !isnothing(results_ns["ps_pasillo"])
-                polyPlot.plotPolyshape2D(results_ns["ps_pasillo"], "#505050", 0.9, fig=fig_ns, ax=ax_ns, ax_mat=ax_mat_ns)
+            fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
+            if !isnothing(results_ns_int["ps_pasillo"])
+                polyPlot.plotPolyshape2D(results_ns_int["ps_pasillo"], "#505050", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
             end
-            if !isnothing(results_ns["ps_escala"])
-                polyPlot.plotPolyshape2D(results_ns["ps_escala"], "#505050", 0.9, fig=fig_ns, ax=ax_ns, ax_mat=ax_mat_ns)
+            if !isnothing(results_ns_int["ps_escala"])
+                polyPlot.plotPolyshape2D(results_ns_int["ps_escala"], "#505050", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
             end
-            for apt_poly in results_ns["vec_polyshapes_all"]
-                polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig_ns, ax=ax_ns, ax_mat=ax_mat_ns)
+            for apt_poly in results_ns_int["vec_polyshapes_all"]
+                polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
             end
-            for terrace in results_ns["vec_terrazas_all"]
+            for terrace in results_ns_int["vec_terrazas_all"]
                 if polyShape.polyArea(terrace) > 0.0
-                    polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig_ns, ax=ax_ns, ax_mat=ax_mat_ns)
+                    polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig, ax=ax, ax_mat=ax_mat)
                 end
             end
-            ax_ns.set_aspect("equal")
+            ax.set_aspect("equal")
 
-            results_oe = opti_floor_plan(ps_planta, vec_sup_deptos, vec_num_deptos,
+            results_ns_ext = opti_floor_plan(ps_planta, vec_sup_deptos, vec_num_deptos,
+                        vec_sup_terraza=vec_sup_terraza,
+                        ancho_pasillo=1.5,
+                        min_largo_pasillo=5.0,
+                        pasillo_centrado=true,
+                        area_escala=20.0,
+                        min_ancho_escala=4.0,
+                        max_ancho_terraza=4.0,
+                        tipo_escala=:exterior,
+                        layout=:ns,
+                        balance_mode=:heuristic)
+            fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
+            if !isnothing(results_ns_ext["ps_pasillo"])
+                polyPlot.plotPolyshape2D(results_ns_ext["ps_pasillo"], "#505050", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
+            end
+            if !isnothing(results_ns_ext["ps_escala"])
+                polyPlot.plotPolyshape2D(results_ns_ext["ps_escala"], "#505050", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
+            end
+            for apt_poly in results_ns_ext["vec_polyshapes_all"]
+                polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
+            end
+            for terrace in results_ns_ext["vec_terrazas_all"]
+                if polyShape.polyArea(terrace) > 0.0
+                    polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig, ax=ax, ax_mat=ax_mat)
+                end
+            end
+            ax.set_aspect("equal")
+
+            results_oe_int = opti_floor_plan(ps_planta, vec_sup_deptos, vec_num_deptos,
                         vec_sup_terraza=vec_sup_terraza,
                         ancho_pasillo=1.5,
                         min_largo_pasillo=5.0,
                         pasillo_centrado=false,
                         area_escala=20.0,
-                        min_ancho_escala=0*4.0,
+                        min_ancho_escala=4.0,
+                        max_ancho_terraza=4.0,
+                        tipo_escala=:interior,
+                        layout=:oe,
+                        balance_mode=:heuristic)
+            fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
+            if !isnothing(results_oe_int["ps_pasillo"])
+                polyPlot.plotPolyshape2D(results_oe_int["ps_pasillo"], "#505050", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
+            end
+            if !isnothing(results_oe_int["ps_escala"])
+                polyPlot.plotPolyshape2D(results_oe_int["ps_escala"], "#505050", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
+            end
+            for apt_poly in results_oe_int["vec_polyshapes_all"]
+                polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
+            end
+            for terrace in results_oe_int["vec_terrazas_all"]
+                if polyShape.polyArea(terrace) > 0.0
+                    polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig, ax=ax, ax_mat=ax_mat)
+                end
+            end
+
+            results_oe_ext = opti_floor_plan(ps_planta, vec_sup_deptos, vec_num_deptos,
+                        vec_sup_terraza=vec_sup_terraza,
+                        ancho_pasillo=1.5,
+                        min_largo_pasillo=5.0,
+                        pasillo_centrado=false,
+                        area_escala=20.0,
+                        min_ancho_escala=4.0,
                         max_ancho_terraza=4.0,
                         tipo_escala=:exterior,
                         layout=:oe,
                         balance_mode=:heuristic)
-
-            fig_oe, ax_oe, ax_mat_oe = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
-            if !isnothing(results_oe["ps_pasillo"])
-                polyPlot.plotPolyshape2D(results_oe["ps_pasillo"], "#505050", 0.9, fig=fig_oe, ax=ax_oe, ax_mat=ax_mat_oe)
+            fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
+            if !isnothing(results_oe_ext["ps_pasillo"])
+                polyPlot.plotPolyshape2D(results_oe_ext["ps_pasillo"], "#505050", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
             end
-            if !isnothing(results_oe["ps_escala"])
-                polyPlot.plotPolyshape2D(results_oe["ps_escala"], "#505050", 0.9, fig=fig_oe, ax=ax_oe, ax_mat=ax_mat_oe)
+            if !isnothing(results_oe_ext["ps_escala"])
+                polyPlot.plotPolyshape2D(results_oe_ext["ps_escala"], "#505050", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
             end
-            for apt_poly in results_oe["vec_polyshapes_all"]
-                polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig_oe, ax=ax_oe, ax_mat=ax_mat_oe)
+            for apt_poly in results_oe_ext["vec_polyshapes_all"]
+                polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
             end
-            for terrace in results_oe["vec_terrazas_all"]
+            for terrace in results_oe_ext["vec_terrazas_all"]
                 if polyShape.polyArea(terrace) > 0.0
-                    polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig_oe, ax=ax_oe, ax_mat=ax_mat_oe)
+                    polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig, ax=ax, ax_mat=ax_mat)
                 end
             end
             ####################################
