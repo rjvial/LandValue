@@ -62,6 +62,17 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
         vec_dimension2_deptos = Float64[]
         vec_tipo_deptos = Int[]
 
+        if isempty(vec_orden_deptos) || dimension_franja <= 0.0
+            return vec_coord_ini, vec_coord_fin, vec_dimension1_deptos, vec_dimension2_deptos, vec_tipo_deptos, PolyShape[]
+        end
+
+        if !isfinite(dimension_franja)
+            error("Invalid dimension_franja: $dimension_franja")
+        end
+        if dimension_disponible <= 0.0 || !isfinite(dimension_disponible)
+            error("Invalid dimension_disponible: $dimension_disponible")
+        end
+
         dimension_franja_adjusted = dimension_franja
 
         for _ in 1:MAX_ADJUSTMENT_ITERATIONS
@@ -77,6 +88,11 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
             for depto in vec_orden_deptos
                 sup_depto = get_area(depto)
                 tipo_depto = get_tipo(depto)
+
+                if sup_depto <= 0.0
+                    continue
+                end
+
                 if tipo_depto == -1
                     dim2 = sup_depto / dimension_franja_adjusted
                     if dim2 < min_ancho_escala
@@ -88,6 +104,10 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                 else
                     dim2 = sup_depto / dimension_franja_adjusted
                     dim1 = dimension_franja_adjusted
+                end
+
+                if !isfinite(dim1) || !isfinite(dim2) || dim1 <= 0.0 || dim2 <= 0.0
+                    error("Invalid dimensions calculated: dim1=$dim1, dim2=$dim2 for sup_depto=$sup_depto, dimension_franja_adjusted=$dimension_franja_adjusted")
                 end
 
                 push!(vec_coord_ini, coord_current)
@@ -103,6 +123,10 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                 break
             end
 
+            if total_dimension <= 0.0 || !isfinite(total_dimension)
+                error("Invalid total_dimension: $total_dimension")
+            end
+
             dimension_franja_adjusted = dimension_franja_adjusted * (total_dimension / dimension_disponible)
         end
 
@@ -116,15 +140,26 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
     end
 
     # Extends apartments with corridor space overlap, then subtracts corridor geometry
-    function extiende_deptos_con_interseccion_pasillo(vec_coord_ini::Vector{Float64}, vec_coord_fin::Vector{Float64}, 
-                vec_dimension1_deptos::Vector{Float64}, vec_dimension2_deptos::Vector{Float64}, coord_base::Float64, 
-                ps_pasillo::PolyShape, extend_franja::Symbol, is_vertical::Bool, vec_ps_deptos_normalizado::Vector{PolyShape}, 
+    function extiende_deptos_con_interseccion_pasillo(vec_coord_ini::Vector{Float64}, vec_coord_fin::Vector{Float64},
+                vec_dimension1_deptos::Vector{Float64}, vec_dimension2_deptos::Vector{Float64}, coord_base::Float64,
+                ps_pasillo::PolyShape, extend_franja::Symbol, is_vertical::Bool, vec_ps_deptos_normalizado::Vector{PolyShape},
                 ps_pasillo_normalizado::PolyShape)
 
         vec_extension_dimension1 = Float64[]
         ps_deptos_extendidos = PolyShape[]
 
+        if isempty(vec_coord_ini)
+            return ps_deptos_extendidos, vec_extension_dimension1
+        end
+
         for i in eachindex(vec_coord_ini)
+            if !isfinite(vec_coord_ini[i]) || !isfinite(vec_coord_fin[i])
+                error("Invalid coordinates at index $i: coord_ini=$(vec_coord_ini[i]), coord_fin=$(vec_coord_fin[i])")
+            end
+            if !isfinite(vec_dimension1_deptos[i]) || !isfinite(vec_dimension2_deptos[i])
+                error("Invalid dimensions at index $i: dim1=$(vec_dimension1_deptos[i]), dim2=$(vec_dimension2_deptos[i])")
+            end
+
             ps_depto_normalizado = vec_ps_deptos_normalizado[i]
             ps_intersection = polyShape.polyIntersection(ps_depto_normalizado, ps_pasillo_normalizado)
             intersection_area = polyShape.polyArea(ps_intersection)
@@ -139,6 +174,10 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
 
             dimension1_total = vec_dimension1_deptos[i] + extension_dimension
             dimension2 = vec_coord_fin[i] - vec_coord_ini[i]
+
+            if !isfinite(dimension1_total) || !isfinite(dimension2) || dimension1_total <= 0.0 || dimension2 <= 0.0
+                error("Invalid extended dimensions at index $i: dimension1_total=$dimension1_total, dimension2=$dimension2")
+            end
 
             extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini[i], dimension1_total, dimension2, extend_franja, is_vertical)
             extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
@@ -302,11 +341,18 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                                              is_vertical::Bool, vec_ps_deptos1_normalizado::Vector{PolyShape},
                                              vec_ps_deptos2_normalizado::Vector{PolyShape}, ps_pasillo_normalizado::PolyShape)
 
-        coord_terrace_base1 = [coord_base + vec_dimension1_deptos1[i] + vec_extension_dimension1_1[i] for i in eachindex(planta_normalizada.deptos_ordenados1)]
-        vec_terrazas1_normalizado = genera_terrazas_franja(planta_normalizada.deptos_ordenados1, vec_sup_terraza, vec_dimension2_deptos1, vec_coord_ini1, coord_terrace_base1, franja1, planta_normalizada.dimension_terraza_max, is_vertical)
+        vec_terrazas1_normalizado = PolyShape[]
+        vec_terrazas2_normalizado = PolyShape[]
 
-        coord_terrace_base2 = [coord_base - vec_dimension1_deptos2[i] - vec_extension_dimension1_2[i] for i in eachindex(planta_normalizada.deptos_ordenados2)]
-        vec_terrazas2_normalizado = genera_terrazas_franja(planta_normalizada.deptos_ordenados2, vec_sup_terraza, vec_dimension2_deptos2, vec_coord_ini2, coord_terrace_base2, franja2, planta_normalizada.dimension_terraza_max, is_vertical)
+        if !isempty(vec_dimension1_deptos1) && length(vec_dimension1_deptos1) == length(planta_normalizada.deptos_ordenados1)
+            coord_terrace_base1 = [coord_base + vec_dimension1_deptos1[i] + vec_extension_dimension1_1[i] for i in eachindex(vec_dimension1_deptos1)]
+            vec_terrazas1_normalizado = genera_terrazas_franja(planta_normalizada.deptos_ordenados1, vec_sup_terraza, vec_dimension2_deptos1, vec_coord_ini1, coord_terrace_base1, franja1, planta_normalizada.dimension_terraza_max, is_vertical)
+        end
+
+        if !isempty(vec_dimension1_deptos2) && length(vec_dimension1_deptos2) == length(planta_normalizada.deptos_ordenados2)
+            coord_terrace_base2 = [coord_base - vec_dimension1_deptos2[i] - vec_extension_dimension1_2[i] for i in eachindex(vec_dimension1_deptos2)]
+            vec_terrazas2_normalizado = genera_terrazas_franja(planta_normalizada.deptos_ordenados2, vec_sup_terraza, vec_dimension2_deptos2, vec_coord_ini2, coord_terrace_base2, franja2, planta_normalizada.dimension_terraza_max, is_vertical)
+        end
 
         flag_inscripcion1 = verifica_inscripcion_terrazas(planta_normalizada.ps_planta_normalizado, vec_terrazas1_normalizado)
         flag_inscripcion2 = verifica_inscripcion_terrazas(planta_normalizada.ps_planta_normalizado, vec_terrazas2_normalizado)
@@ -440,6 +486,8 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
 
     # Calculates strip widths from areas and floor dimensions, scales if exceeding available space
     function calcula_dimensiones_franjas(area_franja1::Float64, area_franja2::Float64, W::Float64, H::Float64, ancho_pasillo::Float64, dimension_terraza_max::Float64, is_vertical::Bool)
+        MIN_DIMENSION_FRANJA = 1.0
+
         if is_vertical
             dimension_disponible_franja = W - 2 * dimension_terraza_max - ancho_pasillo
             dimension_franja1_requerida = area_franja1 / H
@@ -450,13 +498,32 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
             dimension_franja2_requerida = area_franja2 / W
         end
 
-        if dimension_franja1_requerida + dimension_franja2_requerida > dimension_disponible_franja
-            scale_factor = dimension_disponible_franja / (dimension_franja1_requerida + dimension_franja2_requerida)
-            dimension_franja1 = dimension_franja1_requerida * scale_factor
-            dimension_franja2 = dimension_franja2_requerida * scale_factor
+        if area_franja1 <= 0.0 && area_franja2 <= 0.0
+            return 0.0, 0.0
+        end
+
+        if area_franja1 <= 0.0
+            dimension_franja1 = 0.0
+            dimension_franja2 = min(dimension_franja2_requerida, dimension_disponible_franja)
+        elseif area_franja2 <= 0.0
+            dimension_franja2 = 0.0
+            dimension_franja1 = min(dimension_franja1_requerida, dimension_disponible_franja)
         else
-            dimension_franja1 = dimension_franja1_requerida
-            dimension_franja2 = dimension_franja2_requerida
+            if dimension_franja1_requerida + dimension_franja2_requerida > dimension_disponible_franja
+                scale_factor = dimension_disponible_franja / (dimension_franja1_requerida + dimension_franja2_requerida)
+                dimension_franja1 = dimension_franja1_requerida * scale_factor
+                dimension_franja2 = dimension_franja2_requerida * scale_factor
+            else
+                dimension_franja1 = dimension_franja1_requerida
+                dimension_franja2 = dimension_franja2_requerida
+            end
+        end
+
+        if dimension_franja1 > 0.0 && dimension_franja1 < MIN_DIMENSION_FRANJA
+            dimension_franja1 = MIN_DIMENSION_FRANJA
+        end
+        if dimension_franja2 > 0.0 && dimension_franja2 < MIN_DIMENSION_FRANJA
+            dimension_franja2 = MIN_DIMENSION_FRANJA
         end
 
         return dimension_franja1, dimension_franja2
@@ -532,7 +599,7 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
     # ──────────────────────────────────────────────────────────────────────────────────
 
     function analiza_forma_apartamentos(vec_apartamentos1::Vector{PolyShape}, vec_apartamentos2::Vector{PolyShape})
-        vec_ratios = Float64[]
+        max_deviation = 0.0
 
         for vec_apts in [vec_apartamentos1, vec_apartamentos2]
             for ps in vec_apts
@@ -545,15 +612,12 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                 height = max_y - min_y
                 ratio = width > 0.0 ? height / width : 0.0
 
-                push!(vec_ratios, ratio)
+                deviation = abs(1.0 - ratio)
+                max_deviation = max(max_deviation, deviation)
             end
         end
 
-        if isempty(vec_ratios)
-            return Dict("max_ratio" => 0.0, "min_ratio" => 0.0)
-        end
-
-        return Dict("max_ratio" => maximum(vec_ratios), "min_ratio" => minimum(vec_ratios))
+        return max_deviation
     end
 
     # Computes corridor geometry spanning both strips based on apartment coordinates
@@ -567,8 +631,21 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
         num_deptos_franja2 = count(t -> t != -1, vec_tipo_deptos2)
         num_deptos_total = num_deptos_franja1 + num_deptos_franja2
 
-        coord_ini_pasillo = min(vec_coord_fin1[1], vec_coord_fin2[1])
-        coord_fin_pasillo = max(vec_coord_ini1[end], vec_coord_ini2[end])
+        if (isempty(vec_coord_fin1) || isempty(vec_coord_ini1)) && (isempty(vec_coord_fin2) || isempty(vec_coord_ini2))
+            ps_pasillo = polyShape.polyBox(0.0, 0.0, 0.0, 0.0, 0.0)
+            return 0.0, 0.0, 0.0, ps_pasillo
+        end
+
+        if !isempty(vec_coord_fin1) && !isempty(vec_coord_fin2) && !isempty(vec_coord_ini1) && !isempty(vec_coord_ini2)
+            coord_ini_pasillo = min(vec_coord_fin1[1], vec_coord_fin2[1])
+            coord_fin_pasillo = max(vec_coord_ini1[end], vec_coord_ini2[end])
+        elseif !isempty(vec_coord_fin1) && !isempty(vec_coord_ini1)
+            coord_ini_pasillo = vec_coord_fin1[1]
+            coord_fin_pasillo = vec_coord_ini1[end]
+        else
+            coord_ini_pasillo = vec_coord_fin2[1]
+            coord_fin_pasillo = vec_coord_ini2[end]
+        end
         largo_pasillo = coord_fin_pasillo - coord_ini_pasillo
 
         if largo_pasillo < min_largo_pasillo
@@ -653,7 +730,7 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
             "ps_pasillo" => ps_pasillo
         )
 
-        if tipo_escala == :exterior
+        if tipo_escala == :exterior && area_escala > 0.0
             id_escala = findfirst(==(- 1), vec_tipo_deptos2)
             id_escala === nothing && error("No staircase found in strip 2 (tipo_depto == -1)")
 
@@ -674,7 +751,7 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
             result["vec_terrazas_all"] = vcat(vec_terrazas1, vec_terrazas2_sin_escala)
 
             shape_analysis = analiza_forma_apartamentos(vec_ps_deptos1, vec_ps_deptos2_sin_escala)
-        elseif tipo_escala == :interior || tipo_escala == :none
+        else
             result["ps_escala"] = nothing
             result["ancho_escala"] = nothing
             result["alto_escala"] = nothing
@@ -685,8 +762,7 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
             shape_analysis = analiza_forma_apartamentos(vec_ps_deptos1, vec_ps_deptos2)
         end
 
-        result["max_apt_height_to_width_ratio"] = round(shape_analysis["max_ratio"], digits=3)
-        result["min_apt_height_to_width_ratio"] = round(shape_analysis["min_ratio"], digits=3)
+        result["max_apt_height_to_width_ratio_deviation"] = round(shape_analysis, digits=3)
 
         return result
     end
