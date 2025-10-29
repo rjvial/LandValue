@@ -702,11 +702,10 @@ function calcula_geometria_pasillo(vec_coord_fin1::Vector{Float64}, vec_coord_fi
 end
 
 # Packages all computed geometries and parameters into results dictionary
-function empaqueta_resultados(num_deptos1::Int, num_deptos2::Int, deptos_ordenados1::Vector{Tuple{Float64, Int}},
-                    deptos_ordenados2::Vector{Tuple{Float64, Int}}, dimension1::Float64, dimension2::Float64,
+function empaqueta_resultados(dimension1::Float64, dimension2::Float64,
                     W::Float64, H::Float64, ancho_pasillo::Float64, largo_pasillo::Float64, ps_pasillo::PolyShape,
                     vec_ps_deptos1::Vector{PolyShape}, vec_ps_deptos2::Vector{PolyShape},
-                    vec_dimension_deptos2::Vector{Float64}, vec_tipo_deptos2::Vector{Int}, area_escala::Float64,
+                    vec_tipo_deptos1::Vector{Int}, vec_dimension_deptos2::Vector{Float64}, vec_tipo_deptos2::Vector{Int}, area_escala::Float64,
                     vec_terrazas1::Vector{PolyShape}, vec_terrazas2::Vector{PolyShape}, is_vertical::Bool,
                     tipo_escala::Symbol, ps_planta::PolyShape)
     if is_vertical
@@ -720,10 +719,6 @@ function empaqueta_resultados(num_deptos1::Int, num_deptos2::Int, deptos_ordenad
     result = Dict(
         "feasible" => true,
         "status" => "LOCALLY_SOLVED",
-        "n_apts_$prefix1" => num_deptos1,
-        "n_apts_$prefix2" => num_deptos2,
-        "vec_sup_deptos_$prefix1" => [get_area(apt) for apt in deptos_ordenados1],
-        "vec_sup_deptos_$prefix2" => [get_area(apt) for apt in deptos_ordenados2 if get_tipo(apt) != -1],
         "$(dim_key)_$prefix1" => round(dimension1, digits=2),
         "$(dim_key)_$prefix2" => round(dimension2, digits=2),
         "floor_width" => W,
@@ -745,22 +740,33 @@ function empaqueta_resultados(num_deptos1::Int, num_deptos2::Int, deptos_ordenad
 
         vec_ps_deptos2_sin_escala = [vec_ps_deptos2[i] for i in eachindex(vec_ps_deptos2) if i != id_escala]
         vec_terrazas2_sin_escala = [vec_terrazas2[i] for i in eachindex(vec_terrazas2) if i != id_escala]
+        vec_tipo_deptos2_sin_escala = [vec_tipo_deptos2[i] for i in eachindex(vec_tipo_deptos2) if i != id_escala]
+
+        vec_orientaciones1 = fill(1, length(vec_ps_deptos1))
+        vec_orientaciones2_sin_escala = fill(2, length(vec_ps_deptos2_sin_escala))
 
         result["ps_escala"] = ps_escala
         result["ancho_escala"] = round(dimension2, digits=2)
         result["alto_escala"] = round(dimension_escala, digits=2)
         result["area_escala"] = round(area_escala, digits=2)
-        result["vec_polyshapes_all"] = vcat(vec_ps_deptos1, vec_ps_deptos2_sin_escala)
-        result["vec_terrazas_all"] = vcat(vec_terrazas1, vec_terrazas2_sin_escala)
+        result["vec_ps_deptos_all"] = vcat(vec_ps_deptos1, vec_ps_deptos2_sin_escala)
+        result["vec_ps_terrazas_all"] = vcat(vec_terrazas1, vec_terrazas2_sin_escala)
+        result["vec_tipos_all"] = vcat(vec_tipo_deptos1, vec_tipo_deptos2_sin_escala)
+        result["vec_orientaciones_all"] = vcat(vec_orientaciones1, vec_orientaciones2_sin_escala)
 
         shape_analysis = analiza_forma_apartamentos(vec_ps_deptos1, vec_ps_deptos2_sin_escala)
     else
+        vec_orientaciones1 = fill(1, length(vec_ps_deptos1))
+        vec_orientaciones2 = fill(2, length(vec_ps_deptos2))
+
         result["ps_escala"] = nothing
         result["ancho_escala"] = nothing
         result["alto_escala"] = nothing
         result["area_escala"] = nothing
-        result["vec_polyshapes_all"] = vcat(vec_ps_deptos1, vec_ps_deptos2)
-        result["vec_terrazas_all"] = vcat(vec_terrazas1, vec_terrazas2)
+        result["vec_ps_deptos_all"] = vcat(vec_ps_deptos1, vec_ps_deptos2)
+        result["vec_ps_terrazas_all"] = vcat(vec_terrazas1, vec_terrazas2)
+        result["vec_tipos_all"] = vcat(vec_tipo_deptos1, vec_tipo_deptos2)
+        result["vec_orientaciones_all"] = vcat(vec_orientaciones1, vec_orientaciones2)
 
         shape_analysis = analiza_forma_apartamentos(vec_ps_deptos1, vec_ps_deptos2)
     end
@@ -768,10 +774,10 @@ function empaqueta_resultados(num_deptos1::Int, num_deptos2::Int, deptos_ordenad
     result["max_apt_height_to_width_ratio_deviation"] = round(shape_analysis, digits=3)
 
     ps_union_all = polyShape.polyUnion(ps_pasillo)
-    for ps_apt in result["vec_polyshapes_all"]
+    for ps_apt in result["vec_ps_deptos_all"]
         ps_union_all = polyShape.polyUnion(ps_union_all, ps_apt)
     end
-    for ps_terr in result["vec_terrazas_all"]
+    for ps_terr in result["vec_ps_terrazas_all"]
         if polyShape.polyArea(ps_terr) > 0.0
             ps_union_all = polyShape.polyUnion(ps_union_all, ps_terr)
         end
@@ -946,12 +952,8 @@ function opti_floor_pisos_superiores(ps_planta::PolyShape, vec_sup_deptos::Vecto
     # Stage 4: Results packaging
     # ──────────────────────────────────────────────────────────────────────────────────
 
-    num_deptos1 = length(planta_normalizada.deptos_ordenados1)
-    num_deptos2 = (tipo_escala == :exterior) ? length(planta_normalizada.deptos_ordenados2) - 1 : length(planta_normalizada.deptos_ordenados2)
-
-    results = empaqueta_resultados(num_deptos1, num_deptos2, planta_normalizada.deptos_ordenados1, planta_normalizada.deptos_ordenados2,
-                                    planta_normalizada.dimension_depto1, planta_normalizada.dimension_depto2, planta_normalizada.W, planta_normalizada.H, ancho_pasillo, franjas_computadas.largo_pasillo, ps_pasillo,
-                                    vec_ps_deptos1, vec_ps_deptos2, franjas_computadas.vec_dimension_deptos2, franjas_computadas.vec_tipo_deptos2,
+    results = empaqueta_resultados(planta_normalizada.dimension_depto1, planta_normalizada.dimension_depto2, planta_normalizada.W, planta_normalizada.H, ancho_pasillo, franjas_computadas.largo_pasillo, ps_pasillo,
+                                    vec_ps_deptos1, vec_ps_deptos2, vec_tipo_deptos1, franjas_computadas.vec_dimension_deptos2, franjas_computadas.vec_tipo_deptos2,
                                     area_escala, vec_terrazas1, vec_terrazas2, is_vertical, tipo_escala, ps_planta)
 
     return results
@@ -959,15 +961,15 @@ end
 
 
 function genera_layout_primer_piso(results_pisos_superiores::Dict, vec_num_deptos_primer_piso::Vector{Int}, vec_num_deptos_pisos_superiores::Vector{Int}, ps_planta::PolyShape)
-    vec_polyshapes_all = results_pisos_superiores["vec_polyshapes_all"]
-    vec_terrazas_all = results_pisos_superiores["vec_terrazas_all"]
+    vec_ps_deptos_all = results_pisos_superiores["vec_ps_deptos_all"]
+    vec_ps_terrazas_all = results_pisos_superiores["vec_ps_terrazas_all"]
     ps_pasillo = results_pisos_superiores["ps_pasillo"]
     ps_escala = results_pisos_superiores["ps_escala"]
 
     delta = .02
 
     ps_planta_primer_piso = polyClipper.polyOffset(polyShape.polyUnion(ps_pasillo), delta)
-    for ps_apt in vec_polyshapes_all
+    for ps_apt in vec_ps_deptos_all
         ps_planta_primer_piso = polyShape.polyUnion(ps_planta_primer_piso, polyClipper.polyOffset(ps_apt, delta))
     end
     if !isnothing(ps_escala)
@@ -985,8 +987,8 @@ function genera_layout_primer_piso(results_pisos_superiores::Dict, vec_num_depto
 
         for j in 1:num_sup
             if j <= num_primero
-                push!(vec_apartamentos_primer_piso, vec_polyshapes_all[idx_global])
-                push!(vec_terrazas_primer_piso, vec_terrazas_all[idx_global])
+                push!(vec_apartamentos_primer_piso, vec_ps_deptos_all[idx_global])
+                push!(vec_terrazas_primer_piso, vec_ps_terrazas_all[idx_global])
             end
             idx_global += 1
         end

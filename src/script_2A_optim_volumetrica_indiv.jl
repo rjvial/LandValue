@@ -264,10 +264,10 @@ flag_create_table = false # let flag_create_table = false
             if !isnothing(results_pisos_superiores["ps_escala"])
                 polyPlot.plotPolyshape2D(results_pisos_superiores["ps_escala"], "#505050", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
             end
-            for apt_poly in results_pisos_superiores["vec_polyshapes_all"]
+            for apt_poly in results_pisos_superiores["vec_ps_deptos_all"]
                 polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
             end
-            for terrace in results_pisos_superiores["vec_terrazas_all"]
+            for terrace in results_pisos_superiores["vec_ps_terrazas_all"]
                 if polyShape.polyArea(terrace) > 0.0
                     polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig, ax=ax, ax_mat=ax_mat)
                 end
