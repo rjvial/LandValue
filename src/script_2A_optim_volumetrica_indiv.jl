@@ -246,83 +246,15 @@ flag_create_table = false # let flag_create_table = false
             min_ancho_escala = 4.0
             max_ancho_terraza = 4.0
 
-            results_ns_int = opti_floor_plan(ps_planta, vec_sup_deptos, vec_num_deptos,
+            results = opti_floor_plan(ps_planta, vec_sup_deptos, vec_num_deptos,
                         vec_sup_terraza=vec_sup_terraza,
                         ancho_pasillo=ancho_pasillo,
                         min_largo_pasillo=min_largo_pasillo,
                         area_escala=area_escala,
                         min_ancho_escala=min_ancho_escala,
-                        max_ancho_terraza=max_ancho_terraza,
-                        tipo_escala=:interior,
-                        layout=:ns,
-                        balance_mode=:heuristic)
+                        max_ancho_terraza=max_ancho_terraza
+                        )
 
-            results_ns_ext = opti_floor_plan(ps_planta, vec_sup_deptos, vec_num_deptos,
-                        vec_sup_terraza=vec_sup_terraza,
-                        ancho_pasillo=ancho_pasillo,
-                        min_largo_pasillo=min_largo_pasillo,
-                        area_escala=area_escala,
-                        min_ancho_escala=min_ancho_escala,
-                        max_ancho_terraza=max_ancho_terraza,
-                        tipo_escala=:exterior,
-                        layout=:ns,
-                        balance_mode=:heuristic)
-
-            results_oe_int = opti_floor_plan(ps_planta, vec_sup_deptos, vec_num_deptos,
-                        vec_sup_terraza=vec_sup_terraza,
-                        ancho_pasillo=ancho_pasillo,
-                        min_largo_pasillo=min_largo_pasillo,
-                        area_escala=area_escala,
-                        min_ancho_escala=min_ancho_escala,
-                        max_ancho_terraza=max_ancho_terraza,
-                        tipo_escala=:interior,
-                        layout=:oe,
-                        balance_mode=:heuristic)
-
-            results_oe_ext = opti_floor_plan(ps_planta, vec_sup_deptos, vec_num_deptos,
-                        vec_sup_terraza=vec_sup_terraza,
-                        ancho_pasillo=ancho_pasillo,
-                        min_largo_pasillo=min_largo_pasillo,
-                        area_escala=area_escala,
-                        min_ancho_escala=min_ancho_escala,
-                        max_ancho_terraza=max_ancho_terraza,
-                        tipo_escala=:exterior,
-                        layout=:oe,
-                        balance_mode=:heuristic)
-
-            all_results = [
-                (results_ns_int, "ns_interior"),
-                (results_ns_ext, "ns_exterior"),
-                (results_oe_int, "oe_interior"),
-                (results_oe_ext, "oe_exterior")
-            ]
-
-            best_result = nothing
-            best_outbound = Inf
-            best_deviation = Inf
-            best_name = ""
-
-            for (result, name) in all_results
-                if result["feasible"]
-                    outbound = result["area_outbound"]
-                    deviation = result["max_apt_height_to_width_ratio_deviation"]
-
-                    if outbound < best_outbound || (outbound == best_outbound && deviation < best_deviation)
-                        best_outbound = outbound
-                        best_deviation = deviation
-                        best_result = result
-                        best_name = name
-                    end
-                end
-            end
-
-            if isnothing(best_result)
-                println("WARNING: No feasible configuration found, using first result")
-                results = all_results[1][1]
-            else
-                results = best_result
-                println("Selected configuration: $best_name with outbound area: $best_outbound, deviation: $best_deviation")
-            end
 
             fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
             if !isnothing(results["ps_pasillo"])
