@@ -307,6 +307,7 @@ flag_create_table = false # let flag_create_table = false
             println("Area comun primer piso: $(results_primer_piso["area_comun"]) m²")
 
             PyPlot.tight_layout()
+            PyPlot.display(fig)
             ####################################
             ####################################
 

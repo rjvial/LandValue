@@ -968,11 +968,6 @@ function genera_layout_primer_piso(results_pisos_superiores::Dict, vec_num_depto
     for ps_apt in vec_polyshapes_all
         ps_planta_primer_piso = polyShape.polyUnion(ps_planta_primer_piso, ps_apt)
     end
-    for ps_terr in vec_terrazas_all
-        if polyShape.polyArea(ps_terr) > 0.0
-            ps_planta_primer_piso = polyShape.polyUnion(ps_planta_primer_piso, ps_terr)
-        end
-    end
     if !isnothing(ps_escala)
         ps_planta_primer_piso = polyShape.polyUnion(ps_planta_primer_piso, ps_escala)
     end
