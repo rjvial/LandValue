@@ -251,21 +251,62 @@ flag_create_table = false # let flag_create_table = false
                         )
 
             ps_planta = dict_proyecto["proyecto_vec_ps_opt"][1]
-            fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
-            if !isnothing(results["ps_pasillo"])
-                polyPlot.plotPolyshape2D(results["ps_pasillo"], "#505050", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
+
+            results_pisos_superiores = results["pisos_superiores"]
+            results_primer_piso = results["primer_piso"]
+
+            using PyPlot
+            fig = PyPlot.figure(figsize=(16, 8))
+
+            ax1 = fig.add_subplot(1, 2, 1)
+            ax1.set_title("Pisos Superiores")
+
+            fig, ax1, ax_mat1 = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2, fig=fig, ax=ax1, ax_mat=nothing)
+
+            if !isnothing(results_pisos_superiores["ps_pasillo"])
+                polyPlot.plotPolyshape2D(results_pisos_superiores["ps_pasillo"], "#505050", 0.9, fig=fig, ax=ax1, ax_mat=ax_mat1)
             end
-            if !isnothing(results["ps_escala"])
-                polyPlot.plotPolyshape2D(results["ps_escala"], "#505050", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
+            if !isnothing(results_pisos_superiores["ps_escala"])
+                polyPlot.plotPolyshape2D(results_pisos_superiores["ps_escala"], "#505050", 0.9, fig=fig, ax=ax1, ax_mat=ax_mat1)
             end
-            for apt_poly in results["vec_polyshapes_all"]
-                polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
+            for apt_poly in results_pisos_superiores["vec_polyshapes_all"]
+                polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax1, ax_mat=ax_mat1)
             end
-            for terrace in results["vec_terrazas_all"]
+            for terrace in results_pisos_superiores["vec_terrazas_all"]
                 if polyShape.polyArea(terrace) > 0.0
-                    polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig, ax=ax, ax_mat=ax_mat)
+                    polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig, ax=ax1, ax_mat=ax_mat1)
                 end
             end
+
+            ax2 = fig.add_subplot(1, 2, 2)
+            ax2.set_title("Primer Piso")
+
+            ps_planta_primer_piso = results_primer_piso["ps_planta_primer_piso"]
+            fig, ax2, ax_mat2 = polyPlot.plotPolyshape2D(ps_planta_primer_piso, "green", 0.2, fig=fig, ax=ax2, ax_mat=nothing)
+
+            if !isnothing(results_primer_piso["ps_area_comun"]) && polyShape.polyArea(results_primer_piso["ps_area_comun"]) > 0.0
+                polyPlot.plotPolyshape2D(results_primer_piso["ps_area_comun"], "#505050", 0.9, fig=fig, ax=ax2, ax_mat=ax_mat2)
+            end
+
+            if !isnothing(results_primer_piso["ps_pasillo"])
+                polyPlot.plotPolyshape2D(results_primer_piso["ps_pasillo"], "#505050", 0.9, fig=fig, ax=ax2, ax_mat=ax_mat2)
+            end
+            if !isnothing(results_primer_piso["ps_escala"])
+                polyPlot.plotPolyshape2D(results_primer_piso["ps_escala"], "#505050", 0.9, fig=fig, ax=ax2, ax_mat=ax_mat2)
+            end
+
+            for apt_poly in results_primer_piso["vec_apartamentos_primer_piso"]
+                polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax2, ax_mat=ax_mat2)
+            end
+            for terrace in results_primer_piso["vec_terrazas_primer_piso"]
+                if polyShape.polyArea(terrace) > 0.0
+                    polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig, ax=ax2, ax_mat=ax_mat2)
+                end
+            end
+
+            println("Area comun primer piso: $(results_primer_piso["area_comun"]) m²")
+
+            PyPlot.tight_layout()
             ####################################
             ####################################
 

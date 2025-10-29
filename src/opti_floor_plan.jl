@@ -537,37 +537,59 @@ function ordena_deptos_en_franja(deptos_franja1::Vector{Tuple{Float64, Int, Int}
         end
     else
         if deptos_total >= 4
-            push!(deptos_ordenados1, (get_area(deptos_franja1[2]), get_tipo(deptos_franja1[2])))
-            if num_deptos1 > 2
-                for i in 3:num_deptos1
+            if num_deptos1 >= 2
+                push!(deptos_ordenados1, (get_area(deptos_franja1[1]), get_tipo(deptos_franja1[1])))
+                for i in num_deptos1:-1:3
+                    push!(deptos_ordenados1, (get_area(deptos_franja1[i]), get_tipo(deptos_franja1[i])))
+                end
+                push!(deptos_ordenados1, (get_area(deptos_franja1[2]), get_tipo(deptos_franja1[2])))
+            else
+                for i in 1:num_deptos1
                     push!(deptos_ordenados1, (get_area(deptos_franja1[i]), get_tipo(deptos_franja1[i])))
                 end
             end
-            push!(deptos_ordenados1, (get_area(deptos_franja1[1]), get_tipo(deptos_franja1[1])))
 
-            num_deptos2_half = div(num_deptos2, 2)
-            for i in 1:num_deptos2_half
-                push!(deptos_ordenados2, (get_area(deptos_franja2[i]), get_tipo(deptos_franja2[i])))
-            end
-            if tipo_escala == :exterior
-                push!(deptos_ordenados2, (area_escala_local, -1))
-            end
-            for i in (num_deptos2_half + 1):num_deptos2
-                push!(deptos_ordenados2, (get_area(deptos_franja2[i]), get_tipo(deptos_franja2[i])))
+            if num_deptos2 >= 2
+                push!(deptos_ordenados2, (get_area(deptos_franja2[1]), get_tipo(deptos_franja2[1])))
+                for i in num_deptos2:-1:3
+                    push!(deptos_ordenados2, (get_area(deptos_franja2[i]), get_tipo(deptos_franja2[i])))
+                end
+                if tipo_escala == :exterior
+                    push!(deptos_ordenados2, (area_escala_local, -1))
+                end
+                push!(deptos_ordenados2, (get_area(deptos_franja2[2]), get_tipo(deptos_franja2[2])))
+            elseif num_deptos2 == 1
+                push!(deptos_ordenados2, (get_area(deptos_franja2[1]), get_tipo(deptos_franja2[1])))
+                if tipo_escala == :exterior
+                    push!(deptos_ordenados2, (area_escala_local, -1))
+                end
+            else
+                if tipo_escala == :exterior
+                    push!(deptos_ordenados2, (area_escala_local, -1))
+                end
             end
         else
             for depto in deptos_franja1
                 push!(deptos_ordenados1, (get_area(depto), get_tipo(depto)))
             end
-            num_deptos2_half = div(num_deptos2, 2)
-            for i in 1:num_deptos2_half
-                push!(deptos_ordenados2, (get_area(deptos_franja2[i]), get_tipo(deptos_franja2[i])))
-            end
-            if tipo_escala == :exterior
-                push!(deptos_ordenados2, (area_escala_local, -1))
-            end
-            for i in (num_deptos2_half + 1):num_deptos2
-                push!(deptos_ordenados2, (get_area(deptos_franja2[i]), get_tipo(deptos_franja2[i])))
+            if num_deptos2 >= 2
+                push!(deptos_ordenados2, (get_area(deptos_franja2[1]), get_tipo(deptos_franja2[1])))
+                for i in num_deptos2:-1:3
+                    push!(deptos_ordenados2, (get_area(deptos_franja2[i]), get_tipo(deptos_franja2[i])))
+                end
+                if tipo_escala == :exterior
+                    push!(deptos_ordenados2, (area_escala_local, -1))
+                end
+                push!(deptos_ordenados2, (get_area(deptos_franja2[2]), get_tipo(deptos_franja2[2])))
+            elseif num_deptos2 == 1
+                push!(deptos_ordenados2, (get_area(deptos_franja2[1]), get_tipo(deptos_franja2[1])))
+                if tipo_escala == :exterior
+                    push!(deptos_ordenados2, (area_escala_local, -1))
+                end
+            else
+                if tipo_escala == :exterior
+                    push!(deptos_ordenados2, (area_escala_local, -1))
+                end
             end
         end
     end
@@ -936,6 +958,69 @@ function opti_floor_pisos_superiores(ps_planta::PolyShape, vec_sup_deptos::Vecto
 end
 
 
+function genera_layout_primer_piso(results_pisos_superiores::Dict, vec_num_deptos_primer_piso::Vector{Int}, vec_num_deptos_pisos_superiores::Vector{Int}, ps_planta::PolyShape)
+    vec_polyshapes_all = results_pisos_superiores["vec_polyshapes_all"]
+    vec_terrazas_all = results_pisos_superiores["vec_terrazas_all"]
+    ps_pasillo = results_pisos_superiores["ps_pasillo"]
+    ps_escala = results_pisos_superiores["ps_escala"]
+
+    ps_planta_primer_piso = polyShape.polyUnion(ps_pasillo)
+    for ps_apt in vec_polyshapes_all
+        ps_planta_primer_piso = polyShape.polyUnion(ps_planta_primer_piso, ps_apt)
+    end
+    for ps_terr in vec_terrazas_all
+        if polyShape.polyArea(ps_terr) > 0.0
+            ps_planta_primer_piso = polyShape.polyUnion(ps_planta_primer_piso, ps_terr)
+        end
+    end
+    if !isnothing(ps_escala)
+        ps_planta_primer_piso = polyShape.polyUnion(ps_planta_primer_piso, ps_escala)
+    end
+
+    vec_apartamentos_primer_piso = PolyShape[]
+    vec_terrazas_primer_piso = PolyShape[]
+
+    idx_global = 1
+    for tipo_idx in eachindex(vec_num_deptos_pisos_superiores)
+        num_sup = vec_num_deptos_pisos_superiores[tipo_idx]
+        num_primero = vec_num_deptos_primer_piso[tipo_idx]
+
+        for j in 1:num_sup
+            if j <= num_primero
+                push!(vec_apartamentos_primer_piso, vec_polyshapes_all[idx_global])
+                push!(vec_terrazas_primer_piso, vec_terrazas_all[idx_global])
+            end
+            idx_global += 1
+        end
+    end
+
+    ps_union_ocupado_primer_piso = polyShape.polyUnion(ps_pasillo)
+    for ps_apt in vec_apartamentos_primer_piso
+        ps_union_ocupado_primer_piso = polyShape.polyUnion(ps_union_ocupado_primer_piso, ps_apt)
+    end
+    for ps_terr in vec_terrazas_primer_piso
+        if polyShape.polyArea(ps_terr) > 0.0
+            ps_union_ocupado_primer_piso = polyShape.polyUnion(ps_union_ocupado_primer_piso, ps_terr)
+        end
+    end
+    if !isnothing(ps_escala)
+        ps_union_ocupado_primer_piso = polyShape.polyUnion(ps_union_ocupado_primer_piso, ps_escala)
+    end
+
+    ps_area_comun = polyShape.polyDifference(ps_planta_primer_piso, ps_union_ocupado_primer_piso)
+    area_comun = polyShape.polyArea(ps_area_comun)
+
+    return Dict(
+        "vec_apartamentos_primer_piso" => vec_apartamentos_primer_piso,
+        "vec_terrazas_primer_piso" => vec_terrazas_primer_piso,
+        "ps_area_comun" => ps_area_comun,
+        "area_comun" => round(area_comun, digits=2),
+        "ps_pasillo" => ps_pasillo,
+        "ps_escala" => ps_escala,
+        "ps_planta_primer_piso" => ps_planta_primer_piso
+    )
+end
+
 function opti_floor_plan(dict_arquitectura,
                         dict_proyecto;
                         ancho_pasillo::Float64 = 2.0,
@@ -1025,12 +1110,17 @@ function opti_floor_plan(dict_arquitectura,
 
     if isnothing(best_result)
         println("WARNING: No feasible configuration found, using first result")
-        results = all_results[1][1]
+        results_pisos_superiores = all_results[1][1]
     else
-        results = best_result
+        results_pisos_superiores = best_result
         println("Selected configuration: $best_name with outbound area: $best_outbound, deviation: $best_deviation")
     end
 
-    return results
+    results_primer_piso = genera_layout_primer_piso(results_pisos_superiores, vec_num_deptos_primer_piso, vec_num_deptos_pisos_superiores, ps_planta)
+
+    return Dict(
+        "pisos_superiores" => results_pisos_superiores,
+        "primer_piso" => results_primer_piso
+    )
 
 end
