@@ -221,8 +221,8 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
 
     # Only enforce equal quantities IF apartment type is used on ground floor
     for u in 1:num_apartment_types
-        @constraint(model, apartments_ground_floor[u] <= apartments_per_upper_floor[u] + max_deptos * (1 - y[u]))
-        @constraint(model, apartments_ground_floor[u] >= apartments_per_upper_floor[u] - max_deptos * (1 - y[u]))
+        @constraint(model, apartments_ground_floor[u] <= apartments_per_upper_floor[u] - 1 + max_deptos * (1 - y[u]))
+        @constraint(model, apartments_ground_floor[u] >= apartments_per_upper_floor[u] - 1 - max_deptos * (1 - y[u]))
     end
 
     # Buildability constraint
