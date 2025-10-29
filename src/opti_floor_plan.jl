@@ -823,8 +823,8 @@ end
 
 
 # Main floor plan optimization function: distributes apartments in two strips with corridor and terraces
-function opti_floor_plan_particular(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int};
-                        vec_sup_terraza::Vector{Float64} = Float64[],
+function opti_floor_pisos_superiores(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int},
+                        vec_sup_terraza::Vector{Float64};
                         ancho_pasillo::Float64 = 2.0,
                         min_largo_pasillo::Float64 = 0.0,
                         area_escala::Float64 = 25.0,
@@ -936,17 +936,25 @@ function opti_floor_plan_particular(ps_planta::PolyShape, vec_sup_deptos::Vector
 end
 
 
-function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int};
-                        vec_sup_terraza::Vector{Float64} = Float64[],
+function opti_floor_plan(dict_arquitectura,
+                        dict_proyecto;
                         ancho_pasillo::Float64 = 2.0,
                         min_largo_pasillo::Float64 = 0.0,
                         area_escala::Float64 = 25.0,
                         min_ancho_escala::Float64 = 0.0,
                         max_ancho_terraza::Float64 = 2.0)
 
+    ps_planta = dict_proyecto["proyecto_vec_ps_opt"][1]
 
-    results_ns_int = opti_floor_plan_particular(ps_planta, vec_sup_deptos, vec_num_deptos,
-                vec_sup_terraza=vec_sup_terraza,
+    vec_sup_deptos = dict_arquitectura["arq_vecSupInterior"][dict_proyecto["proyecto_vec_num_deptos_pisosSup"].>=1]
+    vec_sup_terraza = dict_arquitectura["arq_vecSupTerraza"][dict_proyecto["proyecto_vec_num_deptos_pisosSup"].>=1]
+
+    vec_num_deptos_pisos_superiores = round.(Int, dict_proyecto["proyecto_vec_num_deptos_pisosSup"][dict_proyecto["proyecto_vec_num_deptos_pisosSup"].>=1] ./ (dict_proyecto["proyecto_pisos_snt"] - 1))
+    vec_num_deptos_primer_piso = round.(Int, dict_proyecto["proyecto_vec_num_deptos_primerPiso"][dict_proyecto["proyecto_vec_num_deptos_pisosSup"].>=1])
+
+
+    results_ns_int = opti_floor_pisos_superiores(ps_planta, vec_sup_deptos, vec_num_deptos_pisos_superiores,
+                vec_sup_terraza,
                 ancho_pasillo=ancho_pasillo,
                 min_largo_pasillo=min_largo_pasillo,
                 area_escala=area_escala,
@@ -956,8 +964,8 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                 layout=:ns,
                 balance_mode=:heuristic)
 
-    results_ns_ext = opti_floor_plan_particular(ps_planta, vec_sup_deptos, vec_num_deptos,
-                vec_sup_terraza=vec_sup_terraza,
+    results_ns_ext = opti_floor_pisos_superiores(ps_planta, vec_sup_deptos, vec_num_deptos_pisos_superiores,
+                vec_sup_terraza,
                 ancho_pasillo=ancho_pasillo,
                 min_largo_pasillo=min_largo_pasillo,
                 area_escala=area_escala,
@@ -967,8 +975,8 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                 layout=:ns,
                 balance_mode=:heuristic)
 
-    results_oe_int = opti_floor_plan_particular(ps_planta, vec_sup_deptos, vec_num_deptos,
-                vec_sup_terraza=vec_sup_terraza,
+    results_oe_int = opti_floor_pisos_superiores(ps_planta, vec_sup_deptos, vec_num_deptos_pisos_superiores,
+                vec_sup_terraza,
                 ancho_pasillo=ancho_pasillo,
                 min_largo_pasillo=min_largo_pasillo,
                 area_escala=area_escala,
@@ -978,8 +986,8 @@ function opti_floor_plan(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, 
                 layout=:oe,
                 balance_mode=:heuristic)
 
-    results_oe_ext = opti_floor_plan_particular(ps_planta, vec_sup_deptos, vec_num_deptos,
-                vec_sup_terraza=vec_sup_terraza,
+    results_oe_ext = opti_floor_pisos_superiores(ps_planta, vec_sup_deptos, vec_num_deptos_pisos_superiores,
+                vec_sup_terraza,
                 ancho_pasillo=ancho_pasillo,
                 min_largo_pasillo=min_largo_pasillo,
                 area_escala=area_escala,

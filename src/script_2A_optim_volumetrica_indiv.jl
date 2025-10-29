@@ -235,10 +235,6 @@ flag_create_table = false # let flag_create_table = false
 
             ####################################
             ####################################
-            vec_sup_deptos = dict_arquitectura["arq_vecSupInterior"][dict_proyecto["proyecto_vec_num_deptos_pisosSup"].>=1]
-            vec_num_deptos = round.(Int, dict_proyecto["proyecto_vec_num_deptos_pisosSup"][dict_proyecto["proyecto_vec_num_deptos_pisosSup"].>=1] ./ (dict_proyecto["proyecto_pisos_snt"] - 1))
-            vec_sup_terraza = dict_arquitectura["arq_vecSupTerraza"][dict_proyecto["proyecto_vec_num_deptos_pisosSup"].>=1]
-            ps_planta = dict_proyecto["proyecto_vec_ps_opt"][1]
 
             ancho_pasillo = 1.5
             min_largo_pasillo = 4.0
@@ -246,8 +242,7 @@ flag_create_table = false # let flag_create_table = false
             min_ancho_escala = 4.0
             max_ancho_terraza = 4.0
 
-            results = opti_floor_plan(ps_planta, vec_sup_deptos, vec_num_deptos,
-                        vec_sup_terraza=vec_sup_terraza,
+            results = opti_floor_plan(dict_arquitectura, dict_proyecto,
                         ancho_pasillo=ancho_pasillo,
                         min_largo_pasillo=min_largo_pasillo,
                         area_escala=area_escala,
@@ -255,7 +250,7 @@ flag_create_table = false # let flag_create_table = false
                         max_ancho_terraza=max_ancho_terraza
                         )
 
-
+            ps_planta = dict_proyecto["proyecto_vec_ps_opt"][1]
             fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
             if !isnothing(results["ps_pasillo"])
                 polyPlot.plotPolyshape2D(results["ps_pasillo"], "#505050", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
