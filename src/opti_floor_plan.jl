@@ -970,13 +970,14 @@ function genera_layout_primer_piso(results_pisos_superiores::Dict, vec_num_depto
 
     delta = .02
 
-    ps_planta_primer_piso = polyClipper.polyOffset(polyShape.polyUnion(ps_pasillo), delta)
+    ps_planta_primer_piso = polyShape.polyUnion(ps_pasillo)
     for ps_apt in vec_ps_deptos_all
-        ps_planta_primer_piso = polyShape.polyUnion(ps_planta_primer_piso, polyClipper.polyOffset(ps_apt, delta))
+        ps_planta_primer_piso = polyShape.polyUnion(ps_planta_primer_piso, ps_apt)
     end
     if !isnothing(ps_escala)
-        ps_planta_primer_piso = polyShape.polyUnion(ps_planta_primer_piso, polyClipper.polyOffset(ps_escala, delta))
+        ps_planta_primer_piso = polyShape.polyUnion(ps_planta_primer_piso, ps_escala)
     end
+    ps_planta_primer_piso = polyClipper.polyOffset(ps_planta_primer_piso, delta)
     ps_planta_primer_piso = polyClipper.polyOffset(ps_planta_primer_piso, -delta)
 
     vec_apartamentos_primer_piso = PolyShape[]
@@ -1011,30 +1012,32 @@ function genera_layout_primer_piso(results_pisos_superiores::Dict, vec_num_depto
         end
     end
 
-    ps_union_ocupado_primer_piso = polyClipper.polyOffset(polyShape.polyUnion(ps_pasillo), delta)
+    ps_union_ocupado_primer_piso = polyShape.polyUnion(ps_pasillo)
     for ps_apt in vec_apartamentos_primer_piso
-        ps_union_ocupado_primer_piso = polyShape.polyUnion(ps_union_ocupado_primer_piso, polyClipper.polyOffset(ps_apt, delta))
+        ps_union_ocupado_primer_piso = polyShape.polyUnion(ps_union_ocupado_primer_piso, ps_apt)
     end
     for ps_terr in vec_terrazas_primer_piso
         if polyShape.polyArea(ps_terr) > 0.0
-            ps_union_ocupado_primer_piso = polyShape.polyUnion(ps_union_ocupado_primer_piso, polyClipper.polyOffset(ps_terr, delta))
+            ps_union_ocupado_primer_piso = polyShape.polyUnion(ps_union_ocupado_primer_piso, ps_terr)
         end
     end
     if !isnothing(ps_escala)
-        ps_union_ocupado_primer_piso = polyShape.polyUnion(ps_union_ocupado_primer_piso, polyClipper.polyOffset(ps_escala, delta))
+        ps_union_ocupado_primer_piso = polyShape.polyUnion(ps_union_ocupado_primer_piso, ps_escala)
     end
+    ps_union_ocupado_primer_piso = polyClipper.polyOffset(ps_union_ocupado_primer_piso, delta)
     ps_union_ocupado_primer_piso = polyClipper.polyOffset(ps_union_ocupado_primer_piso, -delta)
 
     ps_area_comun = polyShape.polyDifference(ps_planta_primer_piso, ps_union_ocupado_primer_piso)
     area_comun = polyShape.polyArea(ps_area_comun)
 
-    ps_area_comun_total = polyClipper.polyOffset(ps_pasillo, delta)
+    ps_area_comun_total = polyShape.polyUnion(ps_pasillo)
     if !isnothing(ps_escala)
-        ps_area_comun_total = polyShape.polyUnion(ps_area_comun_total, polyClipper.polyOffset(ps_escala, delta))
+        ps_area_comun_total = polyShape.polyUnion(ps_area_comun_total, ps_escala)
     end
     if polyShape.polyArea(ps_area_comun) > 0.0
-        ps_area_comun_total = polyShape.polyUnion(ps_area_comun_total, polyClipper.polyOffset(ps_area_comun, delta))
+        ps_area_comun_total = polyShape.polyUnion(ps_area_comun_total, ps_area_comun)
     end
+    ps_area_comun_total = polyClipper.polyOffset(ps_area_comun_total, delta)
     ps_area_comun_total = polyClipper.polyOffset(ps_area_comun_total, -delta)
 
     return Dict(
