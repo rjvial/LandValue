@@ -428,12 +428,13 @@ function normaliza_planta_rectangular(ps_planta::PolyShape)
 end
 
 # Distributes apartments between two strips balancing total area, adds staircase to strip 2 if tipo_escala is :exterior
-function distribuye_deptos_entre_franjas(vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int}, area_escala::Float64, tipo_escala::Symbol)
+function distribuye_deptos_entre_franjas(vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int}, area_escala::Float64, tipo_escala::Symbol, vec_tipo_original_indices::Vector{Int}=collect(1:length(vec_sup_deptos)))
     deptos_individuales = Tuple{Float64, Int, Int}[]
-    for tipo_depto in 1:length(vec_sup_deptos)
-        sup_depto = vec_sup_deptos[tipo_depto]
-        for j in 1:vec_num_deptos[tipo_depto]
-            push!(deptos_individuales, (sup_depto, tipo_depto, j))
+    for i in 1:length(vec_sup_deptos)
+        sup_depto = vec_sup_deptos[i]
+        tipo_depto_original = vec_tipo_original_indices[i]
+        for j in 1:vec_num_deptos[i]
+            push!(deptos_individuales, (sup_depto, tipo_depto_original, j))
         end
     end
 
@@ -709,18 +710,16 @@ function empaqueta_resultados(dimension1::Float64, dimension2::Float64,
                     vec_terrazas1::Vector{PolyShape}, vec_terrazas2::Vector{PolyShape}, is_vertical::Bool,
                     tipo_escala::Symbol, ps_planta::PolyShape)
     if is_vertical
-        prefix1, prefix2 = "este", "oeste"
         dim_key = "width"
     else
-        prefix1, prefix2 = "norte", "sur"
         dim_key = "height"
     end
 
     result = Dict(
         "feasible" => true,
         "status" => "LOCALLY_SOLVED",
-        "$(dim_key)_$prefix1" => round(dimension1, digits=2),
-        "$(dim_key)_$prefix2" => round(dimension2, digits=2),
+        "$(dim_key)_1" => round(dimension1, digits=2),
+        "$(dim_key)_2" => round(dimension2, digits=2),
         "floor_width" => W,
         "floor_height" => H,
         "ancho_pasillo" => ancho_pasillo,
@@ -771,7 +770,7 @@ function empaqueta_resultados(dimension1::Float64, dimension2::Float64,
         shape_analysis = analiza_forma_apartamentos(vec_ps_deptos1, vec_ps_deptos2)
     end
 
-    result["max_apt_height_to_width_ratio_deviation"] = round(shape_analysis, digits=3)
+    result["max_depto_square_deviation"] = round(shape_analysis, digits=3)
 
     ps_union_all = polyShape.polyUnion(ps_pasillo)
     for ps_apt in result["vec_ps_deptos_all"]
@@ -812,12 +811,12 @@ end
 # ──────────────────────────────────────────────────────────────────────────────────
 
 # Prepares normalized floor plan, distributes apartments, and calculates strip dimensions
-function prepare_floor_inputs(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int}, stair_cfg::StairConfig, corridor_cfg::CorridorConfig, balance_mode::Symbol, is_vertical::Bool, terrace_cfg::TerraceConfig)
+function prepare_floor_inputs(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int}, stair_cfg::StairConfig, corridor_cfg::CorridorConfig, balance_mode::Symbol, is_vertical::Bool, terrace_cfg::TerraceConfig, vec_tipo_original_indices::Vector{Int})
 
     W, H, vec_x_planta, vec_y_planta, angulo_rotacion, cr, ps_planta_normalizado = normaliza_planta_rectangular(ps_planta)
 
     deptos_total = sum(vec_num_deptos)
-    deptos_franja1, deptos_franja2, area_franja1, area_franja2 = distribuye_deptos_entre_franjas(vec_sup_deptos, vec_num_deptos, stair_cfg.area_escala, stair_cfg.tipo_escala)
+    deptos_franja1, deptos_franja2, area_franja1, area_franja2 = distribuye_deptos_entre_franjas(vec_sup_deptos, vec_num_deptos, stair_cfg.area_escala, stair_cfg.tipo_escala, vec_tipo_original_indices)
 
     dimension_depto1, dimension_depto2 = calcula_dimensiones_franjas(area_franja1, area_franja2, W, H, corridor_cfg.ancho_pasillo, terrace_cfg.max_ancho_terraza, is_vertical)
 
@@ -860,7 +859,8 @@ function opti_floor_pisos_superiores(ps_planta::PolyShape, vec_sup_deptos::Vecto
                         max_ancho_terraza::Float64 = 2.0,
                         tipo_escala::Symbol = :exterior,
                         layout::Symbol = :ns,
-                        balance_mode::Symbol = :heuristic)
+                        balance_mode::Symbol = :heuristic,
+                        vec_tipo_original_indices::Vector{Int}=collect(1:length(vec_sup_deptos)))
 
     is_vertical = (layout == :oe)
 
@@ -879,7 +879,7 @@ function opti_floor_pisos_superiores(ps_planta::PolyShape, vec_sup_deptos::Vecto
     # ──────────────────────────────────────────────────────────────────────────────────
     planta_normalizada = prepare_floor_inputs(ps_planta, vec_sup_deptos, vec_num_deptos,
                                         stair_cfg, corridor_cfg,
-                                        balance_mode, is_vertical, terrace_cfg)
+                                        balance_mode, is_vertical, terrace_cfg, vec_tipo_original_indices)
 
     # ──────────────────────────────────────────────────────────────────────────────────
     # Stage 2: Strip geometry computation
@@ -1042,15 +1042,20 @@ function opti_floor_plan(dict_arquitectura,
 
     ps_planta = dict_proyecto["proyecto_vec_ps_opt"][1]
 
-    vec_sup_deptos = dict_arquitectura["arq_vecSupInterior"][dict_proyecto["proyecto_vec_num_deptos_pisosSup"].>=1]
-    vec_sup_terraza = dict_arquitectura["arq_vecSupTerraza"][dict_proyecto["proyecto_vec_num_deptos_pisosSup"].>=1]
+    mask_tipos_usados = dict_proyecto["proyecto_vec_num_deptos_pisosSup"] .>= 1
+    vec_tipo_original_indices = findall(mask_tipos_usados)
 
-    vec_num_deptos_pisos_superiores = round.(Int, dict_proyecto["proyecto_vec_num_deptos_pisosSup"][dict_proyecto["proyecto_vec_num_deptos_pisosSup"].>=1] ./ (dict_proyecto["proyecto_pisos_snt"] - 1))
-    vec_num_deptos_primer_piso = round.(Int, dict_proyecto["proyecto_vec_num_deptos_primerPiso"][dict_proyecto["proyecto_vec_num_deptos_pisosSup"].>=1])
+    vec_sup_deptos_full = dict_arquitectura["arq_vecSupInterior"]
+    vec_sup_terraza_full = dict_arquitectura["arq_vecSupTerraza"]
+
+    vec_sup_deptos = vec_sup_deptos_full[mask_tipos_usados]
+
+    vec_num_deptos_pisos_superiores = round.(Int, dict_proyecto["proyecto_vec_num_deptos_pisosSup"][mask_tipos_usados] ./ (dict_proyecto["proyecto_pisos_snt"] - 1))
+    vec_num_deptos_primer_piso = round.(Int, dict_proyecto["proyecto_vec_num_deptos_primerPiso"][mask_tipos_usados])
 
 
     results_ns_int = opti_floor_pisos_superiores(ps_planta, vec_sup_deptos, vec_num_deptos_pisos_superiores,
-                vec_sup_terraza,
+                vec_sup_terraza_full,
                 ancho_pasillo=ancho_pasillo,
                 min_largo_pasillo=min_largo_pasillo,
                 area_escala=area_escala,
@@ -1058,10 +1063,11 @@ function opti_floor_plan(dict_arquitectura,
                 max_ancho_terraza=max_ancho_terraza,
                 tipo_escala=:interior,
                 layout=:ns,
-                balance_mode=:heuristic)
+                balance_mode=:heuristic,
+                vec_tipo_original_indices=vec_tipo_original_indices)
 
     results_ns_ext = opti_floor_pisos_superiores(ps_planta, vec_sup_deptos, vec_num_deptos_pisos_superiores,
-                vec_sup_terraza,
+                vec_sup_terraza_full,
                 ancho_pasillo=ancho_pasillo,
                 min_largo_pasillo=min_largo_pasillo,
                 area_escala=area_escala,
@@ -1069,10 +1075,11 @@ function opti_floor_plan(dict_arquitectura,
                 max_ancho_terraza=max_ancho_terraza,
                 tipo_escala=:exterior,
                 layout=:ns,
-                balance_mode=:heuristic)
+                balance_mode=:heuristic,
+                vec_tipo_original_indices=vec_tipo_original_indices)
 
     results_oe_int = opti_floor_pisos_superiores(ps_planta, vec_sup_deptos, vec_num_deptos_pisos_superiores,
-                vec_sup_terraza,
+                vec_sup_terraza_full,
                 ancho_pasillo=ancho_pasillo,
                 min_largo_pasillo=min_largo_pasillo,
                 area_escala=area_escala,
@@ -1080,10 +1087,11 @@ function opti_floor_plan(dict_arquitectura,
                 max_ancho_terraza=max_ancho_terraza,
                 tipo_escala=:interior,
                 layout=:oe,
-                balance_mode=:heuristic)
+                balance_mode=:heuristic,
+                vec_tipo_original_indices=vec_tipo_original_indices)
 
     results_oe_ext = opti_floor_pisos_superiores(ps_planta, vec_sup_deptos, vec_num_deptos_pisos_superiores,
-                vec_sup_terraza,
+                vec_sup_terraza_full,
                 ancho_pasillo=ancho_pasillo,
                 min_largo_pasillo=min_largo_pasillo,
                 area_escala=area_escala,
@@ -1091,7 +1099,8 @@ function opti_floor_plan(dict_arquitectura,
                 max_ancho_terraza=max_ancho_terraza,
                 tipo_escala=:exterior,
                 layout=:oe,
-                balance_mode=:heuristic)
+                balance_mode=:heuristic,
+                vec_tipo_original_indices=vec_tipo_original_indices)
 
     all_results = [
         (results_ns_int, "ns_interior"),
@@ -1108,7 +1117,7 @@ function opti_floor_plan(dict_arquitectura,
     for (result, name) in all_results
         if result["feasible"]
             outbound = result["area_outbound"]
-            deviation = result["max_apt_height_to_width_ratio_deviation"]
+            deviation = result["max_depto_square_deviation"]
 
             if outbound < best_outbound || (outbound == best_outbound && deviation < best_deviation)
                 best_outbound = outbound
