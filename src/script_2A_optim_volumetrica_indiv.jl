@@ -281,10 +281,10 @@ flag_create_table = false # let flag_create_table = false
                 polyPlot.plotPolyshape2D(results_primer_piso["ps_area_comun_total"], "#505050", 0.9, fig=fig2, ax=ax2, ax_mat=ax_mat2)
             end
 
-            for apt_poly in results_primer_piso["vec_apartamentos_primer_piso"]
+            for apt_poly in results_primer_piso["vec_ps_deptos_all"]
                 polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig2, ax=ax2, ax_mat=ax_mat2)
             end
-            for terrace in results_primer_piso["vec_terrazas_primer_piso"]
+            for terrace in results_primer_piso["vec_ps_terrazas_all"]
                 if polyShape.polyArea(terrace) > 0.0
                     polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig2, ax=ax2, ax_mat=ax_mat2)
                 end
@@ -329,22 +329,19 @@ flag_create_table = false # let flag_create_table = false
             end
 
             # vecColumnNames, vecColumnTypes = dict2tablevec(dict_all, PRIMARY_KEY)
-
             # if flag_create_table
             #     pg_julia.createTable(conn_postgres, TABLE_NAME, vecColumnNames, vecColumnTypes, PRIMARY_KEY)
             #     flag_create_table = false
             # end
-
             # vecColumnValue = Vector{Any}(undef, length(vecColumnNames))
             # for (idx, col_name) in enumerate(vecColumnNames)
             #     vecColumnValue[idx] = haskey(dict_all, col_name) ? dict_all[col_name] : nothing
             # end
-
             # pg_julia.insertRow!(conn_postgres, TABLE_NAME, vecColumnNames, vecColumnValue, Symbol(PRIMARY_KEY))
-
             # update_optimization_status(conn_postgres, id_opti, 1)
 
-            # fig, ax, ax_mat = plotBaseEdificio3D(fpe, dict_arquitectura["arq_alturaPiso"], dict_geom["ps_combi"], dict_all)
+            num_pisos_superiores = dict_proyecto["proyecto_pisos_snt"] - 1
+            fig, ax, ax_mat = plotBaseEdificio3Dnew(fpe, dict_arquitectura["arq_alturaPiso"], dict_geom["ps_combi"], dict_all, results_primer_piso, results_pisos_superiores, num_pisos_superiores)
 
             println("Completed optimization for ID Opti: $(id_opti)\n")
 

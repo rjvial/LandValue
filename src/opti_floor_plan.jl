@@ -964,6 +964,7 @@ function genera_layout_primer_piso(results_pisos_superiores::Dict, vec_num_depto
     vec_ps_deptos_all = results_pisos_superiores["vec_ps_deptos_all"]
     vec_ps_terrazas_all = results_pisos_superiores["vec_ps_terrazas_all"]
     vec_tipos_all = results_pisos_superiores["vec_tipos_all"]
+    vec_orientaciones_all = results_pisos_superiores["vec_orientaciones_all"]
     ps_pasillo = results_pisos_superiores["ps_pasillo"]
     ps_escala = results_pisos_superiores["ps_escala"]
 
@@ -980,6 +981,8 @@ function genera_layout_primer_piso(results_pisos_superiores::Dict, vec_num_depto
 
     vec_apartamentos_primer_piso = PolyShape[]
     vec_terrazas_primer_piso = PolyShape[]
+    vec_tipos_primer_piso = Int[]
+    vec_orientaciones_primer_piso = Int[]
 
     dict_tipo_absoluto_to_filtrado = Dict{Int, Int}()
     for (filtered_idx, absolute_idx) in enumerate(vec_tipo_original_indices)
@@ -1001,6 +1004,8 @@ function genera_layout_primer_piso(results_pisos_superiores::Dict, vec_num_depto
             if dict_count_por_tipo[tipo_depto_absoluto] < num_requerido
                 push!(vec_apartamentos_primer_piso, vec_ps_deptos_all[idx_global])
                 push!(vec_terrazas_primer_piso, vec_ps_terrazas_all[idx_global])
+                push!(vec_tipos_primer_piso, vec_tipos_all[idx_global])
+                push!(vec_orientaciones_primer_piso, vec_orientaciones_all[idx_global])
                 dict_count_por_tipo[tipo_depto_absoluto] += 1
             end
         end
@@ -1033,8 +1038,10 @@ function genera_layout_primer_piso(results_pisos_superiores::Dict, vec_num_depto
     ps_area_comun_total = polyClipper.polyOffset(ps_area_comun_total, -delta)
 
     return Dict(
-        "vec_apartamentos_primer_piso" => vec_apartamentos_primer_piso,
-        "vec_terrazas_primer_piso" => vec_terrazas_primer_piso,
+        "vec_ps_deptos_all" => vec_apartamentos_primer_piso,
+        "vec_ps_terrazas_all" => vec_terrazas_primer_piso,
+        "vec_tipos_all" => vec_tipos_primer_piso,
+        "vec_orientaciones_all" => vec_orientaciones_primer_piso,
         "ps_area_comun" => ps_area_comun,
         "area_comun" => round(area_comun, digits=2),
         "ps_pasillo" => ps_pasillo,
