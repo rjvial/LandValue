@@ -225,28 +225,28 @@ function opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_dept
         @constraint(model, apartments_ground_floor[u] >= apartments_per_upper_floor[u] - max_deptos * (1 - y[u]))
     end
 
-    # @constraint(model, total_apartments_ground_floor, sum(apartments_ground_floor[u] for u=1:num_apartment_types) <= sum(apartments_per_upper_floor[u] for u=1:num_apartment_types) - 1)
+    @constraint(model, total_apartments_ground_floor, sum(apartments_ground_floor[u] for u=1:num_apartment_types) <= sum(apartments_per_upper_floor[u] for u=1:num_apartment_types) - 1)
 
-    # New binaries to mark which type is the smallest among selected ones
-    @variable(model, is_smallest[1:num_apartment_types], Bin)
+    # # New binaries to mark which type is the smallest among selected ones
+    # @variable(model, is_smallest[1:num_apartment_types], Bin)
 
-    # Only one type can be the smallest among those used
-    @constraint(model, sum(is_smallest[u] for u in 1:num_apartment_types) == 1)
+    # # Only one type can be the smallest among those used
+    # @constraint(model, sum(is_smallest[u] for u in 1:num_apartment_types) == 1)
 
-    # The smallest type must be a used type
-    @constraint(model, [u=1:num_apartment_types], is_smallest[u] <= z[u])
+    # # The smallest type must be a used type
+    # @constraint(model, [u=1:num_apartment_types], is_smallest[u] <= z[u])
 
-    # Prevent larger-area types from being marked smallest if a smaller used type exists
-    for i in 1:num_apartment_types, j in 1:num_apartment_types
-        if useful_areas[i] < useful_areas[j]
-            @constraint(model, is_smallest[j] <= 1 - z[i])
-        end
-    end
+    # # Prevent larger-area types from being marked smallest if a smaller used type exists
+    # for i in 1:num_apartment_types, j in 1:num_apartment_types
+    #     if useful_areas[i] < useful_areas[j]
+    #         @constraint(model, is_smallest[j] <= 1 - z[i])
+    #     end
+    # end
 
-    # Apply the "fewer ground floor" rule only to the smallest used type
-    @constraint(model, [u=1:num_apartment_types],
-        apartments_ground_floor[u] <= apartments_per_upper_floor[u] - 1 + max_deptos * (1 - is_smallest[u])
-    )
+    # # Apply the "fewer ground floor" rule only to the smallest used type
+    # @constraint(model, [u=1:num_apartment_types],
+    #     apartments_ground_floor[u] <= apartments_per_upper_floor[u] - 1 + max_deptos * (1 - is_smallest[u])
+    # )
 
 
 

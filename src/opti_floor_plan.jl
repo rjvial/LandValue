@@ -960,9 +960,10 @@ function opti_floor_pisos_superiores(ps_planta::PolyShape, vec_sup_deptos::Vecto
 end
 
 
-function genera_layout_primer_piso(results_pisos_superiores::Dict, vec_num_deptos_primer_piso::Vector{Int}, vec_num_deptos_pisos_superiores::Vector{Int}, ps_planta::PolyShape)
+function genera_layout_primer_piso(results_pisos_superiores::Dict, vec_num_deptos_primer_piso::Vector{Int}, vec_tipo_original_indices::Vector{Int}, ps_planta::PolyShape)
     vec_ps_deptos_all = results_pisos_superiores["vec_ps_deptos_all"]
     vec_ps_terrazas_all = results_pisos_superiores["vec_ps_terrazas_all"]
+    vec_tipos_all = results_pisos_superiores["vec_tipos_all"]
     ps_pasillo = results_pisos_superiores["ps_pasillo"]
     ps_escala = results_pisos_superiores["ps_escala"]
 
@@ -980,17 +981,28 @@ function genera_layout_primer_piso(results_pisos_superiores::Dict, vec_num_depto
     vec_apartamentos_primer_piso = PolyShape[]
     vec_terrazas_primer_piso = PolyShape[]
 
-    idx_global = 1
-    for tipo_idx in eachindex(vec_num_deptos_pisos_superiores)
-        num_sup = vec_num_deptos_pisos_superiores[tipo_idx]
-        num_primero = vec_num_deptos_primer_piso[tipo_idx]
+    dict_tipo_absoluto_to_filtrado = Dict{Int, Int}()
+    for (filtered_idx, absolute_idx) in enumerate(vec_tipo_original_indices)
+        dict_tipo_absoluto_to_filtrado[absolute_idx] = filtered_idx
+    end
 
-        for j in 1:num_sup
-            if j <= num_primero
+    dict_count_por_tipo = Dict{Int, Int}()
+    for tipo_idx_absoluto in vec_tipo_original_indices
+        dict_count_por_tipo[tipo_idx_absoluto] = 0
+    end
+
+    for idx_global in eachindex(vec_ps_deptos_all)
+        tipo_depto_absoluto = vec_tipos_all[idx_global]
+
+        if haskey(dict_tipo_absoluto_to_filtrado, tipo_depto_absoluto)
+            tipo_depto_filtrado = dict_tipo_absoluto_to_filtrado[tipo_depto_absoluto]
+            num_requerido = vec_num_deptos_primer_piso[tipo_depto_filtrado]
+
+            if dict_count_por_tipo[tipo_depto_absoluto] < num_requerido
                 push!(vec_apartamentos_primer_piso, vec_ps_deptos_all[idx_global])
                 push!(vec_terrazas_primer_piso, vec_ps_terrazas_all[idx_global])
+                dict_count_por_tipo[tipo_depto_absoluto] += 1
             end
-            idx_global += 1
         end
     end
 
@@ -1136,7 +1148,7 @@ function opti_floor_plan(dict_arquitectura,
         println("Selected configuration: $best_name with outbound area: $best_outbound, deviation: $best_deviation")
     end
 
-    results_primer_piso = genera_layout_primer_piso(results_pisos_superiores, vec_num_deptos_primer_piso, vec_num_deptos_pisos_superiores, ps_planta)
+    results_primer_piso = genera_layout_primer_piso(results_pisos_superiores, vec_num_deptos_primer_piso, vec_tipo_original_indices, ps_planta)
 
     return Dict(
         "pisos_superiores" => results_pisos_superiores,
