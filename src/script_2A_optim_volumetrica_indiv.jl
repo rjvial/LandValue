@@ -300,8 +300,12 @@ flag_create_table = false # let flag_create_table = false
             dict_json["n_predios"] = dict_geom["n_predios"]
             dict_json["sup_terreno_sii"] = dict_geom["sup_terreno_sii"]
             dict_json["sup_terreno_bruto"] = dict_geom["sup_terreno_bruto"]
-            dict_json["json_edificio_opt"] = polyShape.building2json(dict_proyecto["proyecto_vec_ps_opt"], dict_proyecto["proyecto_vec_np_opt"], dict_arquitectura["arq_alturaPiso"])
-            dict_json["json_subte_opt"] = polyShape.building2json(dict_proyecto["proyecto_vec_ps_subte"], dict_proyecto["proyecto_vec_np_subte"], dict_arquitectura["arq_alturaPiso"])
+            num_pisos_superiores = dict_proyecto["proyecto_pisos_snt"] - 1
+            json_dict = polyShape.building2json(results_primer_piso, results_pisos_superiores, num_pisos_superiores, dict_arquitectura["arq_alturaPiso"])
+            dict_json["json_deptos_opt"] = json_dict["json_deptos_opt"]
+            dict_json["json_terrazas_opt"] = json_dict["json_terrazas_opt"]
+            dict_json["json_area_comun_opt"] = json_dict["json_area_comun_opt"]
+            dict_json["json_subte_opt"] = polyShape.subterraneo2json(dict_proyecto["proyecto_vec_ps_subte"], dict_proyecto["proyecto_vec_np_subte"], dict_arquitectura["arq_alturaPiso"])
             dict_json["json_Volteor"] = polyShape.polyShapeLayers2json(dict_proyecto["proyecto_vec_psVolteor"], dict_proyecto["proyecto_vec_altVolteor"])
             dict_json["json_sombraEdif_p"] = polyShape.polyShape2json(dict_proyecto["proyecto_ps_sombraEdif_p"])
             dict_json["json_sombraEdif_o"] = polyShape.polyShape2json(dict_proyecto["proyecto_ps_sombraEdif_o"])
@@ -313,6 +317,18 @@ flag_create_table = false # let flag_create_table = false
             dict_json["json_bruto"] = polyShape.polyShape2json(dict_geom["ps_bruto"])
             dict_json["json_calles"] = polyShape.polyShape2json(dict_geom["ps_calles"])
             dict_json["json_calles_contexto"] = polyShape.polyShape2json(dict_geom["ps_calles_contexto"])
+            dict_json["json_planta_primer_piso"] = polyShape.planta2json(results_primer_piso["vec_ps_deptos_all"], results_primer_piso["vec_ps_terrazas_all"], results_primer_piso["ps_area_comun_total"], nothing, nothing, 0.0)
+            dict_json["json_planta_pisos_superiores"] = polyShape.planta2json(results_pisos_superiores["vec_ps_deptos_all"], results_pisos_superiores["vec_ps_terrazas_all"], nothing, results_pisos_superiores["ps_pasillo"], results_pisos_superiores["ps_escala"], dict_arquitectura["arq_alturaPiso"])
+
+            # for (json_key, json_content) in dict_json
+            #     if startswith(json_key, "json_")
+            #         json_file_path = "$(json_key).json"
+            #         open(json_file_path, "w") do f
+            #             write(f, json_content)
+            #         end
+            #         println("Saved JSON to: $json_file_path")
+            #     end
+            # end
 
             delete!(dict_normativa, "norm_coeficiente_de_ocupacion_de_suelo")
             delete!(dict_normativa, "norm_superficice_util_max_depto")
@@ -340,7 +356,6 @@ flag_create_table = false # let flag_create_table = false
             # pg_julia.insertRow!(conn_postgres, TABLE_NAME, vecColumnNames, vecColumnValue, Symbol(PRIMARY_KEY))
             # update_optimization_status(conn_postgres, id_opti, 1)
 
-            num_pisos_superiores = dict_proyecto["proyecto_pisos_snt"] - 1
             fig, ax, ax_mat = plotBaseEdificio3Dnew(fpe, dict_arquitectura["arq_alturaPiso"], dict_geom["ps_combi"], dict_all, results_primer_piso, results_pisos_superiores, num_pisos_superiores)
 
             println("Completed optimization for ID Opti: $(id_opti)\n")

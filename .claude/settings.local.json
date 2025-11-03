@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(git stash:*)",
-      "Bash(awk:*)"
+      "Bash(awk:*)",
+      "Bash(julia -e:*)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []

@@ -2051,6 +2051,580 @@ function threejs2json(threejs_data::Dict{String,Any}; material_color::UInt32=0x8
 end
 
 
+
+function building2json(results_primer_piso::Dict, results_pisos_superiores::Dict, num_pisos_superiores::Int, alturaPiso::Float64)::Dict{String, String}
+
+    function triangulatePolygon(V::Matrix{Float64})::Vector{Int}
+        function pointInTriangle(p::Vector{Float64}, a::Vector{Float64}, b::Vector{Float64}, c::Vector{Float64})::Bool
+            d1 = sign((p[1] - b[1]) * (a[2] - b[2]) - (a[1] - b[1]) * (p[2] - b[2]))
+            d2 = sign((p[1] - c[1]) * (b[2] - c[2]) - (b[1] - c[1]) * (p[2] - c[2]))
+            d3 = sign((p[1] - a[1]) * (c[2] - a[2]) - (c[1] - a[1]) * (p[2] - a[2]))
+            has_neg = (d1 < 0) || (d2 < 0) || (d3 < 0)
+            has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0)
+            return !(has_neg && has_pos)
+        end
+
+        n = size(V, 1)
+        if n < 3
+            return Int[]
+        end
+
+        indices = Int[]
+        remaining = collect(1:n)
+
+        while length(remaining) >= 3
+            n_remaining = length(remaining)
+            ear_found = false
+
+            for i in 1:n_remaining
+                prev_idx = remaining[i == 1 ? n_remaining : i - 1]
+                curr_idx = remaining[i]
+                next_idx = remaining[i == n_remaining ? 1 : i + 1]
+
+                p1 = V[prev_idx, :]
+                p2 = V[curr_idx, :]
+                p3 = V[next_idx, :]
+
+                cross_prod = (p2[1] - p1[1]) * (p3[2] - p1[2]) - (p2[2] - p1[2]) * (p3[1] - p1[1])
+
+                if cross_prod > 0
+                    is_ear = true
+                    for j in 1:n_remaining
+                        test_idx = remaining[j]
+                        if test_idx != prev_idx && test_idx != curr_idx && test_idx != next_idx
+                            pt = V[test_idx, :]
+                            if pointInTriangle(pt, p1, p2, p3)
+                                is_ear = false
+                                break
+                            end
+                        end
+                    end
+
+                    if is_ear
+                        append!(indices, [prev_idx - 1, curr_idx - 1, next_idx - 1])
+                        deleteat!(remaining, i)
+                        ear_found = true
+                        break
+                    end
+                end
+            end
+
+            if !ear_found
+                break
+            end
+        end
+
+        return indices
+    end
+
+    function addPolyShapeTo3D(ps::Union{PolyShape, Nothing}, z_low::Float64, z_high::Float64, all_vertices::Vector{Float64}, all_indices::Vector{Int})
+        if isnothing(ps)
+            return
+        end
+        if ps.NumRegions == 0
+            return
+        end
+
+        vertex_count = div(length(all_vertices), 3)
+
+        for region_idx in 1:ps.NumRegions
+            V = ps.Vertices[region_idx]
+            n_verts = size(V, 1)
+
+            floor_start = vertex_count
+            for j in 1:n_verts
+                append!(all_vertices, [V[j, 2], z_low, V[j, 1]])
+            end
+            vertex_count += n_verts
+
+            ceiling_start = vertex_count
+            for j in 1:n_verts
+                append!(all_vertices, [V[j, 2], z_high, V[j, 1]])
+            end
+            vertex_count += n_verts
+
+            tri_indices = triangulatePolygon(V)
+            for idx in tri_indices
+                append!(all_indices, [floor_start + idx])
+            end
+
+            for idx in reverse(tri_indices)
+                append!(all_indices, [ceiling_start + idx])
+            end
+
+            for j in 0:n_verts-1
+                next_j = (j + 1) % n_verts
+                bottom_current = floor_start + j
+                bottom_next = floor_start + next_j
+                ceiling_current = ceiling_start + j
+                ceiling_next = ceiling_start + next_j
+
+                append!(all_indices, [bottom_current, bottom_next, ceiling_current])
+                append!(all_indices, [ceiling_current, bottom_next, ceiling_next])
+            end
+        end
+    end
+
+    function create_single_element_json(element_name::String, color_hex::UInt32)
+        all_vertices = Float64[]
+        all_indices = Int[]
+
+        if element_name == "deptos"
+            ps_union_deptos_primer = results_primer_piso["ps_union_deptos"]
+            addPolyShapeTo3D(ps_union_deptos_primer, 0.0, alturaPiso, all_vertices, all_indices)
+
+            ps_union_deptos_sup = results_pisos_superiores["ps_union_deptos"]
+            for piso in 1:num_pisos_superiores
+                z_low = alturaPiso * piso
+                z_high = alturaPiso * (piso + 1)
+                addPolyShapeTo3D(ps_union_deptos_sup, z_low, z_high, all_vertices, all_indices)
+            end
+
+        elseif element_name == "terrazas"
+            ps_union_terrazas_primer = results_primer_piso["ps_union_terrazas"]
+            addPolyShapeTo3D(ps_union_terrazas_primer, 0.0, 1.0, all_vertices, all_indices)
+
+            ps_union_terrazas_sup = results_pisos_superiores["ps_union_terrazas"]
+            for piso in 1:num_pisos_superiores
+                z_low = alturaPiso * piso
+                addPolyShapeTo3D(ps_union_terrazas_sup, z_low, z_low + 1.0, all_vertices, all_indices)
+            end
+
+        elseif element_name == "area_comun"
+            ps_area_comun_primer = results_primer_piso["ps_area_comun_total"]
+            addPolyShapeTo3D(ps_area_comun_primer, 0.0, alturaPiso, all_vertices, all_indices)
+
+            ps_pasillo = results_pisos_superiores["ps_pasillo"]
+            ps_escala = results_pisos_superiores["ps_escala"]
+            for piso in 1:num_pisos_superiores
+                z_low = alturaPiso * piso
+                z_high = alturaPiso * (piso + 1)
+                addPolyShapeTo3D(ps_pasillo, z_low, z_high, all_vertices, all_indices)
+                addPolyShapeTo3D(ps_escala, z_low, z_high, all_vertices, all_indices)
+            end
+        end
+
+        if isempty(all_indices)
+            return ""
+        end
+
+        geometry_uuid = string(Base.UUID(rand(UInt128)))
+        material_uuid = string(Base.UUID(rand(UInt128)))
+        mesh_uuid = string(Base.UUID(rand(UInt128)))
+        group_uuid = string(Base.UUID(rand(UInt128)))
+
+        geometry = Dict{String,Any}(
+            "uuid" => geometry_uuid,
+            "type" => "BufferGeometry",
+            "data" => Dict{String,Any}(
+                "attributes" => Dict{String,Any}(
+                    "position" => Dict{String,Any}(
+                        "itemSize" => 3,
+                        "type" => "Float32Array",
+                        "array" => all_vertices
+                    )
+                ),
+                "index" => Dict{String,Any}(
+                    "type" => "Uint16Array",
+                    "array" => [max(0, idx) for idx in all_indices]
+                )
+            )
+        )
+
+        material = Dict{String,Any}(
+            "uuid" => material_uuid,
+            "type" => "MeshPhongMaterial",
+            "color" => color_hex,
+            "emissive" => 0x000000,
+            "shininess" => 100
+        )
+
+        mesh_obj = Dict{String,Any}(
+            "uuid" => mesh_uuid,
+            "type" => "Mesh",
+            "name" => element_name,
+            "geometry" => geometry_uuid,
+            "material" => material_uuid,
+            "position" => [0, 0, 0],
+            "rotation" => [0, 0, 0],
+            "scale" => [1, 1, 1]
+        )
+
+        ambient_light = Dict{String,Any}(
+            "uuid" => string(Base.UUID(rand(UInt128))),
+            "type" => "AmbientLight",
+            "name" => "AmbientLight",
+            "color" => 16777215,
+            "intensity" => 0.5
+        )
+
+        dir_light = Dict{String,Any}(
+            "uuid" => string(Base.UUID(rand(UInt128))),
+            "type" => "DirectionalLight",
+            "name" => "DirectionalLight",
+            "color" => 16777215,
+            "intensity" => 0.8,
+            "position" => [50, 50, 50]
+        )
+
+        group_obj = Dict{String,Any}(
+            "uuid" => group_uuid,
+            "type" => "Group",
+            "name" => element_name,
+            "children" => [ambient_light, dir_light, mesh_obj]
+        )
+
+        json_obj = Dict{String,Any}(
+            "metadata" => Dict{String,Any}(
+                "version" => 4.5,
+                "type" => "Object",
+                "generator" => "LandValue.polyShape"
+            ),
+            "geometries" => [geometry],
+            "materials" => [material],
+            "object" => group_obj
+        )
+
+        return JSON.json(json_obj)
+    end
+
+    return Dict{String, String}(
+        "json_deptos_opt" => create_single_element_json("deptos", 0x008080),
+        "json_terrazas_opt" => create_single_element_json("terrazas", 0x2F4F4F),
+        "json_area_comun_opt" => create_single_element_json("area_comun", 0x303030)
+    )
+end
+
+
+function planta2json(vec_ps_deptos::Vector{PolyShape}, vec_ps_terrazas::Vector{PolyShape}, ps_area_comun::Union{PolyShape, Nothing}, ps_pasillo::Union{PolyShape, Nothing}, ps_escala::Union{PolyShape, Nothing}, height::Float64=0.0)::String
+
+    function triangulatePolygon(V::Matrix{Float64})::Vector{Int}
+        function pointInTriangle(p::Vector{Float64}, a::Vector{Float64}, b::Vector{Float64}, c::Vector{Float64})::Bool
+            d1 = sign((p[1] - b[1]) * (a[2] - b[2]) - (a[1] - b[1]) * (p[2] - b[2]))
+            d2 = sign((p[1] - c[1]) * (b[2] - c[2]) - (b[1] - c[1]) * (p[2] - c[2]))
+            d3 = sign((p[1] - a[1]) * (c[2] - a[2]) - (c[1] - a[1]) * (p[2] - a[2]))
+            has_neg = (d1 < 0) || (d2 < 0) || (d3 < 0)
+            has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0)
+            return !(has_neg && has_pos)
+        end
+
+        n = size(V, 1)
+        if n < 3
+            return Int[]
+        end
+
+        indices = Int[]
+        remaining = collect(1:n)
+
+        while length(remaining) >= 3
+            n_remaining = length(remaining)
+            ear_found = false
+
+            for i in 1:n_remaining
+                prev_idx = remaining[i == 1 ? n_remaining : i - 1]
+                curr_idx = remaining[i]
+                next_idx = remaining[i == n_remaining ? 1 : i + 1]
+
+                p1 = V[prev_idx, :]
+                p2 = V[curr_idx, :]
+                p3 = V[next_idx, :]
+
+                cross_prod = (p2[1] - p1[1]) * (p3[2] - p1[2]) - (p2[2] - p1[2]) * (p3[1] - p1[1])
+
+                if cross_prod > 0
+                    is_ear = true
+                    for j in 1:n_remaining
+                        test_idx = remaining[j]
+                        if test_idx != prev_idx && test_idx != curr_idx && test_idx != next_idx
+                            pt = V[test_idx, :]
+                            if pointInTriangle(pt, p1, p2, p3)
+                                is_ear = false
+                                break
+                            end
+                        end
+                    end
+
+                    if is_ear
+                        append!(indices, [prev_idx - 1, curr_idx - 1, next_idx - 1])
+                        deleteat!(remaining, i)
+                        ear_found = true
+                        break
+                    end
+                end
+            end
+
+            if !ear_found
+                break
+            end
+        end
+
+        return indices
+    end
+
+    geometries = Dict{String, Any}[]
+    materials = Dict{String, Any}[]
+    objects = Dict{String, Any}[]
+
+    function add_polyshape_array(ps_array::Vector{PolyShape}, color_hex::UInt32, name::String)
+        for (idx, ps) in enumerate(ps_array)
+            if ps.NumRegions == 0
+                continue
+            end
+
+            all_vertices = Float64[]
+            all_indices = Int[]
+
+            for region_idx in 1:ps.NumRegions
+                V = ps.Vertices[region_idx]
+                n_verts = size(V, 1)
+
+                region_start = length(all_vertices) ÷ 3
+
+                for i in 1:n_verts
+                    push!(all_vertices, V[i, 2], height, V[i, 1])
+                end
+
+                triangle_indices = triangulatePolygon(V)
+                for tri_idx in triangle_indices
+                    push!(all_indices, region_start + tri_idx)
+                end
+            end
+
+            if !isempty(all_indices)
+                geometry_uuid = string(Base.UUID(rand(UInt128)))
+                material_uuid = string(Base.UUID(rand(UInt128)))
+                mesh_uuid = string(Base.UUID(rand(UInt128)))
+
+                geometry = Dict{String,Any}(
+                    "uuid" => geometry_uuid,
+                    "type" => "BufferGeometry",
+                    "data" => Dict{String,Any}(
+                        "attributes" => Dict{String,Any}(
+                            "position" => Dict{String,Any}(
+                                "itemSize" => 3,
+                                "type" => "Float32Array",
+                                "array" => all_vertices
+                            )
+                        ),
+                        "index" => Dict{String,Any}(
+                            "type" => "Uint16Array",
+                            "array" => [max(0, i) for i in all_indices]
+                        )
+                    )
+                )
+
+                material = Dict{String,Any}(
+                    "uuid" => material_uuid,
+                    "type" => "MeshPhongMaterial",
+                    "color" => color_hex,
+                    "emissive" => 0x000000,
+                    "shininess" => 100
+                )
+
+                mesh_obj = Dict{String,Any}(
+                    "uuid" => mesh_uuid,
+                    "type" => "Mesh",
+                    "name" => "$(name)_$(idx)",
+                    "geometry" => geometry_uuid,
+                    "material" => material_uuid,
+                    "position" => [0, 0, 0],
+                    "rotation" => [0, 0, 0],
+                    "scale" => [1, 1, 1]
+                )
+
+                push!(geometries, geometry)
+                push!(materials, material)
+                push!(objects, mesh_obj)
+            end
+        end
+    end
+
+    function add_single_polyshape(ps::Union{PolyShape, Nothing}, color_hex::UInt32, name::String)
+        if isnothing(ps) || ps.NumRegions == 0
+            return
+        end
+
+        all_vertices = Float64[]
+        all_indices = Int[]
+
+        for region_idx in 1:ps.NumRegions
+            V = ps.Vertices[region_idx]
+            n_verts = size(V, 1)
+
+            region_start = length(all_vertices) ÷ 3
+
+            for i in 1:n_verts
+                push!(all_vertices, V[i, 2], height, V[i, 1])
+            end
+
+            triangle_indices = triangulatePolygon(V)
+            for tri_idx in triangle_indices
+                push!(all_indices, region_start + tri_idx)
+            end
+        end
+
+        if !isempty(all_indices)
+            geometry_uuid = string(Base.UUID(rand(UInt128)))
+            material_uuid = string(Base.UUID(rand(UInt128)))
+            mesh_uuid = string(Base.UUID(rand(UInt128)))
+
+            geometry = Dict{String,Any}(
+                "uuid" => geometry_uuid,
+                "type" => "BufferGeometry",
+                "data" => Dict{String,Any}(
+                    "attributes" => Dict{String,Any}(
+                        "position" => Dict{String,Any}(
+                            "itemSize" => 3,
+                            "type" => "Float32Array",
+                            "array" => all_vertices
+                        )
+                    ),
+                    "index" => Dict{String,Any}(
+                        "type" => "Uint16Array",
+                        "array" => [max(0, i) for i in all_indices]
+                    )
+                )
+            )
+
+            material = Dict{String,Any}(
+                "uuid" => material_uuid,
+                "type" => "MeshPhongMaterial",
+                "color" => color_hex,
+                "emissive" => 0x000000,
+                "shininess" => 100
+            )
+
+            mesh_obj = Dict{String,Any}(
+                "uuid" => mesh_uuid,
+                "type" => "Mesh",
+                "name" => name,
+                "geometry" => geometry_uuid,
+                "material" => material_uuid,
+                "position" => [0, 0, 0],
+                "rotation" => [0, 0, 0],
+                "scale" => [1, 1, 1]
+            )
+
+            push!(geometries, geometry)
+            push!(materials, material)
+            push!(objects, mesh_obj)
+        end
+    end
+
+    function add_borders_for_array(ps_array::Vector{PolyShape}, color_hex::UInt32, name::String)
+        for (idx, ps) in enumerate(ps_array)
+            if ps.NumRegions == 0
+                continue
+            end
+
+            all_vertices = Float64[]
+
+            for region_idx in 1:ps.NumRegions
+                V = ps.Vertices[region_idx]
+                n_verts = size(V, 1)
+
+                for i in 1:n_verts
+                    push!(all_vertices, V[i, 2], height, V[i, 1])
+                end
+
+                for i in 1:n_verts
+                    next_i = (i % n_verts) + 1
+                    push!(all_vertices, V[next_i, 2], height, V[next_i, 1])
+                end
+            end
+
+            if !isempty(all_vertices)
+                geometry_uuid = string(Base.UUID(rand(UInt128)))
+                material_uuid = string(Base.UUID(rand(UInt128)))
+                line_uuid = string(Base.UUID(rand(UInt128)))
+
+                geometry = Dict{String,Any}(
+                    "uuid" => geometry_uuid,
+                    "type" => "BufferGeometry",
+                    "data" => Dict{String,Any}(
+                        "attributes" => Dict{String,Any}(
+                            "position" => Dict{String,Any}(
+                                "itemSize" => 3,
+                                "type" => "Float32Array",
+                                "array" => all_vertices
+                            )
+                        )
+                    )
+                )
+
+                material = Dict{String,Any}(
+                    "uuid" => material_uuid,
+                    "type" => "LineBasicMaterial",
+                    "color" => color_hex,
+                    "linewidth" => 2
+                )
+
+                line_obj = Dict{String,Any}(
+                    "uuid" => line_uuid,
+                    "type" => "LineSegments",
+                    "name" => "$(name)_border_$(idx)",
+                    "geometry" => geometry_uuid,
+                    "material" => material_uuid,
+                    "position" => [0, 0, 0],
+                    "rotation" => [0, 0, 0],
+                    "scale" => [1, 1, 1]
+                )
+
+                push!(geometries, geometry)
+                push!(materials, material)
+                push!(objects, line_obj)
+            end
+        end
+    end
+
+    add_polyshape_array(vec_ps_deptos, 0x008080, "depto")
+    add_polyshape_array(vec_ps_terrazas, 0x2F4F4F, "terraza")
+    add_single_polyshape(ps_area_comun, 0x303030, "area_comun")
+    add_single_polyshape(ps_pasillo, 0x303030, "pasillo")
+    add_single_polyshape(ps_escala, 0x303030, "escala")
+    add_borders_for_array(vec_ps_deptos, 0x000000, "depto")
+
+    group_uuid = string(Base.UUID(rand(UInt128)))
+
+    ambient_light = Dict{String,Any}(
+        "uuid" => string(Base.UUID(rand(UInt128))),
+        "type" => "AmbientLight",
+        "name" => "AmbientLight",
+        "color" => 16777215,
+        "intensity" => 0.5
+    )
+
+    dir_light = Dict{String,Any}(
+        "uuid" => string(Base.UUID(rand(UInt128))),
+        "type" => "DirectionalLight",
+        "name" => "DirectionalLight",
+        "color" => 16777215,
+        "intensity" => 0.8,
+        "position" => [50, 50, 50]
+    )
+
+    group_obj = Dict{String,Any}(
+        "uuid" => group_uuid,
+        "type" => "Group",
+        "name" => "Planta",
+        "children" => vcat([ambient_light, dir_light], objects)
+    )
+
+    json_obj = Dict{String,Any}(
+        "metadata" => Dict{String,Any}(
+            "version" => 4.5,
+            "type" => "Object",
+            "generator" => "LandValue.polyShape"
+        ),
+        "geometries" => geometries,
+        "materials" => materials,
+        "object" => group_obj
+    )
+
+    return JSON.json(json_obj)
+end
+
+
 function angle_between_vectors(v1::Vector{Float64}, v2::Vector{Float64})
     dot_prod = dot(v1, v2)
     len1 = sqrt(sum(v1.^2))
@@ -2066,6 +2640,69 @@ end
 
 
 function polyShapeLayers2json(vec_ps::Vector{PolyShape}, vec_heights::Vector{Float64}; simplify::Bool=true, angle_threshold::Float64=5.0)::String
+
+    function triangulatePolygon(V::Matrix{Float64})::Vector{Int}
+        function pointInTriangle(p::Vector{Float64}, a::Vector{Float64}, b::Vector{Float64}, c::Vector{Float64})::Bool
+            d1 = sign((p[1] - b[1]) * (a[2] - b[2]) - (a[1] - b[1]) * (p[2] - b[2]))
+            d2 = sign((p[1] - c[1]) * (b[2] - c[2]) - (b[1] - c[1]) * (p[2] - c[2]))
+            d3 = sign((p[1] - a[1]) * (c[2] - a[2]) - (c[1] - a[1]) * (p[2] - a[2]))
+            has_neg = (d1 < 0) || (d2 < 0) || (d3 < 0)
+            has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0)
+            return !(has_neg && has_pos)
+        end
+
+        n = size(V, 1)
+        if n < 3
+            return Int[]
+        end
+
+        indices = Int[]
+        remaining = collect(1:n)
+
+        while length(remaining) >= 3
+            n_remaining = length(remaining)
+            ear_found = false
+
+            for i in 1:n_remaining
+                prev_idx = remaining[i == 1 ? n_remaining : i - 1]
+                curr_idx = remaining[i]
+                next_idx = remaining[i == n_remaining ? 1 : i + 1]
+
+                p1 = V[prev_idx, :]
+                p2 = V[curr_idx, :]
+                p3 = V[next_idx, :]
+
+                cross_prod = (p2[1] - p1[1]) * (p3[2] - p1[2]) - (p2[2] - p1[2]) * (p3[1] - p1[1])
+
+                if cross_prod > 0
+                    is_ear = true
+                    for j in 1:n_remaining
+                        test_idx = remaining[j]
+                        if test_idx != prev_idx && test_idx != curr_idx && test_idx != next_idx
+                            pt = V[test_idx, :]
+                            if pointInTriangle(pt, p1, p2, p3)
+                                is_ear = false
+                                break
+                            end
+                        end
+                    end
+
+                    if is_ear
+                        append!(indices, [prev_idx - 1, curr_idx - 1, next_idx - 1])
+                        deleteat!(remaining, i)
+                        ear_found = true
+                        break
+                    end
+                end
+            end
+
+            if !ear_found
+                break
+            end
+        end
+
+        return indices
+    end
 
     function compute_layer_slope(ps1::PolyShape, ps2::PolyShape, h1::Float64, h2::Float64)
         if ps1.NumRegions == 0 || ps2.NumRegions == 0
@@ -2129,6 +2766,7 @@ function polyShapeLayers2json(vec_ps::Vector{PolyShape}, vec_heights::Vector{Flo
     all_indices = Int[]
     vertex_count = 0
     level_regions_info = []
+    original_vertices_dict = Dict{Tuple{Int,Int}, Matrix{Float64}}()
 
     for (level_idx, (ps, height)) in enumerate(zip(vec_ps, vec_heights))
         if ps.NumRegions == 0
@@ -2151,22 +2789,28 @@ function polyShapeLayers2json(vec_ps::Vector{PolyShape}, vec_heights::Vector{Flo
 
             vertex_count += n_vertices
             push!(level_info, (region_start, n_vertices))
+            original_vertices_dict[(level_idx, region_idx)] = V
         end
         push!(level_regions_info, level_info)
     end
 
     if !isempty(level_regions_info)
         bottom_level = level_regions_info[1]
-        for (region_start, n_verts) in bottom_level
-            for i in 1:n_verts-2
-                append!(all_indices, [region_start, region_start + i, region_start + i + 1])
+        for (idx, (region_start, _)) in enumerate(bottom_level)
+            V = original_vertices_dict[(1, idx)]
+            tri_indices = triangulatePolygon(V)
+            for tri_idx in tri_indices
+                append!(all_indices, [region_start + tri_idx])
             end
         end
 
         top_level = level_regions_info[end]
-        for (region_start, n_verts) in top_level
-            for i in 1:n_verts-2
-                append!(all_indices, [region_start, region_start + i + 1, region_start + i])
+        top_level_idx = length(level_regions_info)
+        for (idx, (region_start, _)) in enumerate(top_level)
+            V = original_vertices_dict[(top_level_idx, idx)]
+            tri_indices = triangulatePolygon(V)
+            for tri_idx in reverse(tri_indices)
+                append!(all_indices, [region_start + tri_idx])
             end
         end
     end
@@ -2207,7 +2851,71 @@ function polyShapeLayers2json(vec_ps::Vector{PolyShape}, vec_heights::Vector{Flo
     return threejs2json(geometry_data)
 end
 
-function building2json(vec_ps::Vector{PolyShape}, vec_np::Vector{Int}, alturaPiso::Float64)::String
+function subterraneo2json(vec_ps::Vector{PolyShape}, vec_np::Vector{Int}, alturaPiso::Float64)::String
+
+    function triangulatePolygon(V::Matrix{Float64})::Vector{Int}
+        function pointInTriangle(p::Vector{Float64}, a::Vector{Float64}, b::Vector{Float64}, c::Vector{Float64})::Bool
+            d1 = sign((p[1] - b[1]) * (a[2] - b[2]) - (a[1] - b[1]) * (p[2] - b[2]))
+            d2 = sign((p[1] - c[1]) * (b[2] - c[2]) - (b[1] - c[1]) * (p[2] - c[2]))
+            d3 = sign((p[1] - a[1]) * (c[2] - a[2]) - (c[1] - a[1]) * (p[2] - a[2]))
+            has_neg = (d1 < 0) || (d2 < 0) || (d3 < 0)
+            has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0)
+            return !(has_neg && has_pos)
+        end
+
+        n = size(V, 1)
+        if n < 3
+            return Int[]
+        end
+
+        indices = Int[]
+        remaining = collect(1:n)
+
+        while length(remaining) >= 3
+            n_remaining = length(remaining)
+            ear_found = false
+
+            for i in 1:n_remaining
+                prev_idx = remaining[i == 1 ? n_remaining : i - 1]
+                curr_idx = remaining[i]
+                next_idx = remaining[i == n_remaining ? 1 : i + 1]
+
+                p1 = V[prev_idx, :]
+                p2 = V[curr_idx, :]
+                p3 = V[next_idx, :]
+
+                cross_prod = (p2[1] - p1[1]) * (p3[2] - p1[2]) - (p2[2] - p1[2]) * (p3[1] - p1[1])
+
+                if cross_prod > 0
+                    is_ear = true
+                    for j in 1:n_remaining
+                        test_idx = remaining[j]
+                        if test_idx != prev_idx && test_idx != curr_idx && test_idx != next_idx
+                            pt = V[test_idx, :]
+                            if pointInTriangle(pt, p1, p2, p3)
+                                is_ear = false
+                                break
+                            end
+                        end
+                    end
+
+                    if is_ear
+                        append!(indices, [prev_idx - 1, curr_idx - 1, next_idx - 1])
+                        deleteat!(remaining, i)
+                        ear_found = true
+                        break
+                    end
+                end
+            end
+
+            if !ear_found
+                break
+            end
+        end
+
+        return indices
+    end
+
     if length(vec_ps) != length(vec_np)
         throw(ArgumentError("Number of polyshapes must equal number of floor counts"))
     end
@@ -2241,12 +2949,14 @@ function building2json(vec_ps::Vector{PolyShape}, vec_np::Vector{Int}, alturaPis
             last_floor = n_floors >= 0 ? n_floors : 0
 
             if floor_idx == first_floor
-                for i in 1:n_verts-2
-                    append!(all_indices, [floor_start, floor_start + i, floor_start + i + 1])
+                tri_indices = triangulatePolygon(V)
+                for idx in tri_indices
+                    append!(all_indices, [floor_start + idx])
                 end
             elseif floor_idx == last_floor
-                for i in 1:n_verts-2
-                    append!(all_indices, [floor_start, floor_start + i + 1, floor_start + i])
+                tri_indices = triangulatePolygon(V)
+                for idx in reverse(tri_indices)
+                    append!(all_indices, [floor_start + idx])
                 end
             end
 
@@ -2387,6 +3097,6 @@ export isPolyConvex,
     line2Box, lines2Polygons, poly2Constraints, constraints2poly, rotate_to_first_ccw,
     calculateDistance, shape2vector, transformLine, polySimplify,
     ajusteCoordenadasInversa, shape_32719to4326, shape_4326to32719, polyshape2wkt, dividePoly,
-    polyHasnan, sampleEdgePoints, polyShapeLayers2json, threejs2json,  
-    polyShape2json, building2json
+    polyHasnan, sampleEdgePoints, polyShapeLayers2json, threejs2json,
+    polyShape2json, building2json, subterraneo2json, planta2json
 end

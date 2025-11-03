@@ -227,7 +227,7 @@ let flag_create_table = false
 
                 dict_all = OrderedDict(sort(collect(dict_all), by=x -> (findfirst(==(x[1]), PRIORITY_KEYS) === nothing ? 1000 : findfirst(==(x[1]), PRIORITY_KEYS), x[1])))
                 dict_all["proyecto_json_edificio_opt"] = polyShape.building2json(dict_resultados["proyecto_vec_ps_opt"], dict_resultados["proyecto_vec_np_opt"], dict_arquitectura["arq_alturaPiso"])
-                dict_all["proyecto_json_subte_opt"] = polyShape.building2json(dict_resultados["proyecto_vec_ps_subte"], dict_resultados["proyecto_vec_np_subte"], dict_arquitectura["arq_alturaPiso"])
+                dict_all["proyecto_json_subte_opt"] = polyShape.subterraneo2json(dict_resultados["proyecto_vec_ps_subte"], dict_resultados["proyecto_vec_np_subte"], dict_arquitectura["arq_alturaPiso"])
                 dict_all["proyecto_json_Volteor"] = polyShape.polyShapeLayers2json(dict_resultados["proyecto_vec_psVolteor"], dict_resultados["proyecto_vec_altVolteor"])
                 dict_all["proyecto_json_sombraEdif_p"] = polyShape.polyShape2json(dict_resultados["proyecto_ps_sombraEdif_p"])
                 dict_all["proyecto_json_sombraEdif_o"] = polyShape.polyShape2json(dict_resultados["proyecto_ps_sombraEdif_o"])
