@@ -30,7 +30,7 @@ function plot_building_floors_new(vec_ps, vec_np, alturaPiso, color, alpha, fig,
     return fig, ax, ax_mat
 end
 
-function union_apartments_floor(vec_ps_deptos, buffer_dist=0.1)
+function union_apartments_floor(vec_ps_deptos, buffer_dist=0.2)
     valid_deptos = [ps for ps in vec_ps_deptos if polyShape.polyArea(ps) > 0.0]
     if isempty(valid_deptos)
         return nothing, []
@@ -47,15 +47,24 @@ function union_apartments_floor(vec_ps_deptos, buffer_dist=0.1)
         unified = polyShape.polyUnion(unified, buffered_deptos[i])
     end
 
-    num_unified_regions = unified.NumRegions
-    num_original = length(valid_deptos)
+    num_regions = unified.NumRegions
+    if num_regions > 1
+        region_areas = [polyShape.polyArea(PolyShape([unified.Vertices[k]], 1)) for k in 1:num_regions]
+        _, max_idx = findmax(region_areas)
+        largest_region = PolyShape([unified.Vertices[max_idx]], 1)
 
-    if num_unified_regions < num_original
-        disconnected_deptos = valid_deptos[num_unified_regions + 1:end]
-        return unified, disconnected_deptos
+        delta = 0.02
+        largest_region = polyClipper.polyOffset(largest_region, delta)
+        largest_region = polyClipper.polyOffset(largest_region, -buffer_dist - delta)
+
+        return largest_region, valid_deptos
+    else
+        delta = 0.02
+        unified = polyClipper.polyOffset(unified, delta)
+        unified = polyClipper.polyOffset(unified, -buffer_dist - delta)
+
+        return unified, []
     end
-
-    return unified, []
 end
 
 function plot_apartments_floor_new(vec_ps_deptos, z_low, z_high, color, alpha, fig, ax, ax_mat)

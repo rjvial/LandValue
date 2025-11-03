@@ -956,6 +956,39 @@ function opti_floor_pisos_superiores(ps_planta::PolyShape, vec_sup_deptos::Vecto
                                     vec_ps_deptos1, vec_ps_deptos2, vec_tipo_deptos1, franjas_computadas.vec_dimension_deptos2, franjas_computadas.vec_tipo_deptos2,
                                     area_escala, vec_terrazas1, vec_terrazas2, is_vertical, tipo_escala, ps_planta)
 
+    vec_ps_deptos_all = results["vec_ps_deptos_all"]
+    ps_union_deptos = PolyShape[]
+    if !isempty(vec_ps_deptos_all)
+        buffer_deptos = 0.2
+        buffered_apts = [polyClipper.polyOffset(ps, buffer_deptos) for ps in vec_ps_deptos_all]
+        ps_union_deptos = buffered_apts[1]
+        for i in eachindex(buffered_apts)[2:end]
+            ps_union_deptos = polyShape.polyUnion(ps_union_deptos, buffered_apts[i])
+        end
+        delta = 0.02
+        ps_union_deptos = polyClipper.polyOffset(ps_union_deptos, delta)
+        ps_union_deptos = polyClipper.polyOffset(ps_union_deptos, -buffer_deptos - delta)
+    end
+    results["ps_union_deptos"] = ps_union_deptos
+
+    vec_ps_terrazas_all = results["vec_ps_terrazas_all"]
+    ps_union_terrazas = PolyShape[]
+    if !isempty(vec_ps_terrazas_all)
+        valid_terrazas = [ps for ps in vec_ps_terrazas_all if polyShape.polyArea(ps) > 0.0]
+        if !isempty(valid_terrazas)
+            buffer_terrazas = 0.2
+            buffered_terrazas = [polyClipper.polyOffset(ps, buffer_terrazas) for ps in valid_terrazas]
+            ps_union_terrazas = buffered_terrazas[1]
+            for i in eachindex(buffered_terrazas)[2:end]
+                ps_union_terrazas = polyShape.polyUnion(ps_union_terrazas, buffered_terrazas[i])
+            end
+            delta = 0.02
+            ps_union_terrazas = polyClipper.polyOffset(ps_union_terrazas, delta)
+            ps_union_terrazas = polyClipper.polyOffset(ps_union_terrazas, -buffer_terrazas - delta)
+        end
+    end
+    results["ps_union_terrazas"] = ps_union_terrazas
+
     return results
 end
 
@@ -1040,6 +1073,33 @@ function genera_layout_primer_piso(results_pisos_superiores::Dict, vec_num_depto
     ps_area_comun_total = polyClipper.polyOffset(ps_area_comun_total, delta)
     ps_area_comun_total = polyClipper.polyOffset(ps_area_comun_total, -delta)
 
+    ps_union_deptos_primer_piso = PolyShape[]
+    if !isempty(vec_apartamentos_primer_piso)
+        buffer_deptos = 0.2
+        buffered_apts = [polyClipper.polyOffset(ps, buffer_deptos) for ps in vec_apartamentos_primer_piso]
+        ps_union_deptos_primer_piso = buffered_apts[1]
+        for i in eachindex(buffered_apts)[2:end]
+            ps_union_deptos_primer_piso = polyShape.polyUnion(ps_union_deptos_primer_piso, buffered_apts[i])
+        end
+        ps_union_deptos_primer_piso = polyClipper.polyOffset(ps_union_deptos_primer_piso, delta)
+        ps_union_deptos_primer_piso = polyClipper.polyOffset(ps_union_deptos_primer_piso, -buffer_deptos - delta)
+    end
+
+    ps_union_terrazas_primer_piso = PolyShape[]
+    if !isempty(vec_terrazas_primer_piso)
+        valid_terrazas = [ps for ps in vec_terrazas_primer_piso if polyShape.polyArea(ps) > 0.0]
+        if !isempty(valid_terrazas)
+            buffer_terrazas = 0.2
+            buffered_terrazas = [polyClipper.polyOffset(ps, buffer_terrazas) for ps in valid_terrazas]
+            ps_union_terrazas_primer_piso = buffered_terrazas[1]
+            for i in eachindex(buffered_terrazas)[2:end]
+                ps_union_terrazas_primer_piso = polyShape.polyUnion(ps_union_terrazas_primer_piso, buffered_terrazas[i])
+            end
+            ps_union_terrazas_primer_piso = polyClipper.polyOffset(ps_union_terrazas_primer_piso, delta)
+            ps_union_terrazas_primer_piso = polyClipper.polyOffset(ps_union_terrazas_primer_piso, -buffer_terrazas - delta)
+        end
+    end
+
     return Dict(
         "vec_ps_deptos_all" => vec_apartamentos_primer_piso,
         "vec_ps_terrazas_all" => vec_terrazas_primer_piso,
@@ -1049,8 +1109,10 @@ function genera_layout_primer_piso(results_pisos_superiores::Dict, vec_num_depto
         "area_comun" => round(area_comun, digits=2),
         "ps_pasillo" => ps_pasillo,
         "ps_escala" => ps_escala,
-        "ps_planta_primer_piso" => ps_planta_primer_piso,
-        "ps_area_comun_total" => ps_area_comun_total
+        "ps_planta" => ps_planta_primer_piso,
+        "ps_area_comun_total" => ps_area_comun_total,
+        "ps_union_deptos" => ps_union_deptos_primer_piso,
+        "ps_union_terrazas" => ps_union_terrazas_primer_piso
     )
 end
 
