@@ -30,43 +30,6 @@ function plot_building_floors_new(vec_ps, vec_np, alturaPiso, color, alpha, fig,
     return fig, ax, ax_mat
 end
 
-function union_apartments_floor(vec_ps_deptos, buffer_dist=0.2)
-    valid_deptos = [ps for ps in vec_ps_deptos if polyShape.polyArea(ps) > 0.0]
-    if isempty(valid_deptos)
-        return nothing, []
-    end
-
-    if length(valid_deptos) == 1
-        return valid_deptos[1], []
-    end
-
-    buffered_deptos = [polyClipper.polyOffset(ps, buffer_dist) for ps in valid_deptos]
-
-    unified = buffered_deptos[1]
-    for i in eachindex(buffered_deptos)[2:end]
-        unified = polyShape.polyUnion(unified, buffered_deptos[i])
-    end
-
-    num_regions = unified.NumRegions
-    if num_regions > 1
-        region_areas = [polyShape.polyArea(PolyShape([unified.Vertices[k]], 1)) for k in 1:num_regions]
-        _, max_idx = findmax(region_areas)
-        largest_region = PolyShape([unified.Vertices[max_idx]], 1)
-
-        delta = 0.02
-        largest_region = polyClipper.polyOffset(largest_region, delta)
-        largest_region = polyClipper.polyOffset(largest_region, -buffer_dist - delta)
-
-        return largest_region, valid_deptos
-    else
-        delta = 0.02
-        unified = polyClipper.polyOffset(unified, delta)
-        unified = polyClipper.polyOffset(unified, -buffer_dist - delta)
-
-        return unified, []
-    end
-end
-
 function plot_apartments_floor_new(vec_ps_deptos, z_low, z_high, color, alpha, fig, ax, ax_mat)
     for ps_depto in vec_ps_deptos
         if polyShape.polyArea(ps_depto) > 0.0
@@ -125,27 +88,25 @@ function plotBaseEdificio3Dnew(fpe, alturaPiso, ps_predio, dict_resultado, resul
     end
 
     if fpe.edif
-        vec_ps_deptos_primer_piso = results_primer_piso["vec_ps_deptos_all"]
-        vec_ps_terrazas_primer_piso = results_primer_piso["vec_ps_terrazas_all"]
-        vec_ps_deptos_pisos_superiores = results_pisos_superiores["vec_ps_deptos_all"]
-        vec_ps_terrazas_pisos_superiores = results_pisos_superiores["vec_ps_terrazas_all"]
         ps_pasillo = results_pisos_superiores["ps_pasillo"]
         ps_escala = results_pisos_superiores["ps_escala"]
         ps_area_comun_total_primer_piso = results_primer_piso["ps_area_comun_total"]
 
-        fig, ax, ax_mat = plot_common_area_new(ps_area_comun_total_primer_piso, 0.0, alturaPiso, "#303030", 0.9, fig, ax, ax_mat)
-        ps_unified_deptos_primer, ps_disconnected_primer = union_apartments_floor(vec_ps_deptos_primer_piso)
-        fig, ax, ax_mat = plot_unified_apartments_floor(ps_unified_deptos_primer, 0.0, alturaPiso, "teal", 1.0, fig, ax, ax_mat)
-        fig, ax, ax_mat = plot_apartments_floor_new(ps_disconnected_primer, 0.0, alturaPiso, "teal", 1.0, fig, ax, ax_mat)
-        fig, ax, ax_mat = plot_apartments_floor_new(vec_ps_terrazas_primer_piso, 0.0, 1.0, "#2F4F4F", 1.0, fig, ax, ax_mat)
+        ps_union_deptos_primer = results_primer_piso["ps_union_deptos"]
+        ps_union_terrazas_primer = results_primer_piso["ps_union_terrazas"]
 
-        ps_unified_deptos_sup, ps_disconnected_sup = union_apartments_floor(vec_ps_deptos_pisos_superiores)
+        fig, ax, ax_mat = plot_common_area_new(ps_area_comun_total_primer_piso, 0.0, alturaPiso, "#303030", 0.9, fig, ax, ax_mat)
+        fig, ax, ax_mat = plot_unified_apartments_floor(ps_union_deptos_primer, 0.0, alturaPiso, "teal", 1.0, fig, ax, ax_mat)
+        fig, ax, ax_mat = plot_unified_apartments_floor(ps_union_terrazas_primer, 0.0, 1.0, "#2F4F4F", 1.0, fig, ax, ax_mat)
+
+        ps_union_deptos_sup = results_pisos_superiores["ps_union_deptos"]
+        ps_union_terrazas_sup = results_pisos_superiores["ps_union_terrazas"]
+
         for piso in 1:num_pisos_superiores
             z_low = alturaPiso * piso
             z_high = alturaPiso * (piso + 1)
-            fig, ax, ax_mat = plot_unified_apartments_floor(ps_unified_deptos_sup, z_low, z_high, "teal", 1.0, fig, ax, ax_mat)
-            fig, ax, ax_mat = plot_apartments_floor_new(ps_disconnected_sup, z_low, z_high, "teal", 1.0, fig, ax, ax_mat)
-            fig, ax, ax_mat = plot_apartments_floor_new(vec_ps_terrazas_pisos_superiores, z_low, z_low + 1.0, "#2F4F4F", 1.0, fig, ax, ax_mat)
+            fig, ax, ax_mat = plot_unified_apartments_floor(ps_union_deptos_sup, z_low, z_high, "teal", 1.0, fig, ax, ax_mat)
+            fig, ax, ax_mat = plot_unified_apartments_floor(ps_union_terrazas_sup, z_low, z_low + 1.0, "#2F4F4F", 1.0, fig, ax, ax_mat)
             fig, ax, ax_mat = plot_common_area_new(ps_pasillo, z_low, z_high, "#303030", 0.6, fig, ax, ax_mat)
             fig, ax, ax_mat = plot_common_area_new(ps_escala, z_low, z_high, "#303030", 0.6, fig, ax, ax_mat)
         end
