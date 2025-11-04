@@ -407,6 +407,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     min_largo_pasillo = 4.0
     area_escala = 20.0
     min_ancho_escala = 4.0
+    min_ancho_depto = 5.0 #4.0
     max_ancho_terraza = 4.0
 
     results = opti_floor_plan(dict_arquitectura, dict_proyecto,
@@ -414,6 +415,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
                 min_largo_pasillo=min_largo_pasillo,
                 area_escala=area_escala,
                 min_ancho_escala=min_ancho_escala,
+                min_ancho_depto=min_ancho_depto,
                 max_ancho_terraza=max_ancho_terraza
                 )
 

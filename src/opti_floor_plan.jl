@@ -36,25 +36,28 @@ get_index(t::Tuple{Float64, Int, Int}) = t[3]
 # ──────────────────────────────────────────────────────────────────────────────────
 
 # Generates apartment geometries along one strip, adjusting dimensions iteratively to fit available space
-function genera_deptos_franja(vec_orden_deptos::Vector{Tuple{Float64, Int}}, coord_min_planta::Float64, dimension_franja::Float64, dimension_disponible::Float64, min_ancho_escala::Float64, is_vertical::Bool, coord_base::Float64, franja::Symbol)
+function genera_deptos_franja(vec_orden_deptos::Vector{Tuple{Float64, Int}}, coord_min_planta::Float64,
+            profundidad_franja::Float64, ancho_franja::Float64, min_ancho_escala::Float64,
+            min_ancho_depto::Float64, is_vertical::Bool, coord_base::Float64, franja::Symbol)
+
     vec_coord_ini = Float64[]
     vec_coord_fin = Float64[]
     vec_dimension1_deptos = Float64[]
     vec_dimension2_deptos = Float64[]
     vec_tipo_deptos = Int[]
 
-    if isempty(vec_orden_deptos) || dimension_franja <= 0.0
+    if isempty(vec_orden_deptos) || profundidad_franja <= 0.0
         return vec_coord_ini, vec_coord_fin, vec_dimension1_deptos, vec_dimension2_deptos, vec_tipo_deptos, PolyShape[]
     end
 
-    if !isfinite(dimension_franja)
-        error("Invalid dimension_franja: $dimension_franja")
+    if !isfinite(profundidad_franja)
+        error("Invalid profundidad_franja: $profundidad_franja")
     end
-    if dimension_disponible <= 0.0 || !isfinite(dimension_disponible)
-        error("Invalid dimension_disponible: $dimension_disponible")
+    if ancho_franja <= 0.0 || !isfinite(ancho_franja)
+        error("Invalid ancho_franja: $ancho_franja")
     end
 
-    dimension_franja_adjusted = dimension_franja
+    profundidad_franja_adjusted = profundidad_franja
 
     for _ in 1:MAX_ADJUSTMENT_ITERATIONS
         empty!(vec_coord_ini)
@@ -75,32 +78,37 @@ function genera_deptos_franja(vec_orden_deptos::Vector{Tuple{Float64, Int}}, coo
             end
 
             if tipo_depto == -1
-                dim2 = sup_depto / dimension_franja_adjusted
-                if dim2 < min_ancho_escala
-                    dim2 = min_ancho_escala
-                    dim1 = sup_depto / dim2
+                ancho_depto = sup_depto / profundidad_franja_adjusted
+                if ancho_depto < min_ancho_escala
+                    ancho_depto = min_ancho_escala
+                    profundidad_depto = sup_depto / ancho_depto
                 else
-                    dim1 = dimension_franja_adjusted
+                    profundidad_depto = profundidad_franja_adjusted
                 end
             else
-                dim2 = sup_depto / dimension_franja_adjusted
-                dim1 = dimension_franja_adjusted
+                ancho_depto = sup_depto / profundidad_franja_adjusted
+                if ancho_depto < min_ancho_depto
+                    ancho_depto = min_ancho_depto
+                    profundidad_depto = sup_depto / ancho_depto
+                else
+                    profundidad_depto = profundidad_franja_adjusted
+                end
             end
 
-            if !isfinite(dim1) || !isfinite(dim2) || dim1 <= 0.0 || dim2 <= 0.0
-                error("Invalid dimensions calculated: dim1=$dim1, dim2=$dim2 for sup_depto=$sup_depto, dimension_franja_adjusted=$dimension_franja_adjusted")
+            if !isfinite(profundidad_depto) || !isfinite(ancho_depto) || profundidad_depto <= 0.0 || ancho_depto <= 0.0
+                error("Invalid dimensions calculated: profundidad_depto=$profundidad_depto, ancho_depto=$ancho_depto for sup_depto=$sup_depto, profundidad_franja_adjusted=$profundidad_franja_adjusted")
             end
 
             push!(vec_coord_ini, coord_current)
-            push!(vec_coord_fin, coord_current + dim2)
-            push!(vec_dimension1_deptos, dim1)
-            push!(vec_dimension2_deptos, dim2)
+            push!(vec_coord_fin, coord_current + ancho_depto)
+            push!(vec_dimension1_deptos, profundidad_depto)
+            push!(vec_dimension2_deptos, ancho_depto)
             push!(vec_tipo_deptos, tipo_depto)
-            coord_current += dim2
-            total_dimension += dim2
+            coord_current += ancho_depto
+            total_dimension += ancho_depto
         end
 
-        if abs(total_dimension - dimension_disponible) / dimension_disponible < CONVERGENCE_TOLERANCE
+        if abs(total_dimension - ancho_franja) / ancho_franja < CONVERGENCE_TOLERANCE
             break
         end
 
@@ -108,7 +116,7 @@ function genera_deptos_franja(vec_orden_deptos::Vector{Tuple{Float64, Int}}, coo
             error("Invalid total_dimension: $total_dimension")
         end
 
-        dimension_franja_adjusted = dimension_franja_adjusted * (total_dimension / dimension_disponible)
+        profundidad_franja_adjusted = profundidad_franja_adjusted * (total_dimension / ancho_franja)
     end
 
     vec_ps_deptos_normalizado = PolyShape[]
@@ -138,7 +146,7 @@ function extiende_deptos_con_interseccion_pasillo(vec_coord_ini::Vector{Float64}
             error("Invalid coordinates at index $i: coord_ini=$(vec_coord_ini[i]), coord_fin=$(vec_coord_fin[i])")
         end
         if !isfinite(vec_dimension1_deptos[i]) || !isfinite(vec_dimension2_deptos[i])
-            error("Invalid dimensions at index $i: dim1=$(vec_dimension1_deptos[i]), dim2=$(vec_dimension2_deptos[i])")
+            error("Invalid dimensions at index $i: profundidad_depto=$(vec_dimension1_deptos[i]), ancho_depto=$(vec_dimension2_deptos[i])")
         end
 
         ps_depto_normalizado = vec_ps_deptos_normalizado[i]
@@ -236,15 +244,15 @@ function safe_translate(ps::PolyShape, dx::Float64, dy::Float64)
 end
 
 # Creates axis-aligned box with franja-aware positioning (vertical: X-axis, horizontal: Y-axis)
-function polyBoxAligned(base1::Float64, base2::Float64, dim1::Float64, dim2::Float64, franja::Symbol, is_vertical::Bool)
+function polyBoxAligned(base1::Float64, base2::Float64, profundidad_depto::Float64, ancho_depto::Float64, franja::Symbol, is_vertical::Bool)
     if is_vertical
         is_positive_franja = (franja == :este)
-        offset = is_positive_franja ? base1 : base1 - dim1
-        return polyShape.polyBox(offset, base2, dim1, dim2, 0.0)
+        offset = is_positive_franja ? base1 : base1 - profundidad_depto
+        return polyShape.polyBox(offset, base2, profundidad_depto, ancho_depto, 0.0)
     else
         is_positive_franja = (franja == :norte)
-        offset = is_positive_franja ? base1 : base1 - dim1
-        return polyShape.polyBox(base2, offset, dim2, dim1, 0.0)
+        offset = is_positive_franja ? base1 : base1 - profundidad_depto
+        return polyShape.polyBox(base2, offset, ancho_depto, profundidad_depto, 0.0)
     end
 end
 
@@ -468,16 +476,16 @@ end
 
 # Calculates strip widths from areas and floor dimensions, scales if exceeding available space
 function calcula_dimensiones_franjas(area_franja1::Float64, area_franja2::Float64, W::Float64, H::Float64, ancho_pasillo::Float64, dimension_terraza_max::Float64, is_vertical::Bool)
-    MIN_DIMENSION_FRANJA = 1.0
+    MIN_PROFUNDIDAD_FRANJA = 1.0
 
     if is_vertical
-        dimension_disponible_franja = W - 2 * dimension_terraza_max - ancho_pasillo
-        dimension_franja1_requerida = area_franja1 / H
-        dimension_franja2_requerida = area_franja2 / H
+        ancho_franja_franja = W - 2 * dimension_terraza_max - ancho_pasillo
+        profundidad_franja1_requerida = area_franja1 / H
+        profundidad_franja2_requerida = area_franja2 / H
     else
-        dimension_disponible_franja = H - 2 * dimension_terraza_max - ancho_pasillo
-        dimension_franja1_requerida = area_franja1 / W
-        dimension_franja2_requerida = area_franja2 / W
+        ancho_franja_franja = H - 2 * dimension_terraza_max - ancho_pasillo
+        profundidad_franja1_requerida = area_franja1 / W
+        profundidad_franja2_requerida = area_franja2 / W
     end
 
     if area_franja1 <= 0.0 && area_franja2 <= 0.0
@@ -485,30 +493,30 @@ function calcula_dimensiones_franjas(area_franja1::Float64, area_franja2::Float6
     end
 
     if area_franja1 <= 0.0
-        dimension_franja1 = 0.0
-        dimension_franja2 = min(dimension_franja2_requerida, dimension_disponible_franja)
+        profundidad_franja1 = 0.0
+        profundidad_franja2 = min(profundidad_franja2_requerida, ancho_franja_franja)
     elseif area_franja2 <= 0.0
-        dimension_franja2 = 0.0
-        dimension_franja1 = min(dimension_franja1_requerida, dimension_disponible_franja)
+        profundidad_franja2 = 0.0
+        profundidad_franja1 = min(profundidad_franja1_requerida, ancho_franja_franja)
     else
-        if dimension_franja1_requerida + dimension_franja2_requerida > dimension_disponible_franja
-            scale_factor = dimension_disponible_franja / (dimension_franja1_requerida + dimension_franja2_requerida)
-            dimension_franja1 = dimension_franja1_requerida * scale_factor
-            dimension_franja2 = dimension_franja2_requerida * scale_factor
+        if profundidad_franja1_requerida + profundidad_franja2_requerida > ancho_franja_franja
+            scale_factor = ancho_franja_franja / (profundidad_franja1_requerida + profundidad_franja2_requerida)
+            profundidad_franja1 = profundidad_franja1_requerida * scale_factor
+            profundidad_franja2 = profundidad_franja2_requerida * scale_factor
         else
-            dimension_franja1 = dimension_franja1_requerida
-            dimension_franja2 = dimension_franja2_requerida
+            profundidad_franja1 = profundidad_franja1_requerida
+            profundidad_franja2 = profundidad_franja2_requerida
         end
     end
 
-    if dimension_franja1 > 0.0 && dimension_franja1 < MIN_DIMENSION_FRANJA
-        dimension_franja1 = MIN_DIMENSION_FRANJA
+    if profundidad_franja1 > 0.0 && profundidad_franja1 < MIN_PROFUNDIDAD_FRANJA
+        profundidad_franja1 = MIN_PROFUNDIDAD_FRANJA
     end
-    if dimension_franja2 > 0.0 && dimension_franja2 < MIN_DIMENSION_FRANJA
-        dimension_franja2 = MIN_DIMENSION_FRANJA
+    if profundidad_franja2 > 0.0 && profundidad_franja2 < MIN_PROFUNDIDAD_FRANJA
+        profundidad_franja2 = MIN_PROFUNDIDAD_FRANJA
     end
 
-    return dimension_franja1, dimension_franja2
+    return profundidad_franja1, profundidad_franja2
 end
 
 # Orders apartments within each strip, placing staircase centrally if present and balancing layout
@@ -850,12 +858,13 @@ end
 
 
 # Main floor plan optimization function: distributes apartments in two strips with corridor and terraces
-function opti_floor_pisos_superiores(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int},
+function genera_layout_pisos_superiores(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int},
                         vec_sup_terraza::Vector{Float64};
                         ancho_pasillo::Float64 = 2.0,
                         min_largo_pasillo::Float64 = 0.0,
                         area_escala::Float64 = 25.0,
                         min_ancho_escala::Float64 = 0.0,
+                        min_ancho_depto::Float64 = 4.0,
                         max_ancho_terraza::Float64 = 2.0,
                         tipo_escala::Symbol = :exterior,
                         layout::Symbol = :ns,
@@ -899,14 +908,14 @@ function opti_floor_pisos_superiores(ps_planta::PolyShape, vec_sup_deptos::Vecto
     end
 
     
-    vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, vec_tipo_deptos1, 
-            vec_ps_deptos1_normalizado = genera_deptos_franja(planta_normalizada.deptos_ordenados1, coord_min, 
-                                            planta_normalizada.dimension_depto1, coord_disponible, min_ancho_escala, 
-                                            is_vertical, coord_base, franja1)
-    vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, vec_tipo_deptos2, 
-            vec_ps_deptos2_normalizado = genera_deptos_franja(planta_normalizada.deptos_ordenados2, coord_min, 
-                                            planta_normalizada.dimension_depto2, coord_disponible, min_ancho_escala, 
-                                            is_vertical, coord_base, franja2)
+    vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, vec_tipo_deptos1,
+            vec_ps_deptos1_normalizado = genera_deptos_franja(planta_normalizada.deptos_ordenados1, coord_min,
+                                            planta_normalizada.dimension_depto1, coord_disponible, min_ancho_escala,
+                                            min_ancho_depto, is_vertical, coord_base, franja1)
+    vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, vec_tipo_deptos2,
+            vec_ps_deptos2_normalizado = genera_deptos_franja(planta_normalizada.deptos_ordenados2, coord_min,
+                                            planta_normalizada.dimension_depto2, coord_disponible, min_ancho_escala,
+                                            min_ancho_depto, is_vertical, coord_base, franja2)
 
     coord_ini_pasillo, coord_fin_pasillo, largo_pasillo, ps_pasillo_normalizado = calcula_geometria_pasillo(
                                             vec_coord_fin1, vec_coord_fin2, vec_coord_ini1, vec_coord_ini2,
@@ -1122,6 +1131,7 @@ function opti_floor_plan(dict_arquitectura,
                         min_largo_pasillo::Float64 = 0.0,
                         area_escala::Float64 = 25.0,
                         min_ancho_escala::Float64 = 0.0,
+                        min_ancho_depto::Float64 = 4.0,
                         max_ancho_terraza::Float64 = 2.0)
 
     ps_planta = dict_proyecto["proyecto_vec_ps_opt"][1]
@@ -1138,48 +1148,52 @@ function opti_floor_plan(dict_arquitectura,
     vec_num_deptos_primer_piso = round.(Int, dict_proyecto["proyecto_vec_num_deptos_primerPiso"][mask_tipos_usados])
 
 
-    results_ns_int = opti_floor_pisos_superiores(ps_planta, vec_sup_deptos, vec_num_deptos_pisos_superiores,
+    results_ns_int = genera_layout_pisos_superiores(ps_planta, vec_sup_deptos, vec_num_deptos_pisos_superiores,
                 vec_sup_terraza_full,
                 ancho_pasillo=ancho_pasillo,
                 min_largo_pasillo=min_largo_pasillo,
                 area_escala=area_escala,
                 min_ancho_escala=min_ancho_escala,
+                min_ancho_depto=min_ancho_depto,
                 max_ancho_terraza=max_ancho_terraza,
                 tipo_escala=:interior,
                 layout=:ns,
                 balance_mode=:heuristic,
                 vec_tipo_original_indices=vec_tipo_original_indices)
 
-    results_ns_ext = opti_floor_pisos_superiores(ps_planta, vec_sup_deptos, vec_num_deptos_pisos_superiores,
+    results_ns_ext = genera_layout_pisos_superiores(ps_planta, vec_sup_deptos, vec_num_deptos_pisos_superiores,
                 vec_sup_terraza_full,
                 ancho_pasillo=ancho_pasillo,
                 min_largo_pasillo=min_largo_pasillo,
                 area_escala=area_escala,
                 min_ancho_escala=min_ancho_escala,
+                min_ancho_depto=min_ancho_depto,
                 max_ancho_terraza=max_ancho_terraza,
                 tipo_escala=:exterior,
                 layout=:ns,
                 balance_mode=:heuristic,
                 vec_tipo_original_indices=vec_tipo_original_indices)
 
-    results_oe_int = opti_floor_pisos_superiores(ps_planta, vec_sup_deptos, vec_num_deptos_pisos_superiores,
+    results_oe_int = genera_layout_pisos_superiores(ps_planta, vec_sup_deptos, vec_num_deptos_pisos_superiores,
                 vec_sup_terraza_full,
                 ancho_pasillo=ancho_pasillo,
                 min_largo_pasillo=min_largo_pasillo,
                 area_escala=area_escala,
                 min_ancho_escala=min_ancho_escala,
+                min_ancho_depto=min_ancho_depto,
                 max_ancho_terraza=max_ancho_terraza,
                 tipo_escala=:interior,
                 layout=:oe,
                 balance_mode=:heuristic,
                 vec_tipo_original_indices=vec_tipo_original_indices)
 
-    results_oe_ext = opti_floor_pisos_superiores(ps_planta, vec_sup_deptos, vec_num_deptos_pisos_superiores,
+    results_oe_ext = genera_layout_pisos_superiores(ps_planta, vec_sup_deptos, vec_num_deptos_pisos_superiores,
                 vec_sup_terraza_full,
                 ancho_pasillo=ancho_pasillo,
                 min_largo_pasillo=min_largo_pasillo,
                 area_escala=area_escala,
                 min_ancho_escala=min_ancho_escala,
+                min_ancho_depto=min_ancho_depto,
                 max_ancho_terraza=max_ancho_terraza,
                 tipo_escala=:exterior,
                 layout=:oe,
@@ -1204,6 +1218,7 @@ function opti_floor_plan(dict_arquitectura,
             deviation = result["max_depto_square_deviation"]
 
             if outbound < best_outbound || (outbound == best_outbound && deviation < best_deviation)
+            # if deviation < best_deviation || (deviation == best_deviation && outbound < best_outbound)
                 best_outbound = outbound
                 best_deviation = deviation
                 best_result = result
