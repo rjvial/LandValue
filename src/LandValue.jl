@@ -204,8 +204,6 @@ using JuMP, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, Optim, OrderedCollectio
     include("optimal_lot_selection.jl")
     include("aws_julia.jl")
     include("neo4j_julia.jl")
-    include("quad_opti_vol.jl")
-    include("quad_opti_sol_ini.jl")
     include("opti_edificio_vol.jl")
     include("opti_edificio.jl")
     include("opti_vol_estacionamiento.jl")
@@ -215,7 +213,7 @@ using JuMP, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, Optim, OrderedCollectio
     export obtiene_requerimientos_normativos, generaSombraEdificio, opti_edificio_deptos,
         opti_floor_plan, polyShape, polyPlot, polyGdal, polyClipper, graphMod, resultConverter, plotBaseEdificio3D, plotBaseEdificio3Dnew, generaSombraTeor,
         pg_julia, aws_julia, neo4j_julia, obtieneCalles, generaPoligonoCorte, create_scr, create_edificio_geojson,
-        optimal_pricing, optimal_lot_selection, quad_opti_vol, quad_opti_sol_ini, opti_edificio_vol,
+        optimal_pricing, optimal_lot_selection, opti_edificio_vol,
         opti_edificio, opti_vol_estacionamiento, expression_converter, obtiene_geometrias_combi
 
 end

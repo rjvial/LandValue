@@ -72,7 +72,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # ============================================================================
     # MAIN BUILDING OPTIMIZATION FUNCTION
     # ============================================================================
-    
+
     dict_normativa = OrderedDict(
         "id_combi" => id_combi,
         "tipo_edificio" => dict_arquitectura["arq_tipo_edificio"],
@@ -160,11 +160,23 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
 
     max_ocupacion_suelo = dict_normativa["norm_max_ocupacion_suelo"]
     
-    # Optimiza el volumen del edificio en base a: distanciamiento, antejardín, altura_max, rasante, 
-    # volumen teórico, crujía (NO considera max_constructibilidad)
-    vec_ps_opt, vec_np_opt, max_sol, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, 
-    ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s, ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s = 
-                opti_edificio_vol(dict_geom, dict_arquitectura, dict_normativa_raw, vec_pisos, max_ocupacion_suelo, max_losa_snt)
+    # Optimiza el volumen del edificio en base a: distanciamiento, antejardín, altura_max, rasante, max_losa_snt,
+    # volumen teórico, ocupación de suelo, crujía (max_constructibilidad se consider a través de max_losa_snt)
+    result_vol = opti_edificio_vol(dict_geom, dict_arquitectura, dict_normativa_raw, vec_pisos, max_ocupacion_suelo, max_losa_snt)
+
+    vec_ps_opt = result_vol["vec_ps_opt"]
+    vec_np_opt = result_vol["vec_np_opt"]
+    max_sol = result_vol["max_sol"]
+    vec_psVolteor = result_vol["vec_psVolteor"]
+    vec_altVolteor = result_vol["vec_altVolteor"]
+    vec_psVolConSombra = result_vol["vec_psVolConSombra"]
+    vec_altVolConSombra = result_vol["vec_altVolConSombra"]
+    ps_sombraEdif_p = result_vol["ps_sombraEdif_p"]
+    ps_sombraEdif_o = result_vol["ps_sombraEdif_o"]
+    ps_sombraEdif_s = result_vol["ps_sombraEdif_s"]
+    ps_sombraVolTeorico_p = result_vol["ps_sombraVolTeorico_p"]
+    ps_sombraVolTeorico_o = result_vol["ps_sombraVolTeorico_o"]
+    ps_sombraVolTeorico_s = result_vol["ps_sombraVolTeorico_s"]
 
     # distaciamiento y antejardín
     dict_normativa["norm_antejardin"] = dict_normativa_raw["norm_antejardin"]
@@ -181,7 +193,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
 
                                                                                            
     # ============================================================================
-    # 4. APARTMENT CONFIGURATION
+    # 4. APARTMENT SIZE CONFIGURATION
     # ============================================================================
     if dict_normativa["tipo_edificio"] == "departamento"
         max_constructibilidad = dict_normativa["norm_max_constructibilidad"]
@@ -254,7 +266,6 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # Visitor parking
     visitor_vars = Dict("estacionamientos_autos_vivienda" => dict_normativa["norm_estacionamientos_autos_vivienda"])
     dict_normativa["norm_estacionamientos_visitas"] = Int(python_expression_eval_with_varmap(dict_normativa_raw["norm_estacionamientos_visitas"], visitor_vars))
-    
     
     # Disabled parking
     disabled_vars = Dict("estacionamientos_autos" => dict_normativa["norm_estacionamientos_vendibles"] + dict_normativa["norm_estacionamientos_visitas"])
