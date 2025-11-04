@@ -695,6 +695,9 @@ function polyRotate(ps::PolyShape, angulo::Real, cr)::PolyShape
 end
 
 function polyTranslate(ps::PolyShape, dx::Real, dy::Real)::PolyShape
+    if isempty(ps.Vertices) || polyArea(ps) == 0.0
+        return ps
+    end
     translation = [dx, dy]
     ps_ = deepcopy(ps)
     V = ps_.Vertices[1]

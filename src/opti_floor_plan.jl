@@ -234,15 +234,6 @@ function rota_polyshapes(vec_polyshapes::Vector{PolyShape}, angulo_rotacion::Flo
     return vec_polyshapes_rotados
 end
 
-# Safely translates a polyshape, handling empty polyshapes
-function safe_translate(ps::PolyShape, dx::Float64, dy::Float64)
-    if isempty(ps.Vertices) || polyShape.polyArea(ps) == 0.0
-        return ps
-    else
-        return polyShape.polyTranslate(ps, dx, dy)
-    end
-end
-
 # Creates axis-aligned box with franja-aware positioning (vertical: X-axis, horizontal: Y-axis)
 function polyBoxAligned(base1::Float64, base2::Float64, profundidad_depto::Float64, ancho_depto::Float64, franja::Symbol, is_vertical::Bool)
     if is_vertical
@@ -313,11 +304,11 @@ function apply_terrace_correction(vec_ps_deptos1::Vector{PolyShape}, vec_ps_dept
         dx, dy = 0.0, delta_y
     end
 
-    return ([safe_translate(p, dx, dy) for p in vec_ps_deptos1],
-            [safe_translate(p, dx, dy) for p in vec_ps_deptos2],
-            [safe_translate(t, dx, dy) for t in vec_terrazas1],
-            [safe_translate(t, dx, dy) for t in vec_terrazas2],
-            safe_translate(ps_pasillo, dx, dy))
+    return ([polyShape.polyTranslate(p, dx, dy) for p in vec_ps_deptos1],
+            [polyShape.polyTranslate(p, dx, dy) for p in vec_ps_deptos2],
+            [polyShape.polyTranslate(t, dx, dy) for t in vec_terrazas1],
+            [polyShape.polyTranslate(t, dx, dy) for t in vec_terrazas2],
+            polyShape.polyTranslate(ps_pasillo, dx, dy))
 end
 
 # Processes terraces for both strips including generation, verification, and correction
@@ -436,7 +427,9 @@ function normaliza_planta_rectangular(ps_planta::PolyShape)
 end
 
 # Distributes apartments between two strips balancing total area, adds staircase to strip 2 if tipo_escala is :exterior
-function distribuye_deptos_entre_franjas(vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int}, area_escala::Float64, tipo_escala::Symbol, vec_tipo_original_indices::Vector{Int}=collect(1:length(vec_sup_deptos)))
+function distribuye_deptos_entre_franjas(vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int},
+                area_escala::Float64, tipo_escala::Symbol, vec_tipo_original_indices::Vector{Int}=collect(1:length(vec_sup_deptos)))
+
     deptos_individuales = Tuple{Float64, Int, Int}[]
     for i in 1:length(vec_sup_deptos)
         sup_depto = vec_sup_deptos[i]
@@ -455,7 +448,9 @@ function distribuye_deptos_entre_franjas(vec_sup_deptos::Vector{Float64}, vec_nu
 
     escala_offset = (tipo_escala == :exterior) ? area_escala : 0.0
 
-    for depto in deptos_individuales
+    remaining_deptos = deptos_individuales
+
+    for depto in remaining_deptos
         sup_depto = get_area(depto)
         if area_franja1 <= area_franja2 + escala_offset
             push!(deptos_franja1, depto)
@@ -520,7 +515,7 @@ function calcula_dimensiones_franjas(area_franja1::Float64, area_franja2::Float6
 end
 
 # Orders apartments within each strip, placing staircase centrally if present and balancing layout
-function ordena_deptos_en_franja(deptos_franja1::Vector{Tuple{Float64, Int, Int}}, deptos_franja2::Vector{Tuple{Float64, Int, Int}}, deptos_total::Int, tipo_escala::Symbol; balance_mode::Symbol = :heuristic)
+function ordena_deptos_en_franja(deptos_franja1::Vector{Tuple{Float64, Int, Int}}, deptos_franja2::Vector{Tuple{Float64, Int, Int}}, deptos_total::Int, tipo_escala::Symbol)
     deptos_ordenados1 = Tuple{Float64, Int}[]
     deptos_ordenados2 = Tuple{Float64, Int}[]
 
@@ -529,76 +524,56 @@ function ordena_deptos_en_franja(deptos_franja1::Vector{Tuple{Float64, Int, Int}
 
     area_escala_local = (tipo_escala == :exterior) ? get_area(deptos_franja2[end]) : 0.0
 
-    if balance_mode == :area
-        for i in 1:num_deptos1
-            push!(deptos_ordenados1, (get_area(deptos_franja1[i]), get_tipo(deptos_franja1[i])))
-        end
-
-        num_deptos2_half = div(num_deptos2, 2)
-        for i in 1:num_deptos2_half
-            push!(deptos_ordenados2, (get_area(deptos_franja2[i]), get_tipo(deptos_franja2[i])))
-        end
-        if tipo_escala == :exterior
-            push!(deptos_ordenados2, (area_escala_local, -1))
-        end
-        for i in (num_deptos2_half + 1):num_deptos2
-            push!(deptos_ordenados2, (get_area(deptos_franja2[i]), get_tipo(deptos_franja2[i])))
-        end
-    else
-        if deptos_total >= 4
-            if num_deptos1 >= 2
-                push!(deptos_ordenados1, (get_area(deptos_franja1[1]), get_tipo(deptos_franja1[1])))
-                for i in num_deptos1:-1:3
-                    push!(deptos_ordenados1, (get_area(deptos_franja1[i]), get_tipo(deptos_franja1[i])))
-                end
-                push!(deptos_ordenados1, (get_area(deptos_franja1[2]), get_tipo(deptos_franja1[2])))
-            else
-                for i in 1:num_deptos1
-                    push!(deptos_ordenados1, (get_area(deptos_franja1[i]), get_tipo(deptos_franja1[i])))
-                end
-            end
-
-            if num_deptos2 >= 2
-                push!(deptos_ordenados2, (get_area(deptos_franja2[1]), get_tipo(deptos_franja2[1])))
-                for i in num_deptos2:-1:3
-                    push!(deptos_ordenados2, (get_area(deptos_franja2[i]), get_tipo(deptos_franja2[i])))
-                end
-                if tipo_escala == :exterior
-                    push!(deptos_ordenados2, (area_escala_local, -1))
-                end
-                push!(deptos_ordenados2, (get_area(deptos_franja2[2]), get_tipo(deptos_franja2[2])))
-            elseif num_deptos2 == 1
-                push!(deptos_ordenados2, (get_area(deptos_franja2[1]), get_tipo(deptos_franja2[1])))
-                if tipo_escala == :exterior
-                    push!(deptos_ordenados2, (area_escala_local, -1))
-                end
-            else
-                if tipo_escala == :exterior
-                    push!(deptos_ordenados2, (area_escala_local, -1))
-                end
+    if deptos_total >= 4
+        if num_deptos1 >= 2
+            push!(deptos_ordenados1, (get_area(deptos_franja1[1]), get_tipo(deptos_franja1[1])))
+            for i in num_deptos1:-1:2
+                push!(deptos_ordenados1, (get_area(deptos_franja1[i]), get_tipo(deptos_franja1[i])))
             end
         else
-            for depto in deptos_franja1
-                push!(deptos_ordenados1, (get_area(depto), get_tipo(depto)))
+            for i in 1:num_deptos1
+                push!(deptos_ordenados1, (get_area(deptos_franja1[i]), get_tipo(deptos_franja1[i])))
             end
-            if num_deptos2 >= 2
-                push!(deptos_ordenados2, (get_area(deptos_franja2[1]), get_tipo(deptos_franja2[1])))
-                for i in num_deptos2:-1:3
-                    push!(deptos_ordenados2, (get_area(deptos_franja2[i]), get_tipo(deptos_franja2[i])))
-                end
-                if tipo_escala == :exterior
-                    push!(deptos_ordenados2, (area_escala_local, -1))
-                end
-                push!(deptos_ordenados2, (get_area(deptos_franja2[2]), get_tipo(deptos_franja2[2])))
-            elseif num_deptos2 == 1
-                push!(deptos_ordenados2, (get_area(deptos_franja2[1]), get_tipo(deptos_franja2[1])))
-                if tipo_escala == :exterior
-                    push!(deptos_ordenados2, (area_escala_local, -1))
-                end
-            else
-                if tipo_escala == :exterior
-                    push!(deptos_ordenados2, (area_escala_local, -1))
-                end
+        end
+
+        if num_deptos2 >= 2
+            push!(deptos_ordenados2, (get_area(deptos_franja2[1]), get_tipo(deptos_franja2[1])))
+            for i in num_deptos2:-1:2
+                push!(deptos_ordenados2, (get_area(deptos_franja2[i]), get_tipo(deptos_franja2[i])))
+            end
+            if tipo_escala == :exterior
+                push!(deptos_ordenados2, (area_escala_local, -1))
+            end
+        elseif num_deptos2 == 1
+            push!(deptos_ordenados2, (get_area(deptos_franja2[1]), get_tipo(deptos_franja2[1])))
+            if tipo_escala == :exterior
+                push!(deptos_ordenados2, (area_escala_local, -1))
+            end
+        else
+            if tipo_escala == :exterior
+                push!(deptos_ordenados2, (area_escala_local, -1))
+            end
+        end
+    else
+        for depto in deptos_franja1
+            push!(deptos_ordenados1, (get_area(depto), get_tipo(depto)))
+        end
+        if num_deptos2 >= 2
+            push!(deptos_ordenados2, (get_area(deptos_franja2[1]), get_tipo(deptos_franja2[1])))
+            for i in num_deptos2:-1:2
+                push!(deptos_ordenados2, (get_area(deptos_franja2[i]), get_tipo(deptos_franja2[i])))
+            end
+            if tipo_escala == :exterior
+                push!(deptos_ordenados2, (area_escala_local, -1))
+            end
+        elseif num_deptos2 == 1
+            push!(deptos_ordenados2, (get_area(deptos_franja2[1]), get_tipo(deptos_franja2[1])))
+            if tipo_escala == :exterior
+                push!(deptos_ordenados2, (area_escala_local, -1))
+            end
+        else
+            if tipo_escala == :exterior
+                push!(deptos_ordenados2, (area_escala_local, -1))
             end
         end
     end
@@ -819,7 +794,7 @@ end
 # ──────────────────────────────────────────────────────────────────────────────────
 
 # Prepares normalized floor plan, distributes apartments, and calculates strip dimensions
-function prepare_floor_inputs(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int}, stair_cfg::StairConfig, corridor_cfg::CorridorConfig, balance_mode::Symbol, is_vertical::Bool, terrace_cfg::TerraceConfig, vec_tipo_original_indices::Vector{Int})
+function prepare_floor_inputs(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int}, stair_cfg::StairConfig, corridor_cfg::CorridorConfig, is_vertical::Bool, terrace_cfg::TerraceConfig, vec_tipo_original_indices::Vector{Int})
 
     W, H, vec_x_planta, vec_y_planta, angulo_rotacion, cr, ps_planta_normalizado = normaliza_planta_rectangular(ps_planta)
 
@@ -845,7 +820,7 @@ function prepare_floor_inputs(ps_planta::PolyShape, vec_sup_deptos::Vector{Float
         coord_min_y += terrace_cfg.max_ancho_terraza + holgura/2
     end
 
-    deptos_ordenados1, deptos_ordenados2 = ordena_deptos_en_franja(deptos_franja1, deptos_franja2, deptos_total, stair_cfg.tipo_escala, balance_mode=balance_mode)
+    deptos_ordenados1, deptos_ordenados2 = ordena_deptos_en_franja(deptos_franja1, deptos_franja2, deptos_total, stair_cfg.tipo_escala)
 
     return (W=W, H=H, vec_x_planta=vec_x_planta, vec_y_planta=vec_y_planta, angulo_rotacion=angulo_rotacion,
             cr=cr, ps_planta_normalizado=ps_planta_normalizado, deptos_ordenados1=deptos_ordenados1,
@@ -868,7 +843,6 @@ function genera_layout_pisos_superiores(ps_planta::PolyShape, vec_sup_deptos::Ve
                         max_ancho_terraza::Float64 = 2.0,
                         tipo_escala::Symbol = :exterior,
                         layout::Symbol = :ns,
-                        balance_mode::Symbol = :heuristic,
                         vec_tipo_original_indices::Vector{Int}=collect(1:length(vec_sup_deptos)))
 
     is_vertical = (layout == :oe)
@@ -888,7 +862,7 @@ function genera_layout_pisos_superiores(ps_planta::PolyShape, vec_sup_deptos::Ve
     # ──────────────────────────────────────────────────────────────────────────────────
     planta_normalizada = prepare_floor_inputs(ps_planta, vec_sup_deptos, vec_num_deptos,
                                         stair_cfg, corridor_cfg,
-                                        balance_mode, is_vertical, terrace_cfg, vec_tipo_original_indices)
+                                        is_vertical, terrace_cfg, vec_tipo_original_indices)
 
     # ──────────────────────────────────────────────────────────────────────────────────
     # Stage 2: Strip geometry computation
@@ -1158,7 +1132,6 @@ function opti_floor_plan(dict_arquitectura,
                 max_ancho_terraza=max_ancho_terraza,
                 tipo_escala=:interior,
                 layout=:ns,
-                balance_mode=:heuristic,
                 vec_tipo_original_indices=vec_tipo_original_indices)
 
     results_ns_ext = genera_layout_pisos_superiores(ps_planta, vec_sup_deptos, vec_num_deptos_pisos_superiores,
@@ -1171,7 +1144,6 @@ function opti_floor_plan(dict_arquitectura,
                 max_ancho_terraza=max_ancho_terraza,
                 tipo_escala=:exterior,
                 layout=:ns,
-                balance_mode=:heuristic,
                 vec_tipo_original_indices=vec_tipo_original_indices)
 
     results_oe_int = genera_layout_pisos_superiores(ps_planta, vec_sup_deptos, vec_num_deptos_pisos_superiores,
@@ -1184,7 +1156,6 @@ function opti_floor_plan(dict_arquitectura,
                 max_ancho_terraza=max_ancho_terraza,
                 tipo_escala=:interior,
                 layout=:oe,
-                balance_mode=:heuristic,
                 vec_tipo_original_indices=vec_tipo_original_indices)
 
     results_oe_ext = genera_layout_pisos_superiores(ps_planta, vec_sup_deptos, vec_num_deptos_pisos_superiores,
@@ -1197,7 +1168,6 @@ function opti_floor_plan(dict_arquitectura,
                 max_ancho_terraza=max_ancho_terraza,
                 tipo_escala=:exterior,
                 layout=:oe,
-                balance_mode=:heuristic,
                 vec_tipo_original_indices=vec_tipo_original_indices)
 
     all_results = [
