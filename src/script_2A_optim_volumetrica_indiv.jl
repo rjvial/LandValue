@@ -220,7 +220,6 @@ flag_create_table = false # let flag_create_table = false
         dict_arquitectura = createArchitectureDict(row.variante_norm)
         dict_normativa_raw, id_zona_edificacion = obtiene_requerimientos_normativos(vec_predios[1], dict_arquitectura["arq_variante_normativa"], conn_neo4j)
 
-        # id_zona_edificacion = "15160_e_aa1"
         df_tipo_deptos_filtered = filter(r -> r.id_zona_edificacion == id_zona_edificacion, df_tipo_deptos)
         dict_arquitectura["arq_vecSupUtil"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1,"sup_util_tipos_comuna"]))
         dict_arquitectura["arq_vecSupInterior"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1,"sup_interior_tipos_comuna"]))
@@ -229,31 +228,14 @@ flag_create_table = false # let flag_create_table = false
         dict_arquitectura["arq_vecBanos"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1,"n_banos_tipos_comuna"]))
 
         # try
-            dict_proyecto, dict_normativa = opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti, id_combi)
+            dict_proyecto, dict_normativa, results_pisos_superiores, results_primer_piso = opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti, id_combi)
             # show(IOContext(stdout, :limit => false), MIME("text/plain"), dict_resultados)
 
 
             ####################################
             ####################################
 
-            ancho_pasillo = 1.5
-            min_largo_pasillo = 4.0
-            area_escala = 20.0
-            min_ancho_escala = 4.0
-            max_ancho_terraza = 4.0
-
-            results = opti_floor_plan(dict_arquitectura, dict_proyecto,
-                        ancho_pasillo=ancho_pasillo,
-                        min_largo_pasillo=min_largo_pasillo,
-                        area_escala=area_escala,
-                        min_ancho_escala=min_ancho_escala,
-                        max_ancho_terraza=max_ancho_terraza
-                        )
-
             ps_planta = dict_proyecto["proyecto_vec_ps_opt"][1]
-
-            results_pisos_superiores = results["pisos_superiores"]
-            results_primer_piso = results["primer_piso"]
 
             println("Plotting Pisos Superiores...")
             fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)

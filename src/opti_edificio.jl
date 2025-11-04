@@ -72,6 +72,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # ============================================================================
     # MAIN BUILDING OPTIMIZATION FUNCTION
     # ============================================================================
+    
     dict_normativa = OrderedDict(
         "id_combi" => id_combi,
         "tipo_edificio" => dict_arquitectura["arq_tipo_edificio"],
@@ -93,7 +94,6 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # ============================================================================
     # 1. BUILDING CONFIGURATION SETUP
     # ============================================================================    
-
     # Constructibility calculation
     coef_const_raw = dict_normativa_raw["norm_coeficiente_de_constructibilidad"]
     if isa(coef_const_raw, Number)
@@ -108,7 +108,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
         coefConstructibilidad = python_expression_eval_with_varmap(coef_const_raw, variable_map)
     end
     
-    base_constructibilidad= dict_geom["sup_terreno_sii"] * coefConstructibilidad
+    base_constructibilidad = dict_geom["sup_terreno_sii"] * coefConstructibilidad
 
     dict_normativa["norm_max_constructibilidad"] = base_constructibilidad
 
@@ -125,7 +125,6 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # ============================================================================
     # 2. DENSITY AND OCCUPATION CALCULATIONS
     # ============================================================================
-    
     # Density calculation
     flagDensidadBruta = dict_normativa["flag_densidad_bruta"]
 
@@ -154,7 +153,6 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # ============================================================================
     # 3. VOLUME OPTIMIZATION
     # ============================================================================
-
     # Floor configuration
     maxPisos = get(dict_normativa_raw, "norm_n_pisos", 9999)
     default_min_pisos = max(MIN_FLOORS, maxPisos - DEFAULT_FLOOR_BUFFER)
@@ -230,7 +228,6 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # ============================================================================
     # 6. PARKING REQUIREMENTS CALCULATION
     # ============================================================================
-    
     car_parking_vars = Dict(
         "vec_sup_deptos" => cabida_data["vec_sup_deptos"],
         "vec_num_deptos" => cabida_data["vec_num_deptos"],
@@ -392,6 +389,26 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
         "proyecto_ocupacion_suelo" => isempty(vec_ps_opt) || isempty(vec_ps_opt[1].Vertices) ? 0.0 : polyShape.polyArea(vec_ps_opt[1])
         )
 
+    # ============================================================================
+    # 10. APARTMENT SHAPE COMPILATION
+    # ============================================================================
+    ancho_pasillo = 1.5
+    min_largo_pasillo = 4.0
+    area_escala = 20.0
+    min_ancho_escala = 4.0
+    max_ancho_terraza = 4.0
 
-    return dict_proyecto, dict_normativa
+    results = opti_floor_plan(dict_arquitectura, dict_proyecto,
+                ancho_pasillo=ancho_pasillo,
+                min_largo_pasillo=min_largo_pasillo,
+                area_escala=area_escala,
+                min_ancho_escala=min_ancho_escala,
+                max_ancho_terraza=max_ancho_terraza
+                )
+
+    results_pisos_superiores = results["pisos_superiores"]
+    results_primer_piso = results["primer_piso"]
+
+
+    return dict_proyecto, dict_normativa, results_pisos_superiores, results_primer_piso
 end
