@@ -685,6 +685,105 @@ function calcula_geometria_pasillo(vec_coord_fin1::Vector{Float64}, vec_coord_fi
     return coord_ini_pasillo, coord_fin_pasillo, largo_pasillo, ps_pasillo
 end
 
+function calcula_orientaciones_apartamentos(vec_ps_deptos_all::Vector{PolyShape},
+                                           ps_union_deptos::PolyShape,
+                                           ps_area_comun_total::PolyShape)
+    ps_union_all = polyShape.polyUnion(ps_union_deptos, ps_area_comun_total)
+    ps_shrinked = polyClipper.polyOffset(ps_union_all, -0.1)
+
+    vec_apartamentos_orientaciones = Vector{Dict}(undef, length(vec_ps_deptos_all))
+
+    for (idx_apt, ps_apt) in enumerate(vec_ps_deptos_all)
+        vec_edges, _ = polyShape.shape2vector(ps_apt)
+        num_edges = length(vec_edges)
+
+        orientation = polyShape.polyOrientation(ps_apt)
+
+        vec_edge_angles = Vector{Float64}(undef, num_edges)
+        vec_edge_exposure_angles = Vector{Float64}(undef, num_edges)
+        vec_edge_total_lengths = Vector{Float64}(undef, num_edges)
+        vec_edge_exterior_lengths = Vector{Float64}(undef, num_edges)
+
+        for (idx_edge, edge) in enumerate(vec_edges)
+            edge_angle = polyShape.lineAngle(edge)
+            total_length = polyShape.lineLength(edge)
+
+            exterior_segment = polyShape.polyDifference(edge, ps_shrinked)
+            exterior_length = polyShape.lineLength(exterior_segment)
+
+            if orientation == 1
+                exposure_angle = edge_angle - pi / 2
+            else
+                exposure_angle = edge_angle + pi / 2
+            end
+
+            if exposure_angle < 0.0
+                exposure_angle += 2 * pi
+            elseif exposure_angle >= 2 * pi
+                exposure_angle -= 2 * pi
+            end
+
+            vec_edge_angles[idx_edge] = edge_angle
+            vec_edge_exposure_angles[idx_edge] = exposure_angle
+            vec_edge_total_lengths[idx_edge] = total_length
+            vec_edge_exterior_lengths[idx_edge] = exterior_length
+        end
+
+        mean_orientation = 0.0
+        total_exterior_length = sum(vec_edge_exterior_lengths)
+
+        if total_exterior_length > 0.0
+            sum_x = 0.0
+            sum_y = 0.0
+            for i in 1:num_edges
+                if vec_edge_exterior_lengths[i] > 0.0
+                    weight = vec_edge_exterior_lengths[i] / total_exterior_length
+                    sum_x += weight * cos(vec_edge_exposure_angles[i])
+                    sum_y += weight * sin(vec_edge_exposure_angles[i])
+                end
+            end
+            mean_orientation = atan(sum_y, sum_x)
+            if mean_orientation < 0.0
+                mean_orientation += 2 * pi
+            end
+        end
+
+        cardinal_direction = ""
+        if mean_orientation > 0.0
+            angle_deg = rad2deg(mean_orientation)
+            if angle_deg >= 345.0 || angle_deg < 15.0
+                cardinal_direction = "Or"
+            elseif angle_deg >= 15.0 && angle_deg < 75.0
+                cardinal_direction = "N-Or"
+            elseif angle_deg >= 75.0 && angle_deg < 105.0
+                cardinal_direction = "N"
+            elseif angle_deg >= 105.0 && angle_deg < 165.0
+                cardinal_direction = "N-Po"
+            elseif angle_deg >= 165.0 && angle_deg < 195.0
+                cardinal_direction = "Po"
+            elseif angle_deg >= 195.0 && angle_deg < 255.0
+                cardinal_direction = "S-Po"
+            elseif angle_deg >= 255.0 && angle_deg < 285.0
+                cardinal_direction = "S"
+            elseif angle_deg >= 285.0 && angle_deg < 345.0
+                cardinal_direction = "S-Or"
+            end
+        end
+
+        vec_apartamentos_orientaciones[idx_apt] = Dict(
+            "vec_edges" => vec_edges,
+            "vec_edge_angles" => vec_edge_angles,
+            "vec_edge_exposure_angles" => vec_edge_exposure_angles,
+            "vec_edge_total_lengths" => vec_edge_total_lengths,
+            "vec_edge_exterior_lengths" => vec_edge_exterior_lengths,
+            "mean_orientation" => mean_orientation,
+            "cardinal_direction" => cardinal_direction
+        )
+    end
+
+    return vec_apartamentos_orientaciones
+end
+
 # Packages all computed geometries and parameters into results dictionary
 function empaqueta_resultados(dimension1::Float64, dimension2::Float64,
                     W::Float64, H::Float64, ancho_pasillo::Float64, largo_pasillo::Float64, ps_pasillo::PolyShape,
@@ -971,6 +1070,22 @@ function genera_layout_pisos_superiores(ps_planta::PolyShape, vec_sup_deptos::Ve
         end
     end
     results["ps_union_terrazas"] = ps_union_terrazas
+
+    ps_area_comun_total = polyShape.polyUnion(ps_pasillo)
+    if !isnothing(results["ps_escala"])
+        ps_area_comun_total = polyShape.polyUnion(ps_area_comun_total, results["ps_escala"])
+    end
+    delta = 0.02
+    ps_area_comun_total = polyClipper.polyOffset(ps_area_comun_total, delta)
+    ps_area_comun_total = polyClipper.polyOffset(ps_area_comun_total, -delta)
+    results["ps_area_comun_total"] = ps_area_comun_total
+
+    if !isempty(vec_ps_deptos_all) && polyShape.polyArea(ps_union_deptos) > 0.0
+        vec_apartamentos_orientaciones = calcula_orientaciones_apartamentos(vec_ps_deptos_all, ps_union_deptos, ps_area_comun_total)
+        results["vec_apartamentos_orientaciones"] = vec_apartamentos_orientaciones
+    else
+        results["vec_apartamentos_orientaciones"] = Vector{Dict}()
+    end
 
     return results
 end

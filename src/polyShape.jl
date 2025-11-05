@@ -139,6 +139,14 @@ function polyDifference(ps_s_::PolyShape, ps_c_::PolyShape)::PolyShape
     
     return ps_out
 end
+function polyDifference(ls::LineShape, ps::PolyShape)::LineShape
+    result = polyGdal.shapeDifference(ls, ps)
+    if isa(result, LineShape)
+        return result
+    else
+        return LineShape([], 0)
+    end
+end
 
 
 function polyIntersection(ps_s_::PolyShape, ps_c_::PolyShape)::PolyShape
