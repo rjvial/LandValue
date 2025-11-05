@@ -542,13 +542,14 @@ function ordena_deptos_en_franja(deptos_franja1::Vector{Tuple{Float64, Int, Int}
                 push!(deptos_ordenados2, (get_area(deptos_franja2[i]), get_tipo(deptos_franja2[i])))
             end
             if tipo_escala == :exterior
-                push!(deptos_ordenados2, (area_escala_local, -1))
+                mid_pos = div(length(deptos_ordenados2), 2) + 1
+                insert!(deptos_ordenados2, mid_pos, (area_escala_local, -1))
             end
         elseif num_deptos2 == 1
-            push!(deptos_ordenados2, (get_area(deptos_franja2[1]), get_tipo(deptos_franja2[1])))
             if tipo_escala == :exterior
                 push!(deptos_ordenados2, (area_escala_local, -1))
             end
+            push!(deptos_ordenados2, (get_area(deptos_franja2[1]), get_tipo(deptos_franja2[1])))
         else
             if tipo_escala == :exterior
                 push!(deptos_ordenados2, (area_escala_local, -1))
@@ -564,13 +565,14 @@ function ordena_deptos_en_franja(deptos_franja1::Vector{Tuple{Float64, Int, Int}
                 push!(deptos_ordenados2, (get_area(deptos_franja2[i]), get_tipo(deptos_franja2[i])))
             end
             if tipo_escala == :exterior
-                push!(deptos_ordenados2, (area_escala_local, -1))
+                mid_pos = div(length(deptos_ordenados2), 2) + 1
+                insert!(deptos_ordenados2, mid_pos, (area_escala_local, -1))
             end
         elseif num_deptos2 == 1
-            push!(deptos_ordenados2, (get_area(deptos_franja2[1]), get_tipo(deptos_franja2[1])))
             if tipo_escala == :exterior
                 push!(deptos_ordenados2, (area_escala_local, -1))
             end
+            push!(deptos_ordenados2, (get_area(deptos_franja2[1]), get_tipo(deptos_franja2[1])))
         else
             if tipo_escala == :exterior
                 push!(deptos_ordenados2, (area_escala_local, -1))
@@ -709,7 +711,8 @@ function calcula_orientaciones_apartamentos(vec_ps_deptos_all::Vector{PolyShape}
             total_length = polyShape.lineLength(edge)
 
             exterior_segment = polyShape.polyDifference(edge, ps_shrinked)
-            exterior_length = polyShape.lineLength(exterior_segment)
+            exterior_length_result = polyShape.lineLength(exterior_segment)
+            exterior_length = isa(exterior_length_result, Number) ? Float64(exterior_length_result) : 0.0
 
             if orientation == 1
                 exposure_angle = edge_angle - pi / 2
