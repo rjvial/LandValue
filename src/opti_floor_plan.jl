@@ -426,6 +426,52 @@ function normaliza_planta_rectangular(ps_planta::PolyShape)
     return W, H, vec_x_planta, vec_y_planta, angulo_rotacion, cr, ps_planta_normalizado
 end
 
+# Calculates strip widths from areas and floor dimensions, scales if exceeding available space
+function calcula_dimensiones_franjas(area_franja1::Float64, area_franja2::Float64, W::Float64, H::Float64, 
+                                    ancho_pasillo::Float64, dimension_terraza_max::Float64, is_vertical::Bool)
+    MIN_PROFUNDIDAD_FRANJA = 1.0
+
+    if is_vertical
+        ancho_franja = W - 2 * dimension_terraza_max - ancho_pasillo
+        profundidad_franja1_requerida = area_franja1 / H
+        profundidad_franja2_requerida = area_franja2 / H
+    else
+        ancho_franja = H - 2 * dimension_terraza_max - ancho_pasillo
+        profundidad_franja1_requerida = area_franja1 / W
+        profundidad_franja2_requerida = area_franja2 / W
+    end
+
+    if area_franja1 <= 0.0 && area_franja2 <= 0.0
+        return 0.0, 0.0
+    end
+
+    if area_franja1 <= 0.0
+        profundidad_franja1 = 0.0
+        profundidad_franja2 = min(profundidad_franja2_requerida, ancho_franja)
+    elseif area_franja2 <= 0.0
+        profundidad_franja2 = 0.0
+        profundidad_franja1 = min(profundidad_franja1_requerida, ancho_franja)
+    else
+        if profundidad_franja1_requerida + profundidad_franja2_requerida > ancho_franja
+            scale_factor = ancho_franja / (profundidad_franja1_requerida + profundidad_franja2_requerida)
+
+        else
+            scale_factor = 1.0
+        end
+        profundidad_franja1 = profundidad_franja1_requerida * scale_factor
+        profundidad_franja2 = profundidad_franja2_requerida * scale_factor
+    end
+
+    if profundidad_franja1 > 0.0 && profundidad_franja1 < MIN_PROFUNDIDAD_FRANJA
+        profundidad_franja1 = MIN_PROFUNDIDAD_FRANJA
+    end
+    if profundidad_franja2 > 0.0 && profundidad_franja2 < MIN_PROFUNDIDAD_FRANJA
+        profundidad_franja2 = MIN_PROFUNDIDAD_FRANJA
+    end
+
+    return profundidad_franja1, profundidad_franja2
+end
+
 # Distributes apartments between two strips balancing total area, adds staircase to strip 2 if tipo_escala is :exterior
 function distribuye_deptos_entre_franjas(vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int},
                 area_escala::Float64, tipo_escala::Symbol, vec_tipo_original_indices::Vector{Int}=collect(1:length(vec_sup_deptos)))
@@ -467,51 +513,6 @@ function distribuye_deptos_entre_franjas(vec_sup_deptos::Vector{Float64}, vec_nu
     end
 
     return deptos_franja1, deptos_franja2, area_franja1, area_franja2
-end
-
-# Calculates strip widths from areas and floor dimensions, scales if exceeding available space
-function calcula_dimensiones_franjas(area_franja1::Float64, area_franja2::Float64, W::Float64, H::Float64, ancho_pasillo::Float64, dimension_terraza_max::Float64, is_vertical::Bool)
-    MIN_PROFUNDIDAD_FRANJA = 1.0
-
-    if is_vertical
-        ancho_franja_franja = W - 2 * dimension_terraza_max - ancho_pasillo
-        profundidad_franja1_requerida = area_franja1 / H
-        profundidad_franja2_requerida = area_franja2 / H
-    else
-        ancho_franja_franja = H - 2 * dimension_terraza_max - ancho_pasillo
-        profundidad_franja1_requerida = area_franja1 / W
-        profundidad_franja2_requerida = area_franja2 / W
-    end
-
-    if area_franja1 <= 0.0 && area_franja2 <= 0.0
-        return 0.0, 0.0
-    end
-
-    if area_franja1 <= 0.0
-        profundidad_franja1 = 0.0
-        profundidad_franja2 = min(profundidad_franja2_requerida, ancho_franja_franja)
-    elseif area_franja2 <= 0.0
-        profundidad_franja2 = 0.0
-        profundidad_franja1 = min(profundidad_franja1_requerida, ancho_franja_franja)
-    else
-        if profundidad_franja1_requerida + profundidad_franja2_requerida > ancho_franja_franja
-            scale_factor = ancho_franja_franja / (profundidad_franja1_requerida + profundidad_franja2_requerida)
-            profundidad_franja1 = profundidad_franja1_requerida * scale_factor
-            profundidad_franja2 = profundidad_franja2_requerida * scale_factor
-        else
-            profundidad_franja1 = profundidad_franja1_requerida
-            profundidad_franja2 = profundidad_franja2_requerida
-        end
-    end
-
-    if profundidad_franja1 > 0.0 && profundidad_franja1 < MIN_PROFUNDIDAD_FRANJA
-        profundidad_franja1 = MIN_PROFUNDIDAD_FRANJA
-    end
-    if profundidad_franja2 > 0.0 && profundidad_franja2 < MIN_PROFUNDIDAD_FRANJA
-        profundidad_franja2 = MIN_PROFUNDIDAD_FRANJA
-    end
-
-    return profundidad_franja1, profundidad_franja2
 end
 
 # Orders apartments within each strip, placing staircase centrally if present and balancing layout
