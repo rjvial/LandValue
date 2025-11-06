@@ -62,7 +62,7 @@ end
 # ============================================================================
 # VOLUME OPTIMIZATION FUNCTIONS
 # ============================================================================
-function quad_opti_sol_ini(vec_psVolteor, ancho_crujia_max, floors)
+function quad_opti_sol_ini(vec_psVolteor, floors)
     if isempty(vec_psVolteor)
         @warn "Volume vector cannot be empty for floors $floors"
         return 0, 0, 0, 0, 0, 0, PolyShape([], 1)
@@ -160,10 +160,10 @@ function quad_opti_sol_ini(vec_psVolteor, ancho_crujia_max, floors)
     return best_solution
 end
 
-function quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_ocupacion_suelo, max_losa_snt, K, ancho_crujia_max)
+function quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_ocupacion_suelo, max_losa_snt, K, max_ancho_emplazamiento)
 
     # Get initial solution
-    x1_ini, y1_ini, c_ini, s_ini, w_ini, h_ini, ps0 = quad_opti_sol_ini(vec_psVolteor, ancho_crujia_max, floors)
+    x1_ini, y1_ini, c_ini, s_ini, w_ini, h_ini, ps0 = quad_opti_sol_ini(vec_psVolteor, floors)
 
     # Calculate initial dimensions
     width, height = if isempty(ps0.Vertices)
@@ -219,6 +219,19 @@ function quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_oc
                     dx[stack = 2:K] >= 0
                     dy[stack = 2:K] >= 0
                 end)
+            end
+
+            # Dimension constraints based on width/height ratio
+            if width > 0 && height > 0
+                if width > height
+                    for stack in 1:K
+                        @constraint(model, h[stack] <= max_ancho_emplazamiento)
+                    end
+                else
+                    for stack in 1:K
+                        @constraint(model, w[stack] <= max_ancho_emplazamiento)
+                    end
+                end
             end
 
             # Ground occupation constraint
@@ -366,8 +379,8 @@ end
 # ============================================================================
 # SHADOW-CONSTRAINED OPTIMIZATION ENGINE
 # ============================================================================
-function optimize_with_shadow_constraints(vec_psVolConSombra, vec_altVolConSombra, shadow_data, floors, 
-                                        dict_arquitectura, dict_geom, max_ocupacion_suelo, max_losa_snt, ps_areaEdif)
+function optimize_with_shadow_constraints(vec_psVolConSombra, vec_altVolConSombra, shadow_data, floors,
+                                        dict_arquitectura, dict_geom, max_ocupacion_suelo, max_losa_snt, ps_areaEdif, max_ancho_emplazamiento)
     # Performs iterative optimization considering shadow constraints.
     
     # Initialize deltas
@@ -393,7 +406,7 @@ function optimize_with_shadow_constraints(vec_psVolConSombra, vec_altVolConSombr
         ps_stack, np_stack, objective_val = quad_opti_vol(
             vec_psVolConSombra_work, vec_altVolConSombra, floors, dict_arquitectura["arq_alturaPiso"],
             max_ocupacion_suelo, max_losa_snt, dict_arquitectura["arq_K"],
-            dict_arquitectura["arq_ancho_crujia_max"]
+            max_ancho_emplazamiento
         )
         
         # Calculate actual shadows
@@ -519,7 +532,7 @@ end
 # ============================================================================
 # MAIN VOLUME OPTIMIZATION FUNCTION
 # ============================================================================
-function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, vec_pisos, max_ocupacion_suelo, max_losa_snt)
+function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, vec_pisos, max_ocupacion_suelo, max_losa_snt, max_ancho_emplazamiento)
 
     # ============================================================================
     # 1. PARAMETER INITIALIZATION
@@ -602,7 +615,7 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
             if shadow_data["flag_p"] || shadow_data["flag_o"] || shadow_data["flag_s"]
                 shadow_result = optimize_with_shadow_constraints(
                     vec_psVolConSombra, vec_altVolConSombra, shadow_data, floors,
-                    dict_arquitectura, dict_geom, max_ocupacion_suelo, max_losa_snt, ps_areaEdif
+                    dict_arquitectura, dict_geom, max_ocupacion_suelo, max_losa_snt, ps_areaEdif, max_ancho_emplazamiento
                 )
                 
                 if shadow_result["objective_val"] > best_result["max_sol"]
@@ -626,7 +639,7 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
             ps_stack, np_stack, objective_val = quad_opti_vol(
                 vec_psVolteor, vec_altVolteor, floors, alturaPiso,
                 max_ocupacion_suelo, max_losa_snt, K,
-                dict_arquitectura["arq_ancho_crujia_max"]
+                max_ancho_emplazamiento
             )
             
             if objective_val > best_result["max_sol"]

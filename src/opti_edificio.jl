@@ -73,6 +73,14 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # MAIN BUILDING OPTIMIZATION FUNCTION
     # ============================================================================
 
+    max_ancho_emplazamiento = 25 # opti_edificio_vol
+    ancho_pasillo = 1.5 # opti_floor_plan
+    min_largo_pasillo = 4.0 # opti_floor_plan
+    area_escala = 20.0 # opti_floor_plan
+    min_ancho_escala = 5.0 # opti_floor_plan
+    min_ancho_depto = 6.0 # opti_floor_plan
+    max_ancho_terraza = 4.0 # opti_floor_plan
+
     dict_normativa = OrderedDict(
         "id_combi" => id_combi,
         "tipo_edificio" => dict_arquitectura["arq_tipo_edificio"],
@@ -162,7 +170,8 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     
     # Optimiza el volumen del edificio en base a: distanciamiento, antejardín, altura_max, rasante, max_losa_snt,
     # volumen teórico, ocupación de suelo, crujía (max_constructibilidad se consider a través de max_losa_snt)
-    result_vol = opti_edificio_vol(dict_geom, dict_arquitectura, dict_normativa_raw, vec_pisos, max_ocupacion_suelo, max_losa_snt)
+    
+    result_vol = opti_edificio_vol(dict_geom, dict_arquitectura, dict_normativa_raw, vec_pisos, max_ocupacion_suelo, max_losa_snt, max_ancho_emplazamiento)
 
     vec_ps_opt = result_vol["vec_ps_opt"]
     vec_np_opt = result_vol["vec_np_opt"]
@@ -403,12 +412,6 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # ============================================================================
     # 10. APARTMENT SHAPE COMPILATION
     # ============================================================================
-    ancho_pasillo = 1.5
-    min_largo_pasillo = 4.0
-    area_escala = 20.0
-    min_ancho_escala = 5.0
-    min_ancho_depto = 6.0
-    max_ancho_terraza = 4.0
 
     results = opti_floor_plan(dict_arquitectura, dict_proyecto,
                 ancho_pasillo=ancho_pasillo,
