@@ -160,7 +160,7 @@ function quad_opti_sol_ini(vec_psVolteor, floors)
     return best_solution
 end
 
-function quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_ocupacion_suelo, max_losa_snt, K, max_ancho_emplazamiento)
+function quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_ocupacion_suelo, max_losa_snt, K)
 
     # Get initial solution
     x1_ini, y1_ini, c_ini, s_ini, w_ini, h_ini, ps0 = quad_opti_sol_ini(vec_psVolteor, floors)
@@ -219,19 +219,6 @@ function quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_oc
                     dx[stack = 2:K] >= 0
                     dy[stack = 2:K] >= 0
                 end)
-            end
-
-            # Dimension constraints based on width/height ratio
-            if width > 0 && height > 0
-                if width > height
-                    for stack in 1:K
-                        @constraint(model, h[stack] <= max_ancho_emplazamiento)
-                    end
-                else
-                    for stack in 1:K
-                        @constraint(model, w[stack] <= max_ancho_emplazamiento)
-                    end
-                end
             end
 
             # Ground occupation constraint
@@ -380,7 +367,7 @@ end
 # SHADOW-CONSTRAINED OPTIMIZATION ENGINE
 # ============================================================================
 function optimize_with_shadow_constraints(vec_psVolConSombra, vec_altVolConSombra, shadow_data, floors,
-                                        dict_arquitectura, dict_geom, max_ocupacion_suelo, max_losa_snt, ps_areaEdif, max_ancho_emplazamiento)
+                                        dict_arquitectura, dict_geom, max_ocupacion_suelo, max_losa_snt, ps_areaEdif)
     # Performs iterative optimization considering shadow constraints.
     
     # Initialize deltas
@@ -405,8 +392,7 @@ function optimize_with_shadow_constraints(vec_psVolConSombra, vec_altVolConSombr
         # Optimize volumes for K stacks
         ps_stack, np_stack, objective_val = quad_opti_vol(
             vec_psVolConSombra_work, vec_altVolConSombra, floors, dict_arquitectura["arq_alturaPiso"],
-            max_ocupacion_suelo, max_losa_snt, dict_arquitectura["arq_K"],
-            max_ancho_emplazamiento
+            max_ocupacion_suelo, max_losa_snt, dict_arquitectura["arq_K"]
         )
         
         # Calculate actual shadows
@@ -532,7 +518,7 @@ end
 # ============================================================================
 # MAIN VOLUME OPTIMIZATION FUNCTION
 # ============================================================================
-function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, vec_pisos, max_ocupacion_suelo, max_losa_snt, max_ancho_emplazamiento)
+function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, vec_pisos, max_ocupacion_suelo, max_losa_snt)
 
     # ============================================================================
     # 1. PARAMETER INITIALIZATION
@@ -615,7 +601,7 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
             if shadow_data["flag_p"] || shadow_data["flag_o"] || shadow_data["flag_s"]
                 shadow_result = optimize_with_shadow_constraints(
                     vec_psVolConSombra, vec_altVolConSombra, shadow_data, floors,
-                    dict_arquitectura, dict_geom, max_ocupacion_suelo, max_losa_snt, ps_areaEdif, max_ancho_emplazamiento
+                    dict_arquitectura, dict_geom, max_ocupacion_suelo, max_losa_snt, ps_areaEdif
                 )
                 
                 if shadow_result["objective_val"] > best_result["max_sol"]
@@ -638,8 +624,7 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
             # No shadow constraints - direct optimization
             ps_stack, np_stack, objective_val = quad_opti_vol(
                 vec_psVolteor, vec_altVolteor, floors, alturaPiso,
-                max_ocupacion_suelo, max_losa_snt, K,
-                max_ancho_emplazamiento
+                max_ocupacion_suelo, max_losa_snt, K
             )
             
             if objective_val > best_result["max_sol"]

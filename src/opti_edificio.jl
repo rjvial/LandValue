@@ -73,7 +73,6 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # MAIN BUILDING OPTIMIZATION FUNCTION
     # ============================================================================
 
-    max_ancho_emplazamiento = 25 # opti_edificio_vol
     ancho_pasillo = 1.5 # opti_floor_plan
     min_largo_pasillo = 4.0 # opti_floor_plan
     area_escala = 20.0 # opti_floor_plan
@@ -171,7 +170,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # Optimiza el volumen del edificio en base a: distanciamiento, antejardín, altura_max, rasante, max_losa_snt,
     # volumen teórico, ocupación de suelo, crujía (max_constructibilidad se consider a través de max_losa_snt)
     
-    result_vol = opti_edificio_vol(dict_geom, dict_arquitectura, dict_normativa_raw, vec_pisos, max_ocupacion_suelo, max_losa_snt, max_ancho_emplazamiento)
+    result_vol = opti_edificio_vol(dict_geom, dict_arquitectura, dict_normativa_raw, vec_pisos, max_ocupacion_suelo, max_losa_snt)
 
     vec_ps_opt = result_vol["vec_ps_opt"]
     vec_np_opt = result_vol["vec_np_opt"]
