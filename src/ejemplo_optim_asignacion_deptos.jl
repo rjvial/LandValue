@@ -1,11 +1,11 @@
 
 
 W = 30.0
-H = 25.0
+H = 20.0
 
-max_constructibilidad = 2000
+max_constructibilidad = 1800
 
-num_pisos = 5
+num_pisos = 4
 
 num_strips = 2
 
@@ -19,7 +19,7 @@ set_i = 1:num_apartment_types
 num_widths = length(vec_w)
 set_w = 1:num_widths
 
-vec_area_pasillo = vec_w .* .75
+vec_area_pasillo = vec_w .* .5
 mat_ap = [vec_area_interior[i] + vec_area_pasillo[j] for i in set_i, j in set_w]
 mat_h = [mat_ap[i,j] / vec_w[j] for i in set_i, j in set_w]
 
