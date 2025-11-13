@@ -2,7 +2,7 @@ using JuMP
 using HiGHS
 
 """
-    optim_asignacion_deptos(W, H, num_strips, set_i, set_w, vec_w, mat_h, vec_area_interior, vec_area_pasillo, vec_w_terraza, vec_h_terraza, vec_area_terraza, mat_exposicion, mat_exposicion_corner, mat_exposicion_double_corner, min_deptos, max_deptos)
+    optim_asignacion_deptos(W, H, num_strips, set_i, set_w, vec_w, mat_reg_h, vec_area_interior, vec_area_pasillo, vec_w_terraza, vec_h_terraza, vec_area_terraza, mat_exposicion, mat_exposicion_corner, mat_exposicion_double_corner, min_deptos, max_deptos)
 
 Optimiza la asignación de departamentos en strips horizontales para maximizar superficie total.
 
@@ -13,7 +13,7 @@ Optimiza la asignación de departamentos en strips horizontales para maximizar s
 - `set_i::Vector{Int}`: Conjunto de índices de tipos de departamentos
 - `set_w::Vector{Int}`: Conjunto de índices de alturas
 - `vec_w`: Vector de anchos por tipo de departamento i
-- `mat_h`: Matriz de alturas [i,h] por tipo de departamento e índice de altura
+- `mat_reg_h`: Matriz de alturas [i,h] por tipo de departamento e índice de altura
 - `vec_area_interior`: Vector de áreas por tipo i
 - `vec_area_pasillo`: Vector de áreas de pasillo por tipo i
 - `vec_w_terraza`: Vector de anchos de terraza por tipo i
@@ -27,7 +27,9 @@ function optim_asignacion_deptos(
     W::Float64,
     H::Float64,
     num_strips::Int,
-    vec_w, mat_h, vec_area_interior, vec_area_pasillo,
+    vec_w, 
+    mat_reg_h, mat_corner_h, mat_double_corner_h,
+    vec_area_interior, vec_area_pasillo,
     vec_w_terraza, vec_h_terraza, vec_area_terraza,
     mat_exposicion, mat_exposicion_corner, mat_exposicion_double_corner,
     min_deptos::Int,
@@ -42,7 +44,7 @@ function optim_asignacion_deptos(
     num_areas_deptos = length(vec_area_interior)
     set_i = 1:num_areas_deptos
 
-    num_widths = size(mat_h, 2)
+    num_widths = size(mat_reg_h, 2)
     set_w = 1:num_widths
 
     model = Model(HiGHS.Optimizer)
@@ -55,9 +57,9 @@ function optim_asignacion_deptos(
 
     max_z_bounds = Dict()
     for i in set_i, j in set_w
-        if (mat_h[i,j] + vec_h_terraza[i]) <= H && vec_w[i] <= W
+        if (mat_reg_h[i,j] + vec_h_terraza[i]) <= H && vec_w[i] <= W
             max_by_width = floor(Int, W / vec_w[i])
-            max_by_height = floor(Int, H / (mat_h[i,j] + vec_h_terraza[i]))
+            max_by_height = floor(Int, H / (mat_reg_h[i,j] + vec_h_terraza[i]))
             max_by_area = floor(Int, (W * H) / (vec_area_interior[i] + vec_area_terraza[i]))
             max_z_bounds[(i,j)] = min(max_by_width, max_by_height, max_by_area, max_deptos)
         else
@@ -236,9 +238,9 @@ function optim_asignacion_deptos(
         constraint_18[s in S], H_s[s] >= 8.0
 
         # Apartment height (interior + terrace) must fit within strip depth for each apartment type
-        constraint_19[s in S, i in set_i, j in set_w], x[s,i,j] * (mat_h[i,j] + vec_h_terraza[i]) <= H_s[s]
-        constraint_20[s in S, i in set_i, j in set_w], x_c[s,i,j] * (mat_h[i,j] + vec_h_terraza[i]) <= H_s[s]
-        constraint_21[s in S, i in set_i, j in set_w], x_cc[s,i,j] * (mat_h[i,j] + vec_h_terraza[i]) <= H_s[s]
+        constraint_19[s in S, i in set_i, j in set_w], x[s,i,j] * (mat_reg_h[i,j] + vec_h_terraza[i]) <= H_s[s]
+        constraint_20[s in S, i in set_i, j in set_w], x_c[s,i,j] * (mat_corner_h[i,j] + vec_h_terraza[i]) <= H_s[s]
+        constraint_21[s in S, i in set_i, j in set_w], x_cc[s,i,j] * (mat_double_corner_h[i,j] + vec_h_terraza[i]) <= H_s[s]
 
         # Total apartment area per strip cannot exceed strip footprint (W x H_s)
         constraint_22[s in S], sum((num_deptos_reg_por_piso_superior[s,i,j] +
@@ -303,7 +305,7 @@ function optim_asignacion_deptos(
     results["vec_area_interior"] = vec_area_interior
     results["vec_area_pasillo"] = vec_area_pasillo
     results["vec_w"] = vec_w
-    results["mat_h"] = mat_h
+    results["mat_reg_h"] = mat_reg_h
     results["W"] = W
     results["H"] = H
 
