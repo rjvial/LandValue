@@ -212,7 +212,7 @@ function optim_asignacion_deptos(
         # Total common area cannot exceed 25% of total useful area
         constraint_11, area_comun_total <= 0.25 * area_util_total
 
-        # Exactly 2 corner apartments per strip if corner type is used (corner apartments come in pairs)
+        # Exactly 2 corner apartments per strip if corner type is used
         constraint_12[s in S], sum(num_deptos_corner_por_piso_superior[s,i,j] for i in set_i, j in set_w) == 2 * y_c[s]
 
         # Exactly 1 double corner apartment per strip if double corner type is used
@@ -253,7 +253,7 @@ function optim_asignacion_deptos(
             num_deptos_corner_por_piso_superior[s,i,j] +
             num_deptos_d_corner_por_piso_superior[s,i,j]) * vec_w[i] for i in set_i, j in set_w) <= W
 
-        # Sum of apartment perimeters must cover strip perimeter with 5m tolerance (ensures adequate facade coverage)
+        # Sum of apartment perimeters must cover strip perimeter with 5m tolerance
         constraint_27[s in S],
             sum(num_deptos_reg_por_piso_superior[s,i,j] * mat_exposicion[i,j] for i in set_i, j in set_w) +
             sum(num_deptos_corner_por_piso_superior[s,i,j] * mat_exposicion_corner[i,j] for i in set_i, j in set_w) +
@@ -478,9 +478,9 @@ function print_results(results::Dict)
         println("│ Área Común          │ $(lpad(round(area_comun_pp, digits=1), 12)) m² │ $(lpad(round(area_comun_ps, digits=1), 12)) m² │ $(lpad(round(area_comun_pp + area_comun_ps * num_pisos_sup, digits=1), 12)) m² │")
         println("│   - Área Pasillo    │ $(lpad(round(area_pasillo_pp, digits=1), 12)) m² │ $(lpad(round(area_pasillo_ps, digits=1), 12)) m² │ $(lpad(round(area_pasillo_pp + area_pasillo_ps * num_pisos_sup, digits=1), 12)) m² │")
         println("│   - Otros espacios  │ $(lpad(round(area_comun_pp - area_pasillo_pp, digits=1), 12)) m² │ $(lpad(round(area_comun_ps - area_pasillo_ps, digits=1), 12)) m² │ $(lpad(round((area_comun_pp - area_pasillo_pp) + (area_comun_ps - area_pasillo_ps) * num_pisos_sup, digits=1), 12)) m² │")
-        println("│ Área No Utilizada   │ $(lpad(round(area_no_utilizada_pp, digits=1), 12)) m² │ $(lpad(round(area_no_utilizada_ps, digits=1), 12)) m² │ $(lpad(round(area_no_utilizada_total, digits=1), 12)) m² │")
         println("├─────────────────────┼──────────────────┼──────────────────┼──────────────────┤")
         println("│ Área Losa SNT       │ $(lpad(round(area_total_losa_pp, digits=1), 12)) m² │ $(lpad(round(area_total_losa_ps, digits=1), 12)) m² │ $(lpad(round(area_total_losa_edificio, digits=1), 12)) m² │")
+        println("│ Área No Utilizada   │ $(lpad(round(area_no_utilizada_pp, digits=1), 12)) m² │ $(lpad(round(area_no_utilizada_ps, digits=1), 12)) m² │ $(lpad(round(area_no_utilizada_total, digits=1), 12)) m² │")
         println("├─────────────────────┼──────────────────┼──────────────────┼──────────────────┤")
         println("│ Área Emplazamiento  │ $(lpad(round(area_emplazamiento_por_piso, digits=1), 12)) m² │ $(lpad(round(area_emplazamiento_por_piso, digits=1), 12)) m² │ $(lpad(round(area_emplazamiento_total, digits=1), 12)) m² │")
         println("│ (W × Profundidad)   │                  │                  │                  │")
