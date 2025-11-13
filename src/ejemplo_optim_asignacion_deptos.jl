@@ -17,8 +17,11 @@ num_widths = length(vec_w_i)
 J = 1:num_widths
 
 vec_area_p = vec_w_i .* .5
-mat_reg_area_ip = [vec_area_i[k] + vec_area_p[j] for k in K, j in J]
-mat_reg_h_ip = [mat_reg_area_ip[k,j] / vec_w_i[j] for k in K, j in J]
+mat_area_ip = [vec_area_i[k] + vec_area_p[j] for k in K, j in J]
+mat_h_ip = [mat_area_ip[k,j] / vec_w_i[j] for k in K, j in J]
+
+mat_area_ipn = mat_area_ip .+ 5
+mat_h_ipn = [mat_area_ipn[k,j] / vec_w_i[j] for k in K, j in J]
 
 mat_corner_h = [vec_area_i[k] / vec_w_i[j] for k in K, j in J]
 mat_d_corner_h = [vec_area_i[k] / vec_w_i[j] for k in K, j in J]
@@ -41,8 +44,9 @@ results = optim_asignacion_deptos(
     W, H,
     num_strips,
     vec_w_i, 
-    mat_reg_h_ip, mat_corner_h, mat_d_corner_h,
-    vec_area_i, vec_area_p, mat_reg_area_ip,
+    mat_h_ip, mat_corner_h, mat_d_corner_h,
+    vec_area_i, vec_area_p, mat_area_ip,
+    mat_area_ipn, mat_h_ipn,
     vec_w_t, vec_h_t, vec_area_t,
     mat_exposicion, mat_exposicion_corner, mat_exposicion_d_corner,
     min_deptos, max_deptos,
