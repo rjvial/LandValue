@@ -253,8 +253,8 @@ function optim_asignacion_deptos(
         # Sum of all strip depths cannot exceed building depth
         constraint_17, sum(H_s[s] for s in S) <= H
 
-        # Each strip must have minimum depth of 7.0m
-        constraint_18[s in S], H_s[s] >= 8.0
+        # Each strip must have minimum depth
+        constraint_18[s in S], H_s[s] >= 12.5
 
         # Apartment height (interior + terrace) must fit within strip depth for each apartment type
         constraint_19[s in S, k in K, j in J], x[s,k,j] * (mat_h_ip[k,j] + vec_h_t[k]) <= H_s[s]
@@ -285,7 +285,7 @@ function optim_asignacion_deptos(
             sum(num_deptos_por_piso_superior[s,k,j] * mat_exposicion[k,j] for k in K, j in J) +
             sum(num_deptos_nucleo_por_piso_superior[s,k,j] * mat_exposicion[k,j] for k in K, j in J) +
             sum(num_deptos_corner_por_piso_superior[s,k,j] * mat_exposicion_corner[k,j] for k in K, j in J) +
-            sum(num_deptos_d_corner_por_piso_superior[s,k,j] * mat_exposicion_d_corner[k,j] for k in K, j in J) >= 2*H_s[s] + W - 5
+            sum(num_deptos_d_corner_por_piso_superior[s,k,j] * mat_exposicion_d_corner[k,j] for k in K, j in J) >= 2*sum((x_c[s,k,j] + x_cc[s,k,j])*mat_h_ip[k,j] for k in K, j in J) + W - 5
             
         # First floor apartment counts cannot exceed upper floor counts (first floor is subset of upper floors)
         constraint_28[s in S, k in K, j in J], num_deptos_primer_piso[s,k,j] <= num_deptos_por_piso_superior[s,k,j]
@@ -418,8 +418,8 @@ function optim_asignacion_deptos(
             end
         end
 
-        deptos_primer_piso = sum(sum(values(results[k])) for k in ["num_deptos_primer_piso", "num_deptos_corner_primer_piso", "num_deptos_d_corner_primer_piso"])
-        deptos_pisos_superiores = sum(sum(values(results[k])) for k in ["num_deptos_por_piso_superior", "num_deptos_corner_por_piso_superior", "num_deptos_d_corner_por_piso_superior"])
+        deptos_primer_piso = sum(sum(values(results[k])) for k in ["num_deptos_primer_piso", "num_deptos_nucleo_primer_piso", "num_deptos_corner_primer_piso", "num_deptos_d_corner_primer_piso"])
+        deptos_pisos_superiores = sum(sum(values(results[k])) for k in ["num_deptos_por_piso_superior", "num_deptos_nucleo_por_piso_superior", "num_deptos_corner_por_piso_superior", "num_deptos_d_corner_por_piso_superior"])
 
         results["total_deptos_primer_piso"] = deptos_primer_piso
         results["total_deptos_pisos_superiores"] = deptos_pisos_superiores

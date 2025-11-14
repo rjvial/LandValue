@@ -1,18 +1,23 @@
 
+min_deptos = 20
+max_deptos = 40
+
 
 W = 30.0
 H = 25.0
 
-max_constructibilidad = 1800
+max_constructibilidad = 2400 #1800
 
 num_pisos = 4
 num_strips = 2
 
 vec_area_i = [40.0, 55.0, 70.0, 90.0, 110.0, 120.0]
+# vec_area_i = collect(40:120)
 num_sizes = length(vec_area_i)
 K = 1:num_sizes
 
-vec_w_i = [7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0]
+# vec_w_i = [7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0]
+vec_w_i = collect(7.:.1:13.)
 num_widths = length(vec_w_i)
 J = 1:num_widths
 
@@ -36,9 +41,6 @@ mat_exposicion = [vec_w_i[j] for k in eachindex(vec_area_i), j in eachindex(J)]
 mat_exposicion_corner = [vec_w_i[j] + mat_corner_h[k,j] for k in eachindex(vec_area_i), j in eachindex(J)]
 mat_exposicion_d_corner = [vec_w_i[j] + 2*mat_d_corner_h[k,j] for k in eachindex(vec_area_i), j in eachindex(J)]
 
-
-min_deptos = 20
-max_deptos = 40
 
 println("Ejecutando optimización de asignación de departamentos...")
 results = optim_asignacion_deptos(
