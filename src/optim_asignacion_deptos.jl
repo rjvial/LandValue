@@ -315,7 +315,7 @@ function optim_asignacion_deptos(
     # Diversity constraints: prevent mixing very different apartment sizes (ratio > 2.5)
     for k1 in K, k2 in K
         if vec_area_i[k1] < vec_area_i[k2]  # Avoid duplicate constraints
-            if vec_area_i[k2] > vec_area_i[k1] * 2.5
+            if vec_area_i[k2] > vec_area_i[k1] * 2.0
                 @constraint(model, z[k1] + z[k2] <= 1)       # Regular apartments
                 @constraint(model, z_n[k1] + z_n[k2] <= 1)   # Nucleo apartments
                 @constraint(model, z_c[k1] + z_c[k2] <= 1)   # Corner apartments
@@ -327,6 +327,18 @@ function optim_asignacion_deptos(
 
     # Maximize total apartment interior area
     @objective(model, Max, area_util_total)
+
+    # Print MIP model statistics
+    println("\n" * "="^60)
+    println("MIP MODEL SIZE")
+    println("="^60)
+    println("Total variables:     ", num_variables(model))
+    println("  - Binary:          ", sum(is_binary(v) for v in all_variables(model)))
+    println("  - Integer:         ", sum(is_integer(v) && !is_binary(v) for v in all_variables(model)))
+    println("  - Continuous:      ", sum(!is_integer(v) for v in all_variables(model)))
+    println("Total constraints:   ", num_constraints(model; count_variable_in_set_constraints=true))
+    println("  - Linear:          ", sum(num_constraints(model, F, S) for (F,S) in list_of_constraint_types(model) if F == AffExpr || F == VariableRef))
+    println("="^60 * "\n")
 
     optimize!(model)
 
