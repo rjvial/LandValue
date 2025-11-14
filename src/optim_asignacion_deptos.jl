@@ -285,7 +285,7 @@ function optim_asignacion_deptos(
             sum(num_deptos_por_piso_superior[s,k,j] * mat_exposicion[k,j] for k in K, j in J) +
             sum(num_deptos_nucleo_por_piso_superior[s,k,j] * mat_exposicion[k,j] for k in K, j in J) +
             sum(num_deptos_corner_por_piso_superior[s,k,j] * mat_exposicion_corner[k,j] for k in K, j in J) +
-            sum(num_deptos_d_corner_por_piso_superior[s,k,j] * mat_exposicion_d_corner[k,j] for k in K, j in J) >= 2*sum((x_c[s,k,j] + x_cc[s,k,j])*mat_h_ip[k,j] for k in K, j in J) + W - 5
+            sum(num_deptos_d_corner_por_piso_superior[s,k,j] * mat_exposicion_d_corner[k,j] for k in K, j in J) >= 2*H_s[s] + W - 5
             
         # First floor apartment counts cannot exceed upper floor counts (first floor is subset of upper floors)
         constraint_28[s in S, k in K, j in J], num_deptos_primer_piso[s,k,j] <= num_deptos_por_piso_superior[s,k,j]
