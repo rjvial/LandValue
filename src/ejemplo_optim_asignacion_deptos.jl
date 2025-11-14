@@ -1,7 +1,7 @@
 
 
 W = 30.0
-H = 20.0
+H = 25.0
 
 max_constructibilidad = 1800
 
@@ -20,7 +20,8 @@ vec_area_p = vec_w_i .* .5
 mat_area_ip = [vec_area_i[k] + vec_area_p[j] for k in K, j in J]
 mat_h_ip = [mat_area_ip[k,j] / vec_w_i[j] for k in K, j in J]
 
-mat_area_ipn = mat_area_ip .+ 5
+area_nucleo_depto = 5
+mat_area_ipn = mat_area_ip .+ area_nucleo_depto
 mat_h_ipn = [mat_area_ipn[k,j] / vec_w_i[j] for k in K, j in J]
 
 mat_corner_h = [vec_area_i[k] / vec_w_i[j] for k in K, j in J]
@@ -31,9 +32,9 @@ vec_h_t = ones(length(vec_area_i)) .* 2
 vec_w_t = vec_area_t ./ vec_h_t
 
 
-mat_exposicion = [vec_w_i[k] for k in eachindex(vec_area_i), j in eachindex(J)]
-mat_exposicion_corner = [vec_w_i[k] + mat_corner_h[k,j] for k in eachindex(vec_area_i), j in eachindex(J)]
-mat_exposicion_d_corner = [vec_w_i[k] + 2*mat_d_corner_h[k,j] for k in eachindex(vec_area_i), j in eachindex(J)]
+mat_exposicion = [vec_w_i[j] for k in eachindex(vec_area_i), j in eachindex(J)]
+mat_exposicion_corner = [vec_w_i[j] + mat_corner_h[k,j] for k in eachindex(vec_area_i), j in eachindex(J)]
+mat_exposicion_d_corner = [vec_w_i[j] + 2*mat_d_corner_h[k,j] for k in eachindex(vec_area_i), j in eachindex(J)]
 
 
 min_deptos = 20
@@ -46,7 +47,7 @@ results = optim_asignacion_deptos(
     vec_w_i, 
     mat_h_ip, mat_corner_h, mat_d_corner_h,
     vec_area_i, vec_area_p, mat_area_ip,
-    mat_area_ipn, mat_h_ipn,
+    mat_area_ipn, mat_h_ipn, area_nucleo_depto,
     vec_w_t, vec_h_t, vec_area_t,
     mat_exposicion, mat_exposicion_corner, mat_exposicion_d_corner,
     min_deptos, max_deptos,
