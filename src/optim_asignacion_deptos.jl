@@ -600,7 +600,7 @@ function print_results(results::Dict)
             perim_col = idx == 1 ? lpad(round(perim, digits=1), 9) : "         "
             prof_col = idx == 1 ? lpad(round(prof, digits=1), 9) : "         "
 
-            println("│ $(strip_col) │ $(rpad(piso, 8)) │ $(rpad(tipo, 10)) │ ($(lpad(i,2)),$(lpad(h,2)))      │ $(lpad(round(Int, count), 4)) │ $(lpad(round(area_int, digits=1), 4)) │ $(lpad(round(area_terr, digits=1), 8)) │ $(lpad(round(area_pas, digits=1), 11)) │ $(perim_col) m² │ $(prof_col) m │")
+            println("│ $(strip_col) │ $(rpad(piso, 8)) │ $(rpad(tipo, 10)) │ ($(lpad(i,2)),$(lpad(h,2)))      │ $(lpad(round(Int, count), 4)) │ $(lpad(round(area_int, digits=1), 4)) │ $(lpad(round(area_terr, digits=1), 8)) │ $(lpad(round(area_pas, digits=1), 11)) │ $(perim_col) m │ $(prof_col) m │")
         end
 
         if strip < maximum(keys(results["H_s"]))
