@@ -21,7 +21,7 @@ vec_w_i = collect(7.:.1:13.)
 num_widths = length(vec_w_i)
 J = 1:num_widths
 
-vec_area_p = vec_w_i .* .5
+vec_area_p = vec_w_i .* .75
 mat_area_ip = [vec_area_i[k] + vec_area_p[j] for k in K, j in J]
 mat_h_ip = [mat_area_ip[k,j] / vec_w_i[j] for k in K, j in J]
 

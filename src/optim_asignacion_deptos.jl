@@ -375,6 +375,9 @@ function optim_asignacion_deptos(
     results["vec_area_p"] = vec_area_p
     results["vec_w_i"] = vec_w_i
     results["mat_h_ip"] = mat_h_ip
+    results["mat_corner_h"] = mat_corner_h
+    results["mat_d_corner_h"] = mat_d_corner_h
+    results["mat_h_ipn"] = mat_h_ipn
     results["area_nucleo_depto"] = area_nucleo_depto
     results["W"] = W
     results["H"] = H
@@ -608,17 +611,18 @@ function print_results(results::Dict)
     vec_area_t = results["vec_area_t"]
     vec_area_p = results["vec_area_p"]
     vec_h_t = results["vec_h_t"]
-
-    println("\n┌────────┬──────────┬────────────┬──────────────┬──────┬──────┬──────────┬─────────────┬─────────────┬─────────────┬────────────┐")
-    println("│ Strip  │ Piso     │ Tipo Depto │ (i,j)        │ Unid │ Área │ Área     │ Área        │ Perímetro   │ Profundidad │")
-    println("│        │          │            │              │      │ Dpto │ Terraza  │ Pasillo     │ Strip       │ Strip       │")
-    println("├────────┼──────────┼────────────┼──────────────┼──────┼──────┼──────────┼─────────────┼─────────────┼─────────────┤")
+    vec_w_i = results["vec_w_i"]
+    mat_h_ip = results["mat_h_ip"]
+    mat_h_ipn = results["mat_h_ipn"]
+    mat_corner_h = results["mat_corner_h"]
+    mat_d_corner_h = results["mat_d_corner_h"]
+    area_nucleo_depto_local = results["area_nucleo_depto"]
 
     for (strip, profundidad) in sort(collect(results["H_s"]))
         perimetro_pp = get(results["perimetro_strip_primer_piso"], strip, 0.0)
         perimetro_ps = get(results["perimetro_strip_pisos_superiores"], strip, 0.0)
 
-        all_rows = []
+        all_deptos = []
 
         for (key, tipo_label, piso_label) in [
             ("num_deptos_primer_piso", "Regular", "1° Piso"),
@@ -633,23 +637,62 @@ function print_results(results::Dict)
             strip_deptos = filter(p -> p[1][1] == strip, collect(get(results, key, Dict())))
             for ((s, k, j), count) in strip_deptos
                 perimetro = piso_label == "1° Piso" ? perimetro_pp : perimetro_ps
-                push!(all_rows, (strip, piso_label, tipo_label, k, j, count, vec_area_i[k], vec_area_t[k], vec_area_p[j], perimetro, profundidad))
+                ancho = vec_w_i[j]
+                area_interior = vec_area_i[k]
+                area_terraza = vec_area_t[k]
+                area_pasillo = vec_area_p[j]
+
+                if tipo_label == "Regular"
+                    alto = mat_h_ip[k,j]
+                    area_nucleo = 0.0
+                    area_total = ancho * alto
+                elseif tipo_label == "Núcleo"
+                    alto = mat_h_ipn[k,j]
+                    area_nucleo = area_nucleo_depto_local
+                    area_total = ancho * alto
+                elseif tipo_label == "Corner"
+                    alto = mat_corner_h[k,j]
+                    area_nucleo = 0.0
+                    area_total = area_interior
+                else
+                    alto = mat_d_corner_h[k,j]
+                    area_nucleo = 0.0
+                    area_total = area_interior
+                end
+
+                push!(all_deptos, (piso_label, tipo_label, k, j, count, area_interior, area_pasillo, area_nucleo, area_terraza, area_total, ancho, alto, perimetro, profundidad))
             end
         end
 
-        for (idx, (s, piso, tipo, i, h, count, area_int, area_terr, area_pas, perim, prof)) in enumerate(all_rows)
-            strip_col = idx == 1 ? lpad(s, 6) : "      "
-            perim_col = idx == 1 ? lpad(round(perim, digits=1), 9) : "         "
-            prof_col = idx == 1 ? lpad(round(prof, digits=1), 9) : "         "
+        if !isempty(all_deptos)
+            println("\n" * "━"^80)
+            println("STRIP $(strip) │ Profundidad: $(round(profundidad, digits=1)) m │ Perímetro: $(round(perimetro_ps, digits=1)) m")
+            println("━"^80)
 
-            println("│ $(strip_col) │ $(rpad(piso, 8)) │ $(rpad(tipo, 10)) │ ($(lpad(i,2)),$(lpad(h,2)))      │ $(lpad(round(Int, count), 4)) │ $(lpad(round(area_int, digits=1), 4)) │ $(lpad(round(area_terr, digits=1), 8)) │ $(lpad(round(area_pas, digits=1), 11)) │ $(perim_col) m │ $(prof_col) m │")
-        end
-
-        if strip < maximum(keys(results["H_s"]))
-            println("├────────┼──────────┼────────────┼──────────────┼──────┼──────┼──────────┼─────────────┼─────────────┼─────────────┤")
+            for (piso, tipo, k, j, count, area_int, area_pas, area_nuc, area_terr, area_tot, ancho, alto, _, _) in all_deptos
+                println("\n┌────────────────────────────────────────────────────────────────┐")
+                println("│ $(rpad(piso, 12)) │ $(rpad(tipo, 14)) │ ($(k),$(j)) │ Unidades: $(round(Int, count))  │")
+                println("├────────────────────────────────────────────────────────────────┤")
+                println("│ DIMENSIONES                                                    │")
+                println("│   Ancho:                              $(lpad(round(ancho, digits=1), 8)) m       │")
+                println("│   Alto:                               $(lpad(round(alto, digits=1), 8)) m       │")
+                println("├────────────────────────────────────────────────────────────────┤")
+                println("│ ÁREAS DEPARTAMENTO (dentro del rectángulo Ancho × Alto)       │")
+                println("│   Interior:                           $(lpad(round(area_int, digits=1), 8)) m²      │")
+                println("│   Pasillo:                            $(lpad(round(area_pas, digits=1), 8)) m²      │")
+                if area_nuc > 0
+                println("│   Núcleo:                             $(lpad(round(area_nuc, digits=1), 8)) m²      │")
+                end
+                area_suma = area_int + area_pas + area_nuc
+                println("│   ─────────────────────────────────────────────────────────    │")
+                println("│   Subtotal:                           $(lpad(round(area_suma, digits=1), 8)) m²      │")
+                println("│   TOTAL (Ancho × Alto):               $(lpad(round(area_tot, digits=1), 8)) m²      │")
+                println("│                                                                │")
+                println("│ ÁREAS ADICIONALES (fuera del rectángulo)                      │")
+                println("│   Terraza:                            $(lpad(round(area_terr, digits=1), 8)) m²      │")
+                println("└────────────────────────────────────────────────────────────────┘")
+            end
         end
     end
-
-    println("└────────┴──────────┴────────────┴──────────────┴──────┴──────┴──────────┴─────────────┴─────────────┴─────────────┘")
     println("\n" * "="^140)
 end
