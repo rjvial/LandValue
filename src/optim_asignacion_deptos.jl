@@ -108,9 +108,14 @@ function optim_asignacion_deptos(
         y_c[s in S], Bin
         y_cc[s in S], Bin
 
-        descuento_dfl2 >= 0
-        area_no_utilizada_primer_piso >= 0
-        area_no_utilizada_por_piso_superior >= 0
+        z[k in K], Bin       # Global indicator: apartment size k is used anywhere (regular)
+        z_n[k in K], Bin     # Global indicator: apartment size k is used anywhere (nucleo)
+        z_c[k in K], Bin     # Global indicator: apartment size k is used anywhere (corner)
+        z_cc[k in K], Bin    # Global indicator: apartment size k is used anywhere (double corner)
+
+        descuento_dfl2 >= 0  # DFL2 discount for social housing (up to 20% of useful area or total common area)
+        area_no_utilizada_primer_piso >= 0          # Unused footprint area on first floor (m²)
+        area_no_utilizada_por_piso_superior >= 0    # Unused footprint area per upper floor (m²)
     end)
 
     
@@ -118,6 +123,7 @@ function optim_asignacion_deptos(
         # Total common area across all floors
         area_comun_total, area_comun_primer_piso + area_comun_por_piso_superior * num_pisos_superiores
 
+        # Total unused footprint area across all floors
         area_no_utilizada, area_no_utilizada_primer_piso + area_no_utilizada_por_piso_superior * num_pisos_superiores
 
         # Total interior area for first floor apartments
@@ -168,8 +174,13 @@ function optim_asignacion_deptos(
         # Total hallway area for entire building
         area_pasillo_total, area_pasillo_primer_piso + area_pasillo_por_piso_superior * num_pisos_superiores
 
+        # Nucleo area for first floor (additional area per nucleo apartment)
         area_nucleo_primer_piso, sum(num_deptos_nucleo_primer_piso[s,k,j] * area_nucleo_depto for s in S, k in K, j in J)
+
+        # Nucleo area per upper floor
         area_nucleo_por_piso_superior, sum(num_deptos_nucleo_por_piso_superior[s,k,j] * area_nucleo_depto for s in S, k in K, j in J)
+
+        # Total nucleo area for entire building
         area_nucleo_total, area_nucleo_primer_piso + area_nucleo_por_piso_superior * num_pisos_superiores
 
         # Total SNT area (interior + terrace + common areas)
@@ -222,19 +233,7 @@ function optim_asignacion_deptos(
 
         # Total common area cannot exceed 25% of total useful area
         constraint_11, area_comun_total <= 0.25 * area_util_total
-    end)
 
-    # Nucleo apartment constraints
-    if area_nucleo_depto > 0
-        @constraint(model, [s in S], sum(num_deptos_nucleo_primer_piso[s,k,j] for k in K, j in J) == 2)
-        @constraint(model, [s in S], sum(num_deptos_nucleo_por_piso_superior[s,k,j] for k in K, j in J) == 2)
-    else
-        # When area_nucleo_depto = 0, nucleo apartments are identical to regular apartments
-        # Force all nucleo binaries to 0 (use regular apartments instead)
-        @constraint(model, [s in S, k in K, j in J], x_n[s,k,j] == 0)
-    end
-
-    @constraints(model, begin
         # Exactly 2 corner apartments per strip if corner type is used
         constraint_12[s in S], sum(num_deptos_corner_por_piso_superior[s,k,j] for k in K, j in J) == 2 * y_c[s]
 
@@ -257,42 +256,73 @@ function optim_asignacion_deptos(
         constraint_18[s in S], H_s[s] >= 12.5
 
         # Apartment height (interior + terrace) must fit within strip depth for each apartment type
-        constraint_19[s in S, k in K, j in J], x[s,k,j] * (mat_h_ip[k,j] + vec_h_t[k]) <= H_s[s]
-        constraint_19_[s in S, k in K, j in J], x_n[s,k,j] * (mat_h_ipn[k,j] + vec_h_t[k]) <= H_s[s]
-        constraint_20[s in S, k in K, j in J], x_c[s,k,j] * (mat_corner_h[k,j] + vec_h_t[k]) <= H_s[s]
-        constraint_21[s in S, k in K, j in J], x_cc[s,k,j] * (mat_d_corner_h[k,j] + vec_h_t[k]) <= H_s[s]
+        constraint_19[s in S, k in K, j in J], x[s,k,j] * (mat_h_ip[k,j] + vec_h_t[k]) <= H_s[s]        # Regular apartments
+        constraint_20[s in S, k in K, j in J], x_n[s,k,j] * (mat_h_ipn[k,j] + vec_h_t[k]) <= H_s[s]      # Nucleo apartments
+        constraint_21[s in S, k in K, j in J], x_c[s,k,j] * (mat_corner_h[k,j] + vec_h_t[k]) <= H_s[s]   # Corner apartments
+        constraint_22[s in S, k in K, j in J], x_cc[s,k,j] * (mat_d_corner_h[k,j] + vec_h_t[k]) <= H_s[s] # Double corner apartments
 
         # Total apartment area per strip cannot exceed strip footprint (W x H_s)
-        constraint_22[s in S], sum(num_deptos_por_piso_superior[s,k,j] * (mat_area_ip[k,j] + vec_area_t[k]) +
+        constraint_23[s in S], sum(num_deptos_por_piso_superior[s,k,j] * (mat_area_ip[k,j] + vec_area_t[k]) +
              num_deptos_nucleo_por_piso_superior[s,k,j] * (mat_area_ipn[k,j] + vec_area_t[k]) +
              (num_deptos_corner_por_piso_superior[s,k,j] + num_deptos_d_corner_por_piso_superior[s,k,j]) * (vec_area_i[k] + vec_area_t[k]) 
               for k in K, j in J) <= W * H_s[s]
 
         # Apartment count is positive only if apartment type is selected (Big-M constraint linking binary and integer variables)
-        constraint_23[s in S, k in K, j in J], num_deptos_por_piso_superior[s,k,j] <= max_deptos * x[s,k,j]
-        constraint_23_[s in S, k in K, j in J], num_deptos_nucleo_por_piso_superior[s,k,j] <= max_deptos * x_n[s,k,j]
-        constraint_24[s in S, k in K, j in J], num_deptos_corner_por_piso_superior[s,k,j] <= max_deptos * x_c[s,k,j]
-        constraint_25[s in S, k in K, j in J], num_deptos_d_corner_por_piso_superior[s,k,j] <= max_deptos * x_cc[s,k,j]
+        constraint_24[s in S, k in K, j in J], num_deptos_por_piso_superior[s,k,j] <= max_deptos * x[s,k,j]           # Regular apartments
+        constraint_25[s in S, k in K, j in J], num_deptos_nucleo_por_piso_superior[s,k,j] <= max_deptos * x_n[s,k,j]  # Nucleo apartments
+        constraint_26[s in S, k in K, j in J], num_deptos_corner_por_piso_superior[s,k,j] <= max_deptos * x_c[s,k,j]  # Corner apartments
+        constraint_27[s in S, k in K, j in J], num_deptos_d_corner_por_piso_superior[s,k,j] <= max_deptos * x_cc[s,k,j] # Double corner apartments
+
+        # Link local binary x[s,k,j] to global binary z[k] (apartment size k used anywhere in building)
+        constraint_28[k in K], sum(x[s,k,j] for s in S, j in J) <= max_deptos * z[k]      # Regular apartments
+        constraint_29[k in K], sum(x_n[s,k,j] for s in S, j in J) <= max_deptos * z_n[k]  # Nucleo apartments
+        constraint_30[k in K], sum(x_c[s,k,j] for s in S, j in J) <= max_deptos * z_c[k]  # Corner apartments
+        constraint_31[k in K], sum(x_cc[s,k,j] for s in S, j in J) <= max_deptos * z_cc[k] # Double corner apartments
+
 
         # Total apartment widths per strip cannot exceed building width W
-        constraint_26[s in S], sum((num_deptos_por_piso_superior[s,k,j] +
+        constraint_32[s in S], sum((num_deptos_por_piso_superior[s,k,j] +
             num_deptos_nucleo_por_piso_superior[s,k,j] +
             num_deptos_corner_por_piso_superior[s,k,j] +
             num_deptos_d_corner_por_piso_superior[s,k,j]) * vec_w_i[k] for k in K, j in J) <= W
 
         # Sum of apartment perimeters must cover strip perimeter with 5m tolerance
-        constraint_27[s in S],
+        constraint_33[s in S],
             sum(num_deptos_por_piso_superior[s,k,j] * mat_exposicion[k,j] for k in K, j in J) +
             sum(num_deptos_nucleo_por_piso_superior[s,k,j] * mat_exposicion[k,j] for k in K, j in J) +
             sum(num_deptos_corner_por_piso_superior[s,k,j] * mat_exposicion_corner[k,j] for k in K, j in J) +
             sum(num_deptos_d_corner_por_piso_superior[s,k,j] * mat_exposicion_d_corner[k,j] for k in K, j in J) >= 2*H_s[s] + W - 5
             
         # First floor apartment counts cannot exceed upper floor counts (first floor is subset of upper floors)
-        constraint_28[s in S, k in K, j in J], num_deptos_primer_piso[s,k,j] <= num_deptos_por_piso_superior[s,k,j]
-        constraint_28_[s in S, k in K, j in J], num_deptos_nucleo_primer_piso[s,k,j] <= num_deptos_nucleo_por_piso_superior[s,k,j]
-        constraint_29[s in S, k in K, j in J], num_deptos_corner_primer_piso[s,k,j] <= num_deptos_corner_por_piso_superior[s,k,j]
-        constraint_30[s in S, k in K, j in J], num_deptos_d_corner_primer_piso[s,k,j] <= num_deptos_d_corner_por_piso_superior[s,k,j]
+        constraint_34[s in S, k in K, j in J], num_deptos_primer_piso[s,k,j] <= num_deptos_por_piso_superior[s,k,j]             # Regular apartments
+        constraint_35[s in S, k in K, j in J], num_deptos_nucleo_primer_piso[s,k,j] <= num_deptos_nucleo_por_piso_superior[s,k,j]  # Nucleo apartments
+        constraint_36[s in S, k in K, j in J], num_deptos_corner_primer_piso[s,k,j] <= num_deptos_corner_por_piso_superior[s,k,j]  # Corner apartments
+        constraint_37[s in S, k in K, j in J], num_deptos_d_corner_primer_piso[s,k,j] <= num_deptos_d_corner_por_piso_superior[s,k,j] # Double corner apartments
     end)
+
+    # Nucleo apartment constraints
+    if area_nucleo_depto > 0
+        # Require exactly 2 nucleo apartments per strip (first floor)
+        @constraint(model, [s in S], sum(num_deptos_nucleo_primer_piso[s,k,j] for k in K, j in J) == 2)
+        # Require exactly 2 nucleo apartments per strip (upper floors)
+        @constraint(model, [s in S], sum(num_deptos_nucleo_por_piso_superior[s,k,j] for k in K, j in J) == 2)
+    else
+        # When area_nucleo_depto = 0, nucleo apartments are identical to regular apartments
+        # Force all nucleo binaries to 0 (use regular apartments instead)
+        @constraint(model, [s in S, k in K, j in J], x_n[s,k,j] == 0)
+    end
+
+    # Diversity constraints: prevent mixing very different apartment sizes (ratio > 2.5)
+    for k1 in K, k2 in K
+        if vec_area_i[k1] < vec_area_i[k2]  # Avoid duplicate constraints
+            if vec_area_i[k2] > vec_area_i[k1] * 2.5
+                @constraint(model, z[k1] + z[k2] <= 1)       # Regular apartments
+                @constraint(model, z_n[k1] + z_n[k2] <= 1)   # Nucleo apartments
+                @constraint(model, z_c[k1] + z_c[k2] <= 1)   # Corner apartments
+                @constraint(model, z_cc[k1] + z_cc[k2] <= 1) # Double corner apartments
+            end
+        end
+    end
 
 
     # Maximize total apartment interior area
