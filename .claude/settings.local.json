@@ -5,7 +5,9 @@
       "Bash(awk:*)",
       "Bash(julia -e:*)",
       "Bash(git log:*)",
-      "Bash(julia --project=. -e:*)"
+      "Bash(julia --project=. -e:*)",
+      "Bash(julia --project=. src/ejemplo_optim_asignacion_deptos.jl:*)",
+      "Bash(julia --project=.. -e:*)"
     ],
     "deny": [],
     "ask": []
