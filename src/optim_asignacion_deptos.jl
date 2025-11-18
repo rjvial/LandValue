@@ -124,6 +124,8 @@ function optim_asignacion_deptos(
         descuento_dfl2 >= 0  # DFL2 discount for social housing (up to 20% of useful area or total common area)
         area_no_utilizada_primer_piso >= 0          # Unused footprint area on first floor (m²)
         area_no_utilizada_por_piso_superior >= 0    # Unused footprint area per upper floor (m²)
+
+        max_height[s in S] >= 0  # Maximum apartment height in strip s (for perimeter constraint)
     end)
 
     
@@ -337,14 +339,22 @@ function optim_asignacion_deptos(
             num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)]
             ) * vec_w_i[j] for (k, j) in KJ_feasible) <= W
 
-        # Sum of apartment perimeters must cover strip perimeter
-        # constraint_39[s in S],
-        #     sum(num_deptos_por_piso_superior[s,(k,j)] * mat_exposicion[k,j] for (k, j) in KJ_feasible) +
-        #     sum(num_deptos_nucleo_por_piso_superior[s,(k,j)] * mat_exposicion[k,j] for (k, j) in KJ_feasible) +
-        #     sum(num_deptos_corner_por_piso_superior[s,(k,j)] * mat_exposicion_corner[k,j] for (k, j) in KJ_feasible) +
-        #     sum(num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] * mat_exposicion_corner[k,j] for (k, j) in KJ_feasible) +
-        #     sum(num_deptos_d_corner_por_piso_superior[s,(k,j)] * mat_exposicion_d_corner[k,j] for (k, j) in KJ_feasible) +
-        #     sum(num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] * mat_exposicion_d_corner[k,j] for (k, j) in KJ_feasible) >= 2*H_s[s] + W - 10
+        # Maximum height tracking: max_height must be >= height of any apartment type used
+        constraint_39a[s in S, (k, j) in KJ_feasible], max_height[s] >= mat_h_ip[k,j] * x[s,(k,j)]
+        constraint_39b[s in S, (k, j) in KJ_feasible], max_height[s] >= mat_h_ipn[k,j] * x_n[s,(k,j)]
+        constraint_39c[s in S, (k, j) in KJ_feasible], max_height[s] >= mat_h_in[k,j] * x_c[s,(k,j)]
+        constraint_39d[s in S, (k, j) in KJ_feasible], max_height[s] >= mat_h_in[k,j] * x_cn[s,(k,j)]
+        constraint_39e[s in S, (k, j) in KJ_feasible], max_height[s] >= mat_h_in[k,j] * x_cc[s,(k,j)]
+        constraint_39f[s in S, (k, j) in KJ_feasible], max_height[s] >= mat_h_in[k,j] * x_ccn[s,(k,j)]
+
+        # Sum of apartment perimeters must cover strip perimeter (2*max_height + W - tolerance)
+        constraint_39[s in S],
+            sum(num_deptos_por_piso_superior[s,(k,j)] * mat_exposicion[k,j] for (k, j) in KJ_feasible) +
+            sum(num_deptos_nucleo_por_piso_superior[s,(k,j)] * mat_exposicion[k,j] for (k, j) in KJ_feasible) +
+            sum(num_deptos_corner_por_piso_superior[s,(k,j)] * mat_exposicion_corner[k,j] for (k, j) in KJ_feasible) +
+            sum(num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] * mat_exposicion_corner[k,j] for (k, j) in KJ_feasible) +
+            sum(num_deptos_d_corner_por_piso_superior[s,(k,j)] * mat_exposicion_d_corner[k,j] for (k, j) in KJ_feasible) +
+            sum(num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] * mat_exposicion_d_corner[k,j] for (k, j) in KJ_feasible) >= 0 #2*max_height[s] + W - 5
 
         # First floor apartment counts cannot exceed upper floor counts (first floor is subset of upper floors)
         constraint_40[s in S, (k, j) in KJ_feasible], num_deptos_primer_piso[s,(k,j)] <= num_deptos_por_piso_superior[s,(k,j)]             # Regular apartments
