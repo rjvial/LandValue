@@ -59,10 +59,14 @@ function optim_asignacion_deptos(
     model = Model(HiGHS.Optimizer)
     # set_silent(model)
     set_time_limit_sec(model, 300.0)
-    set_optimizer_attribute(model, "mip_rel_gap", 0.02)
+    set_optimizer_attribute(model, "mip_rel_gap", 0.01)
     set_optimizer_attribute(model, "presolve", "on")
 
     S = 1:num_strips
+
+    # Calculate tighter Big-M bound based on minimum width
+    min_width = minimum(vec_w_i)
+    max_apts_per_strip = floor(Int, W / min_width)
 
     """
     Decision Variables:
@@ -84,24 +88,23 @@ function optim_asignacion_deptos(
     - area_no_utilizada_primer_piso: Unused area in first floor footprint (continuous, non-negative)
     - area_no_utilizada_por_piso_superior: Unused area in upper floors footprint (continuous, non-negative)
     """
-    max_z_bounds = 20
     @variables(model, begin
         H_s[s in S] >= 0
 
-        0 <= num_deptos_primer_piso[s in S, (k, j) in KJ_feasible] <= max_z_bounds, Int
-        0 <= num_deptos_nucleo_primer_piso[s in S, (k, j) in KJ_feasible] <= max_z_bounds, Int
-        0 <= num_deptos_corner_primer_piso[s in S, (k, j) in KJ_feasible] <= max_z_bounds, Int
-        0 <= num_deptos_corner_nucleo_primer_piso[s in S, (k, j) in KJ_feasible] <= max_z_bounds, Int
-        0 <= num_deptos_d_corner_primer_piso[s in S, (k, j) in KJ_feasible] <= max_z_bounds, Int
-        0 <= num_deptos_d_corner_nucleo_primer_piso[s in S, (k, j) in KJ_feasible] <= max_z_bounds, Int
+        0 <= num_deptos_primer_piso[s in S, (k, j) in KJ_feasible] <= max_deptos, Int
+        0 <= num_deptos_nucleo_primer_piso[s in S, (k, j) in KJ_feasible] <= max_deptos, Int
+        0 <= num_deptos_corner_primer_piso[s in S, (k, j) in KJ_feasible] <= 2, Int
+        0 <= num_deptos_corner_nucleo_primer_piso[s in S, (k, j) in KJ_feasible] <= 2, Int
+        0 <= num_deptos_d_corner_primer_piso[s in S, (k, j) in KJ_feasible] <= 1, Int
+        0 <= num_deptos_d_corner_nucleo_primer_piso[s in S, (k, j) in KJ_feasible] <= 1, Int
         area_comun_primer_piso >= 0
 
-        0 <= num_deptos_por_piso_superior[s in S, (k, j) in KJ_feasible] <= max_z_bounds, Int
-        0 <= num_deptos_nucleo_por_piso_superior[s in S, (k, j) in KJ_feasible] <= max_z_bounds, Int
-        0 <= num_deptos_corner_por_piso_superior[s in S, (k, j) in KJ_feasible] <= max_z_bounds, Int
-        0 <= num_deptos_corner_nucleo_por_piso_superior[s in S, (k, j) in KJ_feasible] <= max_z_bounds, Int
-        0 <= num_deptos_d_corner_por_piso_superior[s in S, (k, j) in KJ_feasible] <= max_z_bounds, Int
-        0 <= num_deptos_d_corner_nucleo_por_piso_superior[s in S, (k, j) in KJ_feasible] <= max_z_bounds, Int
+        0 <= num_deptos_por_piso_superior[s in S, (k, j) in KJ_feasible] <= max_deptos, Int
+        0 <= num_deptos_nucleo_por_piso_superior[s in S, (k, j) in KJ_feasible] <= max_deptos, Int
+        0 <= num_deptos_corner_por_piso_superior[s in S, (k, j) in KJ_feasible] <= 2, Int
+        0 <= num_deptos_corner_nucleo_por_piso_superior[s in S, (k, j) in KJ_feasible] <= 2, Int
+        0 <= num_deptos_d_corner_por_piso_superior[s in S, (k, j) in KJ_feasible] <= 1, Int
+        0 <= num_deptos_d_corner_nucleo_por_piso_superior[s in S, (k, j) in KJ_feasible] <= 1, Int
         area_comun_por_piso_superior >= 0
 
         x[s in S, (k, j) in KJ_feasible], Bin
@@ -117,13 +120,6 @@ function optim_asignacion_deptos(
         y_cc[s in S], Bin     # Binary indicator: strip s uses double corner configuration
         y_ccn[s in S], Bin    # Binary indicator: strip s uses double corner nucleo configuration
         y_n[s in S], Bin      # Binary indicator: strip s uses regular nucleo configuration
-
-        z[k in K], Bin       # Global indicator: apartment size k is used anywhere (regular)
-        z_n[k in K], Bin     # Global indicator: apartment size k is used anywhere (nucleo)
-        z_c[k in K], Bin     # Global indicator: apartment size k is used anywhere (corner)
-        z_cn[k in K], Bin     # Global indicator: apartment size k is used anywhere (corner)
-        z_cc[k in K], Bin    # Global indicator: apartment size k is used anywhere (double corner)
-        z_ccn[k in K], Bin    # Global indicator: apartment size k is used anywhere (double corner)
 
         descuento_dfl2 >= 0  # DFL2 discount for social housing (up to 20% of useful area or total common area)
         area_no_utilizada_primer_piso >= 0          # Unused footprint area on first floor (m²)
@@ -269,7 +265,7 @@ function optim_asignacion_deptos(
         constraint_11, area_comun_total <= 0.25 * area_util_total
 
         # Link regular apartments to y indicator (if any regular apartments exist, y = 1)
-        constraint_12[s in S], sum(num_deptos_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) <= max_deptos * y[s]
+        constraint_12[s in S], sum(num_deptos_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) <= max_apts_per_strip * y[s]
         constraint_12_[s in S], sum(num_deptos_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) >= y[s]
 
         # Exactly 2 corner apartments per strip if corner type is used
@@ -279,7 +275,7 @@ function optim_asignacion_deptos(
         constraint_12b[s in S], sum(num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) == 2 * y_cn[s]
 
         # Link regular nucleo apartments to y_n indicator (if any nucleo apartments exist, y_n = 1)
-        constraint_12c[s in S], sum(num_deptos_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) <= max_deptos * y_n[s]
+        constraint_12c[s in S], sum(num_deptos_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) <= max_apts_per_strip * y_n[s]
         constraint_12d[s in S], sum(num_deptos_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) >= y_n[s]
 
         # Exactly 1 double corner apartment per strip if double corner type is used
@@ -289,28 +285,14 @@ function optim_asignacion_deptos(
         constraint_13a[s in S], sum(num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) == y_ccn[s]
 
         # Allows only one double corner apartment or several regular apartments, not both
-        constraint_14[s in S], sum(x_cc[s,(k,j)] + x[s,(k,j)] + x_n[s,(k,j)] for (k, j) in KJ_feasible) <= y_cc[s] + (1 - y_cc[s]) * max_deptos
+        constraint_14[s in S], sum(x_cc[s,(k,j)] + x[s,(k,j)] + x_n[s,(k,j)] for (k, j) in KJ_feasible) <= y_cc[s] + (1 - y_cc[s]) * max_apts_per_strip
 
-        # Strip can use either corner or double corner configuration, not both simultaneously
-        constraint_15[s in S], y_c[s] + y_cc[s] <= 1
-
-        # Corner Núcleo cannot coexist with any Double Corner type (regular or nucleo) in the same strip
-        constraint_15a[s in S], y_cn[s] + y_cc[s] + y_ccn[s] <= 1
-
-        # Regular Núcleo cannot coexist with any Double Corner type (regular or nucleo) in the same strip
-        constraint_15b[s in S], y_n[s] + y_cc[s] + y_ccn[s] <= 1
-
-        # Corner Núcleo cannot coexist with regular apartments in the same strip
-        constraint_15c[s in S], y_cn[s] + y[s] <= 1
-
-        # Double Corner Núcleo cannot coexist with regular apartments in the same strip
-        constraint_15d[s in S], y_ccn[s] + y[s] <= 1
-
-        # Corner Núcleo cannot coexist with regular Corner in the same strip
-        constraint_15e[s in S], y_cn[s] + y_c[s] <= 1
-
-        # Regular Núcleo cannot coexist with regular Corner in the same strip
-        constraint_15f[s in S], y_n[s] + y_c[s] <= 1
+        # Mutual exclusivity constraints (simplified)
+        # Each strip can have at most one configuration type from incompatible groups
+        constraint_15[s in S], y_c[s] + y_cn[s] + y_cc[s] + y_ccn[s] <= 1           # At most one corner/double-corner type
+        constraint_15a[s in S], y[s] + y_cn[s] + y_ccn[s] <= 1                      # Regular incompatible with corner/double-corner núcleo
+        constraint_15b[s in S], y_c[s] + y_n[s] + y_cn[s] <= 1                      # Regular núcleo incompatible with any corner type
+        constraint_15c[s in S], y_cc[s] + y_ccn[s] + y_n[s] <= 1                    # Regular núcleo incompatible with double corners
 
         # Total apartment count must be within specified bounds
         constraint_16, min_deptos <= deptos_total <= max_deptos
@@ -337,21 +319,13 @@ function optim_asignacion_deptos(
               for (k, j) in KJ_feasible) <= W * H_s[s]
 
         # Apartment count is positive only if apartment type is selected (Big-M constraint linking binary and integer variables)
-        constraint_26[s in S, (k, j) in KJ_feasible], num_deptos_por_piso_superior[s,(k,j)] <= max_deptos * x[s,(k,j)]           # Regular apartments
-        constraint_27[s in S, (k, j) in KJ_feasible], num_deptos_nucleo_por_piso_superior[s,(k,j)] <= max_deptos * x_n[s,(k,j)]  # Nucleo apartments
-        constraint_28[s in S, (k, j) in KJ_feasible], num_deptos_corner_por_piso_superior[s,(k,j)] <= max_deptos * x_c[s,(k,j)]  # Corner apartments
-        constraint_29[s in S, (k, j) in KJ_feasible], num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] <= max_deptos * x_c[s,(k,j)]  # Corner apartments
-        constraint_30[s in S, (k, j) in KJ_feasible], num_deptos_d_corner_por_piso_superior[s,(k,j)] <= max_deptos * x_cc[s,(k,j)] # Double corner apartments
-        constraint_31[s in S, (k, j) in KJ_feasible], num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] <= max_deptos * x_cc[s,(k,j)] # Double corner apartments
+        constraint_26[s in S, (k, j) in KJ_feasible], num_deptos_por_piso_superior[s,(k,j)] <= max_apts_per_strip * x[s,(k,j)]           # Regular apartments
+        constraint_27[s in S, (k, j) in KJ_feasible], num_deptos_nucleo_por_piso_superior[s,(k,j)] <= max_apts_per_strip * x_n[s,(k,j)]  # Nucleo apartments
+        constraint_28[s in S, (k, j) in KJ_feasible], num_deptos_corner_por_piso_superior[s,(k,j)] <= 2 * x_c[s,(k,j)]  # Corner apartments (max 2)
+        constraint_29[s in S, (k, j) in KJ_feasible], num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] <= 2 * x_cn[s,(k,j)]  # Corner nucleo apartments (max 2)
+        constraint_30[s in S, (k, j) in KJ_feasible], num_deptos_d_corner_por_piso_superior[s,(k,j)] <= 1 * x_cc[s,(k,j)] # Double corner apartments (max 1)
+        constraint_31[s in S, (k, j) in KJ_feasible], num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] <= 1 * x_ccn[s,(k,j)] # Double corner nucleo apartments (max 1)
 
-
-        # Link local binary x[s,k,j] to global binary z[k] (apartment size k used anywhere in building)
-        constraint_32[k in K], sum(x[s,(k_tmp,j)] for s in S, (k_tmp, j) in KJ_feasible if k_tmp == k) <= max_deptos * z[k]      # Regular apartments
-        constraint_33[k in K], sum(x_n[s,(k_tmp,j)] for s in S, (k_tmp, j) in KJ_feasible if k_tmp == k) <= max_deptos * z_n[k]  # Nucleo apartments
-        constraint_34[k in K], sum(x_c[s,(k_tmp,j)] for s in S, (k_tmp, j) in KJ_feasible if k_tmp == k) <= max_deptos * z_c[k]  # Corner apartments
-        constraint_35[k in K], sum(x_cn[s,(k_tmp,j)] for s in S, (k_tmp, j) in KJ_feasible if k_tmp == k) <= max_deptos * z_cn[k]  # Corner apartments
-        constraint_36[k in K], sum(x_cc[s,(k_tmp,j)] for s in S, (k_tmp, j) in KJ_feasible if k_tmp == k) <= max_deptos * z_cc[k] # Double corner apartments
-        constraint_37[k in K], sum(x_ccn[s,(k_tmp,j)] for s in S, (k_tmp, j) in KJ_feasible if k_tmp == k) <= max_deptos * z_ccn[k] # Double corner apartments
 
 
         # Total apartment widths per strip cannot exceed building width W
@@ -392,18 +366,31 @@ function optim_asignacion_deptos(
                                     sum(num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) == 2 
     end)
 
-    # Diversity constraints: prevent mixing very different apartment sizes (ratio > 2.5)
+    # Symmetry breaking: order strips by total apartments to reduce search space
+    @constraint(model, sum(num_deptos_por_piso_superior[1,(k,j)] + num_deptos_nucleo_por_piso_superior[1,(k,j)] +
+                           num_deptos_corner_por_piso_superior[1,(k,j)] + num_deptos_corner_nucleo_por_piso_superior[1,(k,j)] +
+                           num_deptos_d_corner_por_piso_superior[1,(k,j)] + num_deptos_d_corner_nucleo_por_piso_superior[1,(k,j)]
+                           for (k, j) in KJ_feasible) >=
+                       sum(num_deptos_por_piso_superior[2,(k,j)] + num_deptos_nucleo_por_piso_superior[2,(k,j)] +
+                           num_deptos_corner_por_piso_superior[2,(k,j)] + num_deptos_corner_nucleo_por_piso_superior[2,(k,j)] +
+                           num_deptos_d_corner_por_piso_superior[2,(k,j)] + num_deptos_d_corner_nucleo_por_piso_superior[2,(k,j)]
+                           for (k, j) in KJ_feasible))
+
+    # Diversity constraints: prevent mixing very different apartment sizes (ratio > 2.0)
     for k1 in K, k2 in K
         if vec_area_i[k1] < vec_area_i[k2]  # Avoid duplicate constraints
             if vec_area_i[k2] > vec_area_i[k1] * 2.0
-                @constraints(model, begin
-                    z[k1] + z[k2] <= 1
-                    z_n[k1] + z_n[k2] <= 1
-                    z_c[k1] + z_c[k2] <= 1
-                    z_cn[k1] + z_cn[k2] <= 1
-                    z_cc[k1] + z_cc[k2] <= 1
-                    z_ccn[k1] + z_ccn[k2] <= 1
-                end)
+                # Prevent using both sizes simultaneously across all apartment types
+                for s in S
+                    @constraints(model, begin
+                        sum(x[s,(k1,j)] for (k, j) in KJ_feasible if k == k1) + sum(x[s,(k2,j)] for (k, j) in KJ_feasible if k == k2) <= 1
+                        sum(x_n[s,(k1,j)] for (k, j) in KJ_feasible if k == k1) + sum(x_n[s,(k2,j)] for (k, j) in KJ_feasible if k == k2) <= 1
+                        sum(x_c[s,(k1,j)] for (k, j) in KJ_feasible if k == k1) + sum(x_c[s,(k2,j)] for (k, j) in KJ_feasible if k == k2) <= 1
+                        sum(x_cn[s,(k1,j)] for (k, j) in KJ_feasible if k == k1) + sum(x_cn[s,(k2,j)] for (k, j) in KJ_feasible if k == k2) <= 1
+                        sum(x_cc[s,(k1,j)] for (k, j) in KJ_feasible if k == k1) + sum(x_cc[s,(k2,j)] for (k, j) in KJ_feasible if k == k2) <= 1
+                        sum(x_ccn[s,(k1,j)] for (k, j) in KJ_feasible if k == k1) + sum(x_ccn[s,(k2,j)] for (k, j) in KJ_feasible if k == k2) <= 1
+                    end)
+                end
             end
         end
     end
@@ -426,18 +413,6 @@ function optim_asignacion_deptos(
 
     optimize!(model)
 
-    # DEBUG: Check nucleo apartments
-    if has_values(model) && area_nucleo_depto > 0
-        for s in S
-            total_nucleo = sum(value(num_deptos_nucleo_por_piso_superior[s,(k,j)]) for (k,j) in KJ_feasible) +
-                          sum(value(num_deptos_corner_nucleo_por_piso_superior[s,(k,j)]) for (k,j) in KJ_feasible) +
-                          sum(value(num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)]) for (k,j) in KJ_feasible)
-            println("DEBUG: Strip $s has $total_nucleo nucleo apartments (upper floors)")
-        end
-    end
-
-
-    
     results = Dict{String,Any}()
     results["status"] = termination_status(model)
     results["solve_time"] = solve_time(model)

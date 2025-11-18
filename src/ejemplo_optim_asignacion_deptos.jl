@@ -17,7 +17,7 @@ vec_area_i = [40.0, 55.0, 70.0, 90.0, 110.0, 120.0]
 num_sizes = length(vec_area_i)
 K = 1:num_sizes
 
-vec_w_i = collect(7.:.1:13.) # m
+vec_w_i = collect(7.0:0.5:13.0) # m
 num_widths = length(vec_w_i)
 J = 1:num_widths
 
