@@ -339,13 +339,10 @@ function optim_asignacion_deptos(
             num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)]
             ) * vec_w_i[j] for (k, j) in KJ_feasible) <= W
 
-        # Maximum height tracking: max_height must be >= height of any apartment type used
-        constraint_39a[s in S, (k, j) in KJ_feasible], max_height[s] >= mat_h_ip[k,j] * x[s,(k,j)]
-        constraint_39b[s in S, (k, j) in KJ_feasible], max_height[s] >= mat_h_ipn[k,j] * x_n[s,(k,j)]
-        constraint_39c[s in S, (k, j) in KJ_feasible], max_height[s] >= mat_h_in[k,j] * x_c[s,(k,j)]
-        constraint_39d[s in S, (k, j) in KJ_feasible], max_height[s] >= mat_h_in[k,j] * x_cn[s,(k,j)]
-        constraint_39e[s in S, (k, j) in KJ_feasible], max_height[s] >= mat_h_in[k,j] * x_cc[s,(k,j)]
-        constraint_39f[s in S, (k, j) in KJ_feasible], max_height[s] >= mat_h_in[k,j] * x_ccn[s,(k,j)]
+        # Maximum height tracking: use a single aggregated constraint per (s,k,j)
+        constraint_39_height[s in S, (k, j) in KJ_feasible],
+            max_height[s] >= mat_h_ip[k,j] * x[s,(k,j)] + mat_h_ipn[k,j] * x_n[s,(k,j)] +
+                            mat_h_in[k,j] * (x_c[s,(k,j)] + x_cn[s,(k,j)] + x_cc[s,(k,j)] + x_ccn[s,(k,j)])
 
         # Sum of apartment perimeters must cover strip perimeter (2*max_height + W - tolerance)
         constraint_39[s in S],
