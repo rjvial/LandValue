@@ -1,6 +1,6 @@
 module LandValue
 
-using JuMP, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, Optim, OrderedCollections
+using JuMP, HiGHS, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, Optim, OrderedCollections
             # NonconvexBayesian, NonconvexIpopt, NonconvexNLopt, Distributions    
     
 
@@ -206,12 +206,13 @@ using JuMP, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, Optim, OrderedCollectio
     include("neo4j_julia.jl")
     include("opti_edificio_vol.jl")
     include("opti_edificio.jl")
+    include("opti_planta_edificio.jl")
     include("opti_vol_estacionamiento.jl")
     include("expression_converter.jl")
     include("obtiene_geometrias_combi.jl")
 
     export obtiene_requerimientos_normativos, generaSombraEdificio, opti_edificio_deptos,
-        opti_floor_plan, polyShape, polyPlot, polyGdal, polyClipper, graphMod, resultConverter, plotBaseEdificio3D, plotBaseEdificio3Dnew, generaSombraTeor,
+        opti_floor_plan, opti_planta_edificio, polyShape, polyPlot, polyGdal, polyClipper, graphMod, resultConverter, plotBaseEdificio3D, plotBaseEdificio3Dnew, generaSombraTeor,
         pg_julia, aws_julia, neo4j_julia, obtieneCalles, generaPoligonoCorte, create_scr, create_edificio_geojson,
         optimal_pricing, optimal_lot_selection, opti_edificio_vol,
         opti_edificio, opti_vol_estacionamiento, expression_converter, obtiene_geometrias_combi

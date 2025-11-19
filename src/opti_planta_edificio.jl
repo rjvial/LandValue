@@ -1,5 +1,3 @@
-using JuMP
-using HiGHS
 
 """
 Optimiza la asignación de departamentos en strips horizontales para maximizar superficie total.
@@ -29,22 +27,328 @@ Optimiza la asignación de departamentos en strips horizontales para maximizar s
 - `num_pisos::Int`: Número total de pisos del edificio
 - `max_constructibilidad`: Constructibilidad máxima permitida (m²)
 """
-function optim_asignacion_deptos(
-    W::Float64,
-    H::Float64,
-    num_strips::Int,
-    vec_w_i, 
-    mat_h_ip, mat_h_in, 
-    vec_area_i, vec_area_p, vec_area_in, mat_area_ip,
-    mat_area_ipn, mat_h_ipn, area_nucleo_depto,
-    vec_w_t, vec_h_t, vec_area_t,
-    mat_exposicion, mat_exposicion_corner, mat_exposicion_d_corner, mat_flag_feasible,
-    min_deptos::Int,
-    max_deptos::Int,
-    num_pisos,
-    max_constructibilidad)
+function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_deptos, 
+                                vec_ps_opt, vec_np_opt, flag_dfl2, 
+                                sup_patio_vivienda_economica, superficie_terreno)
 
-    flag_dfl2 = true
+    # Rotates floor plan to axis-aligned rectangle with width > height, returns dimensions and transformation
+    function normaliza_planta_rectangular(ps_planta::PolyShape)
+        V_planta = ps_planta.Vertices[1]
+        x_cr = sum(V_planta[1:end-1, 1]) / (size(V_planta, 1) - 1)
+        y_cr = sum(V_planta[1:end-1, 2]) / (size(V_planta, 1) - 1)
+        cr = [x_cr, y_cr]
+
+        edge1 = V_planta[2, :] - V_planta[1, :]
+        angulo_rotacion = -atan(edge1[2], edge1[1])
+
+        ps_planta_normalizado = polyShape.polyRotate(ps_planta, angulo_rotacion, cr)
+        V_planta_normalizado = ps_planta_normalizado.Vertices[1]
+
+        vec_x_planta = V_planta_normalizado[:, 1]
+        vec_y_planta = V_planta_normalizado[:, 2]
+        W = maximum(vec_x_planta) - minimum(vec_x_planta)
+        H = maximum(vec_y_planta) - minimum(vec_y_planta)
+
+        if H > W
+            angulo_rotacion += π/2
+            ps_planta_normalizado = polyShape.polyRotate(ps_planta, angulo_rotacion, cr)
+            V_planta_normalizado = ps_planta_normalizado.Vertices[1]
+            vec_x_planta = V_planta_normalizado[:, 1]
+            vec_y_planta = V_planta_normalizado[:, 2]
+            W, H = H, W
+        end
+
+        return W, H, angulo_rotacion, cr, ps_planta_normalizado
+    end
+
+
+    function print_results(results::Dict)
+        println("\n" * "="^60)
+        println("RESULTADOS OPTIMIZACIÓN ASIGNACIÓN DEPTOS")
+        println("="^60)
+        println("Estado: $(results["status"])")
+
+        if isnothing(results["objective_value"])
+            println("Valor objetivo: N/A (sin solución factible)")
+        else
+            println("Valor objetivo: $(round(results["objective_value"], digits=2))")
+        end
+
+        println("Tiempo de solución: $(round(results["solve_time"], digits=2)) segundos")
+
+        if !isnothing(results["objective_value"])
+            total_deptos_pp = get(results, "total_deptos_primer_piso", 0.0)
+            total_deptos_ps = get(results, "total_deptos_pisos_superiores", 0.0)
+            total_deptos = get(results, "total_deptos", 0.0)
+            num_pisos_sup = get(results, "num_pisos_superiores", 1)
+
+            println("Total departamentos edificio: $(round(total_deptos, digits=0))")
+            println("  - Primer piso: $(round(total_deptos_pp, digits=0)) deptos")
+            println("  - Pisos superiores: $(round(total_deptos_ps, digits=0)) deptos/piso × $(num_pisos_sup) pisos = $(round(total_deptos_ps * num_pisos_sup, digits=0)) deptos")
+        else
+            println("Total departamentos: 0")
+        end
+
+        if !isnothing(results["objective_value"])
+            area_interior_pp = get(results, "total_apartment_area_primer_piso", 0.0)
+            area_terraza_pp = get(results, "total_terrace_area_primer_piso", 0.0)
+            area_pasillo_pp = get(results, "total_pasillo_area_primer_piso", 0.0)
+            area_comun_pp = get(results, "area_comun_primer_piso", 0.0)
+            area_util_pp = area_interior_pp + area_terraza_pp / 2
+
+            area_interior_ps = get(results, "total_apartment_area_pisos_superiores", 0.0)
+            area_terraza_ps = get(results, "total_terrace_area_pisos_superiores", 0.0)
+            area_pasillo_ps = get(results, "total_pasillo_area_pisos_superiores", 0.0)
+            area_comun_ps = get(results, "area_comun_por_piso_superior", 0.0)
+            area_util_ps = area_interior_ps + area_terraza_ps / 2
+
+            num_pisos_sup = get(results, "num_pisos_superiores", 1)
+            num_pisos_total = get(results, "num_pisos_total", 1)
+
+            area_total_losa_pp = area_interior_pp + area_terraza_pp + area_comun_pp
+            area_total_losa_ps = area_interior_ps + area_terraza_ps + area_comun_ps
+            area_total_losa_edificio = area_total_losa_pp + area_total_losa_ps * num_pisos_sup
+
+            println("\n" * "="^80)
+            println("RESUMEN DE ÁREAS POR PISO")
+            println("="^80)
+            println("")
+
+            W_building = get(results, "W", 0.0)
+            H_building = get(results, "H", 0.0)
+            area_emplazamiento_por_piso = W_building * H_building
+            area_emplazamiento_total = area_emplazamiento_por_piso * num_pisos_total
+
+            area_no_utilizada_pp = area_emplazamiento_por_piso - (area_interior_pp + area_terraza_pp + area_comun_pp)
+            area_no_utilizada_ps = area_emplazamiento_por_piso - (area_interior_ps + area_terraza_ps + area_comun_ps)
+            area_no_utilizada_total = area_no_utilizada_pp + area_no_utilizada_ps * num_pisos_sup
+
+            vec_area_i_local = get(results, "vec_area_i", [])
+            vec_w_i_local = get(results, "vec_w_i", [])
+            num_strips = length(get(results, "H_s", Dict()))
+            area_nucleo_depto_local = get(results, "area_nucleo_depto", 5.0)
+
+            nucleo_primer_piso_dict = get(results, "num_deptos_nucleo_primer_piso", Dict())
+            nucleo_por_piso_superior_dict = get(results, "num_deptos_nucleo_por_piso_superior", Dict())
+            corner_nucleo_primer_piso_dict = get(results, "num_deptos_corner_nucleo_primer_piso", Dict())
+            corner_nucleo_por_piso_superior_dict = get(results, "num_deptos_corner_nucleo_por_piso_superior", Dict())
+            d_corner_nucleo_primer_piso_dict = get(results, "num_deptos_d_corner_nucleo_primer_piso", Dict())
+            d_corner_nucleo_por_piso_superior_dict = get(results, "num_deptos_d_corner_nucleo_por_piso_superior", Dict())
+
+            area_nucleo_pp = sum(get(nucleo_primer_piso_dict, (s,k,j), 0.0) * area_nucleo_depto_local for s in 1:num_strips for k in 1:length(vec_area_i_local) for j in 1:length(vec_w_i_local)) +
+                            sum(get(corner_nucleo_primer_piso_dict, (s,k,j), 0.0) * area_nucleo_depto_local for s in 1:num_strips for k in 1:length(vec_area_i_local) for j in 1:length(vec_w_i_local)) +
+                            sum(get(d_corner_nucleo_primer_piso_dict, (s,k,j), 0.0) * area_nucleo_depto_local for s in 1:num_strips for k in 1:length(vec_area_i_local) for j in 1:length(vec_w_i_local))
+            area_nucleo_ps = sum(get(nucleo_por_piso_superior_dict, (s,k,j), 0.0) * area_nucleo_depto_local for s in 1:num_strips for k in 1:length(vec_area_i_local) for j in 1:length(vec_w_i_local)) +
+                            sum(get(corner_nucleo_por_piso_superior_dict, (s,k,j), 0.0) * area_nucleo_depto_local for s in 1:num_strips for k in 1:length(vec_area_i_local) for j in 1:length(vec_w_i_local)) +
+                            sum(get(d_corner_nucleo_por_piso_superior_dict, (s,k,j), 0.0) * area_nucleo_depto_local for s in 1:num_strips for k in 1:length(vec_area_i_local) for j in 1:length(vec_w_i_local))
+            area_nucleo_total = area_nucleo_pp + area_nucleo_ps * num_pisos_sup
+
+            println("┌─────────────────────┬──────────────────┬──────────────────┬──────────────────┐")
+            println("│                     │  Primer Piso     │  Piso Superior   │  Total Edificio  │")
+            println("│                     │    (1 piso)      │   (por piso)     │   ($(num_pisos_total) pisos)      │")
+            println("├─────────────────────┼──────────────────┼──────────────────┼──────────────────┤")
+            println("│ Área Interior       │ $(lpad(round(area_interior_pp, digits=1), 12)) m² │ $(lpad(round(area_interior_ps, digits=1), 12)) m² │ $(lpad(round(area_interior_pp + area_interior_ps * num_pisos_sup, digits=1), 12)) m² │")
+            println("│ Área Terraza        │ $(lpad(round(area_terraza_pp, digits=1), 12)) m² │ $(lpad(round(area_terraza_ps, digits=1), 12)) m² │ $(lpad(round(area_terraza_pp + area_terraza_ps * num_pisos_sup, digits=1), 12)) m² │")
+            println("│ Área Común          │ $(lpad(round(area_comun_pp, digits=1), 12)) m² │ $(lpad(round(area_comun_ps, digits=1), 12)) m² │ $(lpad(round(area_comun_pp + area_comun_ps * num_pisos_sup, digits=1), 12)) m² │")
+            println("│   - Área Pasillo    │ $(lpad(round(area_pasillo_pp, digits=1), 12)) m² │ $(lpad(round(area_pasillo_ps, digits=1), 12)) m² │ $(lpad(round(area_pasillo_pp + area_pasillo_ps * num_pisos_sup, digits=1), 12)) m² │")
+            println("│   - Área Núcleo     │ $(lpad(round(area_nucleo_pp, digits=1), 12)) m² │ $(lpad(round(area_nucleo_ps, digits=1), 12)) m² │ $(lpad(round(area_nucleo_total, digits=1), 12)) m² │")
+            println("│   - Otros espacios  │ $(lpad(round(area_comun_pp - area_pasillo_pp - area_nucleo_pp, digits=1), 12)) m² │ $(lpad(round(area_comun_ps - area_pasillo_ps - area_nucleo_ps, digits=1), 12)) m² │ $(lpad(round((area_comun_pp - area_pasillo_pp - area_nucleo_pp) + (area_comun_ps - area_pasillo_ps - area_nucleo_ps) * num_pisos_sup, digits=1), 12)) m² │")
+            println("├─────────────────────┼──────────────────┼──────────────────┼──────────────────┤")
+            println("│ Área Losa SNT       │ $(lpad(round(area_total_losa_pp, digits=1), 12)) m² │ $(lpad(round(area_total_losa_ps, digits=1), 12)) m² │ $(lpad(round(area_total_losa_edificio, digits=1), 12)) m² │")
+            println("│ Área No Utilizada   │ $(lpad(round(area_no_utilizada_pp, digits=1), 12)) m² │ $(lpad(round(area_no_utilizada_ps, digits=1), 12)) m² │ $(lpad(round(area_no_utilizada_total, digits=1), 12)) m² │")
+            println("├─────────────────────┼──────────────────┼──────────────────┼──────────────────┤")
+            println("│ Área Emplazamiento  │ $(lpad(round(area_emplazamiento_por_piso, digits=1), 12)) m² │ $(lpad(round(area_emplazamiento_por_piso, digits=1), 12)) m² │ $(lpad(round(area_emplazamiento_total, digits=1), 12)) m² │")
+            println("│ (W × Profundidad)   │                  │                  │                  │")
+            println("├─────────────────────┼──────────────────┼──────────────────┼──────────────────┤")
+            println("│ Área Útil           │ $(lpad(round(area_util_pp, digits=1), 12)) m² │ $(lpad(round(area_util_ps, digits=1), 12)) m² │ $(lpad(round(area_util_pp + area_util_ps * num_pisos_sup, digits=1), 12)) m² │")
+            println("│ (Interior + Terr/2) │                  │                  │                  │")
+            println("└─────────────────────┴──────────────────┴──────────────────┴──────────────────┘")
+            println("")
+            println("Notas:")
+            println("  • Área Losa SNT = Área Interior + Área Terraza + Área Común")
+            println("  • Área Emplazamiento = Área Losa SNT + Área No Utilizada")
+            println("  • Área Útil = Área Interior + Área Terraza/2")
+            println("    (Las terrazas cuentan al 50% para área útil)")
+            println("  • Área Común se desglosa en:")
+            println("    - Área Pasillo: espacio de circulación asignado a cada departamento")
+            println("    - Área Núcleo: espacio adicional ($(area_nucleo_depto_local) m²) por cada departamento tipo núcleo")
+            println("    - Otros espacios: áreas comunes adicionales (lobbies, salas, etc.)")
+            println("  • Área No Utilizada = espacio del emplazamiento no ocupado por deptos ni áreas comunes")
+        end
+
+        println("\n" * "="^180)
+        println("ASIGNACIÓN DE DEPARTAMENTOS")
+        println("="^180)
+
+        vec_area_i = results["vec_area_i"]
+        vec_area_t = results["vec_area_t"]
+        vec_area_p = results["vec_area_p"]
+        vec_h_t = results["vec_h_t"]
+        vec_w_i = results["vec_w_i"]
+        mat_h_ip = results["mat_h_ip"]
+        mat_h_ipn = results["mat_h_ipn"]
+        mat_h_in = results["mat_h_in"]
+        area_nucleo_depto_local = results["area_nucleo_depto"]
+
+        all_deptos_global = []
+
+        for (strip, profundidad) in sort(collect(results["H_s"]))
+            perimetro_pp = get(results["perimetro_strip_primer_piso"], strip, 0.0)
+            perimetro_ps = get(results["perimetro_strip_pisos_superiores"], strip, 0.0)
+
+            for (key, tipo_label, piso_label) in [
+                ("num_deptos_primer_piso", "Regular", "1° Piso"),
+                ("num_deptos_nucleo_primer_piso", "Núcleo", "1° Piso"),
+                ("num_deptos_corner_primer_piso", "Corner", "1° Piso"),
+                ("num_deptos_corner_nucleo_primer_piso", "Corner Núcleo", "1° Piso"),
+                ("num_deptos_d_corner_primer_piso", "Double Corner", "1° Piso"),
+                ("num_deptos_d_corner_nucleo_primer_piso", "D-Corner Núc.", "1° Piso"),
+                ("num_deptos_por_piso_superior", "Regular", "Pisos Sup."),
+                ("num_deptos_nucleo_por_piso_superior", "Núcleo", "Pisos Sup."),
+                ("num_deptos_corner_por_piso_superior", "Corner", "Pisos Sup."),
+                ("num_deptos_corner_nucleo_por_piso_superior", "Corner Núcleo", "Pisos Sup."),
+                ("num_deptos_d_corner_por_piso_superior", "Double Corner", "Pisos Sup."),
+                ("num_deptos_d_corner_nucleo_por_piso_superior", "D-Corner Núc.", "Pisos Sup.")
+            ]
+                strip_deptos = filter(p -> p[1][1] == strip, collect(get(results, key, Dict())))
+                for ((s, k, j), count) in strip_deptos
+                    perimetro = piso_label == "1° Piso" ? perimetro_pp : perimetro_ps
+                    ancho = vec_w_i[j]
+                    area_interior = vec_area_i[k]
+                    area_terraza = vec_area_t[k]
+
+                    if tipo_label == "Regular"
+                        alto = mat_h_ip[k,j]
+                        area_pasillo = vec_area_p[j]
+                        area_nucleo = 0.0
+                        area_total = ancho * alto
+                    elseif tipo_label == "Núcleo"
+                        alto = mat_h_ipn[k,j]
+                        area_pasillo = vec_area_p[j]
+                        area_nucleo = area_nucleo_depto_local
+                        area_total = ancho * alto
+                    elseif tipo_label == "Corner"
+                        alto = mat_h_in[k,j]
+                        area_pasillo = 0.0
+                        area_nucleo = 0.0
+                        area_total = area_interior
+                    elseif tipo_label == "Corner Núcleo"
+                        alto = mat_h_in[k,j]
+                        area_pasillo = 0.0
+                        area_nucleo = area_nucleo_depto_local
+                        area_total = area_interior + area_nucleo
+                    elseif tipo_label == "Double Corner"
+                        alto = mat_h_in[k,j]
+                        area_pasillo = 0.0
+                        area_nucleo = 0.0
+                        area_total = area_interior
+                    else
+                        alto = mat_h_in[k,j]
+                        area_pasillo = 0.0
+                        area_nucleo = area_nucleo_depto_local
+                        area_total = area_interior + area_nucleo
+                    end
+
+                    push!(all_deptos_global, (strip, piso_label, tipo_label, k, j, count, area_interior, area_pasillo, area_nucleo, area_terraza, area_total, ancho, alto, perimetro, profundidad))
+                end
+            end
+        end
+
+        if !isempty(all_deptos_global)
+            println("\n┌──────┬────────────┬──────────────┬──────┬────────┬───────┬──────────┬──────────┬──────────┬─────────┬──────────┬─────────┐")
+            println("│Strip │ Piso       │ Tipo         │ (k,j)│ Unid.  │ Ancho │ Prof.    │ Interior │ Pasillo  │ Núcleo  │ Total    │ Terraza │")
+            println("│      │            │              │      │        │ (m)   │ (m)      │ (m²)     │ (m²)     │ (m²)    │ (m²)     │ (m²)    │")
+            println("├──────┼────────────┼──────────────┼──────┼────────┼───────┼──────────┼──────────┼──────────┼─────────┼──────────┼─────────┤")
+
+            current_strip = nothing
+            for (strip, piso, tipo, k, j, count, area_int, area_pas, area_nuc, area_terr, area_tot, ancho, alto, _, _) in all_deptos_global
+                if current_strip !== nothing && strip != current_strip
+                    println("├──────┼────────────┼──────────────┼──────┼────────┼───────┼──────────┼──────────┼──────────┼─────────┼──────────┼─────────┤")
+                end
+                current_strip = strip
+
+                println("│  $(lpad(strip, 2))  │ $(rpad(piso, 10)) │ $(rpad(tipo, 12)) │ $(lpad("($k,$j)", 4)) │ $(lpad(round(Int, count), 4))   │ $(lpad(round(ancho, digits=1), 5)) │ $(lpad(round(alto, digits=1), 8)) │ $(lpad(round(area_int, digits=1), 8)) │ $(lpad(round(area_pas, digits=1), 8)) │ $(lpad(round(area_nuc, digits=1), 7)) │ $(lpad(round(area_tot, digits=1), 8)) │ $(lpad(round(area_terr, digits=1), 7)) │")
+            end
+
+            println("└──────┴────────────┴──────────────┴──────┴────────┴───────┴──────────┴──────────┴──────────┴─────────┴──────────┴─────────┘")
+            println("\nNotas:")
+            println("  • Total = área del rectángulo principal (Ancho × Profundidad para Regular/Núcleo, solo Interior para Corner)")
+            println("  • Terraza está fuera del rectángulo principal")
+        end
+        println("\n" * "="^180)
+    end
+
+
+    flag_dfl2 = flag_dfl2 || sup_patio_vivienda_economica > 0
+    
+    ps_planta = vec_ps_opt[1]
+    W, H, angulo_rotacion, cr, ps_planta_normalizado = normaliza_planta_rectangular(ps_planta)
+
+    min_deptos = 4
+
+    num_pisos = vec_np_opt[1]
+    num_strips = 2
+
+    # vec_area_i = dict_arquitectura["arq_vecSupInterior"]
+    vec_area_i_original = dict_arquitectura["arq_vecSupInterior"]
+    vec_area_i = Float64[]
+    for i in eachindex(vec_area_i_original)
+        push!(vec_area_i, vec_area_i_original[i])
+        if i < lastindex(vec_area_i_original)
+            step = (vec_area_i_original[i+1] - vec_area_i_original[i]) / 3
+            push!(vec_area_i, vec_area_i_original[i] + step)
+            push!(vec_area_i, vec_area_i_original[i] + 2*step)
+        end
+    end
+    num_sizes = length(vec_area_i)
+    K = 1:num_sizes
+
+    vec_w_i = collect(7.0:0.5:13.0) # m
+    num_widths = length(vec_w_i)
+    J = 1:num_widths
+
+    mat_h_i = [vec_area_i[k] / vec_w_i[j] for k in K, j in J] # m
+    mat_w_i = [vec_w_i[j] for k in K, j in J]
+    
+    mat_area_i = [mat_h_i[k,j] * vec_w_i[j] for k in K, j in J]
+    
+
+    vec_area_p = vec_w_i .* .75 # m2
+    mat_area_ip = [vec_area_i[k] + vec_area_p[j] for k in K, j in J] # m2
+    mat_h_ip = [mat_area_ip[k,j] / vec_w_i[j] for k in K, j in J] # m
+
+    area_nucleo_depto = 5 # m2
+    vec_area_in = vec_area_i .+ area_nucleo_depto # m2
+    mat_h_in = [vec_area_in[k] / vec_w_i[j] for k in K, j in J] # m
+
+    mat_area_ipn = mat_area_ip .+ area_nucleo_depto # m2
+    mat_h_ipn = [mat_area_ipn[k,j] / vec_w_i[j] for k in K, j in J] # m
+
+    mat_corner_h = [vec_area_i[k] / vec_w_i[j] for k in K, j in J] # m
+    mat_d_corner_h = [vec_area_i[k] / vec_w_i[j] for k in K, j in J] # m
+
+    # vec_area_t = dict_arquitectura["arq_vecSupTerraza"]
+    vec_area_t_original = dict_arquitectura["arq_vecSupTerraza"]
+    vec_area_t = Float64[]
+    for i in eachindex(vec_area_t_original)
+        push!(vec_area_t, vec_area_t_original[i])
+        if i < lastindex(vec_area_t_original)
+            step = (vec_area_t_original[i+1] - vec_area_t_original[i]) / 3
+            push!(vec_area_t, vec_area_t_original[i] + step)
+            push!(vec_area_t, vec_area_t_original[i] + 2*step)
+        end
+    end
+    vec_h_t = ones(length(vec_area_i)) .* 2 # m
+    vec_w_t = vec_area_t ./ vec_h_t # m
+    mat_area_t = [vec_area_t[j] for k in K, j in J]
+
+
+    mat_exposicion = [vec_w_i[j] for k in K, j in J]
+    mat_exposicion_corner = [vec_w_i[j] + mat_corner_h[k,j] for k in K, j in J]
+    mat_exposicion_d_corner = [vec_w_i[j] + 2*mat_d_corner_h[k,j] for k in K, j in J]
+
+    mat_flag_feasible = (mat_h_i .<= 8) .&& 
+                        (mat_area_i .+ mat_area_t ./ 2) .<= 140 * (1*flag_dfl2 + 10*(1 - flag_dfl2))
 
     num_pisos_superiores = num_pisos - 1
 
@@ -59,7 +363,7 @@ function optim_asignacion_deptos(
     model = Model(HiGHS.Optimizer)
     # set_silent(model)
     set_time_limit_sec(model, 300.0)
-    set_optimizer_attribute(model, "mip_rel_gap", 0.01)
+    set_optimizer_attribute(model, "mip_rel_gap", 0.0001)
     set_optimizer_attribute(model, "presolve", "on")
 
     S = 1:num_strips
@@ -351,7 +655,7 @@ function optim_asignacion_deptos(
             sum(num_deptos_corner_por_piso_superior[s,(k,j)] * mat_exposicion_corner[k,j] for (k, j) in KJ_feasible) +
             sum(num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] * mat_exposicion_corner[k,j] for (k, j) in KJ_feasible) +
             sum(num_deptos_d_corner_por_piso_superior[s,(k,j)] * mat_exposicion_d_corner[k,j] for (k, j) in KJ_feasible) +
-            sum(num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] * mat_exposicion_d_corner[k,j] for (k, j) in KJ_feasible) >= 0 #2*max_height[s] + W - 5
+            sum(num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] * mat_exposicion_d_corner[k,j] for (k, j) in KJ_feasible) >= 0 # 2*max_height[s] + W - 5
 
         # First floor apartment counts cannot exceed upper floor counts (first floor is subset of upper floors)
         constraint_40[s in S, (k, j) in KJ_feasible], num_deptos_primer_piso[s,(k,j)] <= num_deptos_por_piso_superior[s,(k,j)]             # Regular apartments
@@ -589,224 +893,8 @@ function optim_asignacion_deptos(
         println("Status: $(results["status"])")
     end
 
+    
+    print_results(results)
+    
     return results
-end
-
-function print_results(results::Dict)
-    println("\n" * "="^60)
-    println("RESULTADOS OPTIMIZACIÓN ASIGNACIÓN DEPTOS")
-    println("="^60)
-    println("Estado: $(results["status"])")
-
-    if isnothing(results["objective_value"])
-        println("Valor objetivo: N/A (sin solución factible)")
-    else
-        println("Valor objetivo: $(round(results["objective_value"], digits=2))")
-    end
-
-    println("Tiempo de solución: $(round(results["solve_time"], digits=2)) segundos")
-
-    if !isnothing(results["objective_value"])
-        total_deptos_pp = get(results, "total_deptos_primer_piso", 0.0)
-        total_deptos_ps = get(results, "total_deptos_pisos_superiores", 0.0)
-        total_deptos = get(results, "total_deptos", 0.0)
-        num_pisos_sup = get(results, "num_pisos_superiores", 1)
-
-        println("Total departamentos edificio: $(round(total_deptos, digits=0))")
-        println("  - Primer piso: $(round(total_deptos_pp, digits=0)) deptos")
-        println("  - Pisos superiores: $(round(total_deptos_ps, digits=0)) deptos/piso × $(num_pisos_sup) pisos = $(round(total_deptos_ps * num_pisos_sup, digits=0)) deptos")
-    else
-        println("Total departamentos: 0")
-    end
-
-    if !isnothing(results["objective_value"])
-        area_interior_pp = get(results, "total_apartment_area_primer_piso", 0.0)
-        area_terraza_pp = get(results, "total_terrace_area_primer_piso", 0.0)
-        area_pasillo_pp = get(results, "total_pasillo_area_primer_piso", 0.0)
-        area_comun_pp = get(results, "area_comun_primer_piso", 0.0)
-        area_util_pp = area_interior_pp + area_terraza_pp / 2
-
-        area_interior_ps = get(results, "total_apartment_area_pisos_superiores", 0.0)
-        area_terraza_ps = get(results, "total_terrace_area_pisos_superiores", 0.0)
-        area_pasillo_ps = get(results, "total_pasillo_area_pisos_superiores", 0.0)
-        area_comun_ps = get(results, "area_comun_por_piso_superior", 0.0)
-        area_util_ps = area_interior_ps + area_terraza_ps / 2
-
-        num_pisos_sup = get(results, "num_pisos_superiores", 1)
-        num_pisos_total = get(results, "num_pisos_total", 1)
-
-        area_total_losa_pp = area_interior_pp + area_terraza_pp + area_comun_pp
-        area_total_losa_ps = area_interior_ps + area_terraza_ps + area_comun_ps
-        area_total_losa_edificio = area_total_losa_pp + area_total_losa_ps * num_pisos_sup
-
-        println("\n" * "="^80)
-        println("RESUMEN DE ÁREAS POR PISO")
-        println("="^80)
-        println("")
-
-        W_building = get(results, "W", 0.0)
-        H_building = get(results, "H", 0.0)
-        area_emplazamiento_por_piso = W_building * H_building
-        area_emplazamiento_total = area_emplazamiento_por_piso * num_pisos_total
-
-        area_no_utilizada_pp = area_emplazamiento_por_piso - (area_interior_pp + area_terraza_pp + area_comun_pp)
-        area_no_utilizada_ps = area_emplazamiento_por_piso - (area_interior_ps + area_terraza_ps + area_comun_ps)
-        area_no_utilizada_total = area_no_utilizada_pp + area_no_utilizada_ps * num_pisos_sup
-
-        vec_area_i_local = get(results, "vec_area_i", [])
-        vec_w_i_local = get(results, "vec_w_i", [])
-        num_strips = length(get(results, "H_s", Dict()))
-        area_nucleo_depto_local = get(results, "area_nucleo_depto", 5.0)
-
-        nucleo_primer_piso_dict = get(results, "num_deptos_nucleo_primer_piso", Dict())
-        nucleo_por_piso_superior_dict = get(results, "num_deptos_nucleo_por_piso_superior", Dict())
-        corner_nucleo_primer_piso_dict = get(results, "num_deptos_corner_nucleo_primer_piso", Dict())
-        corner_nucleo_por_piso_superior_dict = get(results, "num_deptos_corner_nucleo_por_piso_superior", Dict())
-        d_corner_nucleo_primer_piso_dict = get(results, "num_deptos_d_corner_nucleo_primer_piso", Dict())
-        d_corner_nucleo_por_piso_superior_dict = get(results, "num_deptos_d_corner_nucleo_por_piso_superior", Dict())
-
-        area_nucleo_pp = sum(get(nucleo_primer_piso_dict, (s,k,j), 0.0) * area_nucleo_depto_local for s in 1:num_strips for k in 1:length(vec_area_i_local) for j in 1:length(vec_w_i_local)) +
-                        sum(get(corner_nucleo_primer_piso_dict, (s,k,j), 0.0) * area_nucleo_depto_local for s in 1:num_strips for k in 1:length(vec_area_i_local) for j in 1:length(vec_w_i_local)) +
-                        sum(get(d_corner_nucleo_primer_piso_dict, (s,k,j), 0.0) * area_nucleo_depto_local for s in 1:num_strips for k in 1:length(vec_area_i_local) for j in 1:length(vec_w_i_local))
-        area_nucleo_ps = sum(get(nucleo_por_piso_superior_dict, (s,k,j), 0.0) * area_nucleo_depto_local for s in 1:num_strips for k in 1:length(vec_area_i_local) for j in 1:length(vec_w_i_local)) +
-                        sum(get(corner_nucleo_por_piso_superior_dict, (s,k,j), 0.0) * area_nucleo_depto_local for s in 1:num_strips for k in 1:length(vec_area_i_local) for j in 1:length(vec_w_i_local)) +
-                        sum(get(d_corner_nucleo_por_piso_superior_dict, (s,k,j), 0.0) * area_nucleo_depto_local for s in 1:num_strips for k in 1:length(vec_area_i_local) for j in 1:length(vec_w_i_local))
-        area_nucleo_total = area_nucleo_pp + area_nucleo_ps * num_pisos_sup
-
-        println("┌─────────────────────┬──────────────────┬──────────────────┬──────────────────┐")
-        println("│                     │  Primer Piso     │  Piso Superior   │  Total Edificio  │")
-        println("│                     │    (1 piso)      │   (por piso)     │   ($(num_pisos_total) pisos)      │")
-        println("├─────────────────────┼──────────────────┼──────────────────┼──────────────────┤")
-        println("│ Área Interior       │ $(lpad(round(area_interior_pp, digits=1), 12)) m² │ $(lpad(round(area_interior_ps, digits=1), 12)) m² │ $(lpad(round(area_interior_pp + area_interior_ps * num_pisos_sup, digits=1), 12)) m² │")
-        println("│ Área Terraza        │ $(lpad(round(area_terraza_pp, digits=1), 12)) m² │ $(lpad(round(area_terraza_ps, digits=1), 12)) m² │ $(lpad(round(area_terraza_pp + area_terraza_ps * num_pisos_sup, digits=1), 12)) m² │")
-        println("│ Área Común          │ $(lpad(round(area_comun_pp, digits=1), 12)) m² │ $(lpad(round(area_comun_ps, digits=1), 12)) m² │ $(lpad(round(area_comun_pp + area_comun_ps * num_pisos_sup, digits=1), 12)) m² │")
-        println("│   - Área Pasillo    │ $(lpad(round(area_pasillo_pp, digits=1), 12)) m² │ $(lpad(round(area_pasillo_ps, digits=1), 12)) m² │ $(lpad(round(area_pasillo_pp + area_pasillo_ps * num_pisos_sup, digits=1), 12)) m² │")
-        println("│   - Área Núcleo     │ $(lpad(round(area_nucleo_pp, digits=1), 12)) m² │ $(lpad(round(area_nucleo_ps, digits=1), 12)) m² │ $(lpad(round(area_nucleo_total, digits=1), 12)) m² │")
-        println("│   - Otros espacios  │ $(lpad(round(area_comun_pp - area_pasillo_pp - area_nucleo_pp, digits=1), 12)) m² │ $(lpad(round(area_comun_ps - area_pasillo_ps - area_nucleo_ps, digits=1), 12)) m² │ $(lpad(round((area_comun_pp - area_pasillo_pp - area_nucleo_pp) + (area_comun_ps - area_pasillo_ps - area_nucleo_ps) * num_pisos_sup, digits=1), 12)) m² │")
-        println("├─────────────────────┼──────────────────┼──────────────────┼──────────────────┤")
-        println("│ Área Losa SNT       │ $(lpad(round(area_total_losa_pp, digits=1), 12)) m² │ $(lpad(round(area_total_losa_ps, digits=1), 12)) m² │ $(lpad(round(area_total_losa_edificio, digits=1), 12)) m² │")
-        println("│ Área No Utilizada   │ $(lpad(round(area_no_utilizada_pp, digits=1), 12)) m² │ $(lpad(round(area_no_utilizada_ps, digits=1), 12)) m² │ $(lpad(round(area_no_utilizada_total, digits=1), 12)) m² │")
-        println("├─────────────────────┼──────────────────┼──────────────────┼──────────────────┤")
-        println("│ Área Emplazamiento  │ $(lpad(round(area_emplazamiento_por_piso, digits=1), 12)) m² │ $(lpad(round(area_emplazamiento_por_piso, digits=1), 12)) m² │ $(lpad(round(area_emplazamiento_total, digits=1), 12)) m² │")
-        println("│ (W × Profundidad)   │                  │                  │                  │")
-        println("├─────────────────────┼──────────────────┼──────────────────┼──────────────────┤")
-        println("│ Área Útil           │ $(lpad(round(area_util_pp, digits=1), 12)) m² │ $(lpad(round(area_util_ps, digits=1), 12)) m² │ $(lpad(round(area_util_pp + area_util_ps * num_pisos_sup, digits=1), 12)) m² │")
-        println("│ (Interior + Terr/2) │                  │                  │                  │")
-        println("└─────────────────────┴──────────────────┴──────────────────┴──────────────────┘")
-        println("")
-        println("Notas:")
-        println("  • Área Losa SNT = Área Interior + Área Terraza + Área Común")
-        println("  • Área Emplazamiento = Área Losa SNT + Área No Utilizada")
-        println("  • Área Útil = Área Interior + Área Terraza/2")
-        println("    (Las terrazas cuentan al 50% para área útil)")
-        println("  • Área Común se desglosa en:")
-        println("    - Área Pasillo: espacio de circulación asignado a cada departamento")
-        println("    - Área Núcleo: espacio adicional ($(area_nucleo_depto_local) m²) por cada departamento tipo núcleo")
-        println("    - Otros espacios: áreas comunes adicionales (lobbies, salas, etc.)")
-        println("  • Área No Utilizada = espacio del emplazamiento no ocupado por deptos ni áreas comunes")
-    end
-
-    println("\n" * "="^180)
-    println("ASIGNACIÓN DE DEPARTAMENTOS")
-    println("="^180)
-
-    vec_area_i = results["vec_area_i"]
-    vec_area_t = results["vec_area_t"]
-    vec_area_p = results["vec_area_p"]
-    vec_h_t = results["vec_h_t"]
-    vec_w_i = results["vec_w_i"]
-    mat_h_ip = results["mat_h_ip"]
-    mat_h_ipn = results["mat_h_ipn"]
-    mat_h_in = results["mat_h_in"]
-    area_nucleo_depto_local = results["area_nucleo_depto"]
-
-    all_deptos_global = []
-
-    for (strip, profundidad) in sort(collect(results["H_s"]))
-        perimetro_pp = get(results["perimetro_strip_primer_piso"], strip, 0.0)
-        perimetro_ps = get(results["perimetro_strip_pisos_superiores"], strip, 0.0)
-
-        for (key, tipo_label, piso_label) in [
-            ("num_deptos_primer_piso", "Regular", "1° Piso"),
-            ("num_deptos_nucleo_primer_piso", "Núcleo", "1° Piso"),
-            ("num_deptos_corner_primer_piso", "Corner", "1° Piso"),
-            ("num_deptos_corner_nucleo_primer_piso", "Corner Núcleo", "1° Piso"),
-            ("num_deptos_d_corner_primer_piso", "Double Corner", "1° Piso"),
-            ("num_deptos_d_corner_nucleo_primer_piso", "D-Corner Núc.", "1° Piso"),
-            ("num_deptos_por_piso_superior", "Regular", "Pisos Sup."),
-            ("num_deptos_nucleo_por_piso_superior", "Núcleo", "Pisos Sup."),
-            ("num_deptos_corner_por_piso_superior", "Corner", "Pisos Sup."),
-            ("num_deptos_corner_nucleo_por_piso_superior", "Corner Núcleo", "Pisos Sup."),
-            ("num_deptos_d_corner_por_piso_superior", "Double Corner", "Pisos Sup."),
-            ("num_deptos_d_corner_nucleo_por_piso_superior", "D-Corner Núc.", "Pisos Sup.")
-        ]
-            strip_deptos = filter(p -> p[1][1] == strip, collect(get(results, key, Dict())))
-            for ((s, k, j), count) in strip_deptos
-                perimetro = piso_label == "1° Piso" ? perimetro_pp : perimetro_ps
-                ancho = vec_w_i[j]
-                area_interior = vec_area_i[k]
-                area_terraza = vec_area_t[k]
-
-                if tipo_label == "Regular"
-                    alto = mat_h_ip[k,j]
-                    area_pasillo = vec_area_p[j]
-                    area_nucleo = 0.0
-                    area_total = ancho * alto
-                elseif tipo_label == "Núcleo"
-                    alto = mat_h_ipn[k,j]
-                    area_pasillo = vec_area_p[j]
-                    area_nucleo = area_nucleo_depto_local
-                    area_total = ancho * alto
-                elseif tipo_label == "Corner"
-                    alto = mat_h_in[k,j]
-                    area_pasillo = 0.0
-                    area_nucleo = 0.0
-                    area_total = area_interior
-                elseif tipo_label == "Corner Núcleo"
-                    alto = mat_h_in[k,j]
-                    area_pasillo = 0.0
-                    area_nucleo = area_nucleo_depto_local
-                    area_total = area_interior + area_nucleo
-                elseif tipo_label == "Double Corner"
-                    alto = mat_h_in[k,j]
-                    area_pasillo = 0.0
-                    area_nucleo = 0.0
-                    area_total = area_interior
-                else
-                    alto = mat_h_in[k,j]
-                    area_pasillo = 0.0
-                    area_nucleo = area_nucleo_depto_local
-                    area_total = area_interior + area_nucleo
-                end
-
-                push!(all_deptos_global, (strip, piso_label, tipo_label, k, j, count, area_interior, area_pasillo, area_nucleo, area_terraza, area_total, ancho, alto, perimetro, profundidad))
-            end
-        end
-    end
-
-    if !isempty(all_deptos_global)
-        println("\n┌──────┬────────────┬──────────────┬──────┬────────┬───────┬──────────┬──────────┬──────────┬─────────┬─────────┬──────────┬──────────┐")
-        println("│Strip │ Piso       │ Tipo         │ (k,j)│ Unid.  │ Ancho │ Prof.    │ Interior │ Pasillo  │ Núcleo  │ Terraza │ Total    │ A×P      │")
-        println("│      │            │              │      │        │ (m)   │ (m)      │ (m²)     │ (m²)     │ (m²)    │ (m²)    │ (m²)     │ (m²)     │")
-        println("├──────┼────────────┼──────────────┼──────┼────────┼───────┼──────────┼──────────┼──────────┼─────────┼─────────┼──────────┼──────────┤")
-
-        current_strip = nothing
-        for (strip, piso, tipo, k, j, count, area_int, area_pas, area_nuc, area_terr, area_tot, ancho, alto, _, _) in all_deptos_global
-            if current_strip !== nothing && strip != current_strip
-                println("├──────┼────────────┼──────────────┼──────┼────────┼───────┼──────────┼──────────┼──────────┼─────────┼─────────┼──────────┼──────────┤")
-            end
-            current_strip = strip
-
-            area_axp = ancho * alto
-
-            println("│  $(lpad(strip, 2))  │ $(rpad(piso, 10)) │ $(rpad(tipo, 12)) │ $(lpad("($k,$j)", 4)) │ $(lpad(round(Int, count), 4))   │ $(lpad(round(ancho, digits=1), 5)) │ $(lpad(round(alto, digits=1), 8)) │ $(lpad(round(area_int, digits=1), 8)) │ $(lpad(round(area_pas, digits=1), 8)) │ $(lpad(round(area_nuc, digits=1), 7)) │ $(lpad(round(area_terr, digits=1), 7)) │ $(lpad(round(area_tot, digits=1), 8)) │ $(lpad(round(area_axp, digits=1), 8)) │")
-        end
-
-        println("└──────┴────────────┴──────────────┴──────┴────────┴───────┴──────────┴──────────┴──────────┴─────────┴─────────┴──────────┴──────────┘")
-        println("\nNotas:")
-        println("  • Total = área del rectángulo principal (Ancho × Profundidad para Regular/Núcleo, solo Interior para Corner)")
-        println("  • A×P = verificación de Ancho × Profundidad")
-        println("  • Terraza está fuera del rectángulo principal")
-    end
-    println("\n" * "="^180)
 end
