@@ -85,15 +85,15 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         end
 
         if !isnothing(results["objective_value"])
-            area_interior_pp = get(results, "total_apartment_area_primer_piso", 0.0)
-            area_terraza_pp = get(results, "total_terrace_area_primer_piso", 0.0)
-            area_pasillo_pp = get(results, "total_pasillo_area_primer_piso", 0.0)
+            area_interior_pp = get(results, "superficie_total_interior_primer_piso", 0.0)
+            area_terraza_pp = get(results, "superficie_total_terraza_primer_piso", 0.0)
+            area_pasillo_pp = get(results, "superficie_total_pasillo_primer_piso", 0.0)
             area_comun_pp = get(results, "area_comun_primer_piso", 0.0)
             area_util_pp = area_interior_pp + area_terraza_pp / 2
 
-            area_interior_ps = get(results, "total_apartment_area_pisos_superiores", 0.0)
-            area_terraza_ps = get(results, "total_terrace_area_pisos_superiores", 0.0)
-            area_pasillo_ps = get(results, "total_pasillo_area_pisos_superiores", 0.0)
+            area_interior_ps = get(results, "superficie_total_interior_pisos_superiores", 0.0)
+            area_terraza_ps = get(results, "superficie_total_terraza_pisos_superiores", 0.0)
+            area_pasillo_ps = get(results, "superficie_total_pasillo_pisos_superiores", 0.0)
             area_comun_ps = get(results, "area_comun_por_piso_superior", 0.0)
             area_util_ps = area_interior_ps + area_terraza_ps / 2
 
@@ -121,10 +121,11 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             vec_area_i_local = get(results, "vec_area_i", [])
             vec_w_i_local = get(results, "vec_w_i", [])
             num_strips = length(get(results, "H_s", Dict()))
-            area_nucleo_depto_local = get(results, "area_nucleo_depto", 5.0)
+            area_nucleo_depto_local = get(results, "superficie_nucleo_por_depto", 5.0)
+            area_nucleo_depto_d_corner_local = get(results, "superficie_nucleo_por_depto_d_corner", 10.0)
 
-            nucleo_primer_piso_dict = get(results, "num_deptos_nucleo_primer_piso", Dict())
-            nucleo_por_piso_superior_dict = get(results, "num_deptos_nucleo_por_piso_superior", Dict())
+            nucleo_primer_piso_dict = get(results, "num_deptos_regular_nucleo_primer_piso", Dict())
+            nucleo_por_piso_superior_dict = get(results, "num_deptos_regular_nucleo_por_piso_superior", Dict())
             corner_nucleo_primer_piso_dict = get(results, "num_deptos_corner_nucleo_primer_piso", Dict())
             corner_nucleo_por_piso_superior_dict = get(results, "num_deptos_corner_nucleo_por_piso_superior", Dict())
             d_corner_nucleo_primer_piso_dict = get(results, "num_deptos_d_corner_nucleo_primer_piso", Dict())
@@ -132,10 +133,10 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
             area_nucleo_pp = sum(get(nucleo_primer_piso_dict, (s,k,j), 0.0) * area_nucleo_depto_local for s in 1:num_strips for k in 1:length(vec_area_i_local) for j in 1:length(vec_w_i_local)) +
                             sum(get(corner_nucleo_primer_piso_dict, (s,k,j), 0.0) * area_nucleo_depto_local for s in 1:num_strips for k in 1:length(vec_area_i_local) for j in 1:length(vec_w_i_local)) +
-                            sum(get(d_corner_nucleo_primer_piso_dict, (s,k,j), 0.0) * area_nucleo_depto_local for s in 1:num_strips for k in 1:length(vec_area_i_local) for j in 1:length(vec_w_i_local))
+                            sum(get(d_corner_nucleo_primer_piso_dict, (s,k,j), 0.0) * area_nucleo_depto_d_corner_local for s in 1:num_strips for k in 1:length(vec_area_i_local) for j in 1:length(vec_w_i_local))
             area_nucleo_ps = sum(get(nucleo_por_piso_superior_dict, (s,k,j), 0.0) * area_nucleo_depto_local for s in 1:num_strips for k in 1:length(vec_area_i_local) for j in 1:length(vec_w_i_local)) +
                             sum(get(corner_nucleo_por_piso_superior_dict, (s,k,j), 0.0) * area_nucleo_depto_local for s in 1:num_strips for k in 1:length(vec_area_i_local) for j in 1:length(vec_w_i_local)) +
-                            sum(get(d_corner_nucleo_por_piso_superior_dict, (s,k,j), 0.0) * area_nucleo_depto_local for s in 1:num_strips for k in 1:length(vec_area_i_local) for j in 1:length(vec_w_i_local))
+                            sum(get(d_corner_nucleo_por_piso_superior_dict, (s,k,j), 0.0) * area_nucleo_depto_d_corner_local for s in 1:num_strips for k in 1:length(vec_area_i_local) for j in 1:length(vec_w_i_local))
             area_nucleo_total = area_nucleo_pp + area_nucleo_ps * num_pisos_sup
 
             println("┌─────────────────────┬──────────────────┬──────────────────┬──────────────────┐")
@@ -166,7 +167,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             println("    (Las terrazas cuentan al 50% para área útil)")
             println("  • Área Común se desglosa en:")
             println("    - Área Pasillo: espacio de circulación asignado a cada departamento")
-            println("    - Área Núcleo: espacio adicional ($(area_nucleo_depto_local) m²) por cada departamento tipo núcleo")
+            println("    - Área Núcleo: espacio adicional ($(area_nucleo_depto_local) m² regular/corner, $(area_nucleo_depto_d_corner_local) m² double corner) por cada departamento tipo núcleo")
             println("    - Otros espacios: áreas comunes adicionales (lobbies, salas, etc.)")
             println("  • Área No Utilizada = espacio del emplazamiento no ocupado por deptos ni áreas comunes")
         end
@@ -183,26 +184,26 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         mat_h_ip = results["mat_h_ip"]
         mat_h_ipn = results["mat_h_ipn"]
         mat_h_in = results["mat_h_in"]
-        area_nucleo_depto_local = results["area_nucleo_depto"]
+        mat_h_in_d_corner = results["mat_h_in_d_corner"]
+        area_nucleo_depto_local = results["superficie_nucleo_por_depto"]
+        area_nucleo_depto_d_corner_local = results["superficie_nucleo_por_depto_d_corner"]
 
         all_deptos_global = []
 
         for (strip, profundidad) in sort(collect(results["H_s"]))
-            perimetro_pp = get(results["perimetro_strip_primer_piso"], strip, 0.0)
-            perimetro_ps = get(results["perimetro_strip_pisos_superiores"], strip, 0.0)
+            perimetro_pp = get(results["perimetro_expuesto_strip_primer_piso"], strip, 0.0)
+            perimetro_ps = get(results["perimetro_expuesto_strip_pisos_superiores"], strip, 0.0)
 
             for (key, tipo_label, piso_label) in [
-                ("num_deptos_primer_piso", "Regular", "1° Piso"),
-                ("num_deptos_nucleo_primer_piso", "Núcleo", "1° Piso"),
+                ("num_deptos_regular_primer_piso", "Regular", "1° Piso"),
+                ("num_deptos_regular_nucleo_primer_piso", "Núcleo", "1° Piso"),
                 ("num_deptos_corner_primer_piso", "Corner", "1° Piso"),
                 ("num_deptos_corner_nucleo_primer_piso", "Corner Núcleo", "1° Piso"),
-                ("num_deptos_d_corner_primer_piso", "Double Corner", "1° Piso"),
                 ("num_deptos_d_corner_nucleo_primer_piso", "D-Corner Núc.", "1° Piso"),
-                ("num_deptos_por_piso_superior", "Regular", "Pisos Sup."),
-                ("num_deptos_nucleo_por_piso_superior", "Núcleo", "Pisos Sup."),
+                ("num_deptos_regular_por_piso_superior", "Regular", "Pisos Sup."),
+                ("num_deptos_regular_nucleo_por_piso_superior", "Núcleo", "Pisos Sup."),
                 ("num_deptos_corner_por_piso_superior", "Corner", "Pisos Sup."),
                 ("num_deptos_corner_nucleo_por_piso_superior", "Corner Núcleo", "Pisos Sup."),
-                ("num_deptos_d_corner_por_piso_superior", "Double Corner", "Pisos Sup."),
                 ("num_deptos_d_corner_nucleo_por_piso_superior", "D-Corner Núc.", "Pisos Sup.")
             ]
                 strip_deptos = filter(p -> p[1][1] == strip, collect(get(results, key, Dict())))
@@ -232,15 +233,10 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                         area_pasillo = 0.0
                         area_nucleo = area_nucleo_depto_local
                         area_total = area_interior + area_nucleo
-                    elseif tipo_label == "Double Corner"
-                        alto = mat_h_in[k,j]
-                        area_pasillo = 0.0
-                        area_nucleo = 0.0
-                        area_total = area_interior
                     else
-                        alto = mat_h_in[k,j]
+                        alto = mat_h_in_d_corner[k,j]
                         area_pasillo = 0.0
-                        area_nucleo = area_nucleo_depto_local
+                        area_nucleo = area_nucleo_depto_d_corner_local
                         area_total = area_interior + area_nucleo
                     end
 
@@ -315,9 +311,14 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         mat_area_ip = [vec_area_i[k] + vec_area_p[j] for k in K, j in J] # m2
         mat_h_ip = [mat_area_ip[k,j] / vec_w_i[j] for k in K, j in J] # m
 
-        area_nucleo_depto = 5 # m2
+        area_nucleo_depto = 5 # m2 (for regular and corner nucleo)
+        area_nucleo_depto_d_corner = 10 # m2 (for double corner nucleo)
+
         vec_area_in = vec_area_i .+ area_nucleo_depto # m2
         mat_h_in = [vec_area_in[k] / vec_w_i[j] for k in K, j in J] # m
+
+        vec_area_in_d_corner = vec_area_i .+ area_nucleo_depto_d_corner # m2 (double corner nucleo)
+        mat_h_in_d_corner = [vec_area_in_d_corner[k] / vec_w_i[j] for k in K, j in J] # m
 
         mat_area_ipn = mat_area_ip .+ area_nucleo_depto # m2
         mat_h_ipn = [mat_area_ipn[k,j] / vec_w_i[j] for k in K, j in J] # m
@@ -372,11 +373,11 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         """
         Decision Variables:
         - H_s: Depth of each strip s (continuous, non-negative)
-        - num_deptos_primer_piso: Number of regular apartments in first floor strip s, type i, height j (integer)
+        - num_deptos_regular_primer_piso: Number of regular apartments in first floor strip s, type i, height j (integer)
         - num_deptos_corner_primer_piso: Number of corner apartments in first floor strip s, type i, height j (integer)
         - num_deptos_d_corner_primer_piso: Number of double corner apartments in first floor strip s, type i, height j (integer)
         - area_comun_primer_piso: Common area for first floor (continuous, non-negative)
-        - num_deptos_por_piso_superior: Number of regular apartments in upper floor strip s, type i, height j (integer)
+        - num_deptos_regular_por_piso_superior: Number of regular apartments in upper floor strip s, type i, height j (integer)
         - num_deptos_corner_por_piso_superior: Number of corner apartments in upper floor strip s, type i, height j (integer)
         - num_deptos_d_corner_por_piso_superior: Number of double corner apartments in upper floor strip s, type i, height j (integer)
         - area_comun_por_piso_superior: Common area for upper floors (continuous, non-negative)
@@ -392,19 +393,17 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         @variables(model, begin
             H_s[s in S] >= 0
 
-            0 <= num_deptos_primer_piso[s in S, (k, j) in KJ_feasible] <= max_deptos, Int
-            0 <= num_deptos_nucleo_primer_piso[s in S, (k, j) in KJ_feasible] <= max_deptos, Int
+            0 <= num_deptos_regular_primer_piso[s in S, (k, j) in KJ_feasible] <= max_deptos, Int
+            0 <= num_deptos_regular_nucleo_primer_piso[s in S, (k, j) in KJ_feasible] <= max_deptos, Int
             0 <= num_deptos_corner_primer_piso[s in S, (k, j) in KJ_feasible] <= 2, Int
             0 <= num_deptos_corner_nucleo_primer_piso[s in S, (k, j) in KJ_feasible] <= 2, Int
-            0 <= num_deptos_d_corner_primer_piso[s in S, (k, j) in KJ_feasible] <= 1, Int
             0 <= num_deptos_d_corner_nucleo_primer_piso[s in S, (k, j) in KJ_feasible] <= 1, Int
             area_comun_primer_piso >= 0
 
-            0 <= num_deptos_por_piso_superior[s in S, (k, j) in KJ_feasible] <= max_deptos, Int
-            0 <= num_deptos_nucleo_por_piso_superior[s in S, (k, j) in KJ_feasible] <= max_deptos, Int
+            0 <= num_deptos_regular_por_piso_superior[s in S, (k, j) in KJ_feasible] <= max_deptos, Int
+            0 <= num_deptos_regular_nucleo_por_piso_superior[s in S, (k, j) in KJ_feasible] <= max_deptos, Int
             0 <= num_deptos_corner_por_piso_superior[s in S, (k, j) in KJ_feasible] <= 2, Int
             0 <= num_deptos_corner_nucleo_por_piso_superior[s in S, (k, j) in KJ_feasible] <= 2, Int
-            0 <= num_deptos_d_corner_por_piso_superior[s in S, (k, j) in KJ_feasible] <= 1, Int
             0 <= num_deptos_d_corner_nucleo_por_piso_superior[s in S, (k, j) in KJ_feasible] <= 1, Int
             area_comun_por_piso_superior >= 0
 
@@ -412,13 +411,11 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             x_n[s in S, (k, j) in KJ_feasible], Bin
             x_c[s in S, (k, j) in KJ_feasible], Bin
             x_cn[s in S, (k, j) in KJ_feasible], Bin
-            x_cc[s in S, (k, j) in KJ_feasible], Bin
             x_ccn[s in S, (k, j) in KJ_feasible], Bin
 
             y[s in S], Bin        # Binary indicator: strip s uses regular configuration
             y_c[s in S], Bin      # Binary indicator: strip s uses corner configuration
             y_cn[s in S], Bin     # Binary indicator: strip s uses corner nucleo configuration
-            y_cc[s in S], Bin     # Binary indicator: strip s uses double corner configuration
             y_ccn[s in S], Bin    # Binary indicator: strip s uses double corner nucleo configuration
             y_n[s in S], Bin      # Binary indicator: strip s uses regular nucleo configuration
 
@@ -438,20 +435,18 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             area_no_utilizada, area_no_utilizada_primer_piso + area_no_utilizada_por_piso_superior * num_pisos_superiores
 
             # Total interior area for first floor apartments
-            area_interior_primer_piso, sum((num_deptos_primer_piso[s,(k,j)] +
-                num_deptos_nucleo_primer_piso[s,(k,j)] +
+            area_interior_primer_piso, sum((num_deptos_regular_primer_piso[s,(k,j)] +
+                num_deptos_regular_nucleo_primer_piso[s,(k,j)] +
                 num_deptos_corner_primer_piso[s,(k,j)] +
                 num_deptos_corner_nucleo_primer_piso[s,(k,j)] +
-                num_deptos_d_corner_primer_piso[s,(k,j)] + 
                 num_deptos_d_corner_nucleo_primer_piso[s,(k,j)]
                 ) * vec_area_i[k] for s in S, (k, j) in KJ_feasible)
 
             # Interior area per upper floor
-            area_interior_por_piso_superior, sum((num_deptos_por_piso_superior[s,(k,j)] +
-                num_deptos_nucleo_por_piso_superior[s,(k,j)] +
+            area_interior_por_piso_superior, sum((num_deptos_regular_por_piso_superior[s,(k,j)] +
+                num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] +
                 num_deptos_corner_por_piso_superior[s,(k,j)] +
                 num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] +
-                num_deptos_d_corner_por_piso_superior[s,(k,j)] +
                 num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)]
                 ) * vec_area_i[k] for s in S, (k, j) in KJ_feasible)
 
@@ -459,20 +454,18 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             area_interior_total, area_interior_primer_piso + area_interior_por_piso_superior * num_pisos_superiores
 
             # Total terrace area for first floor apartments
-            area_terraza_primer_piso, sum((num_deptos_primer_piso[s,(k,j)] +
-                num_deptos_nucleo_primer_piso[s,(k,j)] +
+            area_terraza_primer_piso, sum((num_deptos_regular_primer_piso[s,(k,j)] +
+                num_deptos_regular_nucleo_primer_piso[s,(k,j)] +
                 num_deptos_corner_primer_piso[s,(k,j)] +
                 num_deptos_corner_nucleo_primer_piso[s,(k,j)] +
-                num_deptos_d_corner_primer_piso[s,(k,j)] +
                 num_deptos_d_corner_nucleo_primer_piso[s,(k,j)]
                 ) * vec_area_t[k] for s in S, (k, j) in KJ_feasible)
 
             # Terrace area per upper floor
-            area_terraza_por_piso_superior, sum((num_deptos_por_piso_superior[s,(k,j)] +
-                num_deptos_nucleo_por_piso_superior[s,(k,j)] +
+            area_terraza_por_piso_superior, sum((num_deptos_regular_por_piso_superior[s,(k,j)] +
+                num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] +
                 num_deptos_corner_por_piso_superior[s,(k,j)] +
                 num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] +
-                num_deptos_d_corner_por_piso_superior[s,(k,j)] +
                 num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)]
                 ) * vec_area_t[k] for s in S, (k, j) in KJ_feasible)
 
@@ -489,24 +482,23 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             area_util_total, area_util_primer_piso + area_util_por_piso_superior * num_pisos_superiores
 
             # Total hallway area for first floor apartments
-            area_pasillo_primer_piso, sum((num_deptos_primer_piso[s,(k,j)] + num_deptos_nucleo_primer_piso[s,(k,j)]) * vec_area_p[j] for s in S, (k, j) in KJ_feasible)
+            area_pasillo_primer_piso, sum((num_deptos_regular_primer_piso[s,(k,j)] + num_deptos_regular_nucleo_primer_piso[s,(k,j)]) * vec_area_p[j] for s in S, (k, j) in KJ_feasible)
 
             # Hallway area per upper floor
-            area_pasillo_por_piso_superior, sum((num_deptos_por_piso_superior[s,(k,j)] + num_deptos_nucleo_por_piso_superior[s,(k,j)]) * vec_area_p[j] for s in S, (k, j) in KJ_feasible)
+            area_pasillo_por_piso_superior, sum((num_deptos_regular_por_piso_superior[s,(k,j)] + num_deptos_regular_nucleo_por_piso_superior[s,(k,j)]) * vec_area_p[j] for s in S, (k, j) in KJ_feasible)
 
             # Total hallway area for entire building
             area_pasillo_total, area_pasillo_primer_piso + area_pasillo_por_piso_superior * num_pisos_superiores
 
             # Nucleo area for first floor (additional area per nucleo apartment)
-            area_nucleo_primer_piso, sum((num_deptos_nucleo_primer_piso[s,(k,j)] + 
-                                        num_deptos_corner_nucleo_primer_piso[s,(k,j)] +
-                                        num_deptos_d_corner_nucleo_primer_piso[s,(k,j)]) * area_nucleo_depto for s in S, (k, j) in KJ_feasible)
+            area_nucleo_primer_piso, sum((num_deptos_regular_nucleo_primer_piso[s,(k,j)] +
+                                        num_deptos_corner_nucleo_primer_piso[s,(k,j)]) * area_nucleo_depto +
+                                        num_deptos_d_corner_nucleo_primer_piso[s,(k,j)] * area_nucleo_depto_d_corner for s in S, (k, j) in KJ_feasible)
 
             # Nucleo area per upper floor
-            area_nucleo_por_piso_superior, sum((num_deptos_nucleo_por_piso_superior[s,(k,j)] +
-                                                num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] +
-                                                num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)]
-                                                ) * area_nucleo_depto for s in S, (k, j) in KJ_feasible)
+            area_nucleo_por_piso_superior, sum((num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] +
+                                                num_deptos_corner_nucleo_por_piso_superior[s,(k,j)]) * area_nucleo_depto +
+                                                num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] * area_nucleo_depto_d_corner for s in S, (k, j) in KJ_feasible)
 
             # Total nucleo area for entire building
             area_nucleo_total, area_nucleo_primer_piso + area_nucleo_por_piso_superior * num_pisos_superiores
@@ -515,17 +507,15 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             area_snt, area_interior_total + area_terraza_total + area_comun_total
 
             # Total count of all apartment types across all strips and floors
-            deptos_total, (sum(num_deptos_primer_piso[s,(k,j)] for s in S, (k, j) in KJ_feasible) +
-                sum(num_deptos_nucleo_primer_piso[s,(k,j)] for s in S, (k, j) in KJ_feasible) +
+            deptos_total, (sum(num_deptos_regular_primer_piso[s,(k,j)] for s in S, (k, j) in KJ_feasible) +
+                sum(num_deptos_regular_nucleo_primer_piso[s,(k,j)] for s in S, (k, j) in KJ_feasible) +
                 sum(num_deptos_corner_primer_piso[s,(k,j)] for s in S, (k, j) in KJ_feasible) +
                 sum(num_deptos_corner_nucleo_primer_piso[s,(k,j)] for s in S, (k, j) in KJ_feasible) +
-                sum(num_deptos_d_corner_primer_piso[s,(k,j)] for s in S, (k, j) in KJ_feasible) +
                 sum(num_deptos_d_corner_nucleo_primer_piso[s,(k,j)] for s in S, (k, j) in KJ_feasible)) +
-                (sum(num_deptos_por_piso_superior[s,(k,j)] for s in S, (k, j) in KJ_feasible) +
-                sum(num_deptos_nucleo_por_piso_superior[s,(k,j)] for s in S, (k, j) in KJ_feasible) +
+                (sum(num_deptos_regular_por_piso_superior[s,(k,j)] for s in S, (k, j) in KJ_feasible) +
+                sum(num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] for s in S, (k, j) in KJ_feasible) +
                 sum(num_deptos_corner_por_piso_superior[s,(k,j)] for s in S, (k, j) in KJ_feasible) +
                 sum(num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] for s in S, (k, j) in KJ_feasible) +
-                sum(num_deptos_d_corner_por_piso_superior[s,(k,j)] for s in S, (k, j) in KJ_feasible) +
                 sum(num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] for s in S, (k, j) in KJ_feasible)
                 ) * num_pisos_superiores
 
@@ -568,8 +558,8 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             constraint_11, area_comun_total <= 0.25 * area_util_total
 
             # Link regular apartments to y indicator (if any regular apartments exist, y = 1)
-            constraint_12[s in S], sum(num_deptos_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) <= max_apts_per_strip * y[s]
-            constraint_12_[s in S], sum(num_deptos_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) >= y[s]
+            constraint_12[s in S], sum(num_deptos_regular_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) <= max_apts_per_strip * y[s]
+            constraint_12_[s in S], sum(num_deptos_regular_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) >= y[s]
 
             # Exactly 2 corner apartments per strip if corner type is used
             constraint_12a[s in S], sum(num_deptos_corner_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) == 2 * y_c[s]
@@ -578,24 +568,18 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             constraint_12b[s in S], sum(num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) == 2 * y_cn[s]
 
             # Link regular nucleo apartments to y_n indicator (if any nucleo apartments exist, y_n = 1)
-            constraint_12c[s in S], sum(num_deptos_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) <= max_apts_per_strip * y_n[s]
-            constraint_12d[s in S], sum(num_deptos_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) >= y_n[s]
-
-            # Exactly 1 double corner apartment per strip if double corner type is used
-            constraint_13[s in S], sum(num_deptos_d_corner_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) == y_cc[s]
+            constraint_12c[s in S], sum(num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) <= max_apts_per_strip * y_n[s]
+            constraint_12d[s in S], sum(num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) >= y_n[s]
 
             # Exactly 1 double corner nucleo apartment per strip if double corner nucleo type is used
             constraint_13a[s in S], sum(num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) == y_ccn[s]
 
-            # Allows only one double corner apartment or several regular apartments, not both
-            constraint_14[s in S], sum(x_cc[s,(k,j)] + x[s,(k,j)] + x_n[s,(k,j)] for (k, j) in KJ_feasible) <= y_cc[s] + (1 - y_cc[s]) * max_apts_per_strip
-
             # Mutual exclusivity constraints (simplified)
             # Each strip can have at most one configuration type from incompatible groups
-            constraint_15[s in S], y_c[s] + y_cn[s] + y_cc[s] + y_ccn[s] <= 1           # At most one corner/double-corner type
+            constraint_15[s in S], y_c[s] + y_cn[s] + y_ccn[s] <= 1                     # At most one corner/double-corner type
             constraint_15a[s in S], y[s] + y_cn[s] + y_ccn[s] <= 1                      # Regular incompatible with corner/double-corner núcleo
             constraint_15b[s in S], y_c[s] + y_n[s] + y_cn[s] <= 1                      # Regular núcleo incompatible with any corner type
-            constraint_15c[s in S], y_cc[s] + y_ccn[s] + y_n[s] <= 1                    # Regular núcleo incompatible with double corners
+            constraint_15c[s in S], y_ccn[s] + y_n[s] <= 1                              # Regular núcleo incompatible with double corner nucleo
 
             # Total apartment count must be within specified bounds
             constraint_16, min_deptos <= deptos_total <= max_deptos
@@ -610,78 +594,75 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             constraint_19[s in S, (k, j) in KJ_feasible], x[s,(k,j)] * (mat_h_ip[k,j] + vec_h_t[k]) <= H_s[s]        # Regular apartments
             constraint_20[s in S, (k, j) in KJ_feasible], x_n[s,(k,j)] * (mat_h_ipn[k,j] + vec_h_t[k]) <= H_s[s]      # Nucleo apartments
             constraint_21[s in S, (k, j) in KJ_feasible], x_c[s,(k,j)] * (mat_h_in[k,j] + vec_h_t[k]) <= H_s[s]   # Corner apartments
-            constraint_22[s in S, (k, j) in KJ_feasible], x_cn[s,(k,j)] * (mat_h_in[k,j] + vec_h_t[k]) <= H_s[s]   # Corner apartments
-            constraint_23[s in S, (k, j) in KJ_feasible], x_cc[s,(k,j)] * (mat_h_in[k,j] + vec_h_t[k]) <= H_s[s] # Double corner apartments
-            constraint_24[s in S, (k, j) in KJ_feasible], x_ccn[s,(k,j)] * (mat_h_in[k,j] + vec_h_t[k]) <= H_s[s] # Double corner apartments
+            constraint_22[s in S, (k, j) in KJ_feasible], x_cn[s,(k,j)] * (mat_h_in[k,j] + vec_h_t[k]) <= H_s[s]   # Corner nucleo apartments
+            constraint_24[s in S, (k, j) in KJ_feasible], x_ccn[s,(k,j)] * (mat_h_in_d_corner[k,j] + vec_h_t[k]) <= H_s[s] # Double corner nucleo apartments
 
             # Total apartment area per strip cannot exceed strip footprint (W x H_s)
-            constraint_25[s in S], sum(num_deptos_por_piso_superior[s,(k,j)] * (mat_area_ip[k,j] + vec_area_t[k]) +
-                num_deptos_nucleo_por_piso_superior[s,(k,j)] * (mat_area_ipn[k,j] + vec_area_t[k]) +
-                (num_deptos_corner_por_piso_superior[s,(k,j)] + num_deptos_d_corner_por_piso_superior[s,(k,j)]) * (vec_area_i[k] + vec_area_t[k]) +
-                (num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] + num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)]) * (vec_area_in[k] + vec_area_t[k])
+            constraint_25[s in S], sum(num_deptos_regular_por_piso_superior[s,(k,j)] * (mat_area_ip[k,j] + vec_area_t[k]) +
+                num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] * (mat_area_ipn[k,j] + vec_area_t[k]) +
+                num_deptos_corner_por_piso_superior[s,(k,j)] * (vec_area_i[k] + vec_area_t[k]) +
+                num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] * (vec_area_in[k] + vec_area_t[k]) +
+                num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] * (vec_area_in_d_corner[k] + vec_area_t[k])
                 for (k, j) in KJ_feasible) <= W * H_s[s]
 
             # Apartment count is positive only if apartment type is selected (Big-M constraint linking binary and integer variables)
-            constraint_26[s in S, (k, j) in KJ_feasible], num_deptos_por_piso_superior[s,(k,j)] <= max_apts_per_strip * x[s,(k,j)]           # Regular apartments
-            constraint_27[s in S, (k, j) in KJ_feasible], num_deptos_nucleo_por_piso_superior[s,(k,j)] <= max_apts_per_strip * x_n[s,(k,j)]  # Nucleo apartments
+            constraint_26[s in S, (k, j) in KJ_feasible], num_deptos_regular_por_piso_superior[s,(k,j)] <= max_apts_per_strip * x[s,(k,j)]           # Regular apartments
+            constraint_27[s in S, (k, j) in KJ_feasible], num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] <= max_apts_per_strip * x_n[s,(k,j)]  # Nucleo apartments
             constraint_28[s in S, (k, j) in KJ_feasible], num_deptos_corner_por_piso_superior[s,(k,j)] <= 2 * x_c[s,(k,j)]  # Corner apartments (max 2)
             constraint_29[s in S, (k, j) in KJ_feasible], num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] <= 2 * x_cn[s,(k,j)]  # Corner nucleo apartments (max 2)
-            constraint_30[s in S, (k, j) in KJ_feasible], num_deptos_d_corner_por_piso_superior[s,(k,j)] <= 1 * x_cc[s,(k,j)] # Double corner apartments (max 1)
             constraint_31[s in S, (k, j) in KJ_feasible], num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] <= 1 * x_ccn[s,(k,j)] # Double corner nucleo apartments (max 1)
 
 
 
             # Total apartment widths per strip cannot exceed building width W
-            constraint_38[s in S], sum((num_deptos_por_piso_superior[s,(k,j)] +
-                num_deptos_nucleo_por_piso_superior[s,(k,j)] +
+            constraint_38[s in S], sum((num_deptos_regular_por_piso_superior[s,(k,j)] +
+                num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] +
                 num_deptos_corner_por_piso_superior[s,(k,j)] +
                 num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] +
-                num_deptos_d_corner_por_piso_superior[s,(k,j)] +
                 num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)]
                 ) * vec_w_i[j] for (k, j) in KJ_feasible) <= W
 
             # Maximum height tracking: use a single aggregated constraint per (s,k,j)
             constraint_39_height[s in S, (k, j) in KJ_feasible],
                 max_height[s] >= mat_h_ip[k,j] * x[s,(k,j)] + mat_h_ipn[k,j] * x_n[s,(k,j)] +
-                                mat_h_in[k,j] * (x_c[s,(k,j)] + x_cn[s,(k,j)] + x_cc[s,(k,j)] + x_ccn[s,(k,j)])
+                                mat_h_in[k,j] * (x_c[s,(k,j)] + x_cn[s,(k,j)]) +
+                                mat_h_in_d_corner[k,j] * x_ccn[s,(k,j)]
 
             # Sum of apartment perimeters must cover strip perimeter (2*max_height + W - tolerance)
             constraint_39[s in S],
-                sum(num_deptos_por_piso_superior[s,(k,j)] * mat_exposicion[k,j] for (k, j) in KJ_feasible) +
-                sum(num_deptos_nucleo_por_piso_superior[s,(k,j)] * mat_exposicion[k,j] for (k, j) in KJ_feasible) +
+                sum(num_deptos_regular_por_piso_superior[s,(k,j)] * mat_exposicion[k,j] for (k, j) in KJ_feasible) +
+                sum(num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] * mat_exposicion[k,j] for (k, j) in KJ_feasible) +
                 sum(num_deptos_corner_por_piso_superior[s,(k,j)] * mat_exposicion_corner[k,j] for (k, j) in KJ_feasible) +
                 sum(num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] * mat_exposicion_corner[k,j] for (k, j) in KJ_feasible) +
-                sum(num_deptos_d_corner_por_piso_superior[s,(k,j)] * mat_exposicion_d_corner[k,j] for (k, j) in KJ_feasible) +
                 sum(num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] * mat_exposicion_d_corner[k,j] for (k, j) in KJ_feasible) >= 0 # 2*max_height[s] + W - 5
 
             # First floor apartment counts cannot exceed upper floor counts (first floor is subset of upper floors)
-            constraint_40[s in S, (k, j) in KJ_feasible], num_deptos_primer_piso[s,(k,j)] <= num_deptos_por_piso_superior[s,(k,j)]             # Regular apartments
-            constraint_41[s in S, (k, j) in KJ_feasible], num_deptos_nucleo_primer_piso[s,(k,j)] <= num_deptos_nucleo_por_piso_superior[s,(k,j)]  # Nucleo apartments
+            constraint_40[s in S, (k, j) in KJ_feasible], num_deptos_regular_primer_piso[s,(k,j)] <= num_deptos_regular_por_piso_superior[s,(k,j)]             # Regular apartments
+            constraint_41[s in S, (k, j) in KJ_feasible], num_deptos_regular_nucleo_primer_piso[s,(k,j)] <= num_deptos_regular_nucleo_por_piso_superior[s,(k,j)]  # Nucleo apartments
             constraint_42[s in S, (k, j) in KJ_feasible], num_deptos_corner_primer_piso[s,(k,j)] <= num_deptos_corner_por_piso_superior[s,(k,j)]  # Corner apartments
-            constraint_43[s in S, (k, j) in KJ_feasible], num_deptos_corner_nucleo_primer_piso[s,(k,j)] <= num_deptos_corner_nucleo_por_piso_superior[s,(k,j)]  # Corner apartments
-            constraint_44[s in S, (k, j) in KJ_feasible], num_deptos_d_corner_primer_piso[s,(k,j)] <= num_deptos_d_corner_por_piso_superior[s,(k,j)] # Double corner apartments
-            constraint_45[s in S, (k, j) in KJ_feasible], num_deptos_d_corner_nucleo_primer_piso[s,(k,j)] <= num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] # Double corner apartments
+            constraint_43[s in S, (k, j) in KJ_feasible], num_deptos_corner_nucleo_primer_piso[s,(k,j)] <= num_deptos_corner_nucleo_por_piso_superior[s,(k,j)]  # Corner nucleo apartments
+            constraint_45[s in S, (k, j) in KJ_feasible], num_deptos_d_corner_nucleo_primer_piso[s,(k,j)] <= num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] # Double corner nucleo apartments
         end)
 
-        # Nucleo apartment constraints
-        # Require exactly 2 nucleo apartments per strip (regular + corner + double corner combined, first floor)
         @constraints(model, begin
-            constraint_46[s in S], sum(num_deptos_nucleo_primer_piso[s,(k,j)] for (k, j) in KJ_feasible) +
+            constraint_46[s in S], sum(num_deptos_regular_nucleo_primer_piso[s,(k,j)] for (k, j) in KJ_feasible) +
                                         sum(num_deptos_corner_nucleo_primer_piso[s,(k,j)] for (k, j) in KJ_feasible) +
-                                        sum(num_deptos_d_corner_nucleo_primer_piso[s,(k,j)] for (k, j) in KJ_feasible) == 2
-            constraint_47[s in S], sum(num_deptos_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) +
+                                        sum(num_deptos_d_corner_nucleo_primer_piso[s,(k,j)] for (k, j) in KJ_feasible) ==
+                                        2 * (y_c[s] + y_cn[s] + y[s] + y_n[s]) + 1 * y_ccn[s]
+            constraint_47[s in S], sum(num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) +
                                         sum(num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) +
-                                        sum(num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) == 2 
+                                        sum(num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) ==
+                                        2 * (y_c[s] + y_cn[s] + y[s] + y_n[s]) + 1 * y_ccn[s]
         end)
 
         # Symmetry breaking: order strips by total apartments to reduce search space
-        @constraint(model, sum(num_deptos_por_piso_superior[1,(k,j)] + num_deptos_nucleo_por_piso_superior[1,(k,j)] +
+        @constraint(model, sum(num_deptos_regular_por_piso_superior[1,(k,j)] + num_deptos_regular_nucleo_por_piso_superior[1,(k,j)] +
                             num_deptos_corner_por_piso_superior[1,(k,j)] + num_deptos_corner_nucleo_por_piso_superior[1,(k,j)] +
-                            num_deptos_d_corner_por_piso_superior[1,(k,j)] + num_deptos_d_corner_nucleo_por_piso_superior[1,(k,j)]
+                            num_deptos_d_corner_nucleo_por_piso_superior[1,(k,j)]
                             for (k, j) in KJ_feasible) >=
-                        sum(num_deptos_por_piso_superior[2,(k,j)] + num_deptos_nucleo_por_piso_superior[2,(k,j)] +
+                        sum(num_deptos_regular_por_piso_superior[2,(k,j)] + num_deptos_regular_nucleo_por_piso_superior[2,(k,j)] +
                             num_deptos_corner_por_piso_superior[2,(k,j)] + num_deptos_corner_nucleo_por_piso_superior[2,(k,j)] +
-                            num_deptos_d_corner_por_piso_superior[2,(k,j)] + num_deptos_d_corner_nucleo_por_piso_superior[2,(k,j)]
+                            num_deptos_d_corner_nucleo_por_piso_superior[2,(k,j)]
                             for (k, j) in KJ_feasible))
 
         # Diversity constraints: prevent mixing very different apartment sizes (ratio > 2.0)
@@ -695,7 +676,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                             sum(x_n[s,(k1,j)] for (k, j) in KJ_feasible if k == k1) + sum(x_n[s,(k2,j)] for (k, j) in KJ_feasible if k == k2) <= 1
                             sum(x_c[s,(k1,j)] for (k, j) in KJ_feasible if k == k1) + sum(x_c[s,(k2,j)] for (k, j) in KJ_feasible if k == k2) <= 1
                             sum(x_cn[s,(k1,j)] for (k, j) in KJ_feasible if k == k1) + sum(x_cn[s,(k2,j)] for (k, j) in KJ_feasible if k == k2) <= 1
-                            sum(x_cc[s,(k1,j)] for (k, j) in KJ_feasible if k == k1) + sum(x_cc[s,(k2,j)] for (k, j) in KJ_feasible if k == k2) <= 1
                             sum(x_ccn[s,(k1,j)] for (k, j) in KJ_feasible if k == k1) + sum(x_ccn[s,(k2,j)] for (k, j) in KJ_feasible if k == k2) <= 1
                         end)
                     end
@@ -723,31 +703,28 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         results = Dict{String,Any}()
         results["status"] = termination_status(model)
         results["solve_time"] = solve_time(model)
-        results["num_deptos_por_piso_superior"] = Dict{Tuple{Int,Int,Int},Float64}()
-        results["num_deptos_nucleo_por_piso_superior"] = Dict{Tuple{Int,Int,Int},Float64}()
+        results["num_deptos_regular_por_piso_superior"] = Dict{Tuple{Int,Int,Int},Float64}()
+        results["num_deptos_regular_nucleo_por_piso_superior"] = Dict{Tuple{Int,Int,Int},Float64}()
         results["num_deptos_corner_por_piso_superior"] = Dict{Tuple{Int,Int,Int},Float64}()
         results["num_deptos_corner_nucleo_por_piso_superior"] = Dict{Tuple{Int,Int,Int},Float64}()
-        results["num_deptos_d_corner_por_piso_superior"] = Dict{Tuple{Int,Int,Int},Float64}()
         results["num_deptos_d_corner_nucleo_por_piso_superior"] = Dict{Tuple{Int,Int,Int},Float64}()
-        results["num_deptos_primer_piso"] = Dict{Tuple{Int,Int,Int},Float64}()
-        results["num_deptos_nucleo_primer_piso"] = Dict{Tuple{Int,Int,Int},Float64}()
+        results["num_deptos_regular_primer_piso"] = Dict{Tuple{Int,Int,Int},Float64}()
+        results["num_deptos_regular_nucleo_primer_piso"] = Dict{Tuple{Int,Int,Int},Float64}()
         results["num_deptos_corner_primer_piso"] = Dict{Tuple{Int,Int,Int},Float64}()
         results["num_deptos_corner_nucleo_primer_piso"] = Dict{Tuple{Int,Int,Int},Float64}()
-        results["num_deptos_d_corner_primer_piso"] = Dict{Tuple{Int,Int,Int},Float64}()
         results["num_deptos_d_corner_nucleo_primer_piso"] = Dict{Tuple{Int,Int,Int},Float64}()
         results["x"] = Dict{Tuple{Int,Int,Int},Int}()
         results["x_n"] = Dict{Tuple{Int,Int,Int},Int}()
         results["x_c"] = Dict{Tuple{Int,Int,Int},Int}()
-        results["x_cc"] = Dict{Tuple{Int,Int,Int},Int}()
         results["H_s"] = Dict{Int,Float64}()
-        results["perimetro_strip_primer_piso"] = Dict{Int,Float64}()
-        results["apartment_area_strip_primer_piso"] = Dict{Int,Float64}()
-        results["terrace_area_strip_primer_piso"] = Dict{Int,Float64}()
-        results["pasillo_area_strip_primer_piso"] = Dict{Int,Float64}()
-        results["perimetro_strip_pisos_superiores"] = Dict{Int,Float64}()
-        results["apartment_area_strip_pisos_superiores"] = Dict{Int,Float64}()
-        results["terrace_area_strip_pisos_superiores"] = Dict{Int,Float64}()
-        results["pasillo_area_strip_pisos_superiores"] = Dict{Int,Float64}()
+        results["perimetro_expuesto_strip_primer_piso"] = Dict{Int,Float64}()
+        results["superficie_deptos_strip_primer_piso"] = Dict{Int,Float64}()
+        results["superficie_terraza_strip_primer_piso"] = Dict{Int,Float64}()
+        results["superficie_pasillo_strip_primer_piso"] = Dict{Int,Float64}()
+        results["perimetro_expuesto_strip_pisos_superiores"] = Dict{Int,Float64}()
+        results["superficie_deptos_strip_pisos_superiores"] = Dict{Int,Float64}()
+        results["superficie_terraza_strip_pisos_superiores"] = Dict{Int,Float64}()
+        results["superficie_pasillo_strip_pisos_superiores"] = Dict{Int,Float64}()
         results["vec_area_t"] = vec_area_t
         results["vec_w_t"] = vec_w_t
         results["vec_h_t"] = vec_h_t
@@ -757,7 +734,9 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         results["mat_h_ip"] = mat_h_ip
         results["mat_h_in"] = mat_h_in
         results["mat_h_ipn"] = mat_h_ipn
-        results["area_nucleo_depto"] = area_nucleo_depto
+        results["mat_h_in_d_corner"] = mat_h_in_d_corner
+        results["superficie_nucleo_por_depto"] = area_nucleo_depto
+        results["superficie_nucleo_por_depto_d_corner"] = area_nucleo_depto_d_corner
         results["W"] = W
         results["H"] = H
 
@@ -767,88 +746,77 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             results["area_comun_por_piso_superior"] = value(area_comun_por_piso_superior)
             results["area_no_utilizada_primer_piso"] = value(area_no_utilizada_primer_piso)
             results["area_no_utilizada_por_piso_superior"] = value(area_no_utilizada_por_piso_superior)
+            results["superficie_total_pasillo_primer_piso_expr"] = value(area_pasillo_primer_piso)
+            results["superficie_total_pasillo_pisos_superiores_expr"] = value(area_pasillo_por_piso_superior)
 
             for s in S
                 results["H_s"][s] = value(H_s[s])
 
-                perimetro_s_pp = sum(value(num_deptos_primer_piso[s,(k,j)]) * mat_exposicion[k,j] for (k, j) in KJ_feasible) +
-                            sum(value(num_deptos_nucleo_primer_piso[s,(k,j)]) * mat_exposicion[k,j] for (k, j) in KJ_feasible) +
+                perimetro_s_pp = sum(value(num_deptos_regular_primer_piso[s,(k,j)]) * mat_exposicion[k,j] for (k, j) in KJ_feasible) +
+                            sum(value(num_deptos_regular_nucleo_primer_piso[s,(k,j)]) * mat_exposicion[k,j] for (k, j) in KJ_feasible) +
                             sum(value(num_deptos_corner_primer_piso[s,(k,j)]) * mat_exposicion_corner[k,j] for (k, j) in KJ_feasible) +
                             sum(value(num_deptos_corner_nucleo_primer_piso[s,(k,j)]) * mat_exposicion_corner[k,j] for (k, j) in KJ_feasible) +
-                            sum(value(num_deptos_d_corner_primer_piso[s,(k,j)]) * mat_exposicion_d_corner[k,j] for (k, j) in KJ_feasible) +
                             sum(value(num_deptos_d_corner_nucleo_primer_piso[s,(k,j)]) * mat_exposicion_d_corner[k,j] for (k, j) in KJ_feasible)
-                results["perimetro_strip_primer_piso"][s] = perimetro_s_pp
+                results["perimetro_expuesto_strip_primer_piso"][s] = perimetro_s_pp
 
-                apartment_area_s_pp = sum(value(num_deptos_primer_piso[s,(k,j)]) * vec_area_i[k] for (k, j) in KJ_feasible) +
-                                sum(value(num_deptos_nucleo_primer_piso[s,(k,j)]) * vec_area_i[k] for (k, j) in KJ_feasible) +
+                apartment_area_s_pp = sum(value(num_deptos_regular_primer_piso[s,(k,j)]) * vec_area_i[k] for (k, j) in KJ_feasible) +
+                                sum(value(num_deptos_regular_nucleo_primer_piso[s,(k,j)]) * vec_area_i[k] for (k, j) in KJ_feasible) +
                                 sum(value(num_deptos_corner_primer_piso[s,(k,j)]) * vec_area_i[k] for (k, j) in KJ_feasible) +
                                 sum(value(num_deptos_corner_nucleo_primer_piso[s,(k,j)]) * vec_area_i[k] for (k, j) in KJ_feasible) +
-                                sum(value(num_deptos_d_corner_primer_piso[s,(k,j)]) * vec_area_i[k] for (k, j) in KJ_feasible) +
                                 sum(value(num_deptos_d_corner_nucleo_primer_piso[s,(k,j)]) * vec_area_i[k] for (k, j) in KJ_feasible)
-                results["apartment_area_strip_primer_piso"][s] = apartment_area_s_pp
+                results["superficie_deptos_strip_primer_piso"][s] = apartment_area_s_pp
 
-                terrace_area_s_pp = sum(value(num_deptos_primer_piso[s,(k,j)]) * vec_area_t[k] for (k, j) in KJ_feasible) +
-                                sum(value(num_deptos_nucleo_primer_piso[s,(k,j)]) * vec_area_t[k] for (k, j) in KJ_feasible) +
+                terrace_area_s_pp = sum(value(num_deptos_regular_primer_piso[s,(k,j)]) * vec_area_t[k] for (k, j) in KJ_feasible) +
+                                sum(value(num_deptos_regular_nucleo_primer_piso[s,(k,j)]) * vec_area_t[k] for (k, j) in KJ_feasible) +
                                 sum(value(num_deptos_corner_primer_piso[s,(k,j)]) * vec_area_t[k] for (k, j) in KJ_feasible) +
                                 sum(value(num_deptos_corner_nucleo_primer_piso[s,(k,j)]) * vec_area_t[k] for (k, j) in KJ_feasible) +
-                                sum(value(num_deptos_d_corner_primer_piso[s,(k,j)]) * vec_area_t[k] for (k, j) in KJ_feasible) +
                                 sum(value(num_deptos_d_corner_nucleo_primer_piso[s,(k,j)]) * vec_area_t[k] for (k, j) in KJ_feasible)
-                results["terrace_area_strip_primer_piso"][s] = terrace_area_s_pp
+                results["superficie_terraza_strip_primer_piso"][s] = terrace_area_s_pp
 
-                pasillo_area_s_pp = sum(value(num_deptos_primer_piso[s,(k,j)]) * vec_area_p[j] for (k, j) in KJ_feasible) +
-                                sum(value(num_deptos_nucleo_primer_piso[s,(k,j)]) * vec_area_p[j] for (k, j) in KJ_feasible) +
-                                sum(value(num_deptos_corner_primer_piso[s,(k,j)]) * vec_area_p[j] for (k, j) in KJ_feasible) +
-                                sum(value(num_deptos_d_corner_primer_piso[s,(k,j)]) * vec_area_p[j] for (k, j) in KJ_feasible)
-                results["pasillo_area_strip_primer_piso"][s] = pasillo_area_s_pp
+                pasillo_area_s_pp = sum(value(num_deptos_regular_primer_piso[s,(k,j)]) * vec_area_p[j] for (k, j) in KJ_feasible) +
+                                sum(value(num_deptos_regular_nucleo_primer_piso[s,(k,j)]) * vec_area_p[j] for (k, j) in KJ_feasible)
+                results["superficie_pasillo_strip_primer_piso"][s] = pasillo_area_s_pp
 
-                perimetro_s_ps = sum(value(num_deptos_por_piso_superior[s,(k,j)]) * mat_exposicion[k,j] for (k, j) in KJ_feasible) +
-                            sum(value(num_deptos_nucleo_por_piso_superior[s,(k,j)]) * mat_exposicion[k,j] for (k, j) in KJ_feasible) +
+                perimetro_s_ps = sum(value(num_deptos_regular_por_piso_superior[s,(k,j)]) * mat_exposicion[k,j] for (k, j) in KJ_feasible) +
+                            sum(value(num_deptos_regular_nucleo_por_piso_superior[s,(k,j)]) * mat_exposicion[k,j] for (k, j) in KJ_feasible) +
                             sum(value(num_deptos_corner_por_piso_superior[s,(k,j)]) * mat_exposicion_corner[k,j] for (k, j) in KJ_feasible) +
                             sum(value(num_deptos_corner_nucleo_por_piso_superior[s,(k,j)]) * mat_exposicion_corner[k,j] for (k, j) in KJ_feasible) +
-                            sum(value(num_deptos_d_corner_por_piso_superior[s,(k,j)]) * mat_exposicion_d_corner[k,j] for (k, j) in KJ_feasible) +
                             sum(value(num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)]) * mat_exposicion_d_corner[k,j] for (k, j) in KJ_feasible)
-                results["perimetro_strip_pisos_superiores"][s] = perimetro_s_ps
+                results["perimetro_expuesto_strip_pisos_superiores"][s] = perimetro_s_ps
 
-                apartment_area_s_ps = sum(value(num_deptos_por_piso_superior[s,(k,j)]) * vec_area_i[k] for (k, j) in KJ_feasible) +
-                                sum(value(num_deptos_nucleo_por_piso_superior[s,(k,j)]) * vec_area_i[k] for (k, j) in KJ_feasible) +
+                apartment_area_s_ps = sum(value(num_deptos_regular_por_piso_superior[s,(k,j)]) * vec_area_i[k] for (k, j) in KJ_feasible) +
+                                sum(value(num_deptos_regular_nucleo_por_piso_superior[s,(k,j)]) * vec_area_i[k] for (k, j) in KJ_feasible) +
                                 sum(value(num_deptos_corner_por_piso_superior[s,(k,j)]) * vec_area_i[k] for (k, j) in KJ_feasible) +
                                 sum(value(num_deptos_corner_nucleo_por_piso_superior[s,(k,j)]) * vec_area_i[k] for (k, j) in KJ_feasible) +
-                                sum(value(num_deptos_d_corner_por_piso_superior[s,(k,j)]) * vec_area_i[k] for (k, j) in KJ_feasible) +
                                 sum(value(num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)]) * vec_area_i[k] for (k, j) in KJ_feasible)
-                results["apartment_area_strip_pisos_superiores"][s] = apartment_area_s_ps
+                results["superficie_deptos_strip_pisos_superiores"][s] = apartment_area_s_ps
 
-                terrace_area_s_ps = sum(value(num_deptos_por_piso_superior[s,(k,j)]) * vec_area_t[k] for (k, j) in KJ_feasible) +
-                                sum(value(num_deptos_nucleo_por_piso_superior[s,(k,j)]) * vec_area_t[k] for (k, j) in KJ_feasible) +
+                terrace_area_s_ps = sum(value(num_deptos_regular_por_piso_superior[s,(k,j)]) * vec_area_t[k] for (k, j) in KJ_feasible) +
+                                sum(value(num_deptos_regular_nucleo_por_piso_superior[s,(k,j)]) * vec_area_t[k] for (k, j) in KJ_feasible) +
                                 sum(value(num_deptos_corner_por_piso_superior[s,(k,j)]) * vec_area_t[k] for (k, j) in KJ_feasible) +
                                 sum(value(num_deptos_corner_nucleo_por_piso_superior[s,(k,j)]) * vec_area_t[k] for (k, j) in KJ_feasible) +
-                                sum(value(num_deptos_d_corner_por_piso_superior[s,(k,j)]) * vec_area_t[k] for (k, j) in KJ_feasible) +
                                 sum(value(num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)]) * vec_area_t[k] for (k, j) in KJ_feasible)
-                results["terrace_area_strip_pisos_superiores"][s] = terrace_area_s_ps
+                results["superficie_terraza_strip_pisos_superiores"][s] = terrace_area_s_ps
 
-                pasillo_area_s_ps = sum(value(num_deptos_por_piso_superior[s,(k,j)]) * vec_area_p[j] for (k, j) in KJ_feasible) +
-                                sum(value(num_deptos_nucleo_por_piso_superior[s,(k,j)]) * vec_area_p[j] for (k, j) in KJ_feasible) +
-                                sum(value(num_deptos_corner_por_piso_superior[s,(k,j)]) * vec_area_p[j] for (k, j) in KJ_feasible) +
-                                sum(value(num_deptos_d_corner_por_piso_superior[s,(k,j)]) * vec_area_p[j] for (k, j) in KJ_feasible)
-                results["pasillo_area_strip_pisos_superiores"][s] = pasillo_area_s_ps
+                pasillo_area_s_ps = sum(value(num_deptos_regular_por_piso_superior[s,(k,j)]) * vec_area_p[j] for (k, j) in KJ_feasible) +
+                                sum(value(num_deptos_regular_nucleo_por_piso_superior[s,(k,j)]) * vec_area_p[j] for (k, j) in KJ_feasible)
+                results["superficie_pasillo_strip_pisos_superiores"][s] = pasillo_area_s_ps
 
                 for (k, j) in KJ_feasible
                     for (var, key, threshold, is_binary) in [
-                        (num_deptos_por_piso_superior[s,(k,j)], "num_deptos_por_piso_superior", 0.001, false),
-                        (num_deptos_nucleo_por_piso_superior[s,(k,j)], "num_deptos_nucleo_por_piso_superior", 0.001, false),
+                        (num_deptos_regular_por_piso_superior[s,(k,j)], "num_deptos_regular_por_piso_superior", 0.001, false),
+                        (num_deptos_regular_nucleo_por_piso_superior[s,(k,j)], "num_deptos_regular_nucleo_por_piso_superior", 0.001, false),
                         (num_deptos_corner_por_piso_superior[s,(k,j)], "num_deptos_corner_por_piso_superior", 0.001, false),
                         (num_deptos_corner_nucleo_por_piso_superior[s,(k,j)], "num_deptos_corner_nucleo_por_piso_superior", 0.001, false),
-                        (num_deptos_d_corner_por_piso_superior[s,(k,j)], "num_deptos_d_corner_por_piso_superior", 0.001, false),
                         (num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)], "num_deptos_d_corner_nucleo_por_piso_superior", 0.001, false),
-                        (num_deptos_primer_piso[s,(k,j)], "num_deptos_primer_piso", 0.001, false),
-                        (num_deptos_nucleo_primer_piso[s,(k,j)], "num_deptos_nucleo_primer_piso", 0.001, false),
+                        (num_deptos_regular_primer_piso[s,(k,j)], "num_deptos_regular_primer_piso", 0.001, false),
+                        (num_deptos_regular_nucleo_primer_piso[s,(k,j)], "num_deptos_regular_nucleo_primer_piso", 0.001, false),
                         (num_deptos_corner_primer_piso[s,(k,j)], "num_deptos_corner_primer_piso", 0.001, false),
                         (num_deptos_corner_nucleo_primer_piso[s,(k,j)], "num_deptos_corner_nucleo_primer_piso", 0.001, false),
-                        (num_deptos_d_corner_primer_piso[s,(k,j)], "num_deptos_d_corner_primer_piso", 0.001, false),
                         (num_deptos_d_corner_nucleo_primer_piso[s,(k,j)], "num_deptos_d_corner_nucleo_primer_piso", 0.001, false),
                         (x[s,(k,j)], "x", 0.5, true),
                         (x_n[s,(k,j)], "x_n", 0.5, true),
-                        (x_c[s,(k,j)], "x_c", 0.5, true),
-                        (x_cc[s,(k,j)], "x_cc", 0.5, true)]
+                        (x_c[s,(k,j)], "x_c", 0.5, true)]
 
                         val = value(var)
                         if val > threshold
@@ -858,33 +826,34 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                 end
             end
 
-            deptos_primer_piso = sum(sum(values(results[k])) for k in ["num_deptos_primer_piso", "num_deptos_nucleo_primer_piso", "num_deptos_corner_primer_piso", "num_deptos_corner_nucleo_primer_piso", "num_deptos_d_corner_primer_piso", "num_deptos_d_corner_nucleo_primer_piso"])
-            deptos_pisos_superiores = sum(sum(values(results[k])) for k in ["num_deptos_por_piso_superior", "num_deptos_nucleo_por_piso_superior", "num_deptos_corner_por_piso_superior", "num_deptos_corner_nucleo_por_piso_superior", "num_deptos_d_corner_por_piso_superior", "num_deptos_d_corner_nucleo_por_piso_superior"])
+            deptos_primer_piso = sum(sum(values(results[k])) for k in ["num_deptos_regular_primer_piso", "num_deptos_regular_nucleo_primer_piso", "num_deptos_corner_primer_piso", "num_deptos_corner_nucleo_primer_piso", "num_deptos_d_corner_nucleo_primer_piso"])
+            deptos_pisos_superiores = sum(sum(values(results[k])) for k in ["num_deptos_regular_por_piso_superior", "num_deptos_regular_nucleo_por_piso_superior", "num_deptos_corner_por_piso_superior", "num_deptos_corner_nucleo_por_piso_superior", "num_deptos_d_corner_nucleo_por_piso_superior"])
 
             results["total_deptos_primer_piso"] = deptos_primer_piso
             results["total_deptos_pisos_superiores"] = deptos_pisos_superiores
             results["total_deptos"] = deptos_primer_piso + deptos_pisos_superiores * num_pisos_superiores
 
-            results["total_apartment_area_primer_piso"] = sum(values(results["apartment_area_strip_primer_piso"]))
-            results["total_terrace_area_primer_piso"] = sum(values(results["terrace_area_strip_primer_piso"]))
-            results["total_pasillo_area_primer_piso"] = sum(values(results["pasillo_area_strip_primer_piso"]))
+            results["superficie_total_interior_primer_piso"] = sum(values(results["superficie_deptos_strip_primer_piso"]))
+            results["superficie_total_terraza_primer_piso"] = sum(values(results["superficie_terraza_strip_primer_piso"]))
+            results["superficie_total_pasillo_primer_piso"] = sum(values(results["superficie_pasillo_strip_primer_piso"]))
 
-            results["total_apartment_area_pisos_superiores"] = sum(values(results["apartment_area_strip_pisos_superiores"]))
-            results["total_terrace_area_pisos_superiores"] = sum(values(results["terrace_area_strip_pisos_superiores"]))
-            results["total_pasillo_area_pisos_superiores"] = sum(values(results["pasillo_area_strip_pisos_superiores"]))
+            results["superficie_total_interior_pisos_superiores"] = sum(values(results["superficie_deptos_strip_pisos_superiores"]))
+            results["superficie_total_terraza_pisos_superiores"] = sum(values(results["superficie_terraza_strip_pisos_superiores"]))
+            results["superficie_total_pasillo_pisos_superiores"] = sum(values(results["superficie_pasillo_strip_pisos_superiores"]))
+            results["superficie_losa_pisos_superiores"] = (results["superficie_total_interior_pisos_superiores"] + results["superficie_total_terraza_pisos_superiores"] + results["superficie_total_pasillo_pisos_superiores"]) * num_pisos_superiores
 
-            results["total_area_pisos_superiores"] = (results["total_apartment_area_pisos_superiores"] + results["total_terrace_area_pisos_superiores"] + results["total_pasillo_area_pisos_superiores"]) * num_pisos_superiores
-
-            results["total_apartment_area_building"] = results["total_apartment_area_primer_piso"] + results["total_apartment_area_pisos_superiores"] * num_pisos_superiores
-            results["total_terrace_area_building"] = results["total_terrace_area_primer_piso"] + results["total_terrace_area_pisos_superiores"] * num_pisos_superiores
-            results["total_pasillo_area_building"] = results["total_pasillo_area_primer_piso"] + results["total_pasillo_area_pisos_superiores"] * num_pisos_superiores
-            results["total_area_building"] = results["total_apartment_area_building"] + results["total_terrace_area_building"] + results["total_pasillo_area_building"]
+            results["superficie_interior_edificio"] = results["superficie_total_interior_primer_piso"] + results["superficie_total_interior_pisos_superiores"] * num_pisos_superiores
+            results["superficie_terraza_edificio"] = results["superficie_total_terraza_primer_piso"] + results["superficie_total_terraza_pisos_superiores"] * num_pisos_superiores
+            results["superficie_pasillo_edificio"] = results["superficie_total_pasillo_primer_piso"] + results["superficie_total_pasillo_pisos_superiores"] * num_pisos_superiores
+            results["superficie_total_edificio"] = results["superficie_interior_edificio"] + results["superficie_terraza_edificio"] + results["superficie_pasillo_edificio"]
 
             results["num_pisos_superiores"] = num_pisos_superiores
             results["num_pisos_total"] = num_pisos
         else
             results["objective_value"] = nothing
             results["total_deptos"] = 0.0
+            results["superficie_interior_edificio"] = 0.0
+            results["superficie_terraza_edificio"] = 0.0
             println("\n⚠️  WARNING: No feasible solution found!")
             println("Status: $(results["status"])")
         end
@@ -899,8 +868,8 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                                 vec_ps_opt, vec_np_opt, flag_dfl2,
                                 sup_patio_vivienda_economica, 2)
 
-    area_util_1 = results_1["total_apartment_area_building"] + results_1["total_terrace_area_building"] * 0.5
-    area_util_2 = results_2["total_apartment_area_building"] + results_2["total_terrace_area_building"] * 0.5
+    area_util_1 = results_1["superficie_interior_edificio"] + results_1["superficie_terraza_edificio"] * 0.5
+    area_util_2 = results_2["superficie_interior_edificio"] + results_2["superficie_terraza_edificio"] * 0.5
 
     if area_util_2 > area_util_1
         results = results_2

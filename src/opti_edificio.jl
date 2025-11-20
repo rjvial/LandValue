@@ -199,7 +199,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     expr_str = replace(expr_str, "flag_vano" => string(dict_arquitectura["arq_flag_vano"]))
     dict_normativa["norm_distanciamiento"] = eval(Meta.parse(expr_str))
 
-                                                                                           
+
     # ============================================================================
     # 4. APARTMENT SIZE CONFIGURATION
     # ============================================================================
