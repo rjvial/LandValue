@@ -41,17 +41,24 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         edge1 = V_planta[2, :] - V_planta[1, :]
         angulo_rotacion = -atan(edge1[2], edge1[1])
 
-        if layout == 2
-            angulo_rotacion += π/2
-        end
-
         ps_planta_normalizado = polyShape.polyRotate(ps_planta, angulo_rotacion, cr)
         V_planta_normalizado = ps_planta_normalizado.Vertices[1]
 
         vec_x_planta = V_planta_normalizado[:, 1]
         vec_y_planta = V_planta_normalizado[:, 2]
-        W = maximum(vec_x_planta) - minimum(vec_x_planta)
-        H = maximum(vec_y_planta) - minimum(vec_y_planta)
+        W_raw = maximum(vec_x_planta) - minimum(vec_x_planta)
+        H_raw = maximum(vec_y_planta) - minimum(vec_y_planta)
+
+        if layout == 2
+            W = H_raw
+            H = W_raw
+            angulo_rotacion += π/2
+        else
+            W = W_raw
+            H = H_raw
+        end
+
+        println("Layout $(layout): Angle=$(round(rad2deg(angulo_rotacion), digits=1))°, Raw=$(round(W_raw,digits=2))×$(round(H_raw,digits=2)) → Final W=$(round(W,digits=2))×H=$(round(H,digits=2))")
 
         return W, H, angulo_rotacion, cr, ps_planta_normalizado
     end
@@ -877,56 +884,51 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
     total_threads = Threads.nthreads()
 
-    if total_threads >= 4
-        num_threads_per_task = total_threads
-        println("Running layouts in PARALLEL ($(num_threads_per_task) HiGHS threads each)")
+    println("Running layouts SEQUENTIALLY ($(total_threads) threads for HiGHS solver)")
 
-        task_1 = Threads.@spawn opti_planta_edificio_layout(deepcopy(vec_area_i), deepcopy(vec_area_t), deepcopy(vec_area_p), deepcopy(vec_h_t), deepcopy(vec_w_i),
-                                    deepcopy(mat_h_ip), deepcopy(mat_h_ipn), deepcopy(mat_h_in), deepcopy(mat_h_in_d_corner),
-                                    area_nucleo_depto, area_nucleo_depto_d_corner,
-                                    max_constructibilidad, max_deptos,
-                                    deepcopy(vec_ps_opt), deepcopy(vec_np_opt), flag_dfl2,
-                                    sup_patio_vivienda_economica, 1, num_threads_per_task)
+    results_1, W_1, H_1 = opti_planta_edificio_layout(vec_area_i, vec_area_t, vec_area_p, vec_h_t, vec_w_i,
+                                mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner,
+                                area_nucleo_depto, area_nucleo_depto_d_corner,
+                                max_constructibilidad, max_deptos,
+                                vec_ps_opt, vec_np_opt, flag_dfl2,
+                                sup_patio_vivienda_economica, 1, total_threads)
 
-        task_2 = Threads.@spawn opti_planta_edificio_layout(deepcopy(vec_area_i), deepcopy(vec_area_t), deepcopy(vec_area_p), deepcopy(vec_h_t), deepcopy(vec_w_i),
-                                    deepcopy(mat_h_ip), deepcopy(mat_h_ipn), deepcopy(mat_h_in), deepcopy(mat_h_in_d_corner),
-                                    area_nucleo_depto, area_nucleo_depto_d_corner,
-                                    max_constructibilidad, max_deptos,
-                                    deepcopy(vec_ps_opt), deepcopy(vec_np_opt), flag_dfl2,
-                                    sup_patio_vivienda_economica, 2, num_threads_per_task)
-
-        results_1, W_1, H_1 = fetch(task_1)
-        results_2, W_2, H_2 = fetch(task_2)
-    else
-        println("Running layouts SEQUENTIALLY ($(total_threads) threads each for better quality)")
-
-        results_1, W_1, H_1 = opti_planta_edificio_layout(vec_area_i, vec_area_t, vec_area_p, vec_h_t, vec_w_i,
-                                    mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner,
-                                    area_nucleo_depto, area_nucleo_depto_d_corner,
-                                    max_constructibilidad, max_deptos,
-                                    vec_ps_opt, vec_np_opt, flag_dfl2,
-                                    sup_patio_vivienda_economica, 1, total_threads)
-
-        results_2, W_2, H_2 = opti_planta_edificio_layout(vec_area_i, vec_area_t, vec_area_p, vec_h_t, vec_w_i,
-                                    mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner,
-                                    area_nucleo_depto, area_nucleo_depto_d_corner,
-                                    max_constructibilidad, max_deptos,
-                                    vec_ps_opt, vec_np_opt, flag_dfl2,
-                                    sup_patio_vivienda_economica, 2, total_threads)
-    end
+    results_2, W_2, H_2 = opti_planta_edificio_layout(vec_area_i, vec_area_t, vec_area_p, vec_h_t, vec_w_i,
+                                mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner,
+                                area_nucleo_depto, area_nucleo_depto_d_corner,
+                                max_constructibilidad, max_deptos,
+                                vec_ps_opt, vec_np_opt, flag_dfl2,
+                                sup_patio_vivienda_economica, 2, total_threads)
 
     area_util_1 = results_1["superficie_interior_edificio"] + results_1["superficie_terraza_edificio"] * 0.5
     area_util_2 = results_2["superficie_interior_edificio"] + results_2["superficie_terraza_edificio"] * 0.5
+
+    println("\n" * "="^60)
+    println("LAYOUT COMPARISON")
+    println("="^60)
+    println("Layout 1 (horizontal): W=$(round(W_1, digits=2))m × H=$(round(H_1, digits=2))m → Área Útil = $(round(area_util_1, digits=2)) m²")
+    println("Layout 2 (vertical):   W=$(round(W_2, digits=2))m × H=$(round(H_2, digits=2))m → Área Útil = $(round(area_util_2, digits=2)) m²")
 
     if area_util_2 > area_util_1
         results = results_2
         W = W_2
         H = H_2
+        best_layout = 2
+        println("\n✓ Best layout: Layout 2 (vertical) - $(round(area_util_2 - area_util_1, digits=2)) m² better")
+        results["best_layout"] = 2
+        results["best_layout_area_util"] = area_util_2
+        results["alternative_layout_area_util"] = area_util_1
     else
         results = results_1
         W = W_1
         H = H_1
+        best_layout = 1
+        println("\n✓ Best layout: Layout 1 (horizontal) - $(round(area_util_1 - area_util_2, digits=2)) m² better")
+        results["best_layout"] = 1
+        results["best_layout_area_util"] = area_util_1
+        results["alternative_layout_area_util"] = area_util_2
     end
+    println("="^60)
 
     print_results(results, vec_area_i, vec_area_t, vec_area_p, vec_h_t, vec_w_i,
                   mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner,
