@@ -877,7 +877,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             println("\n⚠️  WARNING: No feasible solution found!")
             println("Status: $(results["status"])")
         end
-        return results, W, H
+        return results, W, H, angulo_rotacion
     end
 
     vec_area_i, vec_area_t, vec_area_p, vec_h_t, vec_w_i, mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner, area_nucleo_depto, area_nucleo_depto_d_corner = compute_arquitectura_params(dict_arquitectura)
@@ -886,14 +886,14 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
     println("Running layouts SEQUENTIALLY ($(total_threads) threads for HiGHS solver)")
 
-    results_1, W_1, H_1 = opti_planta_edificio_layout(vec_area_i, vec_area_t, vec_area_p, vec_h_t, vec_w_i,
+    results_1, W_1, H_1, angulo_1 = opti_planta_edificio_layout(vec_area_i, vec_area_t, vec_area_p, vec_h_t, vec_w_i,
                                 mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner,
                                 area_nucleo_depto, area_nucleo_depto_d_corner,
                                 max_constructibilidad, max_deptos,
                                 vec_ps_opt, vec_np_opt, flag_dfl2,
                                 sup_patio_vivienda_economica, 1, total_threads)
 
-    results_2, W_2, H_2 = opti_planta_edificio_layout(vec_area_i, vec_area_t, vec_area_p, vec_h_t, vec_w_i,
+    results_2, W_2, H_2, angulo_2 = opti_planta_edificio_layout(vec_area_i, vec_area_t, vec_area_p, vec_h_t, vec_w_i,
                                 mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner,
                                 area_nucleo_depto, area_nucleo_depto_d_corner,
                                 max_constructibilidad, max_deptos,
@@ -906,8 +906,8 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
     println("\n" * "="^60)
     println("LAYOUT COMPARISON")
     println("="^60)
-    println("Layout 1 (horizontal): W=$(round(W_1, digits=2))m × H=$(round(H_1, digits=2))m → Área Útil = $(round(area_util_1, digits=2)) m²")
-    println("Layout 2 (vertical):   W=$(round(W_2, digits=2))m × H=$(round(H_2, digits=2))m → Área Útil = $(round(area_util_2, digits=2)) m²")
+    println("Layout 1 (horizontal): W=$(round(W_1, digits=2))m × H=$(round(H_1, digits=2))m, Angle=$(round(rad2deg(angulo_1), digits=1))° → Área Útil = $(round(area_util_1, digits=2)) m²")
+    println("Layout 2 (vertical):   W=$(round(W_2, digits=2))m × H=$(round(H_2, digits=2))m, Angle=$(round(rad2deg(angulo_2), digits=1))° → Área Útil = $(round(area_util_2, digits=2)) m²")
 
     if area_util_2 > area_util_1
         results = results_2
