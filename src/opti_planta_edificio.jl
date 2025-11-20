@@ -1,11 +1,11 @@
 
 """
-Optimiza la asignación de departamentos en strips horizontales para maximizar superficie total.
+Optimiza la asignación de departamentos en strips norte/sures para maximizar superficie total.
 
 # Argumentos
 - `W::Float64`: Ancho del edificio (m)
 - `H::Float64`: Altura total del edificio (m)
-- `num_strips::Int`: Número de strips horizontales
+- `num_strips::Int`: Número de strips norte/sures
 - `vec_w_i`: Vector de anchos por tipo de departamento
 - `mat_h_ip`: Matriz de alturas [k,j] para departamentos regulares (incluye pasillo)
 - `mat_h_in`: Matriz de alturas [k,j] para departamentos esquina
@@ -906,15 +906,15 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
     println("\n" * "="^60)
     println("LAYOUT COMPARISON")
     println("="^60)
-    println("Layout 1 (horizontal): W=$(round(W_1, digits=2))m × H=$(round(H_1, digits=2))m, Angle=$(round(rad2deg(angulo_1), digits=1))° → Área Útil = $(round(area_util_1, digits=2)) m²")
-    println("Layout 2 (vertical):   W=$(round(W_2, digits=2))m × H=$(round(H_2, digits=2))m, Angle=$(round(rad2deg(angulo_2), digits=1))° → Área Útil = $(round(area_util_2, digits=2)) m²")
+    println("Layout 1 (norte/sur): W=$(round(W_1, digits=2))m × H=$(round(H_1, digits=2))m, Angle=$(round(rad2deg(angulo_1), digits=1))° → Área Útil = $(round(area_util_1, digits=2)) m²")
+    println("Layout 2 (oriente/poniente):   W=$(round(W_2, digits=2))m × H=$(round(H_2, digits=2))m, Angle=$(round(rad2deg(angulo_2), digits=1))° → Área Útil = $(round(area_util_2, digits=2)) m²")
 
     if area_util_2 > area_util_1
         results = results_2
         W = W_2
         H = H_2
         best_layout = 2
-        println("\n✓ Best layout: Layout 2 (vertical) - $(round(area_util_2 - area_util_1, digits=2)) m² better")
+        println("\n✓ Best layout: Layout 2 (oriente/poniente) - $(round(area_util_2 - area_util_1, digits=2)) m² better")
         results["best_layout"] = 2
         results["best_layout_area_util"] = area_util_2
         results["alternative_layout_area_util"] = area_util_1
@@ -923,7 +923,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         W = W_1
         H = H_1
         best_layout = 1
-        println("\n✓ Best layout: Layout 1 (horizontal) - $(round(area_util_1 - area_util_2, digits=2)) m² better")
+        println("\n✓ Best layout: Layout 1 (norte/sur) - $(round(area_util_1 - area_util_2, digits=2)) m² better")
         results["best_layout"] = 1
         results["best_layout_area_util"] = area_util_1
         results["alternative_layout_area_util"] = area_util_2
