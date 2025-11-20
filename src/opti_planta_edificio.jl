@@ -322,7 +322,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                                 area_nucleo_depto, area_nucleo_depto_d_corner,
                                 max_constructibilidad, max_deptos,
                                 vec_ps_opt, vec_np_opt, flag_dfl2,
-                                sup_patio_vivienda_economica, layout)
+                                sup_patio_vivienda_economica, layout, num_threads_highs)
 
         flag_dfl2 = flag_dfl2 || sup_patio_vivienda_economica > 0
 
@@ -376,12 +376,13 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
         model = Model(HiGHS.Optimizer)
         set_silent(model)
-        set_time_limit_sec(model, 120.0)
+        set_time_limit_sec(model, 300.0)
         set_optimizer_attribute(model, "mip_rel_gap", 0.001)
         set_optimizer_attribute(model, "presolve", "on")
         set_optimizer_attribute(model, "mip_detect_symmetry", true)
         set_optimizer_attribute(model, "mip_heuristic_effort", 0.3)
-        set_optimizer_attribute(model, "parallel", "off")
+        set_optimizer_attribute(model, "parallel", "on")
+        set_optimizer_attribute(model, "threads", num_threads_highs)
         set_optimizer_attribute(model, "mip_feasibility_tolerance", 1e-6)
 
         S = 1:num_strips
@@ -874,22 +875,45 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
     vec_area_i, vec_area_t, vec_area_p, vec_h_t, vec_w_i, mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner, area_nucleo_depto, area_nucleo_depto_d_corner = compute_arquitectura_params(dict_arquitectura)
 
-    task_1 = Threads.@spawn opti_planta_edificio_layout(vec_area_i, vec_area_t, vec_area_p, vec_h_t, vec_w_i,
-                                mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner,
-                                area_nucleo_depto, area_nucleo_depto_d_corner,
-                                max_constructibilidad, max_deptos,
-                                vec_ps_opt, vec_np_opt, flag_dfl2,
-                                sup_patio_vivienda_economica, 1)
+    total_threads = Threads.nthreads()
 
-    task_2 = Threads.@spawn opti_planta_edificio_layout(vec_area_i, vec_area_t, vec_area_p, vec_h_t, vec_w_i,
-                                mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner,
-                                area_nucleo_depto, area_nucleo_depto_d_corner,
-                                max_constructibilidad, max_deptos,
-                                vec_ps_opt, vec_np_opt, flag_dfl2,
-                                sup_patio_vivienda_economica, 2)
+    if total_threads >= 4
+        num_threads_per_task = total_threads
+        println("Running layouts in PARALLEL ($(num_threads_per_task) HiGHS threads each)")
 
-    results_1, W_1, H_1 = fetch(task_1)
-    results_2, W_2, H_2 = fetch(task_2)
+        task_1 = Threads.@spawn opti_planta_edificio_layout(deepcopy(vec_area_i), deepcopy(vec_area_t), deepcopy(vec_area_p), deepcopy(vec_h_t), deepcopy(vec_w_i),
+                                    deepcopy(mat_h_ip), deepcopy(mat_h_ipn), deepcopy(mat_h_in), deepcopy(mat_h_in_d_corner),
+                                    area_nucleo_depto, area_nucleo_depto_d_corner,
+                                    max_constructibilidad, max_deptos,
+                                    deepcopy(vec_ps_opt), deepcopy(vec_np_opt), flag_dfl2,
+                                    sup_patio_vivienda_economica, 1, num_threads_per_task)
+
+        task_2 = Threads.@spawn opti_planta_edificio_layout(deepcopy(vec_area_i), deepcopy(vec_area_t), deepcopy(vec_area_p), deepcopy(vec_h_t), deepcopy(vec_w_i),
+                                    deepcopy(mat_h_ip), deepcopy(mat_h_ipn), deepcopy(mat_h_in), deepcopy(mat_h_in_d_corner),
+                                    area_nucleo_depto, area_nucleo_depto_d_corner,
+                                    max_constructibilidad, max_deptos,
+                                    deepcopy(vec_ps_opt), deepcopy(vec_np_opt), flag_dfl2,
+                                    sup_patio_vivienda_economica, 2, num_threads_per_task)
+
+        results_1, W_1, H_1 = fetch(task_1)
+        results_2, W_2, H_2 = fetch(task_2)
+    else
+        println("Running layouts SEQUENTIALLY ($(total_threads) threads each for better quality)")
+
+        results_1, W_1, H_1 = opti_planta_edificio_layout(vec_area_i, vec_area_t, vec_area_p, vec_h_t, vec_w_i,
+                                    mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner,
+                                    area_nucleo_depto, area_nucleo_depto_d_corner,
+                                    max_constructibilidad, max_deptos,
+                                    vec_ps_opt, vec_np_opt, flag_dfl2,
+                                    sup_patio_vivienda_economica, 1, total_threads)
+
+        results_2, W_2, H_2 = opti_planta_edificio_layout(vec_area_i, vec_area_t, vec_area_p, vec_h_t, vec_w_i,
+                                    mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner,
+                                    area_nucleo_depto, area_nucleo_depto_d_corner,
+                                    max_constructibilidad, max_deptos,
+                                    vec_ps_opt, vec_np_opt, flag_dfl2,
+                                    sup_patio_vivienda_economica, 2, total_threads)
+    end
 
     area_util_1 = results_1["superficie_interior_edificio"] + results_1["superficie_terraza_edificio"] * 0.5
     area_util_2 = results_2["superficie_interior_edificio"] + results_2["superficie_terraza_edificio"] * 0.5
