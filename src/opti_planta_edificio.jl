@@ -1029,6 +1029,19 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             results["angulo_rotacion"] = angulo_rotacion
             results["cr"] = cr
             results["ps_planta_normalizado"] = ps_planta_normalizado
+
+            vec_ps_deptos_ps, vec_ps_terrazas_ps, vec_tipos_ps, vec_strips_ps = genera_geometrias_deptos(results, :pisos_superiores, layout)
+            vec_ps_deptos_pp, vec_ps_terrazas_pp, vec_tipos_pp, vec_strips_pp = genera_geometrias_deptos(results, :primer_piso, layout)
+
+            results["vec_ps_deptos_pisos_superiores"] = vec_ps_deptos_ps
+            results["vec_ps_terrazas_pisos_superiores"] = vec_ps_terrazas_ps
+            results["vec_tipos_pisos_superiores"] = vec_tipos_ps
+            results["vec_strips_pisos_superiores"] = vec_strips_ps
+
+            results["vec_ps_deptos_primer_piso"] = vec_ps_deptos_pp
+            results["vec_ps_terrazas_primer_piso"] = vec_ps_terrazas_pp
+            results["vec_tipos_primer_piso"] = vec_tipos_pp
+            results["vec_strips_primer_piso"] = vec_strips_pp
         else
             results["objective_value"] = nothing
             results["total_deptos"] = 0.0
@@ -1040,8 +1053,159 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         return results, W, H, angulo_rotacion
     end
 
-    vec_area_i, vec_area_t, vec_area_p, vec_h_t, 
-    vec_w_i, mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner, 
+    function genera_geometrias_deptos(results::AbstractDict, tipo_piso::Symbol, layout::Int)
+        vec_ps_deptos = PolyShape[]
+        vec_ps_terrazas = PolyShape[]
+        vec_tipos = String[]
+        vec_strips = Int[]
+
+        ps_planta_normalizado = results["ps_planta_normalizado"]
+        V_planta = ps_planta_normalizado.Vertices[1]
+        x_min = minimum(V_planta[:, 1])
+        y_min = minimum(V_planta[:, 2])
+
+        is_vertical = (layout == 2)
+
+        deptos_por_strip = Dict{Int, Vector{Any}}()
+        for (_, depto_data) in results["deptos"]
+            strip = depto_data["strip"]
+            if !haskey(deptos_por_strip, strip)
+                deptos_por_strip[strip] = []
+            end
+            push!(deptos_por_strip[strip], depto_data)
+        end
+
+        if is_vertical
+            x_offset = x_min
+            for strip in sort(collect(keys(deptos_por_strip)))
+                H_s = results["strip"][strip]["H_s"]
+
+                deptos_strip = deptos_por_strip[strip]
+
+                corner_deptos = filter(d -> startswith(d["tipo"], "corner") || startswith(d["tipo"], "d_corner"), deptos_strip)
+                regular_deptos = filter(d -> startswith(d["tipo"], "regular"), deptos_strip)
+
+                sorted_deptos = Any[]
+                if length(corner_deptos) == 2
+                    push!(sorted_deptos, corner_deptos[1])
+                    append!(sorted_deptos, regular_deptos)
+                    push!(sorted_deptos, corner_deptos[2])
+                elseif length(corner_deptos) == 1
+                    push!(sorted_deptos, corner_deptos[1])
+                    append!(sorted_deptos, regular_deptos)
+                else
+                    append!(sorted_deptos, regular_deptos)
+                end
+
+                total_ancho_strip = sum(d["ancho"] * round(Int, (tipo_piso == :primer_piso ? d["num_unidades_primer_piso"] : d["num_unidades_por_piso_superior"])) for d in sorted_deptos if (tipo_piso == :primer_piso ? d["num_unidades_primer_piso"] : d["num_unidades_por_piso_superior"]) >= 0.001)
+                V_planta = ps_planta_normalizado.Vertices[1]
+                H_planta = maximum(V_planta[:, 2]) - minimum(V_planta[:, 2])
+                y_start = y_min + (H_planta - total_ancho_strip) / 2
+
+                x_strip_offset = (strip == 1) ? x_offset + H_s : x_offset
+
+                y_offset = y_start
+                for depto_data in sorted_deptos
+                    num_unidades = (tipo_piso == :primer_piso) ?
+                        depto_data["num_unidades_primer_piso"] :
+                        depto_data["num_unidades_por_piso_superior"]
+
+                    if num_unidades < 0.001
+                        continue
+                    end
+
+                    ancho = depto_data["ancho"]
+                    profundidad = depto_data["profundidad"]
+                    ancho_terraza = depto_data["ancho_terraza"]
+                    profundidad_terraza = depto_data["profundidad_terraza"]
+
+                    for _ in 1:round(Int, num_unidades)
+                        x_depto = (strip == 1) ? x_strip_offset - profundidad : x_strip_offset
+                        ps_depto = polyShape.polyBox(x_depto, y_offset, profundidad, ancho, 0.0)
+
+                        x_terraza = (strip == 1) ? x_depto - profundidad_terraza : x_strip_offset + profundidad
+                        y_terraza = y_offset + (ancho - ancho_terraza) / 2
+                        ps_terraza = polyShape.polyBox(x_terraza, y_terraza,
+                                                      profundidad_terraza, ancho_terraza, 0.0)
+                        push!(vec_ps_deptos, ps_depto)
+                        push!(vec_ps_terrazas, ps_terraza)
+                        push!(vec_tipos, depto_data["tipo"])
+                        push!(vec_strips, strip)
+                        y_offset += ancho
+                    end
+                end
+
+                x_offset += H_s
+            end
+        else
+            y_offset = y_min
+            for strip in sort(collect(keys(deptos_por_strip)))
+                H_s = results["strip"][strip]["H_s"]
+
+                deptos_strip = deptos_por_strip[strip]
+
+                corner_deptos = filter(d -> startswith(d["tipo"], "corner") || startswith(d["tipo"], "d_corner"), deptos_strip)
+                regular_deptos = filter(d -> startswith(d["tipo"], "regular"), deptos_strip)
+
+                sorted_deptos = Any[]
+                if length(corner_deptos) == 2
+                    push!(sorted_deptos, corner_deptos[1])
+                    append!(sorted_deptos, regular_deptos)
+                    push!(sorted_deptos, corner_deptos[2])
+                elseif length(corner_deptos) == 1
+                    push!(sorted_deptos, corner_deptos[1])
+                    append!(sorted_deptos, regular_deptos)
+                else
+                    append!(sorted_deptos, regular_deptos)
+                end
+
+                total_ancho_strip = sum(d["ancho"] * round(Int, (tipo_piso == :primer_piso ? d["num_unidades_primer_piso"] : d["num_unidades_por_piso_superior"])) for d in sorted_deptos if (tipo_piso == :primer_piso ? d["num_unidades_primer_piso"] : d["num_unidades_por_piso_superior"]) >= 0.001)
+                V_planta = ps_planta_normalizado.Vertices[1]
+                W_planta = maximum(V_planta[:, 1]) - minimum(V_planta[:, 1])
+                x_start = x_min + (W_planta - total_ancho_strip) / 2
+
+                y_strip_offset = (strip == 1) ? y_offset + H_s : y_offset
+
+                x_offset = x_start
+                for depto_data in sorted_deptos
+                    num_unidades = (tipo_piso == :primer_piso) ?
+                        depto_data["num_unidades_primer_piso"] :
+                        depto_data["num_unidades_por_piso_superior"]
+
+                    if num_unidades < 0.001
+                        continue
+                    end
+
+                    ancho = depto_data["ancho"]
+                    profundidad = depto_data["profundidad"]
+                    ancho_terraza = depto_data["ancho_terraza"]
+                    profundidad_terraza = depto_data["profundidad_terraza"]
+
+                    for _ in 1:round(Int, num_unidades)
+                        y_depto = (strip == 1) ? y_strip_offset - profundidad : y_strip_offset
+                        ps_depto = polyShape.polyBox(x_offset, y_depto, ancho, profundidad, 0.0)
+
+                        y_terraza = (strip == 1) ? y_depto - profundidad_terraza : y_strip_offset + profundidad
+                        x_terraza = x_offset + (ancho - ancho_terraza) / 2
+                        ps_terraza = polyShape.polyBox(x_terraza, y_terraza,
+                                                      ancho_terraza, profundidad_terraza, 0.0)
+                        push!(vec_ps_deptos, ps_depto)
+                        push!(vec_ps_terrazas, ps_terraza)
+                        push!(vec_tipos, depto_data["tipo"])
+                        push!(vec_strips, strip)
+                        x_offset += ancho
+                    end
+                end
+
+                y_offset += H_s
+            end
+        end
+
+        return vec_ps_deptos, vec_ps_terrazas, vec_tipos, vec_strips
+    end
+
+    vec_area_i, vec_area_t, vec_area_p, vec_h_t,
+    vec_w_i, mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner,
     area_nucleo_depto, area_nucleo_depto_d_corner = compute_arquitectura_params(dict_arquitectura)
 
     total_threads = Threads.nthreads()
