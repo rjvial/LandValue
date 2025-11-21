@@ -64,7 +64,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
     end
 
 
-    function print_results(results::Dict, vec_area_i, vec_area_t, vec_area_p, vec_h_t, vec_w_i,
+    function print_results(results::AbstractDict, vec_area_i, vec_area_t, vec_area_p, vec_h_t, vec_w_i,
                           mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner,
                           area_nucleo_depto, area_nucleo_depto_d_corner, W, H)
         println("\n" * "="^60)
@@ -734,28 +734,28 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
         optimize!(model)
 
-        results = Dict{String,Any}()
+        results = OrderedDict{String,Any}()
         results["status"] = termination_status(model)
         results["solve_time"] = solve_time(model)
-        results["num_deptos_regular_por_piso_superior"] = Dict{Tuple{Int,Int,Int},Float64}()
-        results["num_deptos_regular_nucleo_por_piso_superior"] = Dict{Tuple{Int,Int,Int},Float64}()
-        results["num_deptos_corner_por_piso_superior"] = Dict{Tuple{Int,Int,Int},Float64}()
-        results["num_deptos_corner_nucleo_por_piso_superior"] = Dict{Tuple{Int,Int,Int},Float64}()
-        results["num_deptos_d_corner_nucleo_por_piso_superior"] = Dict{Tuple{Int,Int,Int},Float64}()
-        results["num_deptos_regular_primer_piso"] = Dict{Tuple{Int,Int,Int},Float64}()
-        results["num_deptos_regular_nucleo_primer_piso"] = Dict{Tuple{Int,Int,Int},Float64}()
-        results["num_deptos_corner_primer_piso"] = Dict{Tuple{Int,Int,Int},Float64}()
-        results["num_deptos_corner_nucleo_primer_piso"] = Dict{Tuple{Int,Int,Int},Float64}()
-        results["num_deptos_d_corner_nucleo_primer_piso"] = Dict{Tuple{Int,Int,Int},Float64}()
-        results["H_s"] = Dict{Int,Float64}()
-        results["perimetro_expuesto_strip_primer_piso"] = Dict{Int,Float64}()
-        results["superficie_deptos_strip_primer_piso"] = Dict{Int,Float64}()
-        results["superficie_terraza_strip_primer_piso"] = Dict{Int,Float64}()
-        results["superficie_pasillo_strip_primer_piso"] = Dict{Int,Float64}()
-        results["perimetro_expuesto_strip_pisos_superiores"] = Dict{Int,Float64}()
-        results["superficie_deptos_strip_pisos_superiores"] = Dict{Int,Float64}()
-        results["superficie_terraza_strip_pisos_superiores"] = Dict{Int,Float64}()
-        results["superficie_pasillo_strip_pisos_superiores"] = Dict{Int,Float64}()
+        results["num_deptos_regular_por_piso_superior"] = OrderedDict{Tuple{Int,Int,Int},Float64}()
+        results["num_deptos_regular_nucleo_por_piso_superior"] = OrderedDict{Tuple{Int,Int,Int},Float64}()
+        results["num_deptos_corner_por_piso_superior"] = OrderedDict{Tuple{Int,Int,Int},Float64}()
+        results["num_deptos_corner_nucleo_por_piso_superior"] = OrderedDict{Tuple{Int,Int,Int},Float64}()
+        results["num_deptos_d_corner_nucleo_por_piso_superior"] = OrderedDict{Tuple{Int,Int,Int},Float64}()
+        results["num_deptos_regular_primer_piso"] = OrderedDict{Tuple{Int,Int,Int},Float64}()
+        results["num_deptos_regular_nucleo_primer_piso"] = OrderedDict{Tuple{Int,Int,Int},Float64}()
+        results["num_deptos_corner_primer_piso"] = OrderedDict{Tuple{Int,Int,Int},Float64}()
+        results["num_deptos_corner_nucleo_primer_piso"] = OrderedDict{Tuple{Int,Int,Int},Float64}()
+        results["num_deptos_d_corner_nucleo_primer_piso"] = OrderedDict{Tuple{Int,Int,Int},Float64}()
+        results["H_s"] = OrderedDict{Int,Float64}()
+        results["perimetro_expuesto_strip_primer_piso"] = OrderedDict{Int,Float64}()
+        results["superficie_deptos_strip_primer_piso"] = OrderedDict{Int,Float64}()
+        results["superficie_terraza_strip_primer_piso"] = OrderedDict{Int,Float64}()
+        results["superficie_pasillo_strip_primer_piso"] = OrderedDict{Int,Float64}()
+        results["perimetro_expuesto_strip_pisos_superiores"] = OrderedDict{Int,Float64}()
+        results["superficie_deptos_strip_pisos_superiores"] = OrderedDict{Int,Float64}()
+        results["superficie_terraza_strip_pisos_superiores"] = OrderedDict{Int,Float64}()
+        results["superficie_pasillo_strip_pisos_superiores"] = OrderedDict{Int,Float64}()
 
         if has_values(model)
             results["objective_value"] = objective_value(model)
