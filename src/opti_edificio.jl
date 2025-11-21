@@ -209,14 +209,16 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
         flag_dfl2 = dict_normativa["flag_dfl2"]
         superficie_terreno = dict_geom["sup_terreno_sii"]
 
+        flag_vivienda_economica = sup_patio_vivienda_economica > 0
+
         # # Optimiza la superficie util en base a: num pisos, area basal, constructibilidad, densidad 
-        dict_edificio_deptos = opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_deptos, 
-                                                    vec_ps_opt, vec_np_opt, flag_dfl2, 
-                                                    sup_patio_vivienda_economica, superficie_terreno)
+        # dict_edificio_deptos = opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_deptos, 
+        #                                             vec_ps_opt, vec_np_opt, flag_dfl2, 
+        #                                             sup_patio_vivienda_economica, superficie_terreno)
 
         results = opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_deptos, 
-                                vec_ps_opt, vec_np_opt, flag_dfl2, 
-                                sup_patio_vivienda_economica, superficie_terreno)
+                                vec_ps_opt, vec_np_opt, flag_dfl2, flag_vivienda_economica)
+
     else
         dict_edificio_deptos = Dict{String, Any}("vec_numDeptosTipo" => [0], "supUtil" => 0.0, "supNoUtilizada" => 0.0)
     end
