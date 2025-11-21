@@ -102,8 +102,8 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
             for depto_data in values(results["deptos"])
                 tipo = depto_data["tipo"]
-                tipo_counts_pp[tipo] = get(tipo_counts_pp, tipo, 0.0) + depto_data["primer_piso"]
-                tipo_counts_ps[tipo] = get(tipo_counts_ps, tipo, 0.0) + depto_data["pisos_superiores"]
+                tipo_counts_pp[tipo] = get(tipo_counts_pp, tipo, 0.0) + depto_data["num_unidades_primer_piso"]
+                tipo_counts_ps[tipo] = get(tipo_counts_ps, tipo, 0.0) + depto_data["num_unidades_por_piso_superior"]
             end
 
             tipo_labels = Dict("regular"=>"Regular", "regular_nucleo"=>"Núcleo",
@@ -215,11 +215,11 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             for depto_data in values(deptos_dict)
                 tipo = depto_data["tipo"]
                 if tipo == "regular_nucleo" || tipo == "corner_nucleo"
-                    area_nucleo_pp += depto_data["primer_piso"] * area_nucleo_depto_local
-                    area_nucleo_ps += depto_data["pisos_superiores"] * area_nucleo_depto_local
+                    area_nucleo_pp += depto_data["num_unidades_primer_piso"] * area_nucleo_depto_local
+                    area_nucleo_ps += depto_data["num_unidades_por_piso_superior"] * area_nucleo_depto_local
                 elseif tipo == "d_corner_nucleo"
-                    area_nucleo_pp += depto_data["primer_piso"] * area_nucleo_depto_d_corner_local
-                    area_nucleo_ps += depto_data["pisos_superiores"] * area_nucleo_depto_d_corner_local
+                    area_nucleo_pp += depto_data["num_unidades_primer_piso"] * area_nucleo_depto_d_corner_local
+                    area_nucleo_ps += depto_data["num_unidades_por_piso_superior"] * area_nucleo_depto_d_corner_local
                 end
             end
             area_nucleo_total = area_nucleo_pp + area_nucleo_ps * num_pisos_sup
@@ -311,8 +311,8 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                 area_total = area_interior + area_nucleo
             end
 
-            count_pp = depto_data["primer_piso"]
-            count_ps = depto_data["pisos_superiores"]
+            count_pp = depto_data["num_unidades_primer_piso"]
+            count_ps = depto_data["num_unidades_por_piso_superior"]
 
             if count_pp > 0.001
                 piso_label = tipo_piso_label_map["primer_piso"]
@@ -415,7 +415,8 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                                 vec_ps_opt, vec_np_opt, flag_dfl2,
                                 sup_patio_vivienda_economica, layout, num_threads_highs)
 
-        flag_dfl2 = flag_dfl2 || sup_patio_vivienda_economica > 0
+        flag_vivienda_economica = sup_patio_vivienda_economica > 0
+        flag_dfl2 = flag_dfl2 || flag_vivienda_economica
 
         ps_planta = vec_ps_opt[1]
         W, H, angulo_rotacion, cr, ps_planta_normalizado = normaliza_planta_rectangular(ps_planta, layout)
@@ -905,8 +906,35 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                             results["deptos"][depto_index]["k"] = k
                             results["deptos"][depto_index]["j"] = j
                             results["deptos"][depto_index]["tipo"] = tipo
-                            results["deptos"][depto_index]["primer_piso"] = val_pp
-                            results["deptos"][depto_index]["pisos_superiores"] = val_ps
+                            results["deptos"][depto_index]["num_unidades_primer_piso"] = val_pp
+                            results["deptos"][depto_index]["num_unidades_por_piso_superior"] = val_ps
+                            results["deptos"][depto_index]["num_unidades_totales"] = val_pp + val_ps * num_pisos_superiores
+
+                            results["deptos"][depto_index]["ancho"] = vec_w_i[j]
+                            results["deptos"][depto_index]["sup_interior"] = vec_area_i[k]
+                            results["deptos"][depto_index]["sup_terraza"] = vec_area_t[k]
+
+                            if tipo == "regular"
+                                results["deptos"][depto_index]["profundidad"] = mat_h_ip[k,j]
+                                results["deptos"][depto_index]["sup_pasillo"] = vec_area_p[j]
+                                results["deptos"][depto_index]["sup_nucleo"] = 0.0
+                            elseif tipo == "regular_nucleo"
+                                results["deptos"][depto_index]["profundidad"] = mat_h_ipn[k,j]
+                                results["deptos"][depto_index]["sup_pasillo"] = vec_area_p[j]
+                                results["deptos"][depto_index]["sup_nucleo"] = area_nucleo_depto
+                            elseif tipo == "corner"
+                                results["deptos"][depto_index]["profundidad"] = mat_h_in[k,j]
+                                results["deptos"][depto_index]["sup_pasillo"] = 0.0
+                                results["deptos"][depto_index]["sup_nucleo"] = 0.0
+                            elseif tipo == "corner_nucleo"
+                                results["deptos"][depto_index]["profundidad"] = mat_h_in[k,j]
+                                results["deptos"][depto_index]["sup_pasillo"] = 0.0
+                                results["deptos"][depto_index]["sup_nucleo"] = area_nucleo_depto
+                            else
+                                results["deptos"][depto_index]["profundidad"] = mat_h_in_d_corner[k,j]
+                                results["deptos"][depto_index]["sup_pasillo"] = 0.0
+                                results["deptos"][depto_index]["sup_nucleo"] = area_nucleo_depto_d_corner
+                            end
                         end
                     end
                 end
@@ -915,8 +943,8 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             deptos_primer_piso = 0.0
             deptos_pisos_superiores = 0.0
             for depto_data in values(results["deptos"])
-                deptos_primer_piso += depto_data["primer_piso"]
-                deptos_pisos_superiores += depto_data["pisos_superiores"]
+                deptos_primer_piso += depto_data["num_unidades_primer_piso"]
+                deptos_pisos_superiores += depto_data["num_unidades_por_piso_superior"]
             end
 
             sup_int_pp = sum(results["strip"][s]["superficie_deptos"]["primer_piso"] for s in S)
@@ -953,11 +981,11 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             for depto_data in values(results["deptos"])
                 tipo = depto_data["tipo"]
                 if tipo == "regular_nucleo" || tipo == "corner_nucleo"
-                    area_nucleo_pp += depto_data["primer_piso"] * area_nucleo_depto
-                    area_nucleo_ps += depto_data["pisos_superiores"] * area_nucleo_depto
+                    area_nucleo_pp += depto_data["num_unidades_primer_piso"] * area_nucleo_depto
+                    area_nucleo_ps += depto_data["num_unidades_por_piso_superior"] * area_nucleo_depto
                 elseif tipo == "d_corner_nucleo"
-                    area_nucleo_pp += depto_data["primer_piso"] * area_nucleo_depto_d_corner
-                    area_nucleo_ps += depto_data["pisos_superiores"] * area_nucleo_depto_d_corner
+                    area_nucleo_pp += depto_data["num_unidades_primer_piso"] * area_nucleo_depto_d_corner
+                    area_nucleo_ps += depto_data["num_unidades_por_piso_superior"] * area_nucleo_depto_d_corner
                 end
             end
 
@@ -995,6 +1023,11 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
             results["num_pisos_superiores"] = num_pisos_superiores
             results["num_pisos_total"] = num_pisos
+            results["flag_dfl2"] = flag_dfl2
+            results["flag_vivienda_economica"] = flag_vivienda_economica
+            results["angulo_rotacion"] = angulo_rotacion
+            results["cr"] = cr
+            results["ps_planta_normalizado"] = ps_planta_normalizado
         else
             results["objective_value"] = nothing
             results["total_deptos"] = 0.0
