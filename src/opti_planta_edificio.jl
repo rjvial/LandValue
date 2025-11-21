@@ -747,9 +747,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         results["num_deptos_corner_primer_piso"] = Dict{Tuple{Int,Int,Int},Float64}()
         results["num_deptos_corner_nucleo_primer_piso"] = Dict{Tuple{Int,Int,Int},Float64}()
         results["num_deptos_d_corner_nucleo_primer_piso"] = Dict{Tuple{Int,Int,Int},Float64}()
-        results["x"] = Dict{Tuple{Int,Int,Int},Int}()
-        results["x_n"] = Dict{Tuple{Int,Int,Int},Int}()
-        results["x_c"] = Dict{Tuple{Int,Int,Int},Int}()
         results["H_s"] = Dict{Int,Float64}()
         results["perimetro_expuesto_strip_primer_piso"] = Dict{Int,Float64}()
         results["superficie_deptos_strip_primer_piso"] = Dict{Int,Float64}()
@@ -833,10 +830,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                         (num_deptos_regular_nucleo_primer_piso[s,(k,j)], "num_deptos_regular_nucleo_primer_piso", 0.001, false),
                         (num_deptos_corner_primer_piso[s,(k,j)], "num_deptos_corner_primer_piso", 0.001, false),
                         (num_deptos_corner_nucleo_primer_piso[s,(k,j)], "num_deptos_corner_nucleo_primer_piso", 0.001, false),
-                        (num_deptos_d_corner_nucleo_primer_piso[s,(k,j)], "num_deptos_d_corner_nucleo_primer_piso", 0.001, false),
-                        (x[s,(k,j)], "x", 0.5, true),
-                        (x_n[s,(k,j)], "x_n", 0.5, true),
-                        (x_c[s,(k,j)], "x_c", 0.5, true)]
+                        (num_deptos_d_corner_nucleo_primer_piso[s,(k,j)], "num_deptos_d_corner_nucleo_primer_piso", 0.001, false)]
 
                         val = value(var)
                         if val > threshold
