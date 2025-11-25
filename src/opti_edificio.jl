@@ -220,9 +220,6 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
                                 vec_ps_opt, vec_np_opt, flag_dfl2, flag_vivienda_economica)
 
 
-        df_deptos_resumen = combine(
-           groupby(dict_edificio_deptos["df_deptos"], [:strip, :sup_interior, :ancho_interior, :profundidad_interior, :num_unidades_por_piso_superior, :num_unidades_primer_piso]),
-           :num_unidades_edificio => sum => :num_unidades_edificio)
 
     # else
     #     dict_edificio_deptos = Dict{String, Any}("vec_numDeptosTipo" => [0], "supUtil" => 0.0, "supNoUtilizada" => 0.0)
@@ -258,12 +255,26 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
         end
     end
 
+    fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
+    for terrace in results_primer_piso["vec_ps_deptos_all"]
+        if polyShape.polyArea(terrace) > 0.0
+            polyPlot.plotPolyshape2D(terrace, "red", 0.4, fig=fig, ax=ax, ax_mat=ax_mat)
+        end
+    end
+    for terrace in results_primer_piso["vec_ps_terrazas_all"]
+        if polyShape.polyArea(terrace) > 0.0
+            polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig, ax=ax, ax_mat=ax_mat)
+        end
+    end
 
     # ============================================================================
     # 5. CAPACITY DATA CALCULATION
     # ============================================================================
+    df_deptos_resumen = combine(
+        groupby(dict_edificio_deptos["df_deptos"], [:strip, :sup_interior, :ancho_interior, :profundidad_interior, :num_unidades_por_piso_superior, :num_unidades_primer_piso]),
+        :num_unidades_edificio => sum => :num_unidades_edificio)
+
     cabida_data = Dict{String, Any}()
-    
     if dict_normativa["tipo_edificio"] == "departamento"
         cabida_data["vec_sup_deptos"] = df_deptos_resumen[:,"sup_interior"]
         cabida_data["vec_num_deptos"] = Int.(round.(df_deptos_resumen[:,"num_unidades_edificio"]))
@@ -404,8 +415,8 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
         "proyecto_pisos_bnt" => Int8(sum(vec_np_subte[i] for i in eachindex(vec_ps_subte))),
         "proyecto_vec_sup_deptos" => cabida_data["vec_sup_deptos"],
         "proyecto_vec_num_deptos" => cabida_data["vec_num_deptos"],
-        "proyecto_vec_num_deptos_primerPiso" => dict_edificio_deptos["vec_numDeptosTipo_primerPiso"],
-        "proyecto_vec_num_deptos_pisosSup" => dict_edificio_deptos["vec_numDeptosTipo_pisosSup"],
+        "proyecto_vec_num_deptos_primerPiso" => Int.(round.(df_deptos_resumen[:,"num_unidades_primer_piso"])),
+        "proyecto_vec_num_deptos_pisosSup" => Int.(round.(df_deptos_resumen[:,"num_unidades_por_piso_superior"])),
         "proyecto_vec_sup_comercio" => cabida_data["vec_sup_comercio"],
         "proyecto_vec_num_comercio" => cabida_data["vec_num_comercio"],
         "proyecto_vec_sup_oficinas" => cabida_data["vec_sup_oficinas"],
@@ -416,21 +427,21 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
         "proyecto_estacionamientos_discapacitados" => dict_normativa["norm_estacionamientos_discapacitados"],
         "proyecto_estacionamientos_bicicletas_con_incrementos" => dict_normativa["norm_estacionamientos_bicicletas_con_incrementos"],
         "proyecto_bodegas" => Int8(numBodegas),
-        "proyecto_supUtil" => dict_edificio_deptos["supUtil"],
-        "proyecto_supUtilPrimerPiso" => dict_edificio_deptos["supUtilPrimerPiso"],
-        "proyecto_supUtilPisosSup" => dict_edificio_deptos["supUtilPisosSup"],
-        "proyecto_supComun" => dict_edificio_deptos["supComun"],
-        "proyecto_supComunPrimerPiso" => dict_edificio_deptos["supComunPrimerPiso"],
-        "proyecto_supComunPisosSup" => dict_edificio_deptos["supComunPisosSup"],
-        "proyecto_supTerraza" => dict_edificio_deptos["supTerraza"],
-        "proyecto_supTerrazaPrimerPiso" => dict_edificio_deptos["supTerrazaPrimerPiso"],
-        "proyecto_supTerrazaPisosSup" => dict_edificio_deptos["supTerrazaPisosSup"],
-        "proyecto_supInterior" => dict_edificio_deptos["supInterior"],
-        "proyecto_supInteriorPrimerPiso" => dict_edificio_deptos["supInteriorPrimerPiso"],
-        "proyecto_supInteriorPisosSup" => dict_edificio_deptos["supInteriorPisosSup"],
-        "proyecto_descuento_dfl2" => dict_edificio_deptos["descuento_dfl2"],
-        "proyecto_supNoUtilizada" => dict_edificio_deptos["supNoUtilizada"],
-        "proyecto_numDeptos" => dict_edificio_deptos["numDeptos"],
+        "proyecto_supUtil" => dict_edificio_deptos["superficie_interior_edificio"] + 0.5 * dict_edificio_deptos["superficie_terraza_edificio"],
+        "proyecto_supUtilPrimerPiso" => dict_edificio_deptos["totals"]["superficie_interior"]["primer_piso"] + 0.5 * dict_edificio_deptos["totals"]["superficie_terraza"]["primer_piso"],
+        "proyecto_supUtilPisosSup" => dict_edificio_deptos["totals"]["superficie_interior"]["pisos_superiores"] + 0.5 * dict_edificio_deptos["totals"]["superficie_terraza"]["pisos_superiores"],
+        "proyecto_supComun" => dict_edificio_deptos["totals"]["superficie_comun"]["edificio"],
+        "proyecto_supComunPrimerPiso" => dict_edificio_deptos["totals"]["superficie_comun"]["primer_piso"],
+        "proyecto_supComunPisosSup" => dict_edificio_deptos["totals"]["superficie_comun"]["pisos_superiores"],
+        "proyecto_supTerraza" => dict_edificio_deptos["superficie_terraza_edificio"],
+        "proyecto_supTerrazaPrimerPiso" => dict_edificio_deptos["totals"]["superficie_terraza"]["primer_piso"],
+        "proyecto_supTerrazaPisosSup" => dict_edificio_deptos["totals"]["superficie_terraza"]["pisos_superiores"],
+        "proyecto_supInterior" => dict_edificio_deptos["superficie_interior_edificio"],
+        "proyecto_supInteriorPrimerPiso" => dict_edificio_deptos["totals"]["superficie_interior"]["primer_piso"],
+        "proyecto_supInteriorPisosSup" => dict_edificio_deptos["totals"]["superficie_interior"]["pisos_superiores"],
+        "proyecto_descuento_dfl2" => 0.0,
+        "proyecto_supNoUtilizada" => dict_edificio_deptos["totals"]["superficie_no_utilizada"]["edificio"],
+        "proyecto_numDeptos" => Int(round(dict_edificio_deptos["totals"]["deptos"]["edificio"])),
         "proyecto_vec_ps_opt" => vec_ps_opt,
         "proyecto_vec_np_opt" => vec_np_opt,
         "proyecto_vec_ps_subte" => vec_ps_subte,
@@ -446,7 +457,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
         "proyecto_ps_sombraVolTeorico_o" => ps_sombraVolTeorico_o,
         "proyecto_ps_sombraVolTeorico_s" => ps_sombraVolTeorico_s,
         "proyecto_num_unidades" => sum(cabida_data["vec_num_deptos"]),
-        "proyecto_constructibilidad" => dict_edificio_deptos["supUtil"],
+        "proyecto_constructibilidad" => dict_edificio_deptos["superficie_interior_edificio"] + 0.5 * dict_edificio_deptos["superficie_terraza_edificio"],
         "proyecto_ocupacion_suelo" => isempty(vec_ps_opt) || isempty(vec_ps_opt[1].Vertices) ? 0.0 : polyShape.polyArea(vec_ps_opt[1])
         )
 
