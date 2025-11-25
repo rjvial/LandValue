@@ -23,16 +23,18 @@ get_index(t::Tuple{Float64, Int, Int}) = t[3]
 # Generates apartment geometries along one strip using pre-calculated dimensions
 function genera_deptos_franja(mat_deptos::Matrix{Float64}, coord_min_planta::Float64,
             profundidad_franja::Float64, ancho_franja::Float64, min_ancho_nucleo::Float64,
-            min_ancho_depto::Float64, is_vertical::Bool, coord_base::Float64, franja::Symbol)
+            min_ancho_depto::Float64, is_vertical::Bool, coord_base::Float64, franja::Symbol,
+            vec_tipos::Vector{String}=String[])
 
     vec_coord_ini = Float64[]
     vec_coord_fin = Float64[]
     vec_dimension1_deptos = Float64[]
     vec_dimension2_deptos = Float64[]
     vec_tipo_deptos = Int[]
+    vec_tipo_strings = String[]
 
     if isempty(mat_deptos) || profundidad_franja <= 0.0
-        return vec_coord_ini, vec_coord_fin, vec_dimension1_deptos, vec_dimension2_deptos, vec_tipo_deptos, PolyShape[]
+        return vec_coord_ini, vec_coord_fin, vec_dimension1_deptos, vec_dimension2_deptos, vec_tipo_deptos, PolyShape[], vec_tipo_strings
     end
 
     if !isfinite(profundidad_franja)
@@ -54,6 +56,13 @@ function genera_deptos_franja(mat_deptos::Matrix{Float64}, coord_min_planta::Flo
         push!(vec_dimension1_deptos, profundidad_interior)
         push!(vec_dimension2_deptos, ancho_interior)
         push!(vec_tipo_deptos, 0)
+
+        if !isempty(vec_tipos) && i <= length(vec_tipos)
+            push!(vec_tipo_strings, vec_tipos[i])
+        else
+            push!(vec_tipo_strings, "unknown")
+        end
+
         coord_current += ancho_interior
     end
 
@@ -63,7 +72,7 @@ function genera_deptos_franja(mat_deptos::Matrix{Float64}, coord_min_planta::Flo
         push!(vec_ps_deptos_normalizado, ps_depto)
     end
 
-    return vec_coord_ini, vec_coord_fin, vec_dimension1_deptos, vec_dimension2_deptos, vec_tipo_deptos, vec_ps_deptos_normalizado
+    return vec_coord_ini, vec_coord_fin, vec_dimension1_deptos, vec_dimension2_deptos, vec_tipo_deptos, vec_ps_deptos_normalizado, vec_tipo_strings
 end
 
 # Extends apartments with corridor space overlap, then subtracts corridor geometry
@@ -619,7 +628,7 @@ function empaqueta_resultados(dimension1::Float64, dimension2::Float64,
                     vec_ps_deptos_franja_1::Vector{PolyShape}, vec_ps_deptos_franja_2::Vector{PolyShape},
                     vec_tipo_deptos1::Vector{Int}, vec_dimension_deptos2::Vector{Float64}, vec_tipo_deptos2::Vector{Int},
                     vec_terrazas1::Vector{PolyShape}, vec_terrazas2::Vector{PolyShape}, is_vertical::Bool,
-                    ps_planta::PolyShape)
+                    ps_planta::PolyShape, vec_tipo_strings1::Vector{String}=String[], vec_tipo_strings2::Vector{String}=String[])
     if is_vertical
         dim_key = "width"
     else
@@ -644,6 +653,8 @@ function empaqueta_resultados(dimension1::Float64, dimension2::Float64,
     result["vec_ps_deptos_all"] = vcat(vec_ps_deptos_franja_1, vec_ps_deptos_franja_2)
     result["vec_ps_terrazas_all"] = vcat(vec_terrazas1, vec_terrazas2)
     result["vec_orientaciones_all"] = vcat(vec_orientaciones1, vec_orientaciones2)
+    result["vec_tipos_all"] = vcat(vec_tipo_strings1, vec_tipo_strings2)
+    result["vec_strips"] = vcat(fill(1, length(vec_tipo_strings1)), fill(2, length(vec_tipo_strings2)))
 
     shape_analysis = analiza_forma_apartamentos(vec_ps_deptos_franja_1, vec_ps_deptos_franja_2)
 
@@ -686,7 +697,7 @@ end
 
 # Main floor plan optimization function: distributes apartments in two strips with corridor and terraces
 function genera_layout_pisos_superiores(ps_planta::PolyShape, dict_edificio_deptos;
-                        ancho_pasillo::Float64 = 2.0,
+                        ancho_pasillo::Float64 = 1.5,
                         min_largo_pasillo::Float64 = 0.0,
                         area_nucleo::Float64 = 25.0,
                         min_ancho_nucleo::Float64 = 0.0,
@@ -711,7 +722,7 @@ function genera_layout_pisos_superiores(ps_planta::PolyShape, dict_edificio_dept
     # ══════════════════════════════════════════════════════════════════════════════════
 
     df_deptos_resumen = combine(
-        groupby(dict_edificio_deptos["df_deptos"], [:strip, :sup_interior, :sup_terraza, :ancho_interior, :profundidad_interior, :num_unidades_por_piso_superior, :num_unidades_primer_piso]),
+        groupby(dict_edificio_deptos["df_deptos"], [:strip, :tipo, :sup_interior, :sup_terraza, :ancho_interior, :profundidad_interior, :num_unidades_por_piso_superior, :num_unidades_primer_piso]),
         :num_unidades_edificio => sum => :num_unidades_edificio)
 
     # ──────────────────────────────────────────────────────────────────────────────────
@@ -742,32 +753,38 @@ function genera_layout_pisos_superiores(ps_planta::PolyShape, dict_edificio_dept
     end
 
     df_deptos_strip1 = filter(row -> row.strip == 1, df_deptos_resumen)
+    df_deptos_strip1 = sort(df_deptos_strip1, :tipo, by = x -> contains(string(x), "nucleo") ? 0 : 1)
     mat_deptos_strip1 = Matrix{Float64}(undef, 0, 3)
+    vec_tipos_strip1 = String[]
     for row in eachrow(df_deptos_strip1)
         n_repeat = Int(round(row.num_unidades_por_piso_superior))
         for _ in 1:n_repeat
             mat_deptos_strip1 = vcat(mat_deptos_strip1, [row.sup_interior row.ancho_interior row.profundidad_interior])
+            push!(vec_tipos_strip1, string(row.tipo))
         end
     end
 
     df_deptos_strip2 = filter(row -> row.strip == 2, df_deptos_resumen)
+    df_deptos_strip2 = sort(df_deptos_strip2, :tipo, by = x -> contains(string(x), "nucleo") ? 0 : 1)
     mat_deptos_strip2 = Matrix{Float64}(undef, 0, 3)
+    vec_tipos_strip2 = String[]
     for row in eachrow(df_deptos_strip2)
         n_repeat = Int(round(row.num_unidades_por_piso_superior))
         for _ in 1:n_repeat
             mat_deptos_strip2 = vcat(mat_deptos_strip2, [row.sup_interior row.ancho_interior row.profundidad_interior])
+            push!(vec_tipos_strip2, string(row.tipo))
         end
     end
 
     vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, vec_tipo_deptos1,
-            vec_ps_deptos_franja_1_normalizado = genera_deptos_franja(mat_deptos_strip1, coord_min,
+            vec_ps_deptos_franja_1_normalizado, vec_tipo_strings1 = genera_deptos_franja(mat_deptos_strip1, coord_min,
                                             dimension_depto1, coord_disponible, min_ancho_nucleo,
-                                            min_ancho_depto, is_vertical, coord_base, franja1)
+                                            min_ancho_depto, is_vertical, coord_base, franja1, vec_tipos_strip1)
 
     vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, vec_tipo_deptos2,
-            vec_ps_deptos_franja_2_normalizado = genera_deptos_franja(mat_deptos_strip2, coord_min,
+            vec_ps_deptos_franja_2_normalizado, vec_tipo_strings2 = genera_deptos_franja(mat_deptos_strip2, coord_min,
                                             dimension_depto2, coord_disponible, min_ancho_nucleo,
-                                            min_ancho_depto, is_vertical, coord_base, franja2)
+                                            min_ancho_depto, is_vertical, coord_base, franja2, vec_tipos_strip2)
 
     coord_ini_pasillo, coord_fin_pasillo, largo_pasillo, ps_pasillo_normalizado = calcula_geometria_pasillo(
                                             vec_coord_fin1, vec_coord_fin2, vec_coord_ini1, vec_coord_ini2,
@@ -841,7 +858,7 @@ function genera_layout_pisos_superiores(ps_planta::PolyShape, dict_edificio_dept
 
     results = empaqueta_resultados(dimension_depto1, dimension_depto2, W, H, ancho_pasillo, franjas_computadas.largo_pasillo, ps_pasillo,
                                     vec_ps_deptos_strip1, vec_ps_deptos_strip2, vec_tipo_deptos1, franjas_computadas.vec_dimension2_deptos_strip2, franjas_computadas.vec_tipo_deptos_strip2,
-                                    vec_terrazas_strip1, vec_terrazas_strip2, is_vertical, ps_planta)
+                                    vec_terrazas_strip1, vec_terrazas_strip2, is_vertical, ps_planta, vec_tipo_strings1, vec_tipo_strings2)
 
     vec_ps_deptos_all = results["vec_ps_deptos_all"]
     ps_union_deptos = PolyShape[]
@@ -917,7 +934,7 @@ function genera_layout_primer_piso(dict_edificio_deptos, ps_planta::PolyShape;
     df_deptos = dict_edificio_deptos["df_deptos"]
 
     df_deptos_resumen = combine(
-        groupby(df_deptos, [:strip, :sup_interior, :sup_terraza, :ancho_interior, :profundidad_interior, :num_unidades_por_piso_superior, :num_unidades_primer_piso]),
+        groupby(df_deptos, [:strip, :tipo, :sup_interior, :sup_terraza, :ancho_interior, :profundidad_interior, :num_unidades_por_piso_superior, :num_unidades_primer_piso]),
         :num_unidades_edificio => sum => :num_unidades_edificio)
 
     coord_min_x = minimum(vec_x_planta)
@@ -945,32 +962,38 @@ function genera_layout_primer_piso(dict_edificio_deptos, ps_planta::PolyShape;
     end
 
     df_deptos_strip1 = filter(row -> row.strip == 1, df_deptos_resumen)
+    df_deptos_strip1 = sort(df_deptos_strip1, :tipo, by = x -> contains(string(x), "nucleo") ? 0 : 1)
     mat_deptos_strip1 = Matrix{Float64}(undef, 0, 3)
+    vec_tipos_strip1 = String[]
     for row in eachrow(df_deptos_strip1)
         n_repeat = Int(round(row.num_unidades_primer_piso))
         for _ in 1:n_repeat
             mat_deptos_strip1 = vcat(mat_deptos_strip1, [row.sup_interior row.ancho_interior row.profundidad_interior])
+            push!(vec_tipos_strip1, string(row.tipo))
         end
     end
 
     df_deptos_strip2 = filter(row -> row.strip == 2, df_deptos_resumen)
+    df_deptos_strip2 = sort(df_deptos_strip2, :tipo, by = x -> contains(string(x), "nucleo") ? 0 : 1)
     mat_deptos_strip2 = Matrix{Float64}(undef, 0, 3)
+    vec_tipos_strip2 = String[]
     for row in eachrow(df_deptos_strip2)
         n_repeat = Int(round(row.num_unidades_primer_piso))
         for _ in 1:n_repeat
             mat_deptos_strip2 = vcat(mat_deptos_strip2, [row.sup_interior row.ancho_interior row.profundidad_interior])
+            push!(vec_tipos_strip2, string(row.tipo))
         end
     end
 
     vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, vec_tipo_deptos1,
-            vec_ps_deptos_franja_1_normalizado = genera_deptos_franja(mat_deptos_strip1, coord_min,
+            vec_ps_deptos_franja_1_normalizado, vec_tipo_strings1 = genera_deptos_franja(mat_deptos_strip1, coord_min,
                                             dimension_depto1, coord_disponible, min_ancho_nucleo,
-                                            min_ancho_depto, is_vertical, coord_base, franja1)
+                                            min_ancho_depto, is_vertical, coord_base, franja1, vec_tipos_strip1)
 
     vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, vec_tipo_deptos2,
-            vec_ps_deptos_franja_2_normalizado = genera_deptos_franja(mat_deptos_strip2, coord_min,
+            vec_ps_deptos_franja_2_normalizado, vec_tipo_strings2 = genera_deptos_franja(mat_deptos_strip2, coord_min,
                                             dimension_depto2, coord_disponible, min_ancho_nucleo,
-                                            min_ancho_depto, is_vertical, coord_base, franja2)
+                                            min_ancho_depto, is_vertical, coord_base, franja2, vec_tipos_strip2)
 
     coord_ini_pasillo, coord_fin_pasillo, largo_pasillo, ps_pasillo_normalizado = calcula_geometria_pasillo(
                                             vec_coord_fin1, vec_coord_fin2, vec_coord_ini1, vec_coord_ini2,
@@ -1035,6 +1058,8 @@ function genera_layout_primer_piso(dict_edificio_deptos, ps_planta::PolyShape;
     vec_ps_deptos_all = vcat(vec_ps_deptos_strip1, vec_ps_deptos_strip2)
     vec_ps_terrazas_all = vcat(vec_terrazas_strip1, vec_terrazas_strip2)
     vec_orientaciones_all = vcat(vec_orientaciones1, vec_orientaciones2)
+    vec_tipos_all = vcat(vec_tipo_strings1, vec_tipo_strings2)
+    vec_strips_all = vcat(fill(1, length(vec_tipo_strings1)), fill(2, length(vec_tipo_strings2)))
 
     delta = 0.02
 
@@ -1098,6 +1123,8 @@ function genera_layout_primer_piso(dict_edificio_deptos, ps_planta::PolyShape;
         "vec_ps_deptos_all" => vec_ps_deptos_all,
         "vec_ps_terrazas_all" => vec_ps_terrazas_all,
         "vec_orientaciones_all" => vec_orientaciones_all,
+        "vec_tipos_all" => vec_tipos_all,
+        "vec_strips" => vec_strips_all,
         "ps_area_comun" => ps_area_comun,
         "area_comun" => round(area_comun, digits=2),
         "ps_pasillo" => ps_pasillo,
