@@ -75,8 +75,8 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
 
     ancho_pasillo = 1.5 # opti_floor_plan
     min_largo_pasillo = 4.0 # opti_floor_plan
-    area_escala = 20.0 # opti_floor_plan
-    min_ancho_escala = 5.0 # opti_floor_plan
+    area_nucleo = 20.0 # opti_floor_plan
+    min_ancho_nucleo = 5.0 # opti_floor_plan
     min_ancho_depto = 6.0 # opti_floor_plan
     max_ancho_terraza = 4.0 # opti_floor_plan
 
@@ -221,8 +221,8 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     results = opti_floor_plan(ps_planta, dict_edificio_deptos,
                 ancho_pasillo=ancho_pasillo,
                 min_largo_pasillo=min_largo_pasillo,
-                area_escala=area_escala,
-                min_ancho_escala=min_ancho_escala,
+                area_nucleo=area_nucleo,
+                min_ancho_nucleo=min_ancho_nucleo,
                 min_ancho_depto=min_ancho_depto,
                 max_ancho_terraza=max_ancho_terraza
                 )

@@ -241,9 +241,6 @@ flag_create_table = false # let flag_create_table = false
             if !isnothing(results_pisos_superiores["ps_pasillo"])
                 polyPlot.plotPolyshape2D(results_pisos_superiores["ps_pasillo"], "#505050", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
             end
-            if !isnothing(results_pisos_superiores["ps_escala"])
-                polyPlot.plotPolyshape2D(results_pisos_superiores["ps_escala"], "#505050", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
-            end
             for apt_poly in results_pisos_superiores["vec_ps_deptos_all"]
                 polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
             end
@@ -298,7 +295,7 @@ flag_create_table = false # let flag_create_table = false
             dict_json["json_calles"] = polyShape.polyShape2json(dict_geom["ps_calles"])
             dict_json["json_calles_contexto"] = polyShape.polyShape2json(dict_geom["ps_calles_contexto"])
             dict_json["json_planta_primer_piso"] = polyShape.planta2json(results_primer_piso["vec_ps_deptos_all"], results_primer_piso["vec_ps_terrazas_all"], results_primer_piso["ps_area_comun_total"], nothing, nothing, 0.0)
-            dict_json["json_planta_pisos_superiores"] = polyShape.planta2json(results_pisos_superiores["vec_ps_deptos_all"], results_pisos_superiores["vec_ps_terrazas_all"], nothing, results_pisos_superiores["ps_pasillo"], results_pisos_superiores["ps_escala"], dict_arquitectura["arq_alturaPiso"])
+            dict_json["json_planta_pisos_superiores"] = polyShape.planta2json(results_pisos_superiores["vec_ps_deptos_all"], results_pisos_superiores["vec_ps_terrazas_all"], nothing, results_pisos_superiores["ps_pasillo"], dict_arquitectura["arq_alturaPiso"])
 
             # for (json_key, json_content) in dict_json
             #     if startswith(json_key, "json_")

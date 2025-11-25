@@ -3,21 +3,6 @@ const INTERSECTION_TOLERANCE = 0.1
 const TERRACE_ASPECT_RATIO = 1.75
 const MAX_ADJUSTMENT_ITERATIONS = 10
 
-struct CorridorConfig
-    ancho_pasillo::Float64
-    min_largo_pasillo::Float64
-end
-
-struct StairConfig
-    area_escala::Float64
-    min_ancho_escala::Float64
-    tipo_escala::Symbol
-end
-
-struct TerraceConfig
-    vec_sup_terraza::Vector{Float64}
-    max_ancho_terraza::Float64
-end
 
 
 get_area(t::Tuple{Float64, Int}) = t[1]
@@ -37,7 +22,7 @@ get_index(t::Tuple{Float64, Int, Int}) = t[3]
 
 # Generates apartment geometries along one strip using pre-calculated dimensions
 function genera_deptos_franja(mat_deptos::Matrix{Float64}, coord_min_planta::Float64,
-            profundidad_franja::Float64, ancho_franja::Float64, min_ancho_escala::Float64,
+            profundidad_franja::Float64, ancho_franja::Float64, min_ancho_nucleo::Float64,
             min_ancho_depto::Float64, is_vertical::Bool, coord_base::Float64, franja::Symbol)
 
     vec_coord_ini = Float64[]
@@ -458,7 +443,7 @@ function calcula_geometria_pasillo(vec_coord_fin1::Vector{Float64}, vec_coord_fi
                     vec_coord_ini1::Vector{Float64}, vec_coord_ini2::Vector{Float64}, coord_base::Float64,
                     ancho_pasillo::Float64, is_vertical::Bool, W::Float64, H::Float64, coord_min::Float64,
                     min_largo_pasillo::Float64, vec_tipo_deptos1::Vector{Int},
-                    vec_tipo_deptos2::Vector{Int}, ancho_escala, area_escala)
+                    vec_tipo_deptos2::Vector{Int}, ancho_nucleo, area_nucleo)
 
     num_deptos_franja1 = count(t -> t != -1, vec_tipo_deptos1)
     num_deptos_franja2 = count(t -> t != -1, vec_tipo_deptos2)
@@ -516,14 +501,14 @@ function calcula_geometria_pasillo(vec_coord_fin1::Vector{Float64}, vec_coord_fi
         y_centroide = coord_base
     end
 
-    largo_escala = area_escala / ancho_escala
+    largo_nucleo = area_nucleo / ancho_nucleo
 
     if is_vertical
-        ps_escala = polyShape.polyBox(x_centroide - (largo_escala + ancho_pasillo) / 2, y_centroide - ancho_escala / 2, largo_escala + ancho_pasillo, ancho_escala, 0.0)
+        ps_nucleo = polyShape.polyBox(x_centroide - (largo_nucleo + ancho_pasillo) / 2, y_centroide - ancho_nucleo / 2, largo_nucleo + ancho_pasillo, ancho_nucleo, 0.0)
     else
-        ps_escala = polyShape.polyBox(x_centroide - ancho_escala / 2, y_centroide - (largo_escala + ancho_pasillo) / 2, ancho_escala, largo_escala + ancho_pasillo, 0.0)
+        ps_nucleo = polyShape.polyBox(x_centroide - ancho_nucleo / 2, y_centroide - (largo_nucleo + ancho_pasillo) / 2, ancho_nucleo, largo_nucleo + ancho_pasillo, 0.0)
     end
-    ps_pasillo = polyShape.polyUnion(ps_pasillo, ps_escala)            
+    ps_pasillo = polyShape.polyUnion(ps_pasillo, ps_nucleo)            
 
     return coord_ini_pasillo, coord_fin_pasillo, largo_pasillo, ps_pasillo
 end
@@ -703,8 +688,8 @@ end
 function genera_layout_pisos_superiores(ps_planta::PolyShape, dict_edificio_deptos;
                         ancho_pasillo::Float64 = 2.0,
                         min_largo_pasillo::Float64 = 0.0,
-                        area_escala::Float64 = 25.0,
-                        min_ancho_escala::Float64 = 0.0,
+                        area_nucleo::Float64 = 25.0,
+                        min_ancho_nucleo::Float64 = 0.0,
                         min_ancho_depto::Float64 = 4.0,
                         max_ancho_terraza::Float64 = 2.0)
 
@@ -776,12 +761,12 @@ function genera_layout_pisos_superiores(ps_planta::PolyShape, dict_edificio_dept
 
     vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, vec_tipo_deptos1,
             vec_ps_deptos_franja_1_normalizado = genera_deptos_franja(mat_deptos_strip1, coord_min,
-                                            dimension_depto1, coord_disponible, min_ancho_escala,
+                                            dimension_depto1, coord_disponible, min_ancho_nucleo,
                                             min_ancho_depto, is_vertical, coord_base, franja1)
 
     vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, vec_tipo_deptos2,
             vec_ps_deptos_franja_2_normalizado = genera_deptos_franja(mat_deptos_strip2, coord_min,
-                                            dimension_depto2, coord_disponible, min_ancho_escala,
+                                            dimension_depto2, coord_disponible, min_ancho_nucleo,
                                             min_ancho_depto, is_vertical, coord_base, franja2)
 
     coord_ini_pasillo, coord_fin_pasillo, largo_pasillo, ps_pasillo_normalizado = calcula_geometria_pasillo(
@@ -790,7 +775,7 @@ function genera_layout_pisos_superiores(ps_planta::PolyShape, dict_edificio_dept
                                             W, H,
                                             coord_min, min_largo_pasillo,
                                             vec_tipo_deptos1, vec_tipo_deptos2,
-                                            min_ancho_escala, area_escala)
+                                            min_ancho_nucleo, area_nucleo)
 
     vec_ps_deptos_franja_1_normalizado, vec_extension_dimension1_1 = extiende_deptos_con_interseccion_pasillo(vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, coord_base, ps_pasillo_normalizado, franja1, is_vertical, vec_ps_deptos_franja_1_normalizado, ps_pasillo_normalizado)
     vec_ps_deptos_franja_2_normalizado, vec_extension_dimension1_2 = extiende_deptos_con_interseccion_pasillo(vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, coord_base, ps_pasillo_normalizado, franja2, is_vertical, vec_ps_deptos_franja_2_normalizado, ps_pasillo_normalizado)
@@ -911,8 +896,8 @@ end
 function genera_layout_primer_piso(dict_edificio_deptos, ps_planta::PolyShape;
                         ancho_pasillo::Float64 = 2.0,
                         min_largo_pasillo::Float64 = 0.0,
-                        area_escala::Float64 = 25.0,
-                        min_ancho_escala::Float64 = 0.0,
+                        area_nucleo::Float64 = 25.0,
+                        min_ancho_nucleo::Float64 = 0.0,
                         min_ancho_depto::Float64 = 4.0,
                         max_ancho_terraza::Float64 = 2.0)
 
@@ -979,12 +964,12 @@ function genera_layout_primer_piso(dict_edificio_deptos, ps_planta::PolyShape;
 
     vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, vec_tipo_deptos1,
             vec_ps_deptos_franja_1_normalizado = genera_deptos_franja(mat_deptos_strip1, coord_min,
-                                            dimension_depto1, coord_disponible, min_ancho_escala,
+                                            dimension_depto1, coord_disponible, min_ancho_nucleo,
                                             min_ancho_depto, is_vertical, coord_base, franja1)
 
     vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, vec_tipo_deptos2,
             vec_ps_deptos_franja_2_normalizado = genera_deptos_franja(mat_deptos_strip2, coord_min,
-                                            dimension_depto2, coord_disponible, min_ancho_escala,
+                                            dimension_depto2, coord_disponible, min_ancho_nucleo,
                                             min_ancho_depto, is_vertical, coord_base, franja2)
 
     coord_ini_pasillo, coord_fin_pasillo, largo_pasillo, ps_pasillo_normalizado = calcula_geometria_pasillo(
@@ -993,7 +978,7 @@ function genera_layout_primer_piso(dict_edificio_deptos, ps_planta::PolyShape;
                                             W, H,
                                             coord_min, min_largo_pasillo,
                                             vec_tipo_deptos1, vec_tipo_deptos2,
-                                            min_ancho_escala, area_escala)
+                                            min_ancho_nucleo, area_nucleo)
 
     vec_ps_deptos_franja_1_normalizado, vec_extension_dimension1_1 = extiende_deptos_con_interseccion_pasillo(vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, coord_base, ps_pasillo_normalizado, franja1, is_vertical, vec_ps_deptos_franja_1_normalizado, ps_pasillo_normalizado)
     vec_ps_deptos_franja_2_normalizado, vec_extension_dimension1_2 = extiende_deptos_con_interseccion_pasillo(vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, coord_base, ps_pasillo_normalizado, franja2, is_vertical, vec_ps_deptos_franja_2_normalizado, ps_pasillo_normalizado)
@@ -1126,16 +1111,16 @@ end
 function opti_floor_plan(ps_planta, dict_edificio_deptos;
                         ancho_pasillo::Float64 = 2.0,
                         min_largo_pasillo::Float64 = 0.0,
-                        area_escala::Float64 = 25.0,
-                        min_ancho_escala::Float64 = 0.0,
+                        area_nucleo::Float64 = 25.0,
+                        min_ancho_nucleo::Float64 = 0.0,
                         min_ancho_depto::Float64 = 4.0,
                         max_ancho_terraza::Float64 = 2.0)
 
     results_ = genera_layout_pisos_superiores(ps_planta, dict_edificio_deptos,
                 ancho_pasillo=ancho_pasillo,
                 min_largo_pasillo=min_largo_pasillo,
-                area_escala=area_escala,
-                min_ancho_escala=min_ancho_escala,
+                area_nucleo=area_nucleo,
+                min_ancho_nucleo=min_ancho_nucleo,
                 min_ancho_depto=min_ancho_depto,
                 max_ancho_terraza=max_ancho_terraza)
 
@@ -1153,8 +1138,8 @@ function opti_floor_plan(ps_planta, dict_edificio_deptos;
         results_primer_piso = genera_layout_primer_piso(dict_edificio_deptos, ps_planta,
                                 ancho_pasillo=ancho_pasillo,
                                 min_largo_pasillo=min_largo_pasillo,
-                                area_escala=area_escala,
-                                min_ancho_escala=min_ancho_escala,
+                                area_nucleo=area_nucleo,
+                                min_ancho_nucleo=min_ancho_nucleo,
                                 min_ancho_depto=min_ancho_depto,
                                 max_ancho_terraza=max_ancho_terraza)
     else
