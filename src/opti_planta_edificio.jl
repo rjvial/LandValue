@@ -511,14 +511,14 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             H_s[s in S] >= 0
 
             0 <= num_deptos_regular_primer_piso[s in S, (k, j) in KJ_feasible] <= max_deptos, Int
-            0 <= num_deptos_regular_nucleo_primer_piso[s in S, (k, j) in KJ_feasible] <= max_deptos, Int
+            0 <= num_deptos_regular_nucleo_primer_piso[s in S, (k, j) in KJ_feasible] <= 2, Int
             0 <= num_deptos_corner_primer_piso[s in S, (k, j) in KJ_feasible] <= 2, Int
             0 <= num_deptos_corner_nucleo_primer_piso[s in S, (k, j) in KJ_feasible] <= 2, Int
             0 <= num_deptos_d_corner_nucleo_primer_piso[s in S, (k, j) in KJ_feasible] <= 1, Int
             area_comun_primer_piso >= 0
 
             0 <= num_deptos_regular_por_piso_superior[s in S, (k, j) in KJ_feasible] <= max_deptos, Int
-            0 <= num_deptos_regular_nucleo_por_piso_superior[s in S, (k, j) in KJ_feasible] <= max_deptos, Int
+            0 <= num_deptos_regular_nucleo_por_piso_superior[s in S, (k, j) in KJ_feasible] <= 2, Int
             0 <= num_deptos_corner_por_piso_superior[s in S, (k, j) in KJ_feasible] <= 2, Int
             0 <= num_deptos_corner_nucleo_por_piso_superior[s in S, (k, j) in KJ_feasible] <= 2, Int
             0 <= num_deptos_d_corner_nucleo_por_piso_superior[s in S, (k, j) in KJ_feasible] <= 1, Int
@@ -533,8 +533,10 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             y[s in S], Bin        # Binary indicator: strip s uses regular configuration
             y_c[s in S], Bin      # Binary indicator: strip s uses corner configuration
             y_cn[s in S], Bin     # Binary indicator: strip s uses corner nucleo configuration
+            y_cn2[s in S], Bin    # Binary indicator: strip s has exactly 2 corner nucleo apartments
             y_ccn[s in S], Bin    # Binary indicator: strip s uses double corner nucleo configuration
             y_n[s in S], Bin      # Binary indicator: strip s uses regular nucleo configuration
+            y_active[s in S], Bin # Binary indicator: strip s has any apartments (active)
 
             descuento_dfl2 >= 0  # DFL2 discount for social housing (up to 20% of useful area or total common area)
             area_no_utilizada_primer_piso >= 0          # Unused footprint area on first floor (m²)
@@ -641,16 +643,16 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
         @constraints(model, begin
 
-            # First floor footprint must equal building footprint (all areas sum to W × j)
-            constraint_1, area_interior_primer_piso + area_terraza_primer_piso + area_nucleo_primer_piso + area_comun_primer_piso + area_no_utilizada_primer_piso == W * H
+            # Upper floor and First floor footprint must equal building footprint (all areas sum to W × j)
+            constraint_1, area_interior_primer_piso + area_terraza_primer_piso + 
+                            area_nucleo_primer_piso + area_comun_primer_piso + 
+                            area_no_utilizada_primer_piso == W * H
+            constraint_2, area_interior_por_piso_superior + area_terraza_por_piso_superior + 
+                            area_nucleo_por_piso_superior + area_comun_por_piso_superior + 
+                            area_no_utilizada_por_piso_superior == W * H
 
-            # Upper floor footprint must equal building footprint (all areas sum to W × j)
-            constraint_2, area_interior_por_piso_superior + area_terraza_por_piso_superior + area_nucleo_por_piso_superior + area_comun_por_piso_superior + area_no_utilizada_por_piso_superior == W * H
-
-            # Common area for first floor must include at least all hallway areas
+            # Common area for first floor and upper floors must include at least all hallway areas
             constraint_3, area_comun_primer_piso >= area_pasillo_primer_piso + area_nucleo_primer_piso
-
-            # Common area for upper floors must include at least all hallway areas
             constraint_4, area_comun_por_piso_superior >= area_pasillo_por_piso_superior + area_nucleo_por_piso_superior
 
             # First floor common area must be at least as large as upper floor common area
@@ -659,44 +661,44 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             # Buildability constraint: useful area + common area - DFL2 discount must not exceed maximum buildability
             constraint_6, area_util_total + area_comun_total - descuento_dfl2 <= max_constructibilidad
 
-            # DFL2 discount cannot exceed 20% of useful area
+            # DFL2 discount cannot exceed 20% of useful area nor total common area
             constraint_7, descuento_dfl2 <= flag_dfl2 * 0.2 * area_util_total
-
-            # DFL2 discount cannot exceed total common area
             constraint_8, descuento_dfl2 <= flag_dfl2 * area_comun_total
 
-            # Common area for upper floors must be at least 12% of useful area
-            constraint_9, area_comun_por_piso_superior >= 0.12 * area_util_por_piso_superior
-
-            # Total common area must be at least 18% of total useful area
-            constraint_10, area_comun_total >= 0.18 * area_util_total
-
-            # Total common area cannot exceed 25% of total useful area
-            constraint_11, area_comun_total <= 0.25 * area_util_total
-
             # Link regular apartments to y indicator (if any regular apartments exist, y = 1)
-            constraint_12[s in S], sum(num_deptos_regular_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) <= max_apts_per_strip_tight * y[s]
-            constraint_12_[s in S], sum(num_deptos_regular_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) >= y[s]
+            constraint_9[s in S], sum(num_deptos_regular_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) <= max_apts_per_strip_tight * y[s]
+            constraint_10[s in S], sum(num_deptos_regular_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) >= y[s]
 
-            # Exactly 2 corner apartments per strip if corner type is used
-            constraint_12a[s in S], sum(num_deptos_corner_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) == max_corner_apts * y_c[s]
-
-            # Exactly 2 corner nucleo apartments per strip if corner nucleo type is used
-            constraint_12b[s in S], sum(num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) == max_corner_apts * y_cn[s]
+            # Exactly 2 corner or 2 corner nucleo apartments per strip if corner type is used
+            constraint_11a[s in S], sum(num_deptos_corner_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) == max_corner_apts * y_c[s]
+            constraint_11b[s in S], sum(num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) <= max_corner_apts * y_cn[s]
+            constraint_11c[s in S], sum(num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) >= y_cn[s]
+            constraint_11d[s in S], sum(num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) == max_corner_apts * y_cn2[s]
+            constraint_11e[s in S], y_cn2[s] <= y_cn[s]
 
             # Link regular nucleo apartments to y_n indicator (if any nucleo apartments exist, y_n = 1)
-            constraint_12c[s in S], sum(num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) <= max_apts_per_strip_tight * y_n[s]
-            constraint_12d[s in S], sum(num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) >= y_n[s]
+            constraint_12a[s in S], sum(num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) <= max_apts_per_strip_tight * y_n[s]
+            constraint_12b[s in S], sum(num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) >= y_n[s]
 
             # Exactly 1 double corner nucleo apartment per strip if double corner nucleo type is used
-            constraint_13a[s in S], sum(num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) == max_d_corner_apts * y_ccn[s]
+            constraint_13[s in S], sum(num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) == max_d_corner_apts * y_ccn[s]
 
-            # Mutual exclusivity constraints (simplified)
+            # Link y_active to configuration indicators (strip is active if any configuration is used)
+            constraint_14a[s in S], y_active[s] >= y[s]
+            constraint_14b[s in S], y_active[s] >= y_c[s]
+            constraint_14c[s in S], y_active[s] >= y_cn[s]
+            constraint_14d[s in S], y_active[s] >= y_ccn[s]
+            constraint_14e[s in S], y_active[s] >= y_n[s]
+            constraint_14f[s in S], y_active[s] <= y[s] + y_c[s] + y_cn[s] + y_ccn[s] + y_n[s]
+
             # Each strip can have at most one configuration type from incompatible groups
-            constraint_15[s in S], y_c[s] + y_cn[s] + y_ccn[s] <= 1                     # At most one corner/double-corner type
-            constraint_15a[s in S], y[s] + y_cn[s] + y_ccn[s] <= 1                      # Regular incompatible with corner/double-corner núcleo
-            constraint_15b[s in S], y_c[s] + y_n[s] + y_cn[s] <= 1                      # Regular núcleo incompatible with any corner type
-            constraint_15c[s in S], y_ccn[s] + y_n[s] <= 1                              # Regular núcleo incompatible with double corner nucleo
+            constraint_15a[s in S], y_n[s] + y_ccn[s] <= 1  # Regular núcleo incompatible with double corner nucleo
+            constraint_15b[s in S], y_c[s] + y_ccn[s] <= 1  # At most one corner/double-corner type
+            constraint_15c[s in S], y_cn2[s] + y_ccn[s] <= 1 # At most one corner/double-corner type
+            constraint_15d[s in S], y[s] + y_ccn[s] <= 1    # Regular incompatible with double corner nucleo
+            constraint_15e[s in S], y[s] + y_cn2[s] <= 1    # Regular incompatible with 2 corner nucleo
+            constraint_15f[s in S], y_n[s] + y_cn2[s] <= 1  # Regular nucleo incompatible with 2 corner nucleo
+            constraint_15g[s in S], y_c[s] + y_cn2[s] <= 1  # Corner incompatible with 2 corner nucleo
 
             # Total apartment count must be within specified bounds
             constraint_16, min_deptos <= deptos_total <= max_deptos
@@ -741,7 +743,8 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
             # Maximum height tracking: use a single aggregated constraint per (s,k,j)
             constraint_39_height[s in S, (k, j) in KJ_feasible],
-                max_height[s] >= mat_h_ip[k,j] * x[s,(k,j)] + mat_h_ipn[k,j] * x_n[s,(k,j)] +
+                max_height[s] >= mat_h_ip[k,j] * x[s,(k,j)] + 
+                                mat_h_ipn[k,j] * x_n[s,(k,j)] +
                                 mat_h_in[k,j] * (x_c[s,(k,j)] + x_cn[s,(k,j)]) +
                                 mat_h_in_d_corner[k,j] * x_ccn[s,(k,j)]
 
@@ -764,12 +767,12 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         @constraints(model, begin
             constraint_46[s in S], sum(num_deptos_regular_nucleo_primer_piso[s,(k,j)] for (k, j) in KJ_feasible) +
                                         sum(num_deptos_corner_nucleo_primer_piso[s,(k,j)] for (k, j) in KJ_feasible) +
-                                        sum(num_deptos_d_corner_nucleo_primer_piso[s,(k,j)] for (k, j) in KJ_feasible) <=
-                                        2 * (y_c[s] + y_cn[s] + y[s] + y_n[s]) + 1 * y_ccn[s]
+                                        sum(num_deptos_d_corner_nucleo_primer_piso[s,(k,j)] for (k, j) in KJ_feasible) ==
+                                        2 * y_active[s] - y_ccn[s]
             constraint_47[s in S], sum(num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) +
                                         sum(num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) +
                                         sum(num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) ==
-                                        2 * (y_c[s] + y_cn[s] + y[s] + y_n[s]) + 1 * y_ccn[s]
+                                        2 * y_active[s] - y_ccn[s]
         end)
 
         # Symmetry breaking: order strips by total apartments to reduce search space
@@ -923,18 +926,28 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                             if tipo == "regular"
                                 results["deptos"][depto_index]["profundidad"] = mat_h_ip[k,j]
                                 results["deptos"][depto_index]["sup_pasillo"] = vec_area_p[j]
+                                results["deptos"][depto_index]["ancho_interior"] = vec_w_i[j]
+                                results["deptos"][depto_index]["profundidad_interior"] = vec_area_i[k] / vec_w_i[j]
                             elseif tipo == "regular_nucleo"
                                 results["deptos"][depto_index]["profundidad"] = mat_h_ipn[k,j]
                                 results["deptos"][depto_index]["sup_pasillo"] = vec_area_p[j]
                                 results["deptos"][depto_index]["sup_nucleo"] = area_nucleo_depto
+                                results["deptos"][depto_index]["ancho_interior"] = vec_w_i[j]
+                                results["deptos"][depto_index]["profundidad_interior"] = vec_area_i[k] / vec_w_i[j]
                             elseif tipo == "corner"
                                 results["deptos"][depto_index]["profundidad"] = mat_h_in[k,j]
+                                results["deptos"][depto_index]["ancho_interior"] = vec_w_i[j]
+                                results["deptos"][depto_index]["profundidad_interior"] = vec_area_i[k] / vec_w_i[j]
                             elseif tipo == "corner_nucleo"
                                 results["deptos"][depto_index]["profundidad"] = mat_h_in[k,j]
                                 results["deptos"][depto_index]["sup_nucleo"] = area_nucleo_depto
+                                results["deptos"][depto_index]["ancho_interior"] = vec_w_i[j]
+                                results["deptos"][depto_index]["profundidad_interior"] = vec_area_i[k] / vec_w_i[j]
                             else
                                 results["deptos"][depto_index]["profundidad"] = mat_h_in_d_corner[k,j]
                                 results["deptos"][depto_index]["sup_nucleo"] = area_nucleo_depto_d_corner
+                                results["deptos"][depto_index]["ancho_interior"] = vec_w_i[j]
+                                results["deptos"][depto_index]["profundidad_interior"] = vec_area_i[k] / vec_w_i[j]
                             end
                         end
                     end
@@ -1030,19 +1043,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             results["cr"] = cr
             results["ps_planta_normalizado"] = ps_planta_normalizado
 
-            vec_ps_deptos_ps, vec_ps_terrazas_ps, vec_tipos_ps, vec_strips_ps = genera_geometrias_deptos(results, :pisos_superiores, layout)
-            vec_ps_deptos_pp, vec_ps_terrazas_pp, vec_tipos_pp, vec_strips_pp = genera_geometrias_deptos(results, :primer_piso, layout)
-
-            results["vec_ps_deptos_pisos_superiores"] = vec_ps_deptos_ps
-            results["vec_ps_terrazas_pisos_superiores"] = vec_ps_terrazas_ps
-            results["vec_tipos_pisos_superiores"] = vec_tipos_ps
-            results["vec_strips_pisos_superiores"] = vec_strips_ps
-
-            results["vec_ps_deptos_primer_piso"] = vec_ps_deptos_pp
-            results["vec_ps_terrazas_primer_piso"] = vec_ps_terrazas_pp
-            results["vec_tipos_primer_piso"] = vec_tipos_pp
-            results["vec_strips_primer_piso"] = vec_strips_pp
-        else
+       else
             results["objective_value"] = nothing
             results["total_deptos"] = 0.0
             results["superficie_interior_edificio"] = 0.0
@@ -1053,156 +1054,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         return results, W, H, angulo_rotacion
     end
 
-    function genera_geometrias_deptos(results::AbstractDict, tipo_piso::Symbol, layout::Int)
-        vec_ps_deptos = PolyShape[]
-        vec_ps_terrazas = PolyShape[]
-        vec_tipos = String[]
-        vec_strips = Int[]
-
-        ps_planta_normalizado = results["ps_planta_normalizado"]
-        V_planta = ps_planta_normalizado.Vertices[1]
-        x_min = minimum(V_planta[:, 1])
-        y_min = minimum(V_planta[:, 2])
-
-        is_vertical = (layout == 2)
-
-        deptos_por_strip = Dict{Int, Vector{Any}}()
-        for (_, depto_data) in results["deptos"]
-            strip = depto_data["strip"]
-            if !haskey(deptos_por_strip, strip)
-                deptos_por_strip[strip] = []
-            end
-            push!(deptos_por_strip[strip], depto_data)
-        end
-
-        if is_vertical
-            x_offset = x_min
-            for strip in sort(collect(keys(deptos_por_strip)))
-                H_s = results["strip"][strip]["H_s"]
-
-                deptos_strip = deptos_por_strip[strip]
-
-                corner_deptos = filter(d -> startswith(d["tipo"], "corner") || startswith(d["tipo"], "d_corner"), deptos_strip)
-                regular_deptos = filter(d -> startswith(d["tipo"], "regular"), deptos_strip)
-
-                sorted_deptos = Any[]
-                if length(corner_deptos) == 2
-                    push!(sorted_deptos, corner_deptos[1])
-                    append!(sorted_deptos, regular_deptos)
-                    push!(sorted_deptos, corner_deptos[2])
-                elseif length(corner_deptos) == 1
-                    push!(sorted_deptos, corner_deptos[1])
-                    append!(sorted_deptos, regular_deptos)
-                else
-                    append!(sorted_deptos, regular_deptos)
-                end
-
-                total_ancho_strip = sum(d["ancho"] * round(Int, (tipo_piso == :primer_piso ? d["num_unidades_primer_piso"] : d["num_unidades_por_piso_superior"])) for d in sorted_deptos if (tipo_piso == :primer_piso ? d["num_unidades_primer_piso"] : d["num_unidades_por_piso_superior"]) >= 0.001)
-                V_planta = ps_planta_normalizado.Vertices[1]
-                H_planta = maximum(V_planta[:, 2]) - minimum(V_planta[:, 2])
-                y_start = y_min + (H_planta - total_ancho_strip) / 2
-
-                x_strip_offset = (strip == 1) ? x_offset + H_s : x_offset
-
-                y_offset = y_start
-                for depto_data in sorted_deptos
-                    num_unidades = (tipo_piso == :primer_piso) ?
-                        depto_data["num_unidades_primer_piso"] :
-                        depto_data["num_unidades_por_piso_superior"]
-
-                    if num_unidades < 0.001
-                        continue
-                    end
-
-                    ancho = depto_data["ancho"]
-                    profundidad = depto_data["profundidad"]
-                    ancho_terraza = depto_data["ancho_terraza"]
-                    profundidad_terraza = depto_data["profundidad_terraza"]
-
-                    for _ in 1:round(Int, num_unidades)
-                        x_depto = (strip == 1) ? x_strip_offset - profundidad : x_strip_offset
-                        ps_depto = polyShape.polyBox(x_depto, y_offset, profundidad, ancho, 0.0)
-
-                        x_terraza = (strip == 1) ? x_depto - profundidad_terraza : x_strip_offset + profundidad
-                        y_terraza = y_offset + (ancho - ancho_terraza) / 2
-                        ps_terraza = polyShape.polyBox(x_terraza, y_terraza,
-                                                      profundidad_terraza, ancho_terraza, 0.0)
-                        push!(vec_ps_deptos, ps_depto)
-                        push!(vec_ps_terrazas, ps_terraza)
-                        push!(vec_tipos, depto_data["tipo"])
-                        push!(vec_strips, strip)
-                        y_offset += ancho
-                    end
-                end
-
-                x_offset += H_s
-            end
-        else
-            y_offset = y_min
-            for strip in sort(collect(keys(deptos_por_strip)))
-                H_s = results["strip"][strip]["H_s"]
-
-                deptos_strip = deptos_por_strip[strip]
-
-                corner_deptos = filter(d -> startswith(d["tipo"], "corner") || startswith(d["tipo"], "d_corner"), deptos_strip)
-                regular_deptos = filter(d -> startswith(d["tipo"], "regular"), deptos_strip)
-
-                sorted_deptos = Any[]
-                if length(corner_deptos) == 2
-                    push!(sorted_deptos, corner_deptos[1])
-                    append!(sorted_deptos, regular_deptos)
-                    push!(sorted_deptos, corner_deptos[2])
-                elseif length(corner_deptos) == 1
-                    push!(sorted_deptos, corner_deptos[1])
-                    append!(sorted_deptos, regular_deptos)
-                else
-                    append!(sorted_deptos, regular_deptos)
-                end
-
-                total_ancho_strip = sum(d["ancho"] * round(Int, (tipo_piso == :primer_piso ? d["num_unidades_primer_piso"] : d["num_unidades_por_piso_superior"])) for d in sorted_deptos if (tipo_piso == :primer_piso ? d["num_unidades_primer_piso"] : d["num_unidades_por_piso_superior"]) >= 0.001)
-                V_planta = ps_planta_normalizado.Vertices[1]
-                W_planta = maximum(V_planta[:, 1]) - minimum(V_planta[:, 1])
-                x_start = x_min + (W_planta - total_ancho_strip) / 2
-
-                y_strip_offset = (strip == 1) ? y_offset + H_s : y_offset
-
-                x_offset = x_start
-                for depto_data in sorted_deptos
-                    num_unidades = (tipo_piso == :primer_piso) ?
-                        depto_data["num_unidades_primer_piso"] :
-                        depto_data["num_unidades_por_piso_superior"]
-
-                    if num_unidades < 0.001
-                        continue
-                    end
-
-                    ancho = depto_data["ancho"]
-                    profundidad = depto_data["profundidad"]
-                    ancho_terraza = depto_data["ancho_terraza"]
-                    profundidad_terraza = depto_data["profundidad_terraza"]
-
-                    for _ in 1:round(Int, num_unidades)
-                        y_depto = (strip == 1) ? y_strip_offset - profundidad : y_strip_offset
-                        ps_depto = polyShape.polyBox(x_offset, y_depto, ancho, profundidad, 0.0)
-
-                        y_terraza = (strip == 1) ? y_depto - profundidad_terraza : y_strip_offset + profundidad
-                        x_terraza = x_offset + (ancho - ancho_terraza) / 2
-                        ps_terraza = polyShape.polyBox(x_terraza, y_terraza,
-                                                      ancho_terraza, profundidad_terraza, 0.0)
-                        push!(vec_ps_deptos, ps_depto)
-                        push!(vec_ps_terrazas, ps_terraza)
-                        push!(vec_tipos, depto_data["tipo"])
-                        push!(vec_strips, strip)
-                        x_offset += ancho
-                    end
-                end
-
-                y_offset += H_s
-            end
-        end
-
-        return vec_ps_deptos, vec_ps_terrazas, vec_tipos, vec_strips
-    end
 
     vec_area_i, vec_area_t, vec_area_p, vec_h_t,
     vec_w_i, mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner,
@@ -1254,6 +1105,21 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         results["best_layout_area_util"] = area_util_1
         results["alternative_layout_area_util"] = area_util_2
     end
+
+    # Convert to DataFrame
+    df_deptos = DataFrame()
+    for (depto_id, depto_data) in results["deptos"]
+        row = Dict{Symbol, Any}()
+        row[:depto_id] = depto_id
+        for (key, value) in depto_data
+            row[Symbol(key)] = value
+        end        
+        push!(df_deptos, row, cols=:union)
+    end
+    results["df_deptos"] = df_deptos
+
+    results["ps_planta"] = vec_ps_opt[1]
+
     println("="^60)
 
     print_results(results, vec_area_i, vec_area_t, vec_area_p, vec_h_t, vec_w_i,

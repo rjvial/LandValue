@@ -203,7 +203,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # ============================================================================
     # 4. APARTMENT SIZE CONFIGURATION
     # ============================================================================
-    if dict_normativa["tipo_edificio"] == "departamento"
+    # if dict_normativa["tipo_edificio"] == "departamento"
         max_constructibilidad = dict_normativa["norm_max_constructibilidad"]
         max_deptos = dict_normativa["norm_max_unidades"]
         flag_dfl2 = dict_normativa["flag_dfl2"]
@@ -216,21 +216,57 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
         #                                             vec_ps_opt, vec_np_opt, flag_dfl2, 
         #                                             sup_patio_vivienda_economica, superficie_terreno)
 
-        results = opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_deptos, 
+        dict_edificio_deptos = opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_deptos, 
                                 vec_ps_opt, vec_np_opt, flag_dfl2, flag_vivienda_economica)
 
-    else
-        dict_edificio_deptos = Dict{String, Any}("vec_numDeptosTipo" => [0], "supUtil" => 0.0, "supNoUtilizada" => 0.0)
-    end
+
+        df_deptos_resumen = combine(
+           groupby(dict_edificio_deptos["df_deptos"], [:strip, :sup_interior, :ancho_interior, :profundidad_interior, :num_unidades_por_piso_superior, :num_unidades_primer_piso]),
+           :num_unidades_edificio => sum => :num_unidades_edificio)
+
+    # else
+    #     dict_edificio_deptos = Dict{String, Any}("vec_numDeptosTipo" => [0], "supUtil" => 0.0, "supNoUtilizada" => 0.0)
+    # end
+
     
+    # ============================================================================
+    # 10. APARTMENT SHAPE COMPILATION
+    # ============================================================================
+
+    ps_planta = vec_ps_opt[1]
+    results = opti_floor_plan(dict_arquitectura, ps_planta, dict_edificio_deptos,
+                ancho_pasillo=ancho_pasillo,
+                min_largo_pasillo=min_largo_pasillo,
+                area_escala=area_escala,
+                min_ancho_escala=min_ancho_escala,
+                min_ancho_depto=min_ancho_depto,
+                max_ancho_terraza=max_ancho_terraza
+                )
+
+    results_pisos_superiores = results["pisos_superiores"]
+    results_primer_piso = results["primer_piso"]
+
+    fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
+    for terrace in results_pisos_superiores["vec_ps_deptos_all"]
+        if polyShape.polyArea(terrace) > 0.0
+            polyPlot.plotPolyshape2D(terrace, "red", 0.4, fig=fig, ax=ax, ax_mat=ax_mat)
+        end
+    end
+    for terrace in results_pisos_superiores["vec_ps_terrazas_all"]
+        if polyShape.polyArea(terrace) > 0.0
+            polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig, ax=ax, ax_mat=ax_mat)
+        end
+    end
+
+
     # ============================================================================
     # 5. CAPACITY DATA CALCULATION
     # ============================================================================
     cabida_data = Dict{String, Any}()
     
     if dict_normativa["tipo_edificio"] == "departamento"
-        cabida_data["vec_sup_deptos"] = dict_arquitectura["arq_vecSupUtil"]
-        cabida_data["vec_num_deptos"] = dict_edificio_deptos["vec_numDeptosTipo"]
+        cabida_data["vec_sup_deptos"] = df_deptos_resumen[:,"sup_interior"]
+        cabida_data["vec_num_deptos"] = Int.(round.(df_deptos_resumen[:,"num_unidades_edificio"]))
         cabida_data["vec_sup_comercio"] = 0
         cabida_data["vec_num_comercio"] = 0
         cabida_data["vec_sup_oficinas"] = 0
@@ -328,7 +364,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # 7. STORAGE AND UNDERGROUND AREA CALCULATION
     # ============================================================================
     if dict_normativa["tipo_edificio"] == "departamento"
-        numBodegas = sum(dict_edificio_deptos["vec_numDeptosTipo"])
+        numBodegas = sum(cabida_data["vec_num_deptos"])
     else
         numBodegas = ceil(BODEGA_RATIO * (dict_normativa["norm_estacionamientos_vendibles"]))
     end
@@ -414,21 +450,6 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
         "proyecto_ocupacion_suelo" => isempty(vec_ps_opt) || isempty(vec_ps_opt[1].Vertices) ? 0.0 : polyShape.polyArea(vec_ps_opt[1])
         )
 
-    # ============================================================================
-    # 10. APARTMENT SHAPE COMPILATION
-    # ============================================================================
-
-    results = opti_floor_plan(dict_arquitectura, dict_proyecto,
-                ancho_pasillo=ancho_pasillo,
-                min_largo_pasillo=min_largo_pasillo,
-                area_escala=area_escala,
-                min_ancho_escala=min_ancho_escala,
-                min_ancho_depto=min_ancho_depto,
-                max_ancho_terraza=max_ancho_terraza
-                )
-
-    results_pisos_superiores = results["pisos_superiores"]
-    results_primer_piso = results["primer_piso"]
 
 
     return dict_proyecto, dict_normativa, results_pisos_superiores, results_primer_piso
