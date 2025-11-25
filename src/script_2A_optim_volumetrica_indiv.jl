@@ -44,7 +44,6 @@ fpe.sombraEdif_s = true
 #                          HELPER FUNCTIONS                                  #
 ################################################################################
 
-
 function update_optimization_status(conn_postgres, id_opti, status)
     update_query = """
     UPDATE public.tabla_instancias_optimizacion
@@ -215,7 +214,6 @@ flag_create_table = false # let flag_create_table = false
         end
 
         println("Processing ID Opti: $(id_opti)")
-
 
         dict_arquitectura = createArchitectureDict(row.variante_norm)
         dict_normativa_raw, id_zona_edificacion = obtiene_requerimientos_normativos(vec_predios[1], dict_arquitectura["arq_variante_normativa"], conn_neo4j)

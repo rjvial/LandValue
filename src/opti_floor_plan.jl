@@ -699,15 +699,6 @@ end
 # High-level computation functions
 # ──────────────────────────────────────────────────────────────────────────────────
 
-# Prepares normalized floor plan, distributes apartments, and calculates strip dimensions
-# function prepare_floor_inputs(ps_planta::PolyShape, vec_sup_deptos::Vector{Float64}, vec_num_deptos::Vector{Int}, stair_cfg::StairConfig, corridor_cfg::CorridorConfig, is_vertical::Bool, terrace_cfg::TerraceConfig, vec_tipo_original_indices::Vector{Int})
-function prepare_floor_inputs(dict_edificio_deptos, ps_planta)
-
-end
-
-
-
-
 # Main floor plan optimization function: distributes apartments in two strips with corridor and terraces
 function genera_layout_pisos_superiores(ps_planta::PolyShape, dict_edificio_deptos;
                         ancho_pasillo::Float64 = 2.0,
@@ -715,8 +706,7 @@ function genera_layout_pisos_superiores(ps_planta::PolyShape, dict_edificio_dept
                         area_escala::Float64 = 25.0,
                         min_ancho_escala::Float64 = 0.0,
                         min_ancho_depto::Float64 = 4.0,
-                        max_ancho_terraza::Float64 = 2.0,
-                        layout::Symbol = :ns)
+                        max_ancho_terraza::Float64 = 2.0)
 
     best_layout = dict_edificio_deptos["best_layout"]
     is_vertical = (best_layout == 2)
@@ -1133,7 +1123,7 @@ function genera_layout_primer_piso(dict_edificio_deptos, ps_planta::PolyShape;
     )
 end
 
-function opti_floor_plan(dict_arquitectura, ps_planta, dict_edificio_deptos;
+function opti_floor_plan(ps_planta, dict_edificio_deptos;
                         ancho_pasillo::Float64 = 2.0,
                         min_largo_pasillo::Float64 = 0.0,
                         area_escala::Float64 = 25.0,
@@ -1141,20 +1131,13 @@ function opti_floor_plan(dict_arquitectura, ps_planta, dict_edificio_deptos;
                         min_ancho_depto::Float64 = 4.0,
                         max_ancho_terraza::Float64 = 2.0)
 
-    if dict_edificio_deptos["best_layout"] == 1
-        layout = :ns
-    else
-        layout = :oe
-    end
-
     results_ = genera_layout_pisos_superiores(ps_planta, dict_edificio_deptos,
                 ancho_pasillo=ancho_pasillo,
                 min_largo_pasillo=min_largo_pasillo,
                 area_escala=area_escala,
                 min_ancho_escala=min_ancho_escala,
                 min_ancho_depto=min_ancho_depto,
-                max_ancho_terraza=max_ancho_terraza,
-                layout=layout)
+                max_ancho_terraza=max_ancho_terraza)
 
     results_pisos_superiores = results_
 

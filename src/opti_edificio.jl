@@ -203,35 +203,22 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # ============================================================================
     # 4. APARTMENT SIZE CONFIGURATION
     # ============================================================================
-    # if dict_normativa["tipo_edificio"] == "departamento"
-        max_constructibilidad = dict_normativa["norm_max_constructibilidad"]
-        max_deptos = dict_normativa["norm_max_unidades"]
-        flag_dfl2 = dict_normativa["flag_dfl2"]
-        superficie_terreno = dict_geom["sup_terreno_sii"]
+    max_constructibilidad = dict_normativa["norm_max_constructibilidad"]
+    max_deptos = dict_normativa["norm_max_unidades"]
+    flag_dfl2 = dict_normativa["flag_dfl2"]
+    superficie_terreno = dict_geom["sup_terreno_sii"]
 
-        flag_vivienda_economica = sup_patio_vivienda_economica > 0
+    flag_vivienda_economica = sup_patio_vivienda_economica > 0
 
-        # # Optimiza la superficie util en base a: num pisos, area basal, constructibilidad, densidad 
-        # dict_edificio_deptos = opti_edificio_deptos(dict_arquitectura, max_constructibilidad, max_deptos, 
-        #                                             vec_ps_opt, vec_np_opt, flag_dfl2, 
-        #                                             sup_patio_vivienda_economica, superficie_terreno)
-
-        dict_edificio_deptos = opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_deptos, 
-                                vec_ps_opt, vec_np_opt, flag_dfl2, flag_vivienda_economica)
-
-
-
-    # else
-    #     dict_edificio_deptos = Dict{String, Any}("vec_numDeptosTipo" => [0], "supUtil" => 0.0, "supNoUtilizada" => 0.0)
-    # end
+    dict_edificio_deptos = opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_deptos, 
+                            vec_ps_opt, vec_np_opt, flag_dfl2, flag_vivienda_economica)
 
     
     # ============================================================================
     # 10. APARTMENT SHAPE COMPILATION
     # ============================================================================
-
     ps_planta = vec_ps_opt[1]
-    results = opti_floor_plan(dict_arquitectura, ps_planta, dict_edificio_deptos,
+    results = opti_floor_plan(ps_planta, dict_edificio_deptos,
                 ancho_pasillo=ancho_pasillo,
                 min_largo_pasillo=min_largo_pasillo,
                 area_escala=area_escala,

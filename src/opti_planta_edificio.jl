@@ -63,73 +63,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
     end
 
 
-    function print_strip_metrics(results::AbstractDict)
-        println("\n" * "="^80)
-        println("MÉTRICAS POR STRIP")
-        println("="^80)
-
-        if haskey(results, "strip")
-            for strip_num in sort(collect(keys(results["strip"])))
-                strip_data = results["strip"][strip_num]
-                println("\nStrip $strip_num:")
-                println("  H_s (profundidad): $(round(strip_data["H_s"], digits=2)) m")
-                println("  perimetro_expuesto:")
-                println("    - primer_piso: $(round(strip_data["perimetro_expuesto"]["primer_piso"], digits=2)) m²")
-                println("    - pisos_superiores: $(round(strip_data["perimetro_expuesto"]["pisos_superiores"], digits=2)) m²")
-                println("  superficie_deptos:")
-                println("    - primer_piso: $(round(strip_data["superficie_deptos"]["primer_piso"], digits=2)) m²")
-                println("    - pisos_superiores: $(round(strip_data["superficie_deptos"]["pisos_superiores"], digits=2)) m²")
-                println("  superficie_terraza:")
-                println("    - primer_piso: $(round(strip_data["superficie_terraza"]["primer_piso"], digits=2)) m²")
-                println("    - pisos_superiores: $(round(strip_data["superficie_terraza"]["pisos_superiores"], digits=2)) m²")
-                println("  superficie_pasillo:")
-                println("    - primer_piso: $(round(strip_data["superficie_pasillo"]["primer_piso"], digits=2)) m²")
-                println("    - pisos_superiores: $(round(strip_data["superficie_pasillo"]["pisos_superiores"], digits=2)) m²")
-            end
-        end
-        println("\n" * "="^80)
-    end
-
-    function print_deptos_summary(results::AbstractDict)
-        println("\n" * "="^80)
-        println("RESUMEN DE DEPARTAMENTOS POR TIPO Y PISO")
-        println("="^80)
-
-        if haskey(results, "deptos")
-            tipo_counts_pp = Dict{String, Float64}()
-            tipo_counts_ps = Dict{String, Float64}()
-
-            for depto_data in values(results["deptos"])
-                tipo = depto_data["tipo"]
-                tipo_counts_pp[tipo] = get(tipo_counts_pp, tipo, 0.0) + depto_data["num_unidades_primer_piso"]
-                tipo_counts_ps[tipo] = get(tipo_counts_ps, tipo, 0.0) + depto_data["num_unidades_por_piso_superior"]
-            end
-
-            tipo_labels = Dict("regular"=>"Regular", "regular_nucleo"=>"Núcleo",
-                             "corner"=>"Corner", "corner_nucleo"=>"Corner Núcleo",
-                             "d_corner_nucleo"=>"D-Corner Núcleo")
-
-            println("\n┌─────────────────────┬──────────────────┬──────────┐")
-            println("│ Tipo Departamento   │ Tipo Piso        │ Cantidad │")
-            println("├─────────────────────┼──────────────────┼──────────┤")
-
-            for tipo in sort(collect(keys(tipo_counts_pp)))
-                tipo_label = get(tipo_labels, tipo, tipo)
-                count_pp = get(tipo_counts_pp, tipo, 0.0)
-                count_ps = get(tipo_counts_ps, tipo, 0.0)
-                if count_pp > 0
-                    println("│ $(rpad(tipo_label, 19)) │ $(rpad("Primer Piso", 16)) │ $(lpad(round(Int, count_pp), 8)) │")
-                end
-                if count_ps > 0
-                    println("│ $(rpad(tipo_label, 19)) │ $(rpad("Pisos Superiores", 16)) │ $(lpad(round(Int, count_ps), 8)) │")
-                end
-            end
-
-            println("└─────────────────────┴──────────────────┴──────────┘")
-        end
-        println("\n" * "="^80)
-    end
-
     function print_results(results::AbstractDict, vec_area_i, vec_area_t, vec_area_p, vec_h_t, vec_w_i,
                           mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner,
                           area_nucleo_depto, area_nucleo_depto_d_corner, W, H)
@@ -201,9 +134,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             area_no_utilizada_ps = area_emplazamiento_por_piso - (area_interior_ps + area_terraza_ps + area_comun_ps)
             area_no_utilizada_total = area_no_utilizada_pp + area_no_utilizada_ps * num_pisos_sup
 
-            vec_area_i_local = vec_area_i
-            vec_w_i_local = vec_w_i
-            num_strips = length(get(results, "strip", Dict()))
             area_nucleo_depto_local = area_nucleo_depto
             area_nucleo_depto_d_corner_local = area_nucleo_depto_d_corner
 
