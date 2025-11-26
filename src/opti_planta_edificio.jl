@@ -51,7 +51,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         if layout == 2
             W = H_raw
             H = W_raw
-            angulo_rotacion += π/2
         else
             W = W_raw
             H = H_raw

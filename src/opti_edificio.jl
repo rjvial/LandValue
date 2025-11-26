@@ -73,8 +73,8 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # MAIN BUILDING OPTIMIZATION FUNCTION
     # ============================================================================
 
-    ancho_pasillo = 1.5 # opti_floor_plan
-    min_largo_pasillo = 4.0 # opti_floor_plan
+    profundidad_pasillo = 1.5 # opti_floor_plan
+    min_ancho_pasillo = 4.0 # opti_floor_plan
     area_nucleo = 20.0 # opti_floor_plan
     min_ancho_nucleo = 5.0 # opti_floor_plan
     min_ancho_depto = 6.0 # opti_floor_plan
@@ -219,8 +219,8 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # ============================================================================
     ps_planta = vec_ps_opt[1]
     results = opti_floor_plan(ps_planta, dict_edificio_deptos,
-                ancho_pasillo=ancho_pasillo,
-                min_largo_pasillo=min_largo_pasillo,
+                profundidad_pasillo=profundidad_pasillo,
+                min_ancho_pasillo=min_ancho_pasillo,
                 area_nucleo=area_nucleo,
                 min_ancho_nucleo=min_ancho_nucleo,
                 min_ancho_depto=min_ancho_depto,
