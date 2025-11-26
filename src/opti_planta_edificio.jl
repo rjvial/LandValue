@@ -711,10 +711,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         end)
 
         @constraints(model, begin
-            constraint_46[s in S], sum(num_deptos_regular_nucleo_primer_piso[s,(k,j)] for (k, j) in KJ_feasible) +
-                                        sum(num_deptos_corner_nucleo_primer_piso[s,(k,j)] for (k, j) in KJ_feasible) +
-                                        sum(num_deptos_d_corner_nucleo_primer_piso[s,(k,j)] for (k, j) in KJ_feasible) ==
-                                        2 * y_active[s] - y_ccn[s]
             constraint_47[s in S], sum(num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) +
                                         sum(num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) +
                                         sum(num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) ==
