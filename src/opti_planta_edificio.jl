@@ -477,6 +477,20 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
         
         @expressions(model, begin
+            # Total number of apartments on first floor
+            num_deptos_primer_piso, sum(num_deptos_regular_primer_piso[s,(k,j)] +
+                num_deptos_regular_nucleo_primer_piso[s,(k,j)] +
+                num_deptos_corner_primer_piso[s,(k,j)] +
+                num_deptos_corner_nucleo_primer_piso[s,(k,j)] +
+                num_deptos_d_corner_nucleo_primer_piso[s,(k,j)] for s in S, (k, j) in KJ_feasible)
+
+            # Total number of apartments per upper floor
+            num_deptos_por_piso_superior, sum(num_deptos_regular_por_piso_superior[s,(k,j)] +
+                num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] +
+                num_deptos_corner_por_piso_superior[s,(k,j)] +
+                num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] +
+                num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] for s in S, (k, j) in KJ_feasible)
+
             # Total common area across all floors
             area_comun_total, area_comun_primer_piso + area_comun_por_piso_superior * num_pisos_superiores
 
@@ -692,6 +706,9 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             constraint_42[s in S, (k, j) in KJ_feasible], num_deptos_corner_primer_piso[s,(k,j)] <= num_deptos_corner_por_piso_superior[s,(k,j)]  # Corner apartments
             constraint_43[s in S, (k, j) in KJ_feasible], num_deptos_corner_nucleo_primer_piso[s,(k,j)] <= num_deptos_corner_nucleo_por_piso_superior[s,(k,j)]  # Corner nucleo apartments
             constraint_45[s in S, (k, j) in KJ_feasible], num_deptos_d_corner_nucleo_primer_piso[s,(k,j)] <= num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] # Double corner nucleo apartments
+
+            # First floor must have at least one fewer apartment than upper floors
+            constraint_48, num_deptos_primer_piso <= num_deptos_por_piso_superior - 1
         end)
 
         @constraints(model, begin
