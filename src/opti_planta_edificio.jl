@@ -284,7 +284,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         for i in eachindex(vec_area_i_original)
             push!(vec_area_i, vec_area_i_original[i])
             if i < lastindex(vec_area_i_original)
-                step = (vec_area_i_original[i+1] - vec_area_i_original[i]) / 3
+                step = (vec_area_i_original[i+1] - vec_area_i_original[i]) / 5
                 push!(vec_area_i, vec_area_i_original[i] + step)
                 push!(vec_area_i, vec_area_i_original[i] + 2*step)
             end
@@ -292,7 +292,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         num_sizes = length(vec_area_i)
         K = 1:num_sizes
 
-        vec_w_i = collect(7.0:0.1:15.0)
+        vec_w_i = collect(7.0:0.2:15.0)
         num_widths = length(vec_w_i)
         J = 1:num_widths
 
@@ -380,10 +380,14 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         mat_exposicion_corner = [vec_w_i[j] + mat_corner_h[k,j] for k in K, j in J]
         mat_exposicion_d_corner = [vec_w_i[j] + 2*mat_d_corner_h[k,j] for k in K, j in J]
 
+        mat_aspect_ratio = mat_h_i ./ mat_w_i
+
         mat_flag_feasible = (mat_h_i .<= 10) .&&
-                            (mat_h_i .>= 4) .&& 
-                            (mat_w_i .>= 5) .&&
-                            (mat_area_i .+ mat_area_t ./ 2) .<= 140 * (1*flag_dfl2 + 10*(1 - flag_dfl2))
+                            (mat_h_i .>= 4) .&&
+                            (mat_w_i .>= 7) .&&
+                            (mat_area_i .+ mat_area_t ./ 2) .<= 140 * (1*flag_dfl2 + 10*(1 - flag_dfl2)) .&&
+                            (mat_aspect_ratio .>= 0.333) .&&
+                            (mat_aspect_ratio .<= 3.0)
 
         num_pisos_superiores = num_pisos - 1
 
@@ -646,7 +650,8 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             constraint_15g[s in S], y_c[s] + y_cn2[s] <= 1  # Corner incompatible with 2 corner nucleo
 
             # Total apartment count must be within specified bounds
-            constraint_16, min_deptos <= deptos_total <= max_deptos
+            constraint_16a, deptos_total >= min_deptos
+            constraint_16b, deptos_total <= max_deptos
 
             # Sum of all strip depths cannot exceed building depth
             constraint_17, sum(H_s[s] for s in S) <= H
@@ -729,22 +734,23 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                             num_deptos_d_corner_nucleo_por_piso_superior[2,(k,j)]
                             for (k, j) in KJ_feasible))
 
-        # Diversity constraints: prevent mixing very different apartment sizes (ratio > 2.0)
+        conflicting_pairs = Tuple{Int,Int}[]
         for k1 in K, k2 in K
-            if vec_area_i[k1] < vec_area_i[k2]  # Avoid duplicate constraints
-                if vec_area_i[k2] > vec_area_i[k1] * 2.0
-                    # Prevent using both sizes simultaneously across all apartment types
-                    for s in S
-                        @constraints(model, begin
-                            sum(x[s,(k1,j)] for (k, j) in KJ_feasible if k == k1) + sum(x[s,(k2,j)] for (k, j) in KJ_feasible if k == k2) <= 1
-                            sum(x_n[s,(k1,j)] for (k, j) in KJ_feasible if k == k1) + sum(x_n[s,(k2,j)] for (k, j) in KJ_feasible if k == k2) <= 1
-                            sum(x_c[s,(k1,j)] for (k, j) in KJ_feasible if k == k1) + sum(x_c[s,(k2,j)] for (k, j) in KJ_feasible if k == k2) <= 1
-                            sum(x_cn[s,(k1,j)] for (k, j) in KJ_feasible if k == k1) + sum(x_cn[s,(k2,j)] for (k, j) in KJ_feasible if k == k2) <= 1
-                            sum(x_ccn[s,(k1,j)] for (k, j) in KJ_feasible if k == k1) + sum(x_ccn[s,(k2,j)] for (k, j) in KJ_feasible if k == k2) <= 1
-                        end)
-                    end
-                end
+            if k1 < k2 && vec_area_i[k2] > vec_area_i[k1] * 2.0
+                push!(conflicting_pairs, (k1, k2))
             end
+        end
+
+        KJ_by_k = [[(k, j) for (k, j) in KJ_feasible if k == k_target] for k_target in K]
+
+        for (k1, k2) in conflicting_pairs, s in S
+            @constraints(model, begin
+                sum(x[s,kj] for kj in KJ_by_k[k1]) + sum(x[s,kj] for kj in KJ_by_k[k2]) <= 1
+                sum(x_n[s,kj] for kj in KJ_by_k[k1]) + sum(x_n[s,kj] for kj in KJ_by_k[k2]) <= 1
+                sum(x_c[s,kj] for kj in KJ_by_k[k1]) + sum(x_c[s,kj] for kj in KJ_by_k[k2]) <= 1
+                sum(x_cn[s,kj] for kj in KJ_by_k[k1]) + sum(x_cn[s,kj] for kj in KJ_by_k[k2]) <= 1
+                sum(x_ccn[s,kj] for kj in KJ_by_k[k1]) + sum(x_ccn[s,kj] for kj in KJ_by_k[k2]) <= 1
+            end)
         end
 
         # Maximize total apartment interior area
