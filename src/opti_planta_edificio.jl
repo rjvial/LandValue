@@ -292,7 +292,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         num_sizes = length(vec_area_i)
         K = 1:num_sizes
 
-        vec_w_i = collect(7.0:0.5:13.0)
+        vec_w_i = collect(7.0:0.1:15.0)
         num_widths = length(vec_w_i)
         J = 1:num_widths
 
@@ -365,7 +365,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         mat_area_i = [mat_h_i[k,j] * vec_w_i[j] for k in K, j in J]
 
         vec_w_t = vec_area_t ./ vec_h_t
-        mat_area_t = [vec_area_t[j] for k in K, j in J]
+        mat_area_t = [vec_area_t[k] for k in K, j in J]
 
         vec_area_in = vec_area_i .+ area_nucleo_depto
         vec_area_in_d_corner = vec_area_i .+ area_nucleo_depto_d_corner
@@ -380,7 +380,9 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         mat_exposicion_corner = [vec_w_i[j] + mat_corner_h[k,j] for k in K, j in J]
         mat_exposicion_d_corner = [vec_w_i[j] + 2*mat_d_corner_h[k,j] for k in K, j in J]
 
-        mat_flag_feasible = (mat_h_i .<= 8) .&& 
+        mat_flag_feasible = (mat_h_i .<= 10) .&&
+                            (mat_h_i .>= 4) .&& 
+                            (mat_w_i .>= 5) .&&
                             (mat_area_i .+ mat_area_t ./ 2) .<= 140 * (1*flag_dfl2 + 10*(1 - flag_dfl2))
 
         num_pisos_superiores = num_pisos - 1
