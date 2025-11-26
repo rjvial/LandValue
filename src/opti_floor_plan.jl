@@ -452,7 +452,8 @@ function calcula_geometria_pasillo(vec_coord_fin1::Vector{Float64}, vec_coord_fi
                     vec_coord_ini1::Vector{Float64}, vec_coord_ini2::Vector{Float64}, coord_base::Float64,
                     ancho_pasillo::Float64, is_vertical::Bool, W::Float64, H::Float64, coord_min::Float64,
                     min_largo_pasillo::Float64, vec_tipo_deptos1::Vector{Int},
-                    vec_tipo_deptos2::Vector{Int}, ancho_nucleo, area_nucleo)
+                    vec_tipo_deptos2::Vector{Int}, ancho_nucleo,
+                    vec_tipo_strings1::Vector{String}=String[], vec_tipo_strings2::Vector{String}=String[])
 
     num_deptos_franja1 = count(t -> t != -1, vec_tipo_deptos1)
     num_deptos_franja2 = count(t -> t != -1, vec_tipo_deptos2)
@@ -510,14 +511,43 @@ function calcula_geometria_pasillo(vec_coord_fin1::Vector{Float64}, vec_coord_fi
         y_centroide = coord_base
     end
 
-    largo_nucleo = area_nucleo / ancho_nucleo
+    indices_nucleo1 = findall(t -> contains(t, "nucleo"), vec_tipo_strings1)
+    indices_nucleo2 = findall(t -> contains(t, "nucleo"), vec_tipo_strings2)
 
-    if is_vertical
-        ps_nucleo = polyShape.polyBox(x_centroide - (largo_nucleo + ancho_pasillo) / 2, y_centroide - ancho_nucleo / 2, largo_nucleo + ancho_pasillo, ancho_nucleo, 0.0)
-    else
-        ps_nucleo = polyShape.polyBox(x_centroide - ancho_nucleo / 2, y_centroide - (largo_nucleo + ancho_pasillo) / 2, ancho_nucleo, largo_nucleo + ancho_pasillo, 0.0)
+    profundidad_nucleo = 2.0
+    ancho_nucleo_box = 5.0
+
+    if !isempty(indices_nucleo1) && length(indices_nucleo1) >= 1
+        idx_first = indices_nucleo1[1]
+        idx_last = indices_nucleo1[end]
+
+        coord_ini_span = vec_coord_ini1[idx_first]
+        coord_fin_span = vec_coord_fin1[idx_last]
+        coord_centro_span = (coord_ini_span + coord_fin_span) / 2
+
+        if is_vertical
+            ps_nucleo1 = polyShape.polyBox(coord_base, coord_centro_span - ancho_nucleo_box / 2, profundidad_nucleo, ancho_nucleo_box, 0.0)
+        else
+            ps_nucleo1 = polyShape.polyBox(coord_centro_span - ancho_nucleo_box / 2, coord_base, ancho_nucleo_box, profundidad_nucleo, 0.0)
+        end
+        ps_pasillo = polyShape.polyUnion(ps_pasillo, ps_nucleo1)
     end
-    ps_pasillo = polyShape.polyUnion(ps_pasillo, ps_nucleo)            
+
+    if !isempty(indices_nucleo2) && length(indices_nucleo2) >= 1
+        idx_first = indices_nucleo2[1]
+        idx_last = indices_nucleo2[end]
+
+        coord_ini_span = vec_coord_ini2[idx_first]
+        coord_fin_span = vec_coord_fin2[idx_last]
+        coord_centro_span = (coord_ini_span + coord_fin_span) / 2
+
+        if is_vertical
+            ps_nucleo2 = polyShape.polyBox(coord_base - profundidad_nucleo, coord_centro_span - ancho_nucleo_box / 2, profundidad_nucleo, ancho_nucleo_box, 0.0)
+        else
+            ps_nucleo2 = polyShape.polyBox(coord_centro_span - ancho_nucleo_box / 2, coord_base - profundidad_nucleo, ancho_nucleo_box, profundidad_nucleo, 0.0)
+        end
+        ps_pasillo = polyShape.polyUnion(ps_pasillo, ps_nucleo2)
+    end
 
     return coord_ini_pasillo, coord_fin_pasillo, largo_pasillo, ps_pasillo
 end
@@ -792,7 +822,8 @@ function genera_layout_pisos_superiores(ps_planta::PolyShape, dict_edificio_dept
                                             W, H,
                                             coord_min, min_largo_pasillo,
                                             vec_tipo_deptos1, vec_tipo_deptos2,
-                                            min_ancho_nucleo, area_nucleo)
+                                            min_ancho_nucleo,
+                                            vec_tipo_strings1, vec_tipo_strings2)
 
     vec_ps_deptos_franja_1_normalizado, vec_extension_dimension1_1 = extiende_deptos_con_interseccion_pasillo(vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, coord_base, ps_pasillo_normalizado, franja1, is_vertical, vec_ps_deptos_franja_1_normalizado, ps_pasillo_normalizado)
     vec_ps_deptos_franja_2_normalizado, vec_extension_dimension1_2 = extiende_deptos_con_interseccion_pasillo(vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, coord_base, ps_pasillo_normalizado, franja2, is_vertical, vec_ps_deptos_franja_2_normalizado, ps_pasillo_normalizado)
@@ -1001,7 +1032,8 @@ function genera_layout_primer_piso(dict_edificio_deptos, ps_planta::PolyShape;
                                             W, H,
                                             coord_min, min_largo_pasillo,
                                             vec_tipo_deptos1, vec_tipo_deptos2,
-                                            min_ancho_nucleo, area_nucleo)
+                                            min_ancho_nucleo,
+                                            vec_tipo_strings1, vec_tipo_strings2)
 
     vec_ps_deptos_franja_1_normalizado, vec_extension_dimension1_1 = extiende_deptos_con_interseccion_pasillo(vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, coord_base, ps_pasillo_normalizado, franja1, is_vertical, vec_ps_deptos_franja_1_normalizado, ps_pasillo_normalizado)
     vec_ps_deptos_franja_2_normalizado, vec_extension_dimension1_2 = extiende_deptos_con_interseccion_pasillo(vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, coord_base, ps_pasillo_normalizado, franja2, is_vertical, vec_ps_deptos_franja_2_normalizado, ps_pasillo_normalizado)
