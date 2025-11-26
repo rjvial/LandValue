@@ -2206,12 +2206,10 @@ function building2json(results_primer_piso::Dict, results_pisos_superiores::Dict
             addPolyShapeTo3D(ps_area_comun_primer, 0.0, alturaPiso, all_vertices, all_indices)
 
             ps_pasillo = results_pisos_superiores["ps_pasillo"]
-            ps_escala = results_pisos_superiores["ps_escala"]
             for piso in 1:num_pisos_superiores
                 z_low = alturaPiso * piso
                 z_high = alturaPiso * (piso + 1)
                 addPolyShapeTo3D(ps_pasillo, z_low, z_high, all_vertices, all_indices)
-                addPolyShapeTo3D(ps_escala, z_low, z_high, all_vertices, all_indices)
             end
         end
 
@@ -2307,7 +2305,7 @@ function building2json(results_primer_piso::Dict, results_pisos_superiores::Dict
 end
 
 
-function planta2json(vec_ps_deptos::Vector{PolyShape}, vec_ps_terrazas::Vector{PolyShape}, ps_area_comun::Union{PolyShape, Nothing}, ps_pasillo::Union{PolyShape, Nothing}, ps_escala::Union{PolyShape, Nothing}, height::Float64=0.0)::String
+function planta2json(vec_ps_deptos::Vector{PolyShape}, vec_ps_terrazas::Vector{PolyShape}, ps_area_comun::Union{PolyShape, Nothing}, ps_pasillo::Union{PolyShape, Nothing}, height::Float64=0.0)::String
 
     function triangulatePolygon(V::Matrix{Float64})::Vector{Int}
         function pointInTriangle(p::Vector{Float64}, a::Vector{Float64}, b::Vector{Float64}, c::Vector{Float64})::Bool
@@ -2592,7 +2590,6 @@ function planta2json(vec_ps_deptos::Vector{PolyShape}, vec_ps_terrazas::Vector{P
     add_polyshape_array(vec_ps_terrazas, 0x2F4F4F, "terraza")
     add_single_polyshape(ps_area_comun, 0x303030, "area_comun")
     add_single_polyshape(ps_pasillo, 0x303030, "pasillo")
-    add_single_polyshape(ps_escala, 0x303030, "escala")
     add_borders_for_array(vec_ps_deptos, 0x000000, "depto")
 
     group_uuid = string(Base.UUID(rand(UInt128)))

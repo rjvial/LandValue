@@ -294,7 +294,7 @@ flag_create_table = false # let flag_create_table = false
             dict_json["json_bruto"] = polyShape.polyShape2json(dict_geom["ps_bruto"])
             dict_json["json_calles"] = polyShape.polyShape2json(dict_geom["ps_calles"])
             dict_json["json_calles_contexto"] = polyShape.polyShape2json(dict_geom["ps_calles_contexto"])
-            dict_json["json_planta_primer_piso"] = polyShape.planta2json(results_primer_piso["vec_ps_deptos_all"], results_primer_piso["vec_ps_terrazas_all"], results_primer_piso["ps_area_comun_total"], nothing, nothing, 0.0)
+            dict_json["json_planta_primer_piso"] = polyShape.planta2json(results_primer_piso["vec_ps_deptos_all"], results_primer_piso["vec_ps_terrazas_all"], results_primer_piso["ps_area_comun_total"], nothing, 0.0)
             dict_json["json_planta_pisos_superiores"] = polyShape.planta2json(results_pisos_superiores["vec_ps_deptos_all"], results_pisos_superiores["vec_ps_terrazas_all"], nothing, results_pisos_superiores["ps_pasillo"], dict_arquitectura["arq_alturaPiso"])
 
             # for (json_key, json_content) in dict_json

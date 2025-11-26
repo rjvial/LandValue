@@ -514,7 +514,7 @@ function calcula_geometria_pasillo(vec_coord_fin1::Vector{Float64}, vec_coord_fi
     indices_nucleo1 = findall(t -> contains(t, "nucleo"), vec_tipo_strings1)
     indices_nucleo2 = findall(t -> contains(t, "nucleo"), vec_tipo_strings2)
 
-    profundidad_nucleo = 2.0
+    profundidad_nucleo = 2.0 + .75
     ancho_nucleo_box = 5.0
 
     if !isempty(indices_nucleo1) && length(indices_nucleo1) >= 1
