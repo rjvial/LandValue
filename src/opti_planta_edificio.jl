@@ -332,7 +332,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         end
 
         mat_h_t = [vec_area_t[k] <= 2 * vec_w_i[j] ? 2.0 : vec_area_t[k] / vec_w_i[j] for k in K, j in J]
-        # vec_h_t = [maximum(mat_h_t[k, :]) for k in K]
 
         return vec_area_i, vec_area_t, vec_area_p, mat_h_t, vec_w_i, mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner, area_nucleo_depto, area_nucleo_depto_d_corner
     end
@@ -365,7 +364,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
         mat_area_i = [mat_h_i[k,j] * vec_w_i[j] for k in K, j in J]
 
-        # vec_w_t = vec_area_t ./ vec_h_t
         mat_area_t = [vec_area_t[k] for k in K, j in J]
 
         vec_area_in = vec_area_i .+ area_nucleo_depto
