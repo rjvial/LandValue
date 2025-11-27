@@ -8,7 +8,9 @@
       "Bash(julia --project=. -e:*)",
       "Bash(julia --project=. src/ejemplo_opti_planta_edificio.jl:*)",
       "Bash(julia --project=.. -e:*)",
-      "Read(//c/Users/rjvia/Documents/Land_engines_code/Julia/**)"
+      "Read(//c/Users/rjvia/Documents/Land_engines_code/Julia/**)",
+      "Bash(sed:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

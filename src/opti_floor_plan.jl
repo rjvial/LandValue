@@ -3,14 +3,8 @@ const INTERSECTION_TOLERANCE = 0.1
 const TERRACE_ASPECT_RATIO = 1.75
 const MAX_ADJUSTMENT_ITERATIONS = 10
 
-
-
-get_area(t::Tuple{Float64, Int}) = t[1]
 get_tipo(t::Tuple{Float64, Int}) = t[2]
-
-get_area(t::Tuple{Float64, Int, Int}) = t[1]
 get_tipo(t::Tuple{Float64, Int, Int}) = t[2]
-get_index(t::Tuple{Float64, Int, Int}) = t[3]
 
 # ══════════════════════════════════════════════════════════════════════════════════
 # HELPER FUNCTIONS
@@ -239,25 +233,6 @@ function get_strip_outermost_extent(vec_ps_deptos::Vector{PolyShape}, vec_terraz
     return get_max ? maximum(all_coords) : minimum(all_coords)
 end
 
-# Translates all geometries by delta in specified franja
-function apply_terrace_correction(vec_ps_deptos_franja_1::Vector{PolyShape}, vec_ps_deptos_franja_2::Vector{PolyShape},
-                                    vec_terrazas1::Vector{PolyShape}, vec_terrazas2::Vector{PolyShape},
-                                    ps_pasillo::PolyShape, delta::Float64, is_vertical::Bool, franja::Symbol)
-    if is_vertical
-        delta_x = (franja == :este) ? delta : -delta
-        dx, dy = delta_x, 0.0
-    else
-        delta_y = (franja == :norte) ? delta : -delta
-        dx, dy = 0.0, delta_y
-    end
-
-    return ([polyShape.polyTranslate(p, dx, dy) for p in vec_ps_deptos_franja_1],
-            [polyShape.polyTranslate(p, dx, dy) for p in vec_ps_deptos_franja_2],
-            [polyShape.polyTranslate(t, dx, dy) for t in vec_terrazas1],
-            [polyShape.polyTranslate(t, dx, dy) for t in vec_terrazas2],
-            polyShape.polyTranslate(ps_pasillo, dx, dy))
-end
-
 # Processes terraces for both strips including generation, verification, and correction
 function procesa_terrazas_ambas_franjas(vec_terrazas_areas_strip1::Vector{Float64}, vec_terrazas_areas_strip2::Vector{Float64}, planta_normalizada,
                                             vec_dimension1_deptos1::Vector{Float64}, vec_dimension1_deptos2::Vector{Float64},
@@ -332,8 +307,20 @@ function correct_outbound_terraces(vec_terrazas1::Vector{PolyShape}, vec_terraza
 
     if delta > 0.0
         shift_franja = get_max_outbound ? (is_vertical ? :oeste : :sur) : (is_vertical ? :este : :norte)
-        return apply_terrace_correction(vec_ps_deptos_franja_1, vec_ps_deptos_franja_2, vec_terrazas1, vec_terrazas2,
-                                    ps_pasillo, delta, is_vertical, shift_franja)
+
+        if is_vertical
+            delta_x = (shift_franja == :este) ? delta : -delta
+            dx, dy = delta_x, 0.0
+        else
+            delta_y = (shift_franja == :norte) ? delta : -delta
+            dx, dy = 0.0, delta_y
+        end
+
+        return ([polyShape.polyTranslate(p, dx, dy) for p in vec_ps_deptos_franja_1],
+                [polyShape.polyTranslate(p, dx, dy) for p in vec_ps_deptos_franja_2],
+                [polyShape.polyTranslate(t, dx, dy) for t in vec_terrazas1],
+                [polyShape.polyTranslate(t, dx, dy) for t in vec_terrazas2],
+                polyShape.polyTranslate(ps_pasillo, dx, dy))
     end
 
     return vec_ps_deptos_franja_1, vec_ps_deptos_franja_2, vec_terrazas1, vec_terrazas2, ps_pasillo

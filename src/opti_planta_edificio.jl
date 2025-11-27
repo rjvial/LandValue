@@ -16,7 +16,7 @@ Optimiza la asignación de departamentos en strips norte/sures para maximizar su
 - `mat_h_ipn`: Matriz de alturas [k,j] para departamentos núcleo
 - `area_nucleo_depto::Float64`: Área adicional para departamentos tipo núcleo (m²)
 - `vec_w_t`: Vector de anchos de terraza por tipo
-- `vec_h_t`: Vector de alturas de terraza por tipo
+- `mat_h_t`: Matriz de alturas de terraza por tipo
 - `vec_area_t`: Vector de áreas de terraza por tipo
 - `mat_exposicion`: Matriz de perímetros [k,j] para departamentos regulares
 - `mat_exposicion_corner`: Matriz de perímetros [k,j] para departamentos esquina
@@ -62,7 +62,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
     end
 
 
-    function print_results(results::AbstractDict, vec_area_i, vec_area_t, vec_area_p, vec_h_t, vec_w_i,
+    function print_results(results::AbstractDict, vec_area_i, vec_area_t, vec_area_p, mat_h_t, vec_w_i,
                           mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner,
                           area_nucleo_depto, area_nucleo_depto_d_corner, W, H)
 
@@ -292,7 +292,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         num_sizes = length(vec_area_i)
         K = 1:num_sizes
 
-        vec_w_i = collect(7.0:0.2:15.0)
+        vec_w_i = collect(6.0:0.5:14.0)
         num_widths = length(vec_w_i)
         J = 1:num_widths
 
@@ -301,7 +301,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         mat_h_ip = [mat_area_ip[k,j] / vec_w_i[j] for k in K, j in J]
 
         area_nucleo_depto = 5
-        area_nucleo_depto_d_corner = 10
+        area_nucleo_depto_d_corner = 2*area_nucleo_depto
 
         vec_area_in = vec_area_i .+ area_nucleo_depto
         mat_h_in = [vec_area_in[k] / vec_w_i[j] for k in K, j in J]
@@ -317,7 +317,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         for i in eachindex(vec_area_t_original)
             push!(vec_area_t_temp, vec_area_t_original[i])
             if i < lastindex(vec_area_t_original)
-                step = (vec_area_t_original[i+1] - vec_area_t_original[i]) / 3
+                step = (vec_area_t_original[i+1] - vec_area_t_original[i]) / 5
                 push!(vec_area_t_temp, vec_area_t_original[i] + step)
                 push!(vec_area_t_temp, vec_area_t_original[i] + 2*step)
             end
@@ -331,12 +331,13 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             vec_area_t = vec_area_t_temp
         end
 
-        vec_h_t = ones(length(vec_area_i)) .* 2
+        mat_h_t = [vec_area_t[k] <= 2 * vec_w_i[j] ? 2.0 : vec_area_t[k] / vec_w_i[j] for k in K, j in J]
+        # vec_h_t = [maximum(mat_h_t[k, :]) for k in K]
 
-        return vec_area_i, vec_area_t, vec_area_p, vec_h_t, vec_w_i, mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner, area_nucleo_depto, area_nucleo_depto_d_corner
+        return vec_area_i, vec_area_t, vec_area_p, mat_h_t, vec_w_i, mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner, area_nucleo_depto, area_nucleo_depto_d_corner
     end
 
-    function opti_planta_edificio_layout(vec_area_i, vec_area_t, vec_area_p, vec_h_t, vec_w_i,
+    function opti_planta_edificio_layout(vec_area_i, vec_area_t, vec_area_p, mat_h_t, vec_w_i,
                                 mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner,
                                 area_nucleo_depto, area_nucleo_depto_d_corner,
                                 max_constructibilidad, max_deptos,
@@ -364,7 +365,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
         mat_area_i = [mat_h_i[k,j] * vec_w_i[j] for k in K, j in J]
 
-        vec_w_t = vec_area_t ./ vec_h_t
+        # vec_w_t = vec_area_t ./ vec_h_t
         mat_area_t = [vec_area_t[k] for k in K, j in J]
 
         vec_area_in = vec_area_i .+ area_nucleo_depto
@@ -382,12 +383,13 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
         mat_aspect_ratio = mat_h_i ./ mat_w_i
 
-        mat_flag_feasible = (mat_h_i .<= 10) .&&
+        mat_flag_feasible = (mat_h_i .<= (mat_area_i .- 30 .+ 22.5*6) ./ 22.5) .&&
                             (mat_h_i .>= 4) .&&
-                            (mat_w_i .>= 7) .&&
+                            (mat_w_i .>= 6) .&&
                             (mat_area_i .+ mat_area_t ./ 2) .<= 140 * (1*flag_dfl2 + 10*(1 - flag_dfl2)) .&&
-                            (mat_aspect_ratio .>= 0.333) .&&
-                            (mat_aspect_ratio .<= 3.0)
+                            (mat_aspect_ratio .>= 0.4) .&&
+                            (mat_aspect_ratio .<= 2.5)
+                            
 
         num_pisos_superiores = num_pisos - 1
 
@@ -660,12 +662,11 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             constraint_18[s in S], H_s[s] >= (H - 3) / 2
 
             # Apartment height (interior + terrace) must fit within strip depth for each apartment type
-            constraint_19[s in S, (k, j) in KJ_feasible], x[s,(k,j)] * (mat_h_ip[k,j] + vec_h_t[k]) <= H_s[s]        # Regular apartments
-            constraint_20[s in S, (k, j) in KJ_feasible], x_n[s,(k,j)] * (mat_h_ipn[k,j] + vec_h_t[k]) <= H_s[s]      # Nucleo apartments
-            constraint_21[s in S, (k, j) in KJ_feasible], x_c[s,(k,j)] * (mat_h_in[k,j] + vec_h_t[k]) <= H_s[s]   # Corner apartments
-            constraint_22[s in S, (k, j) in KJ_feasible], x_cn[s,(k,j)] * (mat_h_in[k,j] + vec_h_t[k]) <= H_s[s]   # Corner nucleo apartments
-            constraint_24[s in S, (k, j) in KJ_feasible], x_ccn[s,(k,j)] * (mat_h_in_d_corner[k,j] + vec_h_t[k]) <= H_s[s] # Double corner nucleo apartments
-
+            constraint_19[s in S, (k, j) in KJ_feasible], x[s,(k,j)] * (mat_h_ip[k,j] + mat_h_t[k,j]) <= H_s[s]        # Regular apartments
+            constraint_20[s in S, (k, j) in KJ_feasible], x_n[s,(k,j)] * (mat_h_ipn[k,j] + mat_h_t[k,j]) <= H_s[s]      # Nucleo apartments
+            constraint_21[s in S, (k, j) in KJ_feasible], x_c[s,(k,j)] * (mat_h_in[k,j] + mat_h_t[k,j]) <= H_s[s]   # Corner apartments
+            constraint_22[s in S, (k, j) in KJ_feasible], x_cn[s,(k,j)] * (mat_h_in[k,j] + mat_h_t[k,j]) <= H_s[s]   # Corner nucleo apartments
+            constraint_24[s in S, (k, j) in KJ_feasible], x_ccn[s,(k,j)] * (mat_h_in_d_corner[k,j] + mat_h_t[k,j]) <= H_s[s] # Double corner nucleo apartments
             # Total apartment area per strip cannot exceed strip footprint (W x H_s)
             constraint_25[s in S], sum(num_deptos_regular_por_piso_superior[s,(k,j)] * (mat_area_ip[k,j] + vec_area_t[k]) +
                 num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] * (mat_area_ipn[k,j] + vec_area_t[k]) +
@@ -699,12 +700,12 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                                 mat_h_in_d_corner[k,j] * x_ccn[s,(k,j)]
 
             # Sum of apartment perimeters must cover strip perimeter (2*max_height + W - tolerance)
-            constraint_39[s in S],
-                sum(num_deptos_regular_por_piso_superior[s,(k,j)] * mat_exposicion[k,j] for (k, j) in KJ_feasible) +
-                sum(num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] * mat_exposicion[k,j] for (k, j) in KJ_feasible) +
-                sum(num_deptos_corner_por_piso_superior[s,(k,j)] * mat_exposicion_corner[k,j] for (k, j) in KJ_feasible) +
-                sum(num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] * mat_exposicion_corner[k,j] for (k, j) in KJ_feasible) +
-                sum(num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] * mat_exposicion_d_corner[k,j] for (k, j) in KJ_feasible) >= 0 # 2*max_height[s] + W - 5
+            # constraint_39[s in S],
+            #     sum(num_deptos_regular_por_piso_superior[s,(k,j)] * mat_exposicion[k,j] for (k, j) in KJ_feasible) +
+            #     sum(num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] * mat_exposicion[k,j] for (k, j) in KJ_feasible) +
+            #     sum(num_deptos_corner_por_piso_superior[s,(k,j)] * mat_exposicion_corner[k,j] for (k, j) in KJ_feasible) +
+            #     sum(num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] * mat_exposicion_corner[k,j] for (k, j) in KJ_feasible) +
+            #     sum(num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] * mat_exposicion_d_corner[k,j] for (k, j) in KJ_feasible) >= 0 # 2*max_height[s] + W - 5
 
             # First floor apartment counts cannot exceed upper floor counts (first floor is subset of upper floors)
             constraint_40[s in S, (k, j) in KJ_feasible], num_deptos_regular_primer_piso[s,(k,j)] <= num_deptos_regular_por_piso_superior[s,(k,j)]             # Regular apartments
@@ -719,20 +720,18 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
         @constraints(model, begin
             constraint_47[s in S], sum(num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) +
-                                        sum(num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) +
-                                        sum(num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) ==
-                                        2 * y_active[s] - y_ccn[s]
+                                   sum(num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) +
+                                   sum(num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) ==
+                                   2 * y_active[s] - y_ccn[s]
         end)
 
         # Symmetry breaking: order strips by total apartments to reduce search space
         @constraint(model, sum(num_deptos_regular_por_piso_superior[1,(k,j)] + num_deptos_regular_nucleo_por_piso_superior[1,(k,j)] +
-                            num_deptos_corner_por_piso_superior[1,(k,j)] + num_deptos_corner_nucleo_por_piso_superior[1,(k,j)] +
-                            num_deptos_d_corner_nucleo_por_piso_superior[1,(k,j)]
-                            for (k, j) in KJ_feasible) >=
+                               num_deptos_corner_por_piso_superior[1,(k,j)] + num_deptos_corner_nucleo_por_piso_superior[1,(k,j)] +
+                               num_deptos_d_corner_nucleo_por_piso_superior[1,(k,j)] for (k, j) in KJ_feasible) >=
                         sum(num_deptos_regular_por_piso_superior[2,(k,j)] + num_deptos_regular_nucleo_por_piso_superior[2,(k,j)] +
                             num_deptos_corner_por_piso_superior[2,(k,j)] + num_deptos_corner_nucleo_por_piso_superior[2,(k,j)] +
-                            num_deptos_d_corner_nucleo_por_piso_superior[2,(k,j)]
-                            for (k, j) in KJ_feasible))
+                            num_deptos_d_corner_nucleo_por_piso_superior[2,(k,j)] for (k, j) in KJ_feasible))
 
         conflicting_pairs = Tuple{Int,Int}[]
         for k1 in K, k2 in K
@@ -740,16 +739,14 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                 push!(conflicting_pairs, (k1, k2))
             end
         end
-
         KJ_by_k = [[(k, j) for (k, j) in KJ_feasible if k == k_target] for k_target in K]
-
-        for (k1, k2) in conflicting_pairs, s in S
+        for (k1, k2) in conflicting_pairs
             @constraints(model, begin
-                sum(x[s,kj] for kj in KJ_by_k[k1]) + sum(x[s,kj] for kj in KJ_by_k[k2]) <= 1
-                sum(x_n[s,kj] for kj in KJ_by_k[k1]) + sum(x_n[s,kj] for kj in KJ_by_k[k2]) <= 1
-                sum(x_c[s,kj] for kj in KJ_by_k[k1]) + sum(x_c[s,kj] for kj in KJ_by_k[k2]) <= 1
-                sum(x_cn[s,kj] for kj in KJ_by_k[k1]) + sum(x_cn[s,kj] for kj in KJ_by_k[k2]) <= 1
-                sum(x_ccn[s,kj] for kj in KJ_by_k[k1]) + sum(x_ccn[s,kj] for kj in KJ_by_k[k2]) <= 1
+                sum(x[s,kj] for s in S, kj in KJ_by_k[k1]) + sum(x[s,kj] for s in S, kj in KJ_by_k[k2]) <= 1
+                sum(x_n[s,kj] for s in S, kj in KJ_by_k[k1]) + sum(x_n[s,kj] for s in S, kj in KJ_by_k[k2]) <= 1
+                sum(x_c[s,kj] for s in S, kj in KJ_by_k[k1]) + sum(x_c[s,kj] for s in S, kj in KJ_by_k[k2]) <= 1
+                sum(x_cn[s,kj] for s in S, kj in KJ_by_k[k1]) + sum(x_cn[s,kj] for s in S, kj in KJ_by_k[k2]) <= 1
+                sum(x_ccn[s,kj] for s in S, kj in KJ_by_k[k1]) + sum(x_ccn[s,kj] for s in S, kj in KJ_by_k[k2]) <= 1
             end)
         end
 
@@ -861,7 +858,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                             results["deptos"][depto_index]["ancho"] = vec_w_i[j]
                             results["deptos"][depto_index]["profundidad"] = 0.0
 
-                            ancho_terraza_calc = min(vec_w_i[j], vec_area_t[k] / vec_h_t[k])
+                            ancho_terraza_calc = mat_h_t[k,j]
                             profundidad_terraza_calc = vec_area_t[k] / ancho_terraza_calc
                             results["deptos"][depto_index]["ancho_terraza"] = ancho_terraza_calc
                             results["deptos"][depto_index]["profundidad_terraza"] = profundidad_terraza_calc
@@ -1005,7 +1002,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
     end
 
 
-    vec_area_i, vec_area_t, vec_area_p, vec_h_t,
+    vec_area_i, vec_area_t, vec_area_p, mat_h_t,
     vec_w_i, mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner,
     area_nucleo_depto, area_nucleo_depto_d_corner = compute_arquitectura_params(dict_arquitectura)
 
@@ -1013,14 +1010,14 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
     println("Running layouts SEQUENTIALLY ($(total_threads) threads for HiGHS solver)")
 
-    results_1, W_1, H_1, angulo_1 = opti_planta_edificio_layout(vec_area_i, vec_area_t, vec_area_p, vec_h_t, vec_w_i,
+    results_1, W_1, H_1, angulo_1 = opti_planta_edificio_layout(vec_area_i, vec_area_t, vec_area_p, mat_h_t, vec_w_i,
                                 mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner,
                                 area_nucleo_depto, area_nucleo_depto_d_corner,
                                 max_constructibilidad, max_deptos,
                                 vec_ps_opt, vec_np_opt, flag_dfl2, flag_vivienda_economica,
                                 1, total_threads)
 
-    results_2, W_2, H_2, angulo_2 = opti_planta_edificio_layout(vec_area_i, vec_area_t, vec_area_p, vec_h_t, vec_w_i,
+    results_2, W_2, H_2, angulo_2 = opti_planta_edificio_layout(vec_area_i, vec_area_t, vec_area_p, mat_h_t, vec_w_i,
                                 mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner,
                                 area_nucleo_depto, area_nucleo_depto_d_corner,
                                 max_constructibilidad, max_deptos,
@@ -1072,7 +1069,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
     println("="^60)
 
-    print_results(results, vec_area_i, vec_area_t, vec_area_p, vec_h_t, vec_w_i,
+    print_results(results, vec_area_i, vec_area_t, vec_area_p, mat_h_t, vec_w_i,
                   mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner,
                   area_nucleo_depto, area_nucleo_depto_d_corner, W, H)
 
