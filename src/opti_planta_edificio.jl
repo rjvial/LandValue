@@ -655,7 +655,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             constraint_16b, deptos_total <= max_deptos
 
             # Sum of all strip depths cannot exceed building depth
-            constraint_17, sum(H_s[s] for s in S) <= H
+            constraint_17, sum(H_s[s] for s in S) == H
 
             # Each strip must have minimum depth
             constraint_18[s in S], H_s[s] >= (H - 3) / 2
@@ -681,8 +681,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             constraint_29[s in S, (k, j) in KJ_feasible], num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] <= max_corner_apts * x_cn[s,(k,j)]  # Corner nucleo apartments (max 2)
             constraint_31[s in S, (k, j) in KJ_feasible], num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] <= max_d_corner_apts * x_ccn[s,(k,j)] # Double corner nucleo apartments (max 1)
 
-
-
             # Total apartment widths per strip cannot exceed building width W
             constraint_38[s in S], sum((num_deptos_regular_por_piso_superior[s,(k,j)] +
                 num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] +
@@ -697,14 +695,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                                 mat_h_ipn[k,j] * x_n[s,(k,j)] +
                                 mat_h_in[k,j] * (x_c[s,(k,j)] + x_cn[s,(k,j)]) +
                                 mat_h_in_d_corner[k,j] * x_ccn[s,(k,j)]
-
-            # Sum of apartment perimeters must cover strip perimeter (2*max_height + W - tolerance)
-            # constraint_39[s in S],
-            #     sum(num_deptos_regular_por_piso_superior[s,(k,j)] * mat_exposicion[k,j] for (k, j) in KJ_feasible) +
-            #     sum(num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] * mat_exposicion[k,j] for (k, j) in KJ_feasible) +
-            #     sum(num_deptos_corner_por_piso_superior[s,(k,j)] * mat_exposicion_corner[k,j] for (k, j) in KJ_feasible) +
-            #     sum(num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] * mat_exposicion_corner[k,j] for (k, j) in KJ_feasible) +
-            #     sum(num_deptos_d_corner_nucleo_por_piso_superior[s,(k,j)] * mat_exposicion_d_corner[k,j] for (k, j) in KJ_feasible) >= 0 # 2*max_height[s] + W - 5
 
             # First floor apartment counts cannot exceed upper floor counts (first floor is subset of upper floors)
             constraint_40[s in S, (k, j) in KJ_feasible], num_deptos_regular_primer_piso[s,(k,j)] <= num_deptos_regular_por_piso_superior[s,(k,j)]             # Regular apartments
