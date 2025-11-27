@@ -601,7 +601,8 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                             area_no_utilizada_por_piso_superior == W * H
 
             # Common area for first floor and upper floors must include at least all hallway areas
-            constraint_3, area_comun_primer_piso >= area_pasillo_primer_piso + area_nucleo_primer_piso
+            constraint_3, area_comun_primer_piso >= area_pasillo_primer_piso + area_nucleo_primer_piso +
+                                                     (area_interior_por_piso_superior - area_interior_primer_piso)
             constraint_4, area_comun_por_piso_superior >= area_pasillo_por_piso_superior + area_nucleo_por_piso_superior
 
             # First floor common area must be at least as large as upper floor common area
