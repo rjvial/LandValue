@@ -892,18 +892,12 @@ end
 function opti_floor_plan(dict_edificio_deptos;
                         profundidad_pasillo::Float64 = 1.5,
                         min_ancho_pasillo::Float64 = 0.0,
-                        min_ancho_nucleo::Float64 = 0.0,
-                        min_ancho_depto::Float64 = 4.0,
                         max_ancho_terraza::Float64 = 2.0)
 
     results_pisos_superiores = genera_layout_pisos_superiores(dict_edificio_deptos,
                 profundidad_pasillo=profundidad_pasillo,
                 min_ancho_pasillo=min_ancho_pasillo,
                 max_ancho_terraza=max_ancho_terraza)
-
-    if isnothing(results_pisos_superiores)
-        error("No feasible floor plan configuration found")
-    end
 
     df_deptos = dict_edificio_deptos["df_deptos"]
 
