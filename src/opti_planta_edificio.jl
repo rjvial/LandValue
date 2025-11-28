@@ -482,6 +482,13 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             descuento_dfl2 >= 0  # DFL2 discount for social housing (up to 20% of useful area or total common area)
             area_no_utilizada_primer_piso >= 0          # Unused footprint area on first floor (m²)
             area_no_utilizada_por_piso_superior >= 0    # Unused footprint area per upper floor (m²)
+            area_util_no_utilizada >= 0                 # Slack variable: unused useful area under max constructibilidad (m²)
+
+            slack_profundidad_regular[s in S, (k, j) in KJ_feasible] >= 0      # Unused depth for regular apartments in strip s
+            slack_profundidad_nucleo[s in S, (k, j) in KJ_feasible] >= 0       # Unused depth for nucleo apartments in strip s
+            slack_profundidad_corner[s in S, (k, j) in KJ_feasible] >= 0       # Unused depth for corner apartments in strip s
+            slack_profundidad_corner_nucleo[s in S, (k, j) in KJ_feasible] >= 0  # Unused depth for corner nucleo apartments in strip s
+            slack_profundidad_d_corner_nucleo[s in S, (k, j) in KJ_feasible] >= 0  # Unused depth for double corner nucleo apartments in strip s
 
             max_height[s in S] >= 0  # Maximum apartment height in strip s (for perimeter constraint)
         end)
@@ -614,8 +621,8 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             # First floor common area must be at least as large as upper floor common area
             constraint_5, area_comun_primer_piso >= area_comun_por_piso_superior
 
-            # Buildability constraint: useful area + common area - DFL2 discount must not exceed maximum buildability
-            constraint_6, area_util_total + area_comun_total - descuento_dfl2 <= max_constructibilidad
+            # Buildability constraint: useful area + common area - DFL2 discount + unused util area equals maximum buildability
+            constraint_6, area_util_total + area_comun_total - descuento_dfl2 + area_util_no_utilizada == max_constructibilidad
 
             # DFL2 discount cannot exceed 20% of useful area nor total common area
             constraint_7, descuento_dfl2 <= flag_dfl2 * 0.2 * area_util_total
@@ -666,12 +673,13 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             # Each strip must have minimum depth
             constraint_18[s in S], H_s[s] >= (H - 3) / 2
 
-            # Apartment height (interior + terrace) must fit within strip depth for each apartment type
-            constraint_19[s in S, (k, j) in KJ_feasible], x[s,(k,j)] * (mat_h_ip[k,j] + mat_h_t[k,j]) <= H_s[s]        # Regular apartments
-            constraint_20[s in S, (k, j) in KJ_feasible], x_n[s,(k,j)] * (mat_h_ipn[k,j] + mat_h_t[k,j]) <= H_s[s]      # Nucleo apartments
-            constraint_21[s in S, (k, j) in KJ_feasible], x_c[s,(k,j)] * (mat_h_in[k,j] + mat_h_t[k,j]) <= H_s[s]   # Corner apartments
-            constraint_22[s in S, (k, j) in KJ_feasible], x_cn[s,(k,j)] * (mat_h_in[k,j] + mat_h_t[k,j]) <= H_s[s]   # Corner nucleo apartments
-            constraint_24[s in S, (k, j) in KJ_feasible], x_ccn[s,(k,j)] * (mat_h_in_d_corner[k,j] + mat_h_t[k,j]) <= H_s[s] # Double corner nucleo apartments
+            # Apartment height (interior + terrace) + unused depth equals strip depth for each apartment type
+            constraint_19[s in S, (k, j) in KJ_feasible], x[s,(k,j)] * (mat_h_ip[k,j] + mat_h_t[k,j]) + slack_profundidad_regular[s,(k,j)] == H_s[s]        # Regular apartments
+            constraint_20[s in S, (k, j) in KJ_feasible], x_n[s,(k,j)] * (mat_h_ipn[k,j] + mat_h_t[k,j]) + slack_profundidad_nucleo[s,(k,j)] == H_s[s]      # Nucleo apartments
+            constraint_21[s in S, (k, j) in KJ_feasible], x_c[s,(k,j)] * (mat_h_in[k,j] + mat_h_t[k,j]) + slack_profundidad_corner[s,(k,j)] == H_s[s]   # Corner apartments
+            constraint_22[s in S, (k, j) in KJ_feasible], x_cn[s,(k,j)] * (mat_h_in[k,j] + mat_h_t[k,j]) + slack_profundidad_corner_nucleo[s,(k,j)] == H_s[s]   # Corner nucleo apartments
+            constraint_24[s in S, (k, j) in KJ_feasible], x_ccn[s,(k,j)] * (mat_h_in_d_corner[k,j] + mat_h_t[k,j]) + slack_profundidad_d_corner_nucleo[s,(k,j)] == H_s[s] # Double corner nucleo apartments
+
             # Total apartment area per strip cannot exceed strip footprint (W x H_s)
             constraint_25[s in S], sum(num_deptos_regular_por_piso_superior[s,(k,j)] * (mat_area_ip[k,j] + vec_area_t[k]) +
                 num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] * (mat_area_ipn[k,j] + vec_area_t[k]) +
