@@ -218,10 +218,9 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # 5. APARTMENT SHAPE COMPILATION
     # ============================================================================
     ps_planta = vec_ps_opt[1]
-    results = opti_floor_plan(ps_planta, dict_edificio_deptos,
+    results = opti_floor_plan(dict_edificio_deptos,
                 profundidad_pasillo=profundidad_pasillo,
                 min_ancho_pasillo=min_ancho_pasillo,
-                area_nucleo=area_nucleo,
                 min_ancho_nucleo=min_ancho_nucleo,
                 min_ancho_depto=min_ancho_depto,
                 max_ancho_terraza=max_ancho_terraza
