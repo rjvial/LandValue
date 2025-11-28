@@ -27,7 +27,7 @@ Optimiza la asignación de departamentos en strips norte/sures para maximizar su
 - `num_pisos::Int`: Número total de pisos del edificio
 - `max_constructibilidad`: Constructibilidad máxima permitida (m²)
 """
-function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_deptos, 
+function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_deptos,
                                 vec_ps_opt, vec_np_opt, flag_dfl2, flag_vivienda_economica)
 
     # Rotates floor plan to axis-aligned rectangle with width > height, returns dimensions and transformation
@@ -279,14 +279,18 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
     end
 
     function compute_arquitectura_params(dict_arquitectura)
+        num_intervalos = 2
+
         vec_area_i_original = dict_arquitectura["arq_vecSupInterior"]
         vec_area_i = Float64[]
         for i in eachindex(vec_area_i_original)
             push!(vec_area_i, vec_area_i_original[i])
             if i < lastindex(vec_area_i_original)
-                step = (vec_area_i_original[i+1] - vec_area_i_original[i]) / 5
-                push!(vec_area_i, vec_area_i_original[i] + step)
-                push!(vec_area_i, vec_area_i_original[i] + 2*step)
+                interval = vec_area_i_original[i+1] - vec_area_i_original[i]
+                step = interval / (num_intervalos + 1)
+                for n in 1:num_intervalos
+                    push!(vec_area_i, vec_area_i_original[i] + n * step)
+                end
             end
         end
         num_sizes = length(vec_area_i)
@@ -317,9 +321,11 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         for i in eachindex(vec_area_t_original)
             push!(vec_area_t_temp, vec_area_t_original[i])
             if i < lastindex(vec_area_t_original)
-                step = (vec_area_t_original[i+1] - vec_area_t_original[i]) / 5
-                push!(vec_area_t_temp, vec_area_t_original[i] + step)
-                push!(vec_area_t_temp, vec_area_t_original[i] + 2*step)
+                interval = vec_area_t_original[i+1] - vec_area_t_original[i]
+                step = interval / (num_intervalos + 1)
+                for n in 1:num_intervalos
+                    push!(vec_area_t_temp, vec_area_t_original[i] + n * step)
+                end
             end
         end
 
