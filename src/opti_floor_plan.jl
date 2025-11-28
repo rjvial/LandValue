@@ -59,11 +59,7 @@ function genera_deptos_franja(mat_deptos::Matrix{Float64}, coord_min_planta::Flo
         coord_current += ancho_interior
     end
 
-    vec_ps_deptos_normalizado = PolyShape[]
-    for i in eachindex(vec_coord_ini)
-        ps_depto = polyBoxAligned(coord_base, vec_coord_ini[i], vec_dimension1_deptos[i], vec_dimension2_deptos[i], franja, is_vertical)
-        push!(vec_ps_deptos_normalizado, ps_depto)
-    end
+    vec_ps_deptos_normalizado = [polyBoxAligned(coord_base, vec_coord_ini[i], vec_dimension1_deptos[i], vec_dimension2_deptos[i], franja, is_vertical) for i in eachindex(vec_coord_ini)]
 
     return vec_coord_ini, vec_coord_fin, vec_dimension1_deptos, vec_dimension2_deptos, vec_tipo_deptos, vec_ps_deptos_normalizado, vec_tipo_strings
 end
@@ -160,18 +156,7 @@ end
 
 # Rotates vector of polyshapes back to original orientation around center point
 function rota_polyshapes(vec_polyshapes::Vector{PolyShape}, angulo_rotacion::Float64, cr::Vector{Float64})
-    vec_polyshapes_rotados = PolyShape[]
-
-    for polyshape in vec_polyshapes
-        if polyShape.polyArea(polyshape) > 0.0
-            polyshape_rotado = polyShape.polyRotate(polyshape, -angulo_rotacion, cr)
-            push!(vec_polyshapes_rotados, polyshape_rotado)
-        else
-            push!(vec_polyshapes_rotados, polyshape)
-        end
-    end
-
-    return vec_polyshapes_rotados
+    return [polyShape.polyArea(ps) > 0.0 ? polyShape.polyRotate(ps, -angulo_rotacion, cr) : ps for ps in vec_polyshapes]
 end
 
 # Creates axis-aligned box with franja-aware positioning (vertical: X-axis, horizontal: Y-axis)
@@ -459,6 +444,7 @@ end
 function calcula_orientaciones_apartamentos(vec_ps_deptos_all::Vector{PolyShape},
                                            ps_union_deptos::PolyShape,
                                            ps_area_comun_total::PolyShape)
+
     ps_union_all = polyShape.polyUnion(ps_union_deptos, ps_area_comun_total)
     ps_shrinked = polyClipper.polyOffset(ps_union_all, -0.1)
 
@@ -593,15 +579,9 @@ function empaqueta_resultados(dimension1::Float64, dimension2::Float64,
 
     result["max_depto_square_deviation"] = round(shape_analysis, digits=3)
 
-    ps_union_all = polyShape.polyUnion(ps_pasillo)
-    for ps_apt in result["vec_ps_deptos_all"]
-        ps_union_all = polyShape.polyUnion(ps_union_all, ps_apt)
-    end
-    for ps_terr in result["vec_ps_terrazas_all"]
-        if polyShape.polyArea(ps_terr) > 0.0
-            ps_union_all = polyShape.polyUnion(ps_union_all, ps_terr)
-        end
-    end
+    valid_terrazas = [ps for ps in result["vec_ps_terrazas_all"] if polyShape.polyArea(ps) > 0.0]
+    all_shapes = vcat([ps_pasillo], result["vec_ps_deptos_all"], valid_terrazas)
+    ps_union_all = reduce((acc, ps) -> polyShape.polyUnion(acc, ps), all_shapes)
 
     ps_outbound = polyShape.polyDifference(ps_union_all, ps_planta)
     area_outbound = polyShape.polyArea(ps_outbound)
@@ -848,12 +828,8 @@ function genera_layout_primer_piso(results_pisos_superiores::Dict, dict_edificio
 
     vec_ps_espacios_vacios = vec_ps_deptos_all_superior[indices_espacios_vacios]
 
-    ps_pasillo = ps_pasillo_superior
-    for ps_vacio in vec_ps_espacios_vacios
-        if polyShape.polyArea(ps_vacio) > 0.0
-            ps_pasillo = polyShape.polyUnion(ps_pasillo, ps_vacio)
-        end
-    end
+    valid_espacios_vacios = [ps for ps in vec_ps_espacios_vacios if polyShape.polyArea(ps) > 0.0]
+    ps_pasillo = isempty(valid_espacios_vacios) ? ps_pasillo_superior : reduce((acc, ps) -> polyShape.polyUnion(acc, ps), valid_espacios_vacios, init=ps_pasillo_superior)
 
     delta = 0.02
     buffer_size = 0.2
