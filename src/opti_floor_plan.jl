@@ -233,7 +233,7 @@ function get_strip_outermost_extent(vec_ps_deptos::Vector{PolyShape}, vec_terraz
 end
 
 # Processes terraces for both strips including generation, verification, and correction
-function procesa_terrazas_ambas_franjas(vec_terrazas_areas_strip1::Vector{Float64}, vec_terrazas_areas_strip2::Vector{Float64}, planta_normalizada,
+function genera_terrazas_ambas_franjas(vec_terrazas_areas_strip1::Vector{Float64}, vec_terrazas_areas_strip2::Vector{Float64}, planta_normalizada,
                                             vec_dimension1_deptos1::Vector{Float64}, vec_dimension1_deptos2::Vector{Float64},
                                             vec_dimension2_deptos1::Vector{Float64}, vec_dimension2_deptos2::Vector{Float64},
                                             vec_coord_ini1::Vector{Float64}, vec_coord_ini2::Vector{Float64},
@@ -758,7 +758,7 @@ function genera_layout_pisos_superiores(dict_edificio_deptos;
     end
 
     vec_terrazas_strip1, vec_terrazas_strip2, vec_ps_deptos_franja_1_normalizado, vec_ps_deptos_franja_2_normalizado, ps_pasillo_normalizado =
-            procesa_terrazas_ambas_franjas(vec_terrazas_areas_strip1, vec_terrazas_areas_strip2, planta_normalizada,
+            genera_terrazas_ambas_franjas(vec_terrazas_areas_strip1, vec_terrazas_areas_strip2, planta_normalizada,
                                         vec_dimension1_deptos1, vec_dimension1_deptos2,
                                         vec_dimension2_deptos1, vec_dimension2_deptos2,
                                         vec_coord_ini1, vec_coord_ini2,
@@ -848,27 +848,14 @@ function genera_layout_primer_piso(results_pisos_superiores::Dict, dict_edificio
         groupby(df_deptos, [:strip, :tipo, :sup_interior, :sup_terraza, :ancho_interior, :profundidad_interior, :num_unidades_por_piso_superior, :num_unidades_primer_piso]),
         :num_unidades_edificio => sum => :num_unidades_edificio)
 
-    df_deptos_strip1_superior = filter(row -> row.strip == 1, df_deptos_resumen)
-    df_deptos_strip1_superior = sort(df_deptos_strip1_superior, :tipo, by = x -> contains(string(x), "nucleo") ? 0 : 1)
+    df_deptos_sorted = sort(df_deptos_resumen, [:strip, order(:tipo, by = x -> contains(string(x), "nucleo") ? 0 : 1)])
 
-    df_deptos_strip2_superior = filter(row -> row.strip == 2, df_deptos_resumen)
-    df_deptos_strip2_superior = sort(df_deptos_strip2_superior, :tipo, by = x -> contains(string(x), "nucleo") ? 0 : 1)
-
-    vec_en_primer_piso_strip1 = Bool[]
-    for row in eachrow(df_deptos_strip1_superior)
+    vec_en_primer_piso_all = Bool[]
+    for row in eachrow(df_deptos_sorted)
         n_repeat_superior = Int(round(row.num_unidades_por_piso_superior))
         n_repeat_primer = Int(round(row.num_unidades_primer_piso))
         for i in 1:n_repeat_superior
-            push!(vec_en_primer_piso_strip1, i <= n_repeat_primer)
-        end
-    end
-
-    vec_en_primer_piso_strip2 = Bool[]
-    for row in eachrow(df_deptos_strip2_superior)
-        n_repeat_superior = Int(round(row.num_unidades_por_piso_superior))
-        n_repeat_primer = Int(round(row.num_unidades_primer_piso))
-        for i in 1:n_repeat_superior
-            push!(vec_en_primer_piso_strip2, i <= n_repeat_primer)
+            push!(vec_en_primer_piso_all, i <= n_repeat_primer)
         end
     end
 
@@ -879,27 +866,16 @@ function genera_layout_primer_piso(results_pisos_superiores::Dict, dict_edificio
     vec_strips_all_superior = results_pisos_superiores["vec_strips"]
     ps_pasillo_superior = results_pisos_superiores["ps_pasillo"]
 
-    vec_en_primer_piso_all = vcat(vec_en_primer_piso_strip1, vec_en_primer_piso_strip2)
+    indices_primer_piso = findall(vec_en_primer_piso_all)
+    indices_espacios_vacios = findall(.!vec_en_primer_piso_all)
 
-    vec_ps_deptos_all = PolyShape[]
-    vec_ps_terrazas_all = PolyShape[]
-    vec_tipos_all = String[]
-    vec_orientaciones_all = Int[]
-    vec_strips_all = Int[]
+    vec_ps_deptos_all = vec_ps_deptos_all_superior[indices_primer_piso]
+    vec_ps_terrazas_all = vec_ps_terrazas_all_superior[indices_primer_piso]
+    vec_tipos_all = vec_tipos_all_superior[indices_primer_piso]
+    vec_orientaciones_all = vec_orientaciones_all_superior[indices_primer_piso]
+    vec_strips_all = vec_strips_all_superior[indices_primer_piso]
 
-    vec_ps_espacios_vacios = PolyShape[]
-
-    for (i, en_primer_piso) in enumerate(vec_en_primer_piso_all)
-        if en_primer_piso
-            push!(vec_ps_deptos_all, vec_ps_deptos_all_superior[i])
-            push!(vec_ps_terrazas_all, vec_ps_terrazas_all_superior[i])
-            push!(vec_tipos_all, vec_tipos_all_superior[i])
-            push!(vec_orientaciones_all, vec_orientaciones_all_superior[i])
-            push!(vec_strips_all, vec_strips_all_superior[i])
-        else
-            push!(vec_ps_espacios_vacios, vec_ps_deptos_all_superior[i])
-        end
-    end
+    vec_ps_espacios_vacios = vec_ps_deptos_all_superior[indices_espacios_vacios]
 
     ps_pasillo = ps_pasillo_superior
     for ps_vacio in vec_ps_espacios_vacios
@@ -909,50 +885,31 @@ function genera_layout_primer_piso(results_pisos_superiores::Dict, dict_edificio
     end
 
     delta = 0.02
+    buffer_size = 0.2
 
     ps_union_deptos = PolyShape[]
     if !isempty(vec_ps_deptos_all)
-        buffer_deptos = 0.2
-        buffered_apts = [polyClipper.polyOffset(ps, buffer_deptos) for ps in vec_ps_deptos_all]
-        ps_union_deptos = buffered_apts[1]
-        for i in eachindex(buffered_apts)[2:end]
-            ps_union_deptos = polyShape.polyUnion(ps_union_deptos, buffered_apts[i])
-        end
+        buffered_apts = [polyClipper.polyOffset(ps, buffer_size) for ps in vec_ps_deptos_all]
+        ps_union_deptos = reduce((acc, ps) -> polyShape.polyUnion(acc, ps), buffered_apts)
         ps_union_deptos = polyClipper.polyOffset(ps_union_deptos, delta)
-        ps_union_deptos = polyClipper.polyOffset(ps_union_deptos, -buffer_deptos - delta)
+        ps_union_deptos = polyClipper.polyOffset(ps_union_deptos, -buffer_size - delta)
     end
 
     ps_union_terrazas = PolyShape[]
-    if !isempty(vec_ps_terrazas_all)
-        valid_terrazas = [ps for ps in vec_ps_terrazas_all if polyShape.polyArea(ps) > 0.0]
-        if !isempty(valid_terrazas)
-            buffer_terrazas = 0.2
-            buffered_terrazas = [polyClipper.polyOffset(ps, buffer_terrazas) for ps in valid_terrazas]
-            ps_union_terrazas = buffered_terrazas[1]
-            for i in eachindex(buffered_terrazas)[2:end]
-                ps_union_terrazas = polyShape.polyUnion(ps_union_terrazas, buffered_terrazas[i])
-            end
-            ps_union_terrazas = polyClipper.polyOffset(ps_union_terrazas, delta)
-            ps_union_terrazas = polyClipper.polyOffset(ps_union_terrazas, -buffer_terrazas - delta)
-        end
+    valid_terrazas = [ps for ps in vec_ps_terrazas_all if polyShape.polyArea(ps) > 0.0]
+    if !isempty(valid_terrazas)
+        buffered_terrazas = [polyClipper.polyOffset(ps, buffer_size) for ps in valid_terrazas]
+        ps_union_terrazas = reduce((acc, ps) -> polyShape.polyUnion(acc, ps), buffered_terrazas)
+        ps_union_terrazas = polyClipper.polyOffset(ps_union_terrazas, delta)
+        ps_union_terrazas = polyClipper.polyOffset(ps_union_terrazas, -buffer_size - delta)
     end
 
-    ps_planta_primer_piso = polyShape.polyUnion(ps_pasillo)
-    for ps_apt in vec_ps_deptos_all
-        ps_planta_primer_piso = polyShape.polyUnion(ps_planta_primer_piso, ps_apt)
-    end
+    ps_planta_primer_piso = reduce((acc, ps) -> polyShape.polyUnion(acc, ps), vec_ps_deptos_all, init=ps_pasillo)
     ps_planta_primer_piso = polyClipper.polyOffset(ps_planta_primer_piso, delta)
     ps_planta_primer_piso = polyClipper.polyOffset(ps_planta_primer_piso, -delta)
 
-    ps_union_ocupado = polyShape.polyUnion(ps_pasillo)
-    for ps_apt in vec_ps_deptos_all
-        ps_union_ocupado = polyShape.polyUnion(ps_union_ocupado, ps_apt)
-    end
-    for ps_terr in vec_ps_terrazas_all
-        if polyShape.polyArea(ps_terr) > 0.0
-            ps_union_ocupado = polyShape.polyUnion(ps_union_ocupado, ps_terr)
-        end
-    end
+    all_ocupado = vcat([ps_pasillo], vec_ps_deptos_all, valid_terrazas)
+    ps_union_ocupado = reduce((acc, ps) -> polyShape.polyUnion(acc, ps), all_ocupado)
     ps_union_ocupado = polyClipper.polyOffset(ps_union_ocupado, delta)
     ps_union_ocupado = polyClipper.polyOffset(ps_union_ocupado, -delta)
 
