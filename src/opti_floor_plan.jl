@@ -327,88 +327,6 @@ function correct_outbound_terraces(vec_terrazas1::Vector{PolyShape}, vec_terraza
 end
 
 # ──────────────────────────────────────────────────────────────────────────────────
-# Floor normalization and distribution helpers
-# ──────────────────────────────────────────────────────────────────────────────────
-
-# Rotates floor plan to axis-aligned rectangle with width > height, returns dimensions and transformation
-function normaliza_planta_rectangular(ps_planta::PolyShape)
-    V_planta = ps_planta.Vertices[1]
-    x_cr = sum(V_planta[1:end-1, 1]) / (size(V_planta, 1) - 1)
-    y_cr = sum(V_planta[1:end-1, 2]) / (size(V_planta, 1) - 1)
-    cr = [x_cr, y_cr]
-
-    edge1 = V_planta[2, :] - V_planta[1, :]
-    angulo_rotacion = -atan(edge1[2], edge1[1])
-
-    ps_planta_normalizado = polyShape.polyRotate(ps_planta, angulo_rotacion, cr)
-    V_planta_normalizado = ps_planta_normalizado.Vertices[1]
-
-    vec_x_planta = V_planta_normalizado[:, 1]
-    vec_y_planta = V_planta_normalizado[:, 2]
-    W = maximum(vec_x_planta) - minimum(vec_x_planta)
-    H = maximum(vec_y_planta) - minimum(vec_y_planta)
-
-    if H > W
-        angulo_rotacion += π/2
-        ps_planta_normalizado = polyShape.polyRotate(ps_planta, angulo_rotacion, cr)
-        V_planta_normalizado = ps_planta_normalizado.Vertices[1]
-        vec_x_planta = V_planta_normalizado[:, 1]
-        vec_y_planta = V_planta_normalizado[:, 2]
-        W, H = H, W
-    end
-
-    return W, H, vec_x_planta, vec_y_planta, angulo_rotacion, cr, ps_planta_normalizado
-end
-
-# Calculates strip widths from areas and floor dimensions, scales if exceeding available space
-function calcula_dimensiones_franjas(area_franja1::Float64, area_franja2::Float64, W::Float64, H::Float64, 
-                                    profundidad_pasillo::Float64, dimension_terraza_max::Float64, is_vertical::Bool)
-    MIN_PROFUNDIDAD_FRANJA = 1.0
-
-    if is_vertical
-        ancho_franja = W - 2 * dimension_terraza_max - profundidad_pasillo
-        profundidad_franja1_requerida = area_franja1 / H
-        profundidad_franja2_requerida = area_franja2 / H
-    else
-        ancho_franja = H - 2 * dimension_terraza_max - profundidad_pasillo
-        profundidad_franja1_requerida = area_franja1 / W
-        profundidad_franja2_requerida = area_franja2 / W
-    end
-
-    if area_franja1 <= 0.0 && area_franja2 <= 0.0
-        return 0.0, 0.0
-    end
-
-    if area_franja1 <= 0.0
-        profundidad_franja1 = 0.0
-        profundidad_franja2 = min(profundidad_franja2_requerida, ancho_franja)
-    elseif area_franja2 <= 0.0
-        profundidad_franja2 = 0.0
-        profundidad_franja1 = min(profundidad_franja1_requerida, ancho_franja)
-    else
-        if profundidad_franja1_requerida + profundidad_franja2_requerida > ancho_franja
-            scale_factor = ancho_franja / (profundidad_franja1_requerida + profundidad_franja2_requerida)
-
-        else
-            scale_factor = 1.0
-        end
-        profundidad_franja1 = profundidad_franja1_requerida * scale_factor
-        profundidad_franja2 = profundidad_franja2_requerida * scale_factor
-    end
-
-    if profundidad_franja1 > 0.0 && profundidad_franja1 < MIN_PROFUNDIDAD_FRANJA
-        profundidad_franja1 = MIN_PROFUNDIDAD_FRANJA
-    end
-    if profundidad_franja2 > 0.0 && profundidad_franja2 < MIN_PROFUNDIDAD_FRANJA
-        profundidad_franja2 = MIN_PROFUNDIDAD_FRANJA
-    end
-
-    return profundidad_franja1, profundidad_franja2
-end
-
-
-
-# ──────────────────────────────────────────────────────────────────────────────────
 # Corridor and results packaging helpers
 # ──────────────────────────────────────────────────────────────────────────────────
 
@@ -1228,22 +1146,20 @@ function genera_layout_primer_piso(dict_edificio_deptos, ps_planta::PolyShape;
 end
 
 function opti_floor_plan(ps_planta, dict_edificio_deptos;
-                        profundidad_pasillo::Float64 = 2.0,
+                        profundidad_pasillo::Float64 = 1.5,
                         min_ancho_pasillo::Float64 = 0.0,
                         area_nucleo::Float64 = 25.0,
                         min_ancho_nucleo::Float64 = 0.0,
                         min_ancho_depto::Float64 = 4.0,
                         max_ancho_terraza::Float64 = 2.0)
 
-    results_ = genera_layout_pisos_superiores(ps_planta, dict_edificio_deptos,
+    results_pisos_superiores = genera_layout_pisos_superiores(ps_planta, dict_edificio_deptos,
                 profundidad_pasillo=profundidad_pasillo,
                 min_ancho_pasillo=min_ancho_pasillo,
                 area_nucleo=area_nucleo,
                 min_ancho_nucleo=min_ancho_nucleo,
                 min_ancho_depto=min_ancho_depto,
                 max_ancho_terraza=max_ancho_terraza)
-
-    results_pisos_superiores = results_
 
     if isnothing(results_pisos_superiores)
         error("No feasible floor plan configuration found")

@@ -271,8 +271,6 @@ flag_create_table = false # let flag_create_table = false
             ####################################
             ####################################
 
-
-
             dict_json = OrderedDict()
             dict_json["n_predios"] = dict_geom["n_predios"]
             dict_json["sup_terreno_sii"] = dict_geom["sup_terreno_sii"]
