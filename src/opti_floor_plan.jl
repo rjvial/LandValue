@@ -846,26 +846,7 @@ function genera_layout_pisos_superiores(ps_planta::PolyShape, dict_edificio_dept
 end
 
 
-function genera_layout_primer_piso(dict_edificio_deptos, ps_planta::PolyShape;
-                        profundidad_pasillo::Float64 = 2.0,
-                        min_ancho_pasillo::Float64 = 0.0,
-                        area_nucleo::Float64 = 25.0,
-                        min_ancho_nucleo::Float64 = 0.0,
-                        min_ancho_depto::Float64 = 4.0,
-                        max_ancho_terraza::Float64 = 2.0)
-
-    best_layout = dict_edificio_deptos["best_layout"]
-    is_vertical = (best_layout == 2)
-
-    ps_planta_normalizado = dict_edificio_deptos["ps_planta_normalizado"]
-    angulo_rotacion = dict_edificio_deptos["angulo_rotacion"]
-    cr = dict_edificio_deptos["cr"]
-
-    V_planta_normalizado = ps_planta_normalizado.Vertices[1]
-    vec_x_planta = V_planta_normalizado[:, 1]
-    vec_y_planta = V_planta_normalizado[:, 2]
-    W = maximum(vec_x_planta) - minimum(vec_x_planta)
-    H = maximum(vec_y_planta) - minimum(vec_y_planta)
+function genera_layout_primer_piso(results_pisos_superiores::Dict, dict_edificio_deptos)
 
     df_deptos = dict_edificio_deptos["df_deptos"]
 
@@ -873,200 +854,65 @@ function genera_layout_primer_piso(dict_edificio_deptos, ps_planta::PolyShape;
         groupby(df_deptos, [:strip, :tipo, :sup_interior, :sup_terraza, :ancho_interior, :profundidad_interior, :num_unidades_por_piso_superior, :num_unidades_primer_piso]),
         :num_unidades_edificio => sum => :num_unidades_edificio)
 
-    coord_min_x = minimum(vec_x_planta)
-    coord_min_y = minimum(vec_y_planta)
-
-    H_s_strip1 = dict_edificio_deptos["strip"][1]["H_s"]
-    H_s_strip2 = dict_edificio_deptos["strip"][2]["H_s"]
-
-    if is_vertical
-        coord_base = coord_min_x + H_s_strip2
-        coord_disponible = H
-        coord_min = coord_min_y
-        franja1 = :este
-        franja2 = :oeste
-        dimension_depto1 = H_s_strip1
-        dimension_depto2 = H_s_strip2
-    else
-        coord_base = coord_min_y + H_s_strip2
-        coord_disponible = W
-        coord_min = coord_min_x
-        franja1 = :norte
-        franja2 = :sur
-        dimension_depto1 = H_s_strip1
-        dimension_depto2 = H_s_strip2
-    end
-
     df_deptos_strip1_superior = filter(row -> row.strip == 1, df_deptos_resumen)
     df_deptos_strip1_superior = sort(df_deptos_strip1_superior, :tipo, by = x -> contains(string(x), "nucleo") ? 0 : 1)
 
     df_deptos_strip2_superior = filter(row -> row.strip == 2, df_deptos_resumen)
     df_deptos_strip2_superior = sort(df_deptos_strip2_superior, :tipo, by = x -> contains(string(x), "nucleo") ? 0 : 1)
 
-    mat_deptos_strip1_all = Matrix{Float64}(undef, 0, 3)
-    vec_tipos_strip1_all = String[]
     vec_en_primer_piso_strip1 = Bool[]
     for row in eachrow(df_deptos_strip1_superior)
         n_repeat_superior = Int(round(row.num_unidades_por_piso_superior))
         n_repeat_primer = Int(round(row.num_unidades_primer_piso))
         for i in 1:n_repeat_superior
-            mat_deptos_strip1_all = vcat(mat_deptos_strip1_all, [row.sup_interior row.ancho_interior row.profundidad_interior])
-            push!(vec_tipos_strip1_all, string(row.tipo))
             push!(vec_en_primer_piso_strip1, i <= n_repeat_primer)
         end
     end
 
-    mat_deptos_strip2_all = Matrix{Float64}(undef, 0, 3)
-    vec_tipos_strip2_all = String[]
     vec_en_primer_piso_strip2 = Bool[]
     for row in eachrow(df_deptos_strip2_superior)
         n_repeat_superior = Int(round(row.num_unidades_por_piso_superior))
         n_repeat_primer = Int(round(row.num_unidades_primer_piso))
         for i in 1:n_repeat_superior
-            mat_deptos_strip2_all = vcat(mat_deptos_strip2_all, [row.sup_interior row.ancho_interior row.profundidad_interior])
-            push!(vec_tipos_strip2_all, string(row.tipo))
             push!(vec_en_primer_piso_strip2, i <= n_repeat_primer)
         end
     end
 
-    vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, vec_tipo_deptos1,
-            vec_ps_deptos_franja_1_all_normalizado, vec_tipo_strings1_all = genera_deptos_franja(mat_deptos_strip1_all, coord_min,
-                                            dimension_depto1, coord_disponible, min_ancho_nucleo,
-                                            min_ancho_depto, is_vertical, coord_base, franja1, vec_tipos_strip1_all)
+    vec_ps_deptos_all_superior = results_pisos_superiores["vec_ps_deptos_all"]
+    vec_ps_terrazas_all_superior = results_pisos_superiores["vec_ps_terrazas_all"]
+    vec_tipos_all_superior = results_pisos_superiores["vec_tipos_all"]
+    vec_orientaciones_all_superior = results_pisos_superiores["vec_orientaciones_all"]
+    vec_strips_all_superior = results_pisos_superiores["vec_strips"]
+    ps_pasillo_superior = results_pisos_superiores["ps_pasillo"]
 
-    vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, vec_tipo_deptos2,
-            vec_ps_deptos_franja_2_all_normalizado, vec_tipo_strings2_all = genera_deptos_franja(mat_deptos_strip2_all, coord_min,
-                                            dimension_depto2, coord_disponible, min_ancho_nucleo,
-                                            min_ancho_depto, is_vertical, coord_base, franja2, vec_tipos_strip2_all)
+    vec_en_primer_piso_all = vcat(vec_en_primer_piso_strip1, vec_en_primer_piso_strip2)
 
-    coord_ini_pasillo, coord_fin_pasillo, ancho_pasillo, ps_pasillo_normalizado = calcula_geometria_pasillo(
-                                            vec_coord_fin1, vec_coord_fin2, vec_coord_ini1, vec_coord_ini2,
-                                            coord_base, profundidad_pasillo, is_vertical,
-                                            W, H,
-                                            coord_min, min_ancho_pasillo,
-                                            vec_tipo_deptos1, vec_tipo_deptos2,
-                                            min_ancho_nucleo,
-                                            vec_tipo_strings1_all, vec_tipo_strings2_all)
+    vec_ps_deptos_all = PolyShape[]
+    vec_ps_terrazas_all = PolyShape[]
+    vec_tipos_all = String[]
+    vec_orientaciones_all = Int[]
+    vec_strips_all = Int[]
 
-    vec_ps_deptos_franja_1_all_normalizado, vec_extension_dimension1_1 = extiende_deptos_con_interseccion_pasillo(vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, coord_base, ps_pasillo_normalizado, franja1, is_vertical, vec_ps_deptos_franja_1_all_normalizado, ps_pasillo_normalizado)
-    vec_ps_deptos_franja_2_all_normalizado, vec_extension_dimension1_2 = extiende_deptos_con_interseccion_pasillo(vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, coord_base, ps_pasillo_normalizado, franja2, is_vertical, vec_ps_deptos_franja_2_all_normalizado, ps_pasillo_normalizado)
+    vec_ps_espacios_vacios = PolyShape[]
 
-    deptos_ordenados1 = [(mat_deptos_strip1_all[i, 1], 0) for i in 1:size(mat_deptos_strip1_all, 1)]
-    deptos_ordenados2 = [(mat_deptos_strip2_all[i, 1], 0) for i in 1:size(mat_deptos_strip2_all, 1)]
-
-    planta_normalizada = (
-        deptos_ordenados1 = deptos_ordenados1,
-        deptos_ordenados2 = deptos_ordenados2,
-        dimension_terraza_max = max_ancho_terraza,
-        ps_planta_normalizado = ps_planta_normalizado,
-        vec_x_planta = vec_x_planta,
-        vec_y_planta = vec_y_planta,
-        W = W,
-        H = H
-    )
-
-    vec_terrazas_areas_strip1 = Float64[]
-    idx_strip1 = 1
-    for row in eachrow(df_deptos_strip1_superior)
-        n_repeat_superior = Int(round(row.num_unidades_por_piso_superior))
-        for _ in 1:n_repeat_superior
-            if vec_en_primer_piso_strip1[idx_strip1]
-                push!(vec_terrazas_areas_strip1, row.sup_terraza)
-            else
-                push!(vec_terrazas_areas_strip1, 0.0)
-            end
-            idx_strip1 += 1
-        end
-    end
-
-    vec_terrazas_areas_strip2 = Float64[]
-    idx_strip2 = 1
-    for row in eachrow(df_deptos_strip2_superior)
-        n_repeat_superior = Int(round(row.num_unidades_por_piso_superior))
-        for _ in 1:n_repeat_superior
-            if vec_en_primer_piso_strip2[idx_strip2]
-                push!(vec_terrazas_areas_strip2, row.sup_terraza)
-            else
-                push!(vec_terrazas_areas_strip2, 0.0)
-            end
-            idx_strip2 += 1
-        end
-    end
-
-    vec_terrazas_strip1, vec_terrazas_strip2, vec_ps_deptos_franja_1_all_normalizado, vec_ps_deptos_franja_2_all_normalizado, ps_pasillo_normalizado =
-            procesa_terrazas_ambas_franjas(vec_terrazas_areas_strip1, vec_terrazas_areas_strip2, planta_normalizada,
-                                        vec_dimension1_deptos1, vec_dimension1_deptos2,
-                                        vec_dimension2_deptos1, vec_dimension2_deptos2,
-                                        vec_coord_ini1, vec_coord_ini2,
-                                        vec_extension_dimension1_1, vec_extension_dimension1_2,
-                                        coord_base, franja1, franja2,
-                                        is_vertical, vec_ps_deptos_franja_1_all_normalizado,
-                                        vec_ps_deptos_franja_2_all_normalizado, ps_pasillo_normalizado)
-
-    vec_ps_deptos_franja_1_normalizado = PolyShape[]
-    vec_tipo_strings1 = String[]
-    vec_ps_espacios_vacios_strip1 = PolyShape[]
-    for (i, en_primer_piso) in enumerate(vec_en_primer_piso_strip1)
+    for (i, en_primer_piso) in enumerate(vec_en_primer_piso_all)
         if en_primer_piso
-            push!(vec_ps_deptos_franja_1_normalizado, vec_ps_deptos_franja_1_all_normalizado[i])
-            push!(vec_tipo_strings1, vec_tipo_strings1_all[i])
+            push!(vec_ps_deptos_all, vec_ps_deptos_all_superior[i])
+            push!(vec_ps_terrazas_all, vec_ps_terrazas_all_superior[i])
+            push!(vec_tipos_all, vec_tipos_all_superior[i])
+            push!(vec_orientaciones_all, vec_orientaciones_all_superior[i])
+            push!(vec_strips_all, vec_strips_all_superior[i])
         else
-            push!(vec_ps_espacios_vacios_strip1, vec_ps_deptos_franja_1_all_normalizado[i])
+            push!(vec_ps_espacios_vacios, vec_ps_deptos_all_superior[i])
         end
     end
 
-    vec_ps_deptos_franja_2_normalizado = PolyShape[]
-    vec_tipo_strings2 = String[]
-    vec_ps_espacios_vacios_strip2 = PolyShape[]
-    for (i, en_primer_piso) in enumerate(vec_en_primer_piso_strip2)
-        if en_primer_piso
-            push!(vec_ps_deptos_franja_2_normalizado, vec_ps_deptos_franja_2_all_normalizado[i])
-            push!(vec_tipo_strings2, vec_tipo_strings2_all[i])
-        else
-            push!(vec_ps_espacios_vacios_strip2, vec_ps_deptos_franja_2_all_normalizado[i])
-        end
-    end
-
-    vec_terrazas_strip1_filtered = PolyShape[]
-    for (i, en_primer_piso) in enumerate(vec_en_primer_piso_strip1)
-        if en_primer_piso
-            push!(vec_terrazas_strip1_filtered, vec_terrazas_strip1[i])
-        end
-    end
-
-    vec_terrazas_strip2_filtered = PolyShape[]
-    for (i, en_primer_piso) in enumerate(vec_en_primer_piso_strip2)
-        if en_primer_piso
-            push!(vec_terrazas_strip2_filtered, vec_terrazas_strip2[i])
-        end
-    end
-
-    ps_pasillo_primer_piso = ps_pasillo_normalizado
-    for ps_vacio in vec_ps_espacios_vacios_strip1
+    ps_pasillo = ps_pasillo_superior
+    for ps_vacio in vec_ps_espacios_vacios
         if polyShape.polyArea(ps_vacio) > 0.0
-            ps_pasillo_primer_piso = polyShape.polyUnion(ps_pasillo_primer_piso, ps_vacio)
+            ps_pasillo = polyShape.polyUnion(ps_pasillo, ps_vacio)
         end
     end
-    for ps_vacio in vec_ps_espacios_vacios_strip2
-        if polyShape.polyArea(ps_vacio) > 0.0
-            ps_pasillo_primer_piso = polyShape.polyUnion(ps_pasillo_primer_piso, ps_vacio)
-        end
-    end
-
-    vec_ps_deptos_strip1 = rota_polyshapes(vec_ps_deptos_franja_1_normalizado, angulo_rotacion, cr)
-    vec_ps_deptos_strip2 = rota_polyshapes(vec_ps_deptos_franja_2_normalizado, angulo_rotacion, cr)
-    vec_terrazas_strip1 = rota_polyshapes(vec_terrazas_strip1_filtered, angulo_rotacion, cr)
-    vec_terrazas_strip2 = rota_polyshapes(vec_terrazas_strip2_filtered, angulo_rotacion, cr)
-    ps_pasillo = polyShape.polyRotate(ps_pasillo_primer_piso, -angulo_rotacion, cr)
-
-    vec_orientaciones1 = fill(1, length(vec_ps_deptos_strip1))
-    vec_orientaciones2 = fill(2, length(vec_ps_deptos_strip2))
-
-    vec_ps_deptos_all = vcat(vec_ps_deptos_strip1, vec_ps_deptos_strip2)
-    vec_ps_terrazas_all = vcat(vec_terrazas_strip1, vec_terrazas_strip2)
-    vec_orientaciones_all = vcat(vec_orientaciones1, vec_orientaciones2)
-    vec_tipos_all = vcat(vec_tipo_strings1, vec_tipo_strings2)
-    vec_strips_all = vcat(fill(1, length(vec_tipo_strings1)), fill(2, length(vec_tipo_strings2)))
 
     delta = 0.02
 
@@ -1170,13 +1016,7 @@ function opti_floor_plan(ps_planta, dict_edificio_deptos;
     df_deptos_con_primer_piso = filter(row -> row.num_unidades_primer_piso > 0, df_deptos)
 
     if nrow(df_deptos_con_primer_piso) > 0
-        results_primer_piso = genera_layout_primer_piso(dict_edificio_deptos, ps_planta,
-                                profundidad_pasillo=profundidad_pasillo,
-                                min_ancho_pasillo=min_ancho_pasillo,
-                                area_nucleo=area_nucleo,
-                                min_ancho_nucleo=min_ancho_nucleo,
-                                min_ancho_depto=min_ancho_depto,
-                                max_ancho_terraza=max_ancho_terraza)
+        results_primer_piso = genera_layout_primer_piso(results_pisos_superiores, dict_edificio_deptos)
     else
         results_primer_piso = nothing
     end
