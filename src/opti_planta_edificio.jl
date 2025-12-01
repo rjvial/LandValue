@@ -479,6 +479,8 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             y_n[s in S], Bin      # Binary indicator: strip s uses regular nucleo configuration
             y_active[s in S], Bin # Binary indicator: strip s has any apartments (active)
 
+            z[k in K], Bin          # Binary indicator: apartment type k is used in the building
+
             descuento_dfl2 >= 0  # DFL2 discount for social housing (up to 20% of useful area or total common area)
             area_no_utilizada_primer_piso >= 0          # Unused footprint area on first floor (m²)
             area_no_utilizada_por_piso_superior >= 0    # Unused footprint area per upper floor (m²)
@@ -736,23 +738,22 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                             num_deptos_corner_por_piso_superior[2,(k,j)] + num_deptos_corner_nucleo_por_piso_superior[2,(k,j)] +
                             num_deptos_d_corner_nucleo_por_piso_superior[2,(k,j)] for (k, j) in KJ_feasible))
 
-        conflicting_pairs = Tuple{Int,Int}[]
-        for k1 in K, k2 in K
-            if k1 < k2 && vec_area_i[k2] > vec_area_i[k1] * 2.0
-                push!(conflicting_pairs, (k1, k2))
-            end
-        end
         KJ_by_k = [[(k, j) for (k, j) in KJ_feasible if k == k_target] for k_target in K]
-        for (k1, k2) in conflicting_pairs
-            @constraints(model, begin
-                sum(x[s,kj] for s in S, kj in KJ_by_k[k1]) + sum(x[s,kj] for s in S, kj in KJ_by_k[k2]) <= 1
-                sum(x_n[s,kj] for s in S, kj in KJ_by_k[k1]) + sum(x_n[s,kj] for s in S, kj in KJ_by_k[k2]) <= 1
-                sum(x_c[s,kj] for s in S, kj in KJ_by_k[k1]) + sum(x_c[s,kj] for s in S, kj in KJ_by_k[k2]) <= 1
-                sum(x_cn[s,kj] for s in S, kj in KJ_by_k[k1]) + sum(x_cn[s,kj] for s in S, kj in KJ_by_k[k2]) <= 1
-                sum(x_ccn[s,kj] for s in S, kj in KJ_by_k[k1]) + sum(x_ccn[s,kj] for s in S, kj in KJ_by_k[k2]) <= 1
-            end)
+
+        for k in K
+            sum_expr = @expression(model, sum(x[s,kj] + x_n[s,kj] + x_c[s,kj] + x_cn[s,kj] + x_ccn[s,kj]
+                                             for s in S, kj in KJ_by_k[k]))
+            @constraint(model, z[k] <= sum_expr)
+            @constraint(model, sum_expr <= length(S) * length(KJ_by_k[k]) * z[k])
         end
 
+        for k1 in K, k2 in K
+            if vec_area_i[k1] < vec_area_i[k2] && vec_area_i[k2] > vec_area_i[k1] * 2.5
+                @constraint(model, z[k1] + z[k2] <= 1)
+            end
+        end
+        
+                            
         # Maximize total apartment interior area
         @objective(model, Max, area_util_total)
 
