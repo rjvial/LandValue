@@ -444,7 +444,15 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             :d_corner_nucleo => (k,j) -> vec_area_in_d_corner[k]
         )
 
-        
+        mat_h_interior_by_type = Dict(
+            :regular => (k,j) -> mat_h_ip[k,j],
+            :regular_nucleo => (k,j) -> mat_h_ipn[k,j],
+            :corner => (k,j) -> mat_h_in[k,j],
+            :corner_nucleo => (k,j) -> mat_h_in[k,j],
+            :d_corner_nucleo => (k,j) -> mat_h_in_d_corner[k,j]
+        )
+
+
         @variables(model, begin
             H_s[s in S] >= 0  # Depth of strip s (m)
 
@@ -457,7 +465,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             x[t in T, s in S, (k, j) in KJ_feasible], Bin  # Binary indicator: apartment type t with size k and width j is used in strip s
 
             y[t in T, s in S], Bin  # Binary indicator: strip s uses apartment type t configuration
-            y_cn2[s in S], Bin  # Binary indicator: strip s has exactly 2 corner nucleo apartments (specific constraint for corner_nucleo type)
             y_active[s in S], Bin  # Binary indicator: strip s is active (has any apartments)
 
             z[k in K], Bin  # Binary indicator: apartment size k is used anywhere in the building
@@ -496,10 +503,10 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             area_interior_total, area_interior_primer_piso + area_interior_por_piso_superior * num_pisos_superiores
 
             # Total terrace area for first floor apartments
-            area_terraza_primer_piso, sum(sum(num_deptos_primer_piso[t,s,(k,j)] for t in T) * vec_area_t[k] for s in S, (k, j) in KJ_feasible)
+            area_terraza_primer_piso, sum(num_deptos_primer_piso[t,s,(k,j)] * vec_area_t[k] for t in T, s in S, (k, j) in KJ_feasible)
 
             # Terrace area per upper floor
-            area_terraza_por_piso_superior, sum(sum(num_deptos_por_piso_superior[t,s,(k,j)] for t in T) * vec_area_t[k] for s in S, (k, j) in KJ_feasible)
+            area_terraza_por_piso_superior, sum(num_deptos_por_piso_superior[t,s,(k,j)] * vec_area_t[k] for t in T, s in S, (k, j) in KJ_feasible)
 
             # Total terrace area for entire building
             area_terraza_total, area_terraza_primer_piso + area_terraza_por_piso_superior * num_pisos_superiores
@@ -577,8 +584,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             constraint_11a[s in S], sum(num_deptos_por_piso_superior[:corner,s,(k,j)] for (k, j) in KJ_feasible) == max_corner_deptos_por_strip * y[:corner,s]
             constraint_11b[s in S], sum(num_deptos_por_piso_superior[:corner_nucleo,s,(k,j)] for (k, j) in KJ_feasible) <= max_corner_deptos_por_strip * y[:corner_nucleo,s]
             constraint_11c[s in S], sum(num_deptos_por_piso_superior[:corner_nucleo,s,(k,j)] for (k, j) in KJ_feasible) >= y[:corner_nucleo,s]
-            constraint_11d[s in S], sum(num_deptos_por_piso_superior[:corner_nucleo,s,(k,j)] for (k, j) in KJ_feasible) == max_corner_deptos_por_strip * y_cn2[s]
-            constraint_11e[s in S], y_cn2[s] <= y[:corner_nucleo,s]
 
             # Link regular nucleo apartments to y indicator
             constraint_12a[s in S], sum(num_deptos_por_piso_superior[:regular_nucleo,s,(k,j)] for (k, j) in KJ_feasible) <= max_apts_per_strip_tight * y[:regular_nucleo,s]
@@ -588,21 +593,17 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             constraint_13[s in S], sum(num_deptos_por_piso_superior[:d_corner_nucleo,s,(k,j)] for (k, j) in KJ_feasible) == max_d_corner_deptos_por_strip * y[:d_corner_nucleo,s]
 
             # Link y_active to configuration indicators (strip is active if any configuration is used)
-            constraint_14a[s in S], y_active[s] >= y[:regular,s]
-            constraint_14b[s in S], y_active[s] >= y[:corner,s]
-            constraint_14c[s in S], y_active[s] >= y[:corner_nucleo,s]
-            constraint_14d[s in S], y_active[s] >= y[:d_corner_nucleo,s]
-            constraint_14e[s in S], y_active[s] >= y[:regular_nucleo,s]
-            constraint_14f[s in S], y_active[s] <= y[:regular,s] + y[:corner,s] + y[:corner_nucleo,s] + y[:d_corner_nucleo,s] + y[:regular_nucleo,s]
+            constraint_14a[t in T, s in S], y_active[s] >= y[t,s]
+            constraint_14b[s in S], y_active[s] <= sum(y[t,s] for t in T)
 
             # Each strip can have at most one configuration type from incompatible groups
             constraint_15a[s in S], y[:regular_nucleo,s] + y[:d_corner_nucleo,s] <= 1
             constraint_15b[s in S], y[:corner,s] + y[:d_corner_nucleo,s] <= 1
-            constraint_15c[s in S], y_cn2[s] + y[:d_corner_nucleo,s] <= 1
+            constraint_15c[s in S], y[:corner_nucleo,s] + y[:d_corner_nucleo,s] <= 1
             constraint_15d[s in S], y[:regular,s] + y[:d_corner_nucleo,s] <= 1
-            constraint_15e[s in S], y[:regular,s] + y_cn2[s] <= 1
-            constraint_15f[s in S], y[:regular_nucleo,s] + y_cn2[s] <= 1
-            constraint_15g[s in S], y[:corner,s] + y_cn2[s] <= 1
+            constraint_15e[s in S], y[:regular,s] + y[:corner_nucleo,s] <= 1
+            constraint_15f[s in S], y[:regular_nucleo,s] + y[:corner_nucleo,s] <= 1
+            constraint_15g[s in S], y[:corner,s] + y[:corner_nucleo,s] <= 1
 
             # Total apartment count must be within specified bounds
             constraint_16a, deptos_total >= min_deptos
@@ -615,19 +616,10 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             constraint_18[s in S], H_s[s] >= (H - 3) / 2
 
             # Apartment height (interior + terrace) + unused depth equals strip depth for each apartment type
-            constraint_19[s in S, (k, j) in KJ_feasible], x[:regular,s,(k,j)] * (mat_h_ip[k,j] + mat_h_t[k,j]) + slack_profundidad[:regular,s,(k,j)] == H_s[s]
-            constraint_20[s in S, (k, j) in KJ_feasible], x[:regular_nucleo,s,(k,j)] * (mat_h_ipn[k,j] + mat_h_t[k,j]) + slack_profundidad[:regular_nucleo,s,(k,j)] == H_s[s]
-            constraint_21[s in S, (k, j) in KJ_feasible], x[:corner,s,(k,j)] * (mat_h_in[k,j] + mat_h_t[k,j]) + slack_profundidad[:corner,s,(k,j)] == H_s[s]
-            constraint_22[s in S, (k, j) in KJ_feasible], x[:corner_nucleo,s,(k,j)] * (mat_h_in[k,j] + mat_h_t[k,j]) + slack_profundidad[:corner_nucleo,s,(k,j)] == H_s[s]
-            constraint_24[s in S, (k, j) in KJ_feasible], x[:d_corner_nucleo,s,(k,j)] * (mat_h_in_d_corner[k,j] + mat_h_t[k,j]) + slack_profundidad[:d_corner_nucleo,s,(k,j)] == H_s[s]
+            constraint_19[t in T, s in S, (k, j) in KJ_feasible], x[t,s,(k,j)] * (mat_h_interior_by_type[t](k,j) + mat_h_t[k,j]) + slack_profundidad[t,s,(k,j)] == H_s[s]
 
             # Total apartment area per strip cannot exceed strip footprint (W x H_s)
-            constraint_25[s in S], sum(num_deptos_por_piso_superior[:regular,s,(k,j)] * (mat_area_ip[k,j] + vec_area_t[k]) +
-                num_deptos_por_piso_superior[:regular_nucleo,s,(k,j)] * (mat_area_ipn[k,j] + vec_area_t[k]) +
-                num_deptos_por_piso_superior[:corner,s,(k,j)] * (vec_area_i[k] + vec_area_t[k]) +
-                num_deptos_por_piso_superior[:corner_nucleo,s,(k,j)] * (vec_area_in[k] + vec_area_t[k]) +
-                num_deptos_por_piso_superior[:d_corner_nucleo,s,(k,j)] * (vec_area_in_d_corner[k] + vec_area_t[k])
-                for (k, j) in KJ_feasible) <= W * H_s[s]
+            constraint_25[s in S], sum(num_deptos_por_piso_superior[t,s,(k,j)] * (area_interior_by_type[t](k,j) + vec_area_t[k]) for t in T, (k, j) in KJ_feasible) <= W * H_s[s]
 
             # Apartment count is positive only if apartment type is selected (Big-M constraint linking binary and integer variables)
             constraint_26[s in S, (k, j) in KJ_feasible], num_deptos_por_piso_superior[:regular,s,(k,j)] <= max_apts_per_strip_tight * x[:regular,s,(k,j)]
