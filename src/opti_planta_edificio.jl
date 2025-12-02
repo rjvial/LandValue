@@ -403,7 +403,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         num_widths = size(mat_h_ip, 2)
         J = 1:num_widths
 
-        KJ_feasible = [(k, j) for k in K, j in J if mat_flag_feasible[k, j] > 0]
+        KJ_feasible = [(k, j) for k in K, j in J if mat_flag_feasible[k, j] > 0]  # Filtered list of valid (apartment_type_index, width_index) combinations based on feasibility matrix
 
         model = Model(HiGHS.Optimizer)
         set_silent(model)
@@ -723,6 +723,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             constraint_48, num_deptos_primer_piso <= num_deptos_por_piso_superior - 1
         end)
 
+        # Nucleo apartment count: each active strip must have exactly 2 nucleo apartments (regular, corner, or d-corner), except d-corner strips have only 1
         @constraints(model, begin
             constraint_47[s in S], sum(num_deptos_regular_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) +
                                    sum(num_deptos_corner_nucleo_por_piso_superior[s,(k,j)] for (k, j) in KJ_feasible) +
@@ -731,22 +732,21 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         end)
 
         # Symmetry breaking: order strips by total apartments to reduce search space
-        @constraint(model, sum(num_deptos_regular_por_piso_superior[1,(k,j)] + num_deptos_regular_nucleo_por_piso_superior[1,(k,j)] +
-                               num_deptos_corner_por_piso_superior[1,(k,j)] + num_deptos_corner_nucleo_por_piso_superior[1,(k,j)] +
-                               num_deptos_d_corner_nucleo_por_piso_superior[1,(k,j)] for (k, j) in KJ_feasible) >=
-                        sum(num_deptos_regular_por_piso_superior[2,(k,j)] + num_deptos_regular_nucleo_por_piso_superior[2,(k,j)] +
-                            num_deptos_corner_por_piso_superior[2,(k,j)] + num_deptos_corner_nucleo_por_piso_superior[2,(k,j)] +
-                            num_deptos_d_corner_nucleo_por_piso_superior[2,(k,j)] for (k, j) in KJ_feasible))
+        set_variables_deptos = [num_deptos_regular_por_piso_superior, num_deptos_regular_nucleo_por_piso_superior,
+                    num_deptos_corner_por_piso_superior, num_deptos_corner_nucleo_por_piso_superior,
+                    num_deptos_d_corner_nucleo_por_piso_superior]
+        @constraint(model, sum(sum(v[1,(k,j)] for v in set_variables_deptos) for (k,j) in KJ_feasible) >=
+                           sum(sum(v[2,(k,j)] for v in set_variables_deptos) for (k,j) in KJ_feasible))
 
-        KJ_by_k = [[(k, j) for (k, j) in KJ_feasible if k == k_target] for k_target in K]
-
+        # Link z[k] binary indicators to apartment type usage: z[k]=1 if apartment type k is used anywhere in the building
+        KJ_by_k = [[(k, j) for (k, j) in KJ_feasible if k == k_target] for k_target in K]  # KJ_by_k[k] contains all (k,j) pairs for apartment type k
         for k in K
-            sum_expr = @expression(model, sum(x[s,kj] + x_n[s,kj] + x_c[s,kj] + x_cn[s,kj] + x_ccn[s,kj]
-                                             for s in S, kj in KJ_by_k[k]))
+            sum_expr = @expression(model, sum(x[s,kj] + x_n[s,kj] + x_c[s,kj] + x_cn[s,kj] + x_ccn[s,kj] for s in S, kj in KJ_by_k[k]))
             @constraint(model, z[k] <= sum_expr)
             @constraint(model, sum_expr <= length(S) * length(KJ_by_k[k]) * z[k])
         end
 
+        # Apartment size incompatibility: prevent mixing apartment types with very different sizes (>2.5x ratio) to maintain market consistency
         for k1 in K, k2 in K
             if vec_area_i[k1] < vec_area_i[k2] && vec_area_i[k2] > vec_area_i[k1] * 2.5
                 @constraint(model, z[k1] + z[k2] <= 1)
