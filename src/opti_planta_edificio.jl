@@ -455,6 +455,15 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             :d_corner_nucleo => (k,j) -> mat_h_in_d_corner[k,j]
         )
 
+        mat_exposicion_by_type = Dict(
+            :regular => mat_exposicion,
+            :regular_nucleo => mat_exposicion,
+            :corner => mat_exposicion_corner,
+            :corner_nucleo => mat_exposicion_corner,
+            :d_corner_nucleo => mat_exposicion_d_corner
+        )
+
+
 
         @variables(model, begin
             H_s[s in S] >= 0  # Depth of strip s (m)
@@ -596,6 +605,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             constraint_12b[s in S], y[:regular_nucleo,s] + y[:d_corner_nucleo,s] <= 1
             constraint_12c[s in S], y[:corner,s] + y[:d_corner_nucleo,s] <= 1
             constraint_12d[s in S], y[:corner_nucleo,s] + y[:d_corner_nucleo,s] <= 1
+            
             constraint_12e[s in S], y[:regular,s] + y[:corner_nucleo,s] <= 1
             constraint_12f[s in S], y[:regular_nucleo,s] + y[:corner_nucleo,s] <= 1
             constraint_12g[s in S], y[:corner,s] + y[:corner_nucleo,s] <= 1
@@ -669,23 +679,12 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
         optimize!(model)
 
+        # Block to adjust apartment widths if total width per strip is less than building width W
         width_adjustment_pp = Dict{Tuple{Int,Int,Int},Float64}()
         width_adjustment_ps = Dict{Tuple{Int,Int,Int},Float64}()
-
         if has_values(model)
             for s in S
-                total_width_pp = sum(sum(value(num_deptos_primer_piso[t,s,(k,j)]) for t in T) * vec_w_i[j] for (k, j) in KJ_feasible)
-
-                total_width_ps = sum(sum(value(num_deptos_por_piso_superior[t,s,(k,j)]) for t in T) * vec_w_i[j] for (k, j) in KJ_feasible)
-
-                if total_width_pp > 0.01 && total_width_pp < W - 0.01
-                    scale_factor_pp = W / total_width_pp
-                    println("Strip $(s) - Primer Piso: Total width $(round(total_width_pp, digits=2))m < W $(round(W, digits=2))m. Scaling by factor $(round(scale_factor_pp, digits=4))")
-
-                    for (k, j) in KJ_feasible
-                        width_adjustment_pp[(s,k,j)] = vec_w_i[j] * scale_factor_pp
-                    end
-                end
+                total_width_ps = sum(value(num_deptos_por_piso_superior[t,s,(k,j)]) * vec_w_i[j] for t in T, (k, j) in KJ_feasible)
 
                 if total_width_ps > 0.01 && total_width_ps < W - 0.01
                     scale_factor_ps = W / total_width_ps
@@ -693,6 +692,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
                     for (k, j) in KJ_feasible
                         width_adjustment_ps[(s,k,j)] = vec_w_i[j] * scale_factor_ps
+                        width_adjustment_pp[(s,k,j)] = vec_w_i[j] * scale_factor_ps
                     end
                 end
             end
@@ -704,42 +704,27 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         results["deptos"] = OrderedDict{Int,Any}()
         results["strip"] = OrderedDict{Int,Any}()
 
-        mat_exposicion_by_type = Dict(
-            :regular => mat_exposicion,
-            :regular_nucleo => mat_exposicion,
-            :corner => mat_exposicion_corner,
-            :corner_nucleo => mat_exposicion_corner,
-            :d_corner_nucleo => mat_exposicion_d_corner
-        )
 
         if has_values(model)
             results["objective_value"] = objective_value(model)
 
             for s in S
-                perimetro_s_pp = sum(value(num_deptos_primer_piso[:regular,s,(k,j)]) * mat_exposicion[k,j] +
-                                    value(num_deptos_primer_piso[:regular_nucleo,s,(k,j)]) * mat_exposicion[k,j] +
-                                    value(num_deptos_primer_piso[:corner,s,(k,j)]) * mat_exposicion_corner[k,j] +
-                                    value(num_deptos_primer_piso[:corner_nucleo,s,(k,j)]) * mat_exposicion_corner[k,j] +
-                                    value(num_deptos_primer_piso[:d_corner_nucleo,s,(k,j)]) * mat_exposicion_d_corner[k,j]
-                                    for (k, j) in KJ_feasible)
+                perimetro_s_pp = sum(value(num_deptos_primer_piso[t,s,(k,j)]) * mat_exposicion_by_type[t][k,j] 
+                                    for t in T, (k, j) in KJ_feasible)
 
-                apartment_area_s_pp = sum(sum(value(num_deptos_primer_piso[t,s,(k,j)]) for t in T) * vec_area_i[k] for (k, j) in KJ_feasible)
+                apartment_area_s_pp = sum(value(num_deptos_primer_piso[t,s,(k,j)]) * vec_area_i[k] for t in T, (k, j) in KJ_feasible)
 
-                terrace_area_s_pp = sum(sum(value(num_deptos_primer_piso[t,s,(k,j)]) for t in T) * vec_area_t[k] for (k, j) in KJ_feasible)
+                terrace_area_s_pp = sum(value(num_deptos_primer_piso[t,s,(k,j)]) * vec_area_t[k] for t in T, (k, j) in KJ_feasible)
 
                 pasillo_area_s_pp = sum((value(num_deptos_primer_piso[:regular,s,(k,j)]) + value(num_deptos_primer_piso[:regular_nucleo,s,(k,j)])) * vec_area_p[j] for (k, j) in KJ_feasible)
 
-                perimetro_s_ps = sum(value(num_deptos_por_piso_superior[:regular,s,(k,j)]) * mat_exposicion[k,j] +
-                                    value(num_deptos_por_piso_superior[:regular_nucleo,s,(k,j)]) * mat_exposicion[k,j] +
-                                    value(num_deptos_por_piso_superior[:corner,s,(k,j)]) * mat_exposicion_corner[k,j] +
-                                    value(num_deptos_por_piso_superior[:corner_nucleo,s,(k,j)]) * mat_exposicion_corner[k,j] +
-                                    value(num_deptos_por_piso_superior[:d_corner_nucleo,s,(k,j)]) * mat_exposicion_d_corner[k,j]
-                                    for (k, j) in KJ_feasible)
+                perimetro_s_ps = sum(value(num_deptos_por_piso_superior[t,s,(k,j)]) * mat_exposicion_by_type[t][k,j] 
+                                    for t in T, (k, j) in KJ_feasible)
 
-                apartment_area_s_ps = sum(sum(value(num_deptos_por_piso_superior[t,s,(k,j)]) for t in T) * vec_area_i[k] for (k, j) in KJ_feasible)
+                apartment_area_s_ps = sum(value(num_deptos_por_piso_superior[t,s,(k,j)]) * vec_area_i[k] for t in T, (k, j) in KJ_feasible)
 
-                terrace_area_s_ps = sum(sum(value(num_deptos_por_piso_superior[t,s,(k,j)]) for t in T) * vec_area_t[k] for (k, j) in KJ_feasible)
-
+                terrace_area_s_ps = sum(value(num_deptos_por_piso_superior[t,s,(k,j)]) * vec_area_t[k] for t in T, (k, j) in KJ_feasible)
+                
                 pasillo_area_s_ps = sum((value(num_deptos_por_piso_superior[:regular,s,(k,j)]) + value(num_deptos_por_piso_superior[:regular_nucleo,s,(k,j)])) * vec_area_p[j] for (k, j) in KJ_feasible)
 
                 results["strip"][s] = OrderedDict{String,Any}()
