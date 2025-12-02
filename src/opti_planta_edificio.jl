@@ -531,13 +531,11 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             area_pasillo_total, area_pasillo_primer_piso + area_pasillo_por_piso_superior * num_pisos_superiores
 
             # Nucleo area for first floor (additional area per nucleo apartment)
-            area_nucleo_primer_piso, sum((num_deptos_primer_piso[:regular_nucleo,s,(k,j)] +
-                                        num_deptos_primer_piso[:corner_nucleo,s,(k,j)]) * area_nucleo_depto +
+            area_nucleo_primer_piso, sum((num_deptos_primer_piso[:regular_nucleo,s,(k,j)] + num_deptos_primer_piso[:corner_nucleo,s,(k,j)]) * area_nucleo_depto +
                                         num_deptos_primer_piso[:d_corner_nucleo,s,(k,j)] * area_nucleo_depto_d_corner for s in S, (k, j) in KJ_feasible)
 
             # Nucleo area per upper floor
-            area_nucleo_por_piso_superior, sum((num_deptos_por_piso_superior[:regular_nucleo,s,(k,j)] +
-                                                num_deptos_por_piso_superior[:corner_nucleo,s,(k,j)]) * area_nucleo_depto +
+            area_nucleo_por_piso_superior, sum((num_deptos_por_piso_superior[:regular_nucleo,s,(k,j)] + num_deptos_por_piso_superior[:corner_nucleo,s,(k,j)]) * area_nucleo_depto +
                                                 num_deptos_por_piso_superior[:d_corner_nucleo,s,(k,j)] * area_nucleo_depto_d_corner for s in S, (k, j) in KJ_feasible)
 
             # Total nucleo area for entire building
@@ -574,17 +572,20 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             constraint_6, area_util_total + area_comun_total - descuento_dfl2 + area_util_no_utilizada == max_constructibilidad
 
             # DFL2 discount cannot exceed 20% of useful area nor total common area
-            constraint_7, descuento_dfl2 <= flag_dfl2 * 0.2 * area_util_total
-            constraint_8, descuento_dfl2 <= flag_dfl2 * area_comun_total
+            constraint_7a, descuento_dfl2 <= flag_dfl2 * 0.2 * area_util_total
+            constraint_7b, descuento_dfl2 <= flag_dfl2 * area_comun_total
 
             # Link apartment counts to y indicators for each type
-            constraint_9a[t in T_regular, s in S], sum(num_deptos_por_piso_superior[t,s,(k,j)] for (k, j) in KJ_feasible) <= max_apts_per_strip_tight * y[t,s]
-            constraint_9b[t in T_regular, s in S], sum(num_deptos_por_piso_superior[t,s,(k,j)] for (k, j) in KJ_feasible) >= y[t,s]
+            constraint_8a[t in T_regular, s in S], sum(num_deptos_por_piso_superior[t,s,(k,j)] for (k, j) in KJ_feasible) <= max_apts_per_strip_tight * y[t,s]
+            constraint_8b[t in T_regular, s in S], sum(num_deptos_por_piso_superior[t,s,(k,j)] for (k, j) in KJ_feasible) >= y[t,s]
 
             # Exactly 2 corner or 2 corner nucleo apartments per strip if corner type is used
-            constraint_10a[t in T_corner, s in S], sum(num_deptos_por_piso_superior[t,s,(k,j)] for (k, j) in KJ_feasible) <= max_corner_deptos_por_strip * y[t,s]
-            constraint_10b[t in T_corner, s in S], sum(num_deptos_por_piso_superior[t,s,(k,j)] for (k, j) in KJ_feasible) >= y[t,s]
+            constraint_9a[t in T_corner, s in S], sum(num_deptos_por_piso_superior[t,s,(k,j)] for (k, j) in KJ_feasible) <= max_corner_deptos_por_strip * y[t,s]
+            constraint_9b[t in T_corner, s in S], sum(num_deptos_por_piso_superior[t,s,(k,j)] for (k, j) in KJ_feasible) >= y[t,s]
 
+            # Apartment count is positive only if apartment type is selected (Big-M constraint linking binary and integer variables)
+            constraint_10a[t in T_regular, s in S, (k, j) in KJ_feasible], num_deptos_por_piso_superior[t,s,(k,j)] <= max_apts_per_strip_tight * x[t,s,(k,j)]
+            constraint_10b[t in T_corner, s in S, (k, j) in KJ_feasible], num_deptos_por_piso_superior[t,s,(k,j)] <= max_corner_deptos_por_strip * x[t,s,(k,j)]
 
             # Link y_active to configuration indicators (strip is active if any configuration is used)
             constraint_11a[t in T, s in S], y_active[s] >= y[t,s]
@@ -615,24 +616,19 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             # Total apartment area per strip cannot exceed strip footprint (W x H_s)
             constraint_17[s in S], sum(num_deptos_por_piso_superior[t,s,(k,j)] * (area_interior_by_type[t](k,j) + vec_area_t[k]) for t in T, (k, j) in KJ_feasible) <= W * H_s[s]
 
-            # Apartment count is positive only if apartment type is selected (Big-M constraint linking binary and integer variables)
-            
-            constraint_18a[t in T_regular, s in S, (k, j) in KJ_feasible], num_deptos_por_piso_superior[t,s,(k,j)] <= max_apts_per_strip_tight * x[t,s,(k,j)]
-            constraint_18b[t in T_corner, s in S, (k, j) in KJ_feasible], num_deptos_por_piso_superior[t,s,(k,j)] <= max_corner_deptos_por_strip * x[t,s,(k,j)]
-
             # Total apartment widths per strip cannot exceed building width W
-            constraint_19[s in S], sum(sum(num_deptos_por_piso_superior[t,s,(k,j)] for t in T) * vec_w_i[j] for (k, j) in KJ_feasible) <= W
+            constraint_18[s in S], sum(num_deptos_por_piso_superior[t,s,(k,j)] * vec_w_i[j] for t in T, (k, j) in KJ_feasible) <= W
 
             # First floor apartment counts cannot exceed upper floor counts (first floor is subset of upper floors)
-            constraint_20[t in T, s in S, (k, j) in KJ_feasible], num_deptos_primer_piso[t,s,(k,j)] <= num_deptos_por_piso_superior[t,s,(k,j)]
+            constraint_19[t in T, s in S, (k, j) in KJ_feasible], num_deptos_primer_piso[t,s,(k,j)] <= num_deptos_por_piso_superior[t,s,(k,j)]
 
             # First floor must have at least one fewer apartment than upper floors
-            constraint_21, total_num_deptos_primer_piso <= total_num_deptos_por_piso_superior - 1
+            constraint_20, total_num_deptos_primer_piso <= total_num_deptos_por_piso_superior - 1
         end)
 
         # Nucleo apartment count: each active strip must have exactly 2 nucleo apartments (regular, corner, or d-corner), except d-corner strips have only 1
         @constraints(model, begin
-            constraint_22[s in S], sum(num_deptos_por_piso_superior[t,s,(k,j)] for t in T_nucleo, (k, j) in KJ_feasible) ==
+            constraint_21[s in S], sum(num_deptos_por_piso_superior[t,s,(k,j)] for t in T_nucleo, (k, j) in KJ_feasible) ==
                                    2 * y_active[s] - y[:d_corner_nucleo,s]
         end)
 
@@ -648,7 +644,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             @constraint(model, sum_expr <= length(S) * length(KJ_by_k[k]) * z[k])
         end
 
-        # Apartment size incompatibility: prevent mixing apartment types with very different sizes (>2.5x ratio) to maintain market consistency
+        # Prevent mixing apartment types with very different sizes (>2.5x ratio) to maintain market consistency
         for k1 in K, k2 in K
             if vec_area_i[k1] < vec_area_i[k2] && vec_area_i[k2] > vec_area_i[k1] * 2.5
                 @constraint(model, z[k1] + z[k2] <= 1)
