@@ -679,9 +679,34 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
         optimize!(model)
 
+        ancho_depto_pp = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
+        ancho_depto_ps = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
+        profundidad_depto_interior_ps = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
+        profundidad_depto_interior_pp = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
+        if has_values(model)
+            for s in S
+                for t in T, (k, j) in KJ_feasible
+                    if value(num_deptos_por_piso_superior[t,s,(k,j)]) > 0.01
+                        ancho_depto_ps[(s,t,k,j)] = vec_w_i[j]
+                        profundidad_depto_interior_ps[(s,t,k,j)] = mat_h_interior_by_type[t](k,j)
+                    else
+                        ancho_depto_ps[(s,t,k,j)] = 0.0
+                        profundidad_depto_interior_ps[(s,t,k,j)] = 0.0
+                    end
+                    if value(num_deptos_primer_piso[t,s,(k,j)]) > 0.01
+                        ancho_depto_pp[(s,t,k,j)] = vec_w_i[j]
+                        profundidad_depto_interior_pp[(s,t,k,j)] = mat_h_interior_by_type[t](k,j)
+                    else
+                        ancho_depto_pp[(s,t,k,j)] = 0.0
+                        profundidad_depto_interior_pp[(s,t,k,j)] = 0.0
+                    end
+                end
+            end
+        end
+
         # Block to adjust apartment widths if total width per strip is less than building width W
-        width_adjustment_pp = Dict{Tuple{Int,Int,Int},Float64}()
-        width_adjustment_ps = Dict{Tuple{Int,Int,Int},Float64}()
+        ancho_depto_ajustado_pp = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
+        ancho_depto_ajustado_ps = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
         if has_values(model)
             for s in S
                 total_width_ps = sum(value(num_deptos_por_piso_superior[t,s,(k,j)]) * vec_w_i[j] for t in T, (k, j) in KJ_feasible)
@@ -690,9 +715,9 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                     scale_factor_ps = W / total_width_ps
                     println("Strip $(s) - Pisos Superiores: Total width $(round(total_width_ps, digits=2))m < W $(round(W, digits=2))m. Scaling by factor $(round(scale_factor_ps, digits=4))")
 
-                    for (k, j) in KJ_feasible
-                        width_adjustment_ps[(s,k,j)] = vec_w_i[j] * scale_factor_ps
-                        width_adjustment_pp[(s,k,j)] = vec_w_i[j] * scale_factor_ps
+                    for t in T, (k, j) in KJ_feasible
+                        ancho_depto_ajustado_ps[(s,t,k,j)] = ancho_depto_ps[(s,t,k,j)] * scale_factor_ps
+                        ancho_depto_ajustado_pp[(s,t,k,j)] = ancho_depto_pp[(s,t,k,j)] * scale_factor_ps
                     end
                 end
             end
@@ -712,7 +737,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                 perimetro_s_pp = sum(value(num_deptos_primer_piso[t,s,(k,j)]) * mat_exposicion_by_type[t][k,j] 
                                     for t in T, (k, j) in KJ_feasible)
 
-                apartment_area_s_pp = sum(value(num_deptos_primer_piso[t,s,(k,j)]) * vec_area_i[k] for t in T, (k, j) in KJ_feasible)
+                apartment_area_s_pp = sum(value(num_deptos_primer_piso[t,s,(k,j)]) * ancho_depto_ajustado_pp[(s,t,k,j)] * profundidad_depto_interior_pp[(s,t,k,j)] for t in T, (k, j) in KJ_feasible)
 
                 terrace_area_s_pp = sum(value(num_deptos_primer_piso[t,s,(k,j)]) * vec_area_t[k] for t in T, (k, j) in KJ_feasible)
 
@@ -721,7 +746,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                 perimetro_s_ps = sum(value(num_deptos_por_piso_superior[t,s,(k,j)]) * mat_exposicion_by_type[t][k,j] 
                                     for t in T, (k, j) in KJ_feasible)
 
-                apartment_area_s_ps = sum(value(num_deptos_por_piso_superior[t,s,(k,j)]) * vec_area_i[k] for t in T, (k, j) in KJ_feasible)
+                apartment_area_s_ps = sum(value(num_deptos_por_piso_superior[t,s,(k,j)]) * ancho_depto_ajustado_ps[(s,t,k,j)] * profundidad_depto_interior_ps[(s,t,k,j)] for t in T, (k, j) in KJ_feasible)
 
                 terrace_area_s_ps = sum(value(num_deptos_por_piso_superior[t,s,(k,j)]) * vec_area_t[k] for t in T, (k, j) in KJ_feasible)
                 
@@ -744,81 +769,48 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                 results["strip"][s]["superficie_pasillo"]["pisos_superiores"] = pasillo_area_s_ps
 
                 depto_index = 1
-                for (k, j) in KJ_feasible
-                    for t in T
+                for t in T, (k, j) in KJ_feasible
+                    threshold = 0.001
+
+                    val_pp = value(num_deptos_primer_piso[t,s,(k,j)])
+                    val_ps = value(num_deptos_por_piso_superior[t,s,(k,j)])
+
+                    if val_pp > threshold || val_ps > threshold
+                        depto_index = length(results["deptos"]) + 1
+                        results["deptos"][depto_index] = OrderedDict{String,Any}()
+
                         tipo = string(t)
-                        threshold = 0.001
 
-                        val_pp = value(num_deptos_primer_piso[t,s,(k,j)])
-                        val_ps = value(num_deptos_por_piso_superior[t,s,(k,j)])
+                        results["deptos"][depto_index]["strip"] = s
+                        results["deptos"][depto_index]["k"] = k
+                        results["deptos"][depto_index]["j"] = j
+                        results["deptos"][depto_index]["tipo"] = tipo
 
-                        if val_pp > threshold || val_ps > threshold
-                            depto_index = length(results["deptos"]) + 1
-                            results["deptos"][depto_index] = OrderedDict{String,Any}()
+                        results["deptos"][depto_index]["ancho"] = ancho_depto_ajustado_ps[(s,t,k,j)]
+                        results["deptos"][depto_index]["profundidad"] = 0.0
 
-                            results["deptos"][depto_index]["strip"] = s
-                            results["deptos"][depto_index]["k"] = k
-                            results["deptos"][depto_index]["j"] = j
-                            results["deptos"][depto_index]["tipo"] = tipo
+                        ancho_terraza_calc = mat_h_t[k,j]
+                        profundidad_terraza_calc = vec_area_t[k] / ancho_terraza_calc
+                        results["deptos"][depto_index]["ancho_terraza"] = ancho_terraza_calc
+                        results["deptos"][depto_index]["profundidad_terraza"] = profundidad_terraza_calc
+                        results["deptos"][depto_index]["num_unidades_primer_piso"] = val_pp
+                        results["deptos"][depto_index]["num_unidades_por_piso_superior"] = val_ps
+                        results["deptos"][depto_index]["num_unidades_edificio"] = val_pp + val_ps * num_pisos_superiores
+                        results["deptos"][depto_index]["sup_interior"] = ancho_depto_ajustado_ps[(s,t,k,j)] * profundidad_depto_interior_ps[(s,t,k,j)]
+                        results["deptos"][depto_index]["sup_terraza"] = vec_area_t[k]
+                        results["deptos"][depto_index]["sup_pasillo"] = 0.0
+                        results["deptos"][depto_index]["sup_nucleo"] = 0.0
 
-                            ancho_adjusted_pp = get(width_adjustment_pp, (s,k,j), vec_w_i[j])
-                            ancho_adjusted_ps = get(width_adjustment_ps, (s,k,j), vec_w_i[j])
-
-                            if val_pp > threshold && val_ps > threshold
-                                ancho_final = ancho_adjusted_ps
-                            elseif val_pp > threshold
-                                ancho_final = ancho_adjusted_pp
-                            else
-                                ancho_final = ancho_adjusted_ps
-                            end
-
-                            results["deptos"][depto_index]["ancho"] = ancho_final
-                            results["deptos"][depto_index]["profundidad"] = 0.0
-
-                            ancho_terraza_calc = mat_h_t[k,j]
-                            profundidad_terraza_calc = vec_area_t[k] / ancho_terraza_calc
-                            results["deptos"][depto_index]["ancho_terraza"] = ancho_terraza_calc
-                            results["deptos"][depto_index]["profundidad_terraza"] = profundidad_terraza_calc
-                            results["deptos"][depto_index]["num_unidades_primer_piso"] = val_pp
-                            results["deptos"][depto_index]["num_unidades_por_piso_superior"] = val_ps
-                            results["deptos"][depto_index]["num_unidades_edificio"] = val_pp + val_ps * num_pisos_superiores
-                            results["deptos"][depto_index]["sup_interior"] = vec_area_i[k]
-                            results["deptos"][depto_index]["sup_terraza"] = vec_area_t[k]
-                            results["deptos"][depto_index]["sup_pasillo"] = 0.0
-                            results["deptos"][depto_index]["sup_nucleo"] = 0.0
-
-                            if tipo == "regular"
-                                profundidad_adjusted = (vec_area_i[k] + vec_area_p[j]) / ancho_final
-                                results["deptos"][depto_index]["profundidad"] = profundidad_adjusted
-                                results["deptos"][depto_index]["sup_pasillo"] = vec_area_p[j]
-                                results["deptos"][depto_index]["ancho_interior"] = ancho_final
-                                results["deptos"][depto_index]["profundidad_interior"] = vec_area_i[k] / ancho_final
-                            elseif tipo == "regular_nucleo"
-                                profundidad_adjusted = (vec_area_i[k] + vec_area_p[j] + area_nucleo_depto) / ancho_final
-                                results["deptos"][depto_index]["profundidad"] = profundidad_adjusted
-                                results["deptos"][depto_index]["sup_pasillo"] = vec_area_p[j]
-                                results["deptos"][depto_index]["sup_nucleo"] = area_nucleo_depto
-                                results["deptos"][depto_index]["ancho_interior"] = ancho_final
-                                results["deptos"][depto_index]["profundidad_interior"] = vec_area_i[k] / ancho_final
-                            elseif tipo == "corner"
-                                profundidad_adjusted = vec_area_i[k] / ancho_final
-                                results["deptos"][depto_index]["profundidad"] = profundidad_adjusted
-                                results["deptos"][depto_index]["ancho_interior"] = ancho_final
-                                results["deptos"][depto_index]["profundidad_interior"] = vec_area_i[k] / ancho_final
-                            elseif tipo == "corner_nucleo"
-                                profundidad_adjusted = (vec_area_i[k] + area_nucleo_depto) / ancho_final
-                                results["deptos"][depto_index]["profundidad"] = profundidad_adjusted
-                                results["deptos"][depto_index]["sup_nucleo"] = area_nucleo_depto
-                                results["deptos"][depto_index]["ancho_interior"] = ancho_final
-                                results["deptos"][depto_index]["profundidad_interior"] = vec_area_i[k] / ancho_final
-                            else
-                                profundidad_adjusted = (vec_area_i[k] + area_nucleo_depto_d_corner) / ancho_final
-                                results["deptos"][depto_index]["profundidad"] = profundidad_adjusted
-                                results["deptos"][depto_index]["sup_nucleo"] = area_nucleo_depto_d_corner
-                                results["deptos"][depto_index]["ancho_interior"] = ancho_final
-                                results["deptos"][depto_index]["profundidad_interior"] = vec_area_i[k] / ancho_final
-                            end
+                        if t in T_regular
+                            profundidad_adjusted = (vec_area_i[k] + vec_area_p[j]) / ancho_depto_ajustado_ps[(s,t,k,j)]
+                        else
+                            profundidad_adjusted = vec_area_i[k] / ancho_depto_ajustado_ps[(s,t,k,j)]
                         end
+                        
+                        results["deptos"][depto_index]["profundidad"] = profundidad_adjusted
+                        results["deptos"][depto_index]["sup_pasillo"] = vec_area_p[j]
+                        results["deptos"][depto_index]["ancho_interior"] = ancho_depto_ajustado_ps[(s,t,k,j)]
+                        results["deptos"][depto_index]["profundidad_interior"] = profundidad_depto_interior_ps[(s,t,k,j)]
                     end
                 end
             end
