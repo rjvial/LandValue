@@ -666,30 +666,22 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
         ancho_depto_pp = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
         ancho_depto_ps = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
-        profundidad_depto_footprint_ps = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
-        profundidad_depto_footprint_pp = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
-        profundidad_depto_interior_ps = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
-        profundidad_depto_interior_pp = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
+        profundidad_depto_ipn_ps = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
+        profundidad_depto_ipn_pp = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
+        profundidad_depto_i_ps = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
+        profundidad_depto_i_pp = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
         if has_values(model)
             for s in S
                 for t in T, (k, j) in KJ_feasible
                     if value(num_deptos_por_piso_superior[t,s,(k,j)]) > 0.01
                         ancho_depto_ps[(s,t,k,j)] = vec_w_i[j]
-                        profundidad_depto_footprint_ps[(s,t,k,j)] = mat_h_ipn_by_type[t](k,j)
-                        profundidad_depto_interior_ps[(s,t,k,j)] = mat_h_i[k,j]
-                    else
-                        ancho_depto_ps[(s,t,k,j)] = 0.0
-                        profundidad_depto_footprint_ps[(s,t,k,j)] = 0.0
-                        profundidad_depto_interior_ps[(s,t,k,j)] = 0.0
+                        profundidad_depto_ipn_ps[(s,t,k,j)] = mat_h_ipn_by_type[t](k,j)
+                        profundidad_depto_i_ps[(s,t,k,j)] = mat_h_i[k,j]
                     end
                     if value(num_deptos_primer_piso[t,s,(k,j)]) > 0.01
                         ancho_depto_pp[(s,t,k,j)] = vec_w_i[j]
-                        profundidad_depto_footprint_pp[(s,t,k,j)] = mat_h_ipn_by_type[t](k,j)
-                        profundidad_depto_interior_pp[(s,t,k,j)] = mat_h_i[k,j]
-                    else
-                        ancho_depto_pp[(s,t,k,j)] = 0.0
-                        profundidad_depto_footprint_pp[(s,t,k,j)] = 0.0
-                        profundidad_depto_interior_pp[(s,t,k,j)] = 0.0
+                        profundidad_depto_ipn_pp[(s,t,k,j)] = mat_h_ipn_by_type[t](k,j)
+                        profundidad_depto_i_pp[(s,t,k,j)] = mat_h_i[k,j]
                     end
                 end
             end
@@ -699,11 +691,9 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         ancho_depto_ajustado_pp = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
         ancho_depto_ajustado_ps = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
         if has_values(model)
-            for s in S
-                for t in T, (k, j) in KJ_feasible
-                    ancho_depto_ajustado_ps[(s,t,k,j)] = ancho_depto_ps[(s,t,k,j)]
-                    ancho_depto_ajustado_pp[(s,t,k,j)] = ancho_depto_pp[(s,t,k,j)]
-                end
+            for s in S, t in T, (k, j) in KJ_feasible
+                ancho_depto_ajustado_ps[(s,t,k,j)] = get(ancho_depto_ps, (s,t,k,j), 0.0)
+                ancho_depto_ajustado_pp[(s,t,k,j)] = get(ancho_depto_pp, (s,t,k,j), 0.0)
             end
 
             for s in S
@@ -714,8 +704,8 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                     println("Strip $(s) - Pisos Superiores: Total width $(round(total_width_ps, digits=2))m < W $(round(W, digits=2))m. Scaling by factor $(round(scale_factor_ps, digits=4))")
 
                     for t in T, (k, j) in KJ_feasible
-                        ancho_depto_ajustado_ps[(s,t,k,j)] = ancho_depto_ps[(s,t,k,j)] * scale_factor_ps
-                        ancho_depto_ajustado_pp[(s,t,k,j)] = ancho_depto_pp[(s,t,k,j)] * scale_factor_ps
+                        ancho_depto_ajustado_ps[(s,t,k,j)] = get(ancho_depto_ps, (s,t,k,j), 0.0) * scale_factor_ps
+                        ancho_depto_ajustado_pp[(s,t,k,j)] = get(ancho_depto_pp, (s,t,k,j), 0.0) * scale_factor_ps
                     end
                 end
             end
@@ -745,7 +735,9 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                 for t in T, (k, j) in KJ_feasible
                     num_apts = value(num_deptos_primer_piso[t,s,(k,j)])
                     if num_apts > 0.001
-                        area_total_ajustada = ancho_depto_ajustado_pp[(s,t,k,j)] * profundidad_depto_footprint_pp[(s,t,k,j)]
+                        ancho = get(ancho_depto_ajustado_pp, (s,t,k,j), 0.0)
+                        profundidad = get(profundidad_depto_ipn_pp, (s,t,k,j), 0.0)
+                        area_total_ajustada = ancho * profundidad
                         if t == :regular || t == :regular_nucleo
                             area_target_total = vec_area_i[k] + vec_area_p[j]
                             fraccion_interior = vec_area_i[k] / area_target_total
@@ -762,7 +754,9 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                 for t in [:regular, :regular_nucleo], (k, j) in KJ_feasible
                     num_apts = value(num_deptos_primer_piso[t,s,(k,j)])
                     if num_apts > 0.001
-                        area_total_ajustada = ancho_depto_ajustado_pp[(s,t,k,j)] * profundidad_depto_footprint_pp[(s,t,k,j)]
+                        ancho = ancho_depto_ajustado_pp[(s,t,k,j)]
+                        profundidad = profundidad_depto_ipn_pp[(s,t,k,j)]
+                        area_total_ajustada = ancho * profundidad
                         area_target_total = vec_area_i[k] + vec_area_p[j]
                         fraccion_pasillo = vec_area_p[j] / area_target_total
                         pasillo_area_s_pp += num_apts * area_total_ajustada * fraccion_pasillo
@@ -775,7 +769,9 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                 for t in T, (k, j) in KJ_feasible
                     num_apts = value(num_deptos_por_piso_superior[t,s,(k,j)])
                     if num_apts > 0.001
-                        area_total_ajustada = ancho_depto_ajustado_ps[(s,t,k,j)] * profundidad_depto_footprint_ps[(s,t,k,j)]
+                        ancho = ancho_depto_ajustado_ps[(s,t,k,j)]
+                        profundidad = profundidad_depto_ipn_ps[(s,t,k,j)]
+                        area_total_ajustada = ancho * profundidad
                         if t == :regular || t == :regular_nucleo
                             area_target_total = vec_area_i[k] + vec_area_p[j]
                             fraccion_interior = vec_area_i[k] / area_target_total
@@ -792,7 +788,9 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                 for t in [:regular, :regular_nucleo], (k, j) in KJ_feasible
                     num_apts = value(num_deptos_por_piso_superior[t,s,(k,j)])
                     if num_apts > 0.001
-                        area_total_ajustada = ancho_depto_ajustado_ps[(s,t,k,j)] * profundidad_depto_footprint_ps[(s,t,k,j)]
+                        ancho = ancho_depto_ajustado_ps[(s,t,k,j)]
+                        profundidad = profundidad_depto_ipn_ps[(s,t,k,j)]
+                        area_total_ajustada = ancho * profundidad
                         area_target_total = vec_area_i[k] + vec_area_p[j]
                         fraccion_pasillo = vec_area_p[j] / area_target_total
                         pasillo_area_s_ps += num_apts * area_total_ajustada * fraccion_pasillo
@@ -833,14 +831,16 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                         results["deptos"][depto_index]["j"] = j
                         results["deptos"][depto_index]["tipo"] = tipo
                         results["deptos"][depto_index]["ancho_interior"] = ancho_depto_ajustado_ps[(s,t,k,j)]
-                        results["deptos"][depto_index]["profundidad_interior"] = profundidad_depto_interior_ps[(s,t,k,j)]
+                        results["deptos"][depto_index]["profundidad_interior"] = profundidad_depto_i_ps[(s,t,k,j)]
                         results["deptos"][depto_index]["ancho_terraza"] = vec_area_t[k] / mat_h_t[k,j]
                         results["deptos"][depto_index]["profundidad_terraza"] = mat_h_t[k,j]
                         results["deptos"][depto_index]["num_unidades_primer_piso"] = num_unidades_pp
                         results["deptos"][depto_index]["num_unidades_por_piso_superior"] = num_unidades_ps
                         results["deptos"][depto_index]["num_unidades_edificio"] = num_unidades_pp + num_unidades_ps * num_pisos_superiores
 
-                        area_total_ajustada = ancho_depto_ajustado_ps[(s,t,k,j)] * profundidad_depto_footprint_ps[(s,t,k,j)]
+                        ancho = get(ancho_depto_ajustado_ps, (s,t,k,j), 0.0)
+                        profundidad = get(profundidad_depto_ipn_ps, (s,t,k,j), 0.0)
+                        area_total_ajustada = ancho * profundidad
 
                         if t == :regular || t == :regular_nucleo
                             area_target_total = vec_area_i[k] + vec_area_p[j]
