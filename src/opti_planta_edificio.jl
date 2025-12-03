@@ -358,7 +358,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         mat_corner_h = [vec_area_i[k] / vec_w_i[j] for k in K, j in J]
         mat_d_corner_h = [vec_area_i[k] / vec_w_i[j] for k in K, j in J]
 
-
         mat_exposicion = [vec_w_i[j] for k in K, j in J]
         mat_exposicion_corner = [vec_w_i[j] + mat_corner_h[k,j] for k in K, j in J]
         mat_exposicion_d_corner = [vec_w_i[j] + 2*mat_d_corner_h[k,j] for k in K, j in J]
@@ -370,8 +369,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                             (mat_w_i .>= 6) .&&
                             (mat_area_i .+ mat_area_t ./ 2) .<= 140 * (1*flag_dfl2 + 10*(1 - flag_dfl2)) .&&
                             (mat_aspect_ratio .>= 0.4) .&&
-                            (mat_aspect_ratio .<= 2.5)
-                            
+                            (mat_aspect_ratio .<= 2.5)               
 
         num_pisos_superiores = num_pisos - 1
 
@@ -449,8 +447,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             :d_corner_nucleo => mat_exposicion_d_corner
         )
 
-
-
         @variables(model, begin
             H_s[s in S] >= 0  # Depth of strip s (m)
 
@@ -472,7 +468,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             area_no_utilizada_por_piso_superior >= 0  # Unused footprint area per upper floor (m²)
             area_util_no_utilizada >= 0  # Slack variable: unused useful area under max constructibilidad (m²)
 
-            slack_profundidad[t in T, s in S, (k, j) in KJ_feasible] >= 0  # Unused depth for apartment type t in strip s with size k and width j (m)
         end)
 
         @expressions(model, begin
@@ -543,7 +538,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
         end)
 
-
         @constraints(model, begin
 
             # Upper floor and First floor footprint must equal building footprint (all areas sum to W × j)
@@ -606,7 +600,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             constraint_15[s in S], H_s[s] >= (H - 3) / 2
 
             # Apartment height (interior + terrace) + unused depth equals strip depth for each apartment type
-            constraint_16[t in T, s in S, (k, j) in KJ_feasible], x[t,s,(k,j)] * (mat_h_ipn_by_type[t](k,j) + mat_h_t[k,j]) + slack_profundidad[t,s,(k,j)] == H_s[s]
+            constraint_16[t in T, s in S, (k, j) in KJ_feasible], x[t,s,(k,j)] * (mat_h_ipn_by_type[t](k,j) + mat_h_t[k,j])  <= H_s[s]
 
             # Total apartment area per strip cannot exceed strip footprint (W x H_s)
             constraint_17[s in S], sum(num_deptos_por_piso_superior[t,s,(k,j)] * (area_ipn_by_type[t](k,j) + vec_area_t[k]) for t in T, (k, j) in KJ_feasible) <= W * H_s[s]
@@ -645,8 +639,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                 @constraint(model, z[k1] + z[k2] <= 1)
             end
         end
-        
-                            
+                         
         # Maximize total apartment interior area
         @objective(model, Max, area_util_total)
 
@@ -717,7 +710,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         results["deptos"] = OrderedDict{Int,Any}()
         results["strip"] = OrderedDict{Int,Any}()
 
-
         if has_values(model)
             results["objective_value"] = objective_value(model)
             results["num_pisos_superiores"] = num_pisos_superiores
@@ -772,7 +764,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                         ancho = ancho_depto_ajustado_ps[(s,t,k,j)]
                         profundidad = profundidad_depto_ipn_ps[(s,t,k,j)]
                         area_total_ajustada = ancho * profundidad
-                        if t == :regular || t == :regular_nucleo
+                        if t in [:regular, :regular_nucleo]
                             area_target_total = vec_area_i[k] + vec_area_p[j]
                             fraccion_interior = vec_area_i[k] / area_target_total
                             interior_area_s_ps += num_apts * area_total_ajustada * fraccion_interior
