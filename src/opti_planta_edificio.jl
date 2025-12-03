@@ -433,14 +433,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             :d_corner_nucleo => (k,j) -> vec_area_i[k]
         )
 
-        mat_h_interior_by_type = Dict(
-            :regular => (k,j) -> mat_h_i[k,j],
-            :regular_nucleo => (k,j) -> mat_h_i[k,j],
-            :corner => (k,j) -> mat_h_i[k,j],
-            :corner_nucleo => (k,j) -> mat_h_i[k,j],
-            :d_corner_nucleo => (k,j) -> mat_h_i[k,j]
-        )
-
         mat_h_footprint_by_type = Dict(
             :regular => (k,j) -> mat_h_ip[k,j],
             :regular_nucleo => (k,j) -> mat_h_ipn[k,j],
@@ -682,14 +674,14 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                 for t in T, (k, j) in KJ_feasible
                     if value(num_deptos_por_piso_superior[t,s,(k,j)]) > 0.01
                         ancho_depto_ps[(s,t,k,j)] = vec_w_i[j]
-                        profundidad_depto_interior_ps[(s,t,k,j)] = mat_h_interior_by_type[t](k,j)
+                        profundidad_depto_interior_ps[(s,t,k,j)] = mat_h_footprint_by_type[t](k,j)
                     else
                         ancho_depto_ps[(s,t,k,j)] = 0.0
                         profundidad_depto_interior_ps[(s,t,k,j)] = 0.0
                     end
                     if value(num_deptos_primer_piso[t,s,(k,j)]) > 0.01
                         ancho_depto_pp[(s,t,k,j)] = vec_w_i[j]
-                        profundidad_depto_interior_pp[(s,t,k,j)] = mat_h_interior_by_type[t](k,j)
+                        profundidad_depto_interior_pp[(s,t,k,j)] = mat_h_footprint_by_type[t](k,j)
                     else
                         ancho_depto_pp[(s,t,k,j)] = 0.0
                         profundidad_depto_interior_pp[(s,t,k,j)] = 0.0
@@ -762,10 +754,10 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                 terrace_area_s_pp = sum(value(num_deptos_primer_piso[t,s,(k,j)]) * vec_area_t[k] for t in T, (k, j) in KJ_feasible)
 
                 pasillo_area_s_pp = 0.0
-                for (k, j) in KJ_feasible
-                    num_apts = value(num_deptos_primer_piso[:regular,s,(k,j)]) + value(num_deptos_primer_piso[:regular_nucleo,s,(k,j)])
+                for t in [:regular, :regular_nucleo], (k, j) in KJ_feasible
+                    num_apts = value(num_deptos_primer_piso[t,s,(k,j)])
                     if num_apts > 0.001
-                        area_total_ajustada = ancho_depto_ajustado_pp[(s,:regular,k,j)] * profundidad_depto_interior_pp[(s,:regular,k,j)]
+                        area_total_ajustada = ancho_depto_ajustado_pp[(s,t,k,j)] * profundidad_depto_interior_pp[(s,t,k,j)]
                         area_target_total = vec_area_i[k] + vec_area_p[j]
                         fraccion_pasillo = vec_area_p[j] / area_target_total
                         pasillo_area_s_pp += num_apts * area_total_ajustada * fraccion_pasillo
@@ -792,10 +784,10 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                 terrace_area_s_ps = sum(value(num_deptos_por_piso_superior[t,s,(k,j)]) * vec_area_t[k] for t in T, (k, j) in KJ_feasible)
 
                 pasillo_area_s_ps = 0.0
-                for (k, j) in KJ_feasible
-                    num_apts = value(num_deptos_por_piso_superior[:regular,s,(k,j)]) + value(num_deptos_por_piso_superior[:regular_nucleo,s,(k,j)])
+                for t in [:regular, :regular_nucleo], (k, j) in KJ_feasible
+                    num_apts = value(num_deptos_por_piso_superior[t,s,(k,j)])
                     if num_apts > 0.001
-                        area_total_ajustada = ancho_depto_ajustado_ps[(s,:regular,k,j)] * profundidad_depto_interior_ps[(s,:regular,k,j)]
+                        area_total_ajustada = ancho_depto_ajustado_ps[(s,t,k,j)] * profundidad_depto_interior_ps[(s,t,k,j)]
                         area_target_total = vec_area_i[k] + vec_area_p[j]
                         fraccion_pasillo = vec_area_p[j] / area_target_total
                         pasillo_area_s_ps += num_apts * area_total_ajustada * fraccion_pasillo
