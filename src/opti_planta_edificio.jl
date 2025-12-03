@@ -62,7 +62,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
     end
 
 
-    function print_results(results::AbstractDict, vec_area_i, vec_area_t, vec_area_p, mat_h_t, vec_w_i,
+    function print_results(results::AbstractDict,
                           mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner,
                           area_nucleo_depto, area_nucleo_depto_d_corner, W, H)
 
@@ -204,37 +204,33 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             tipo_label = tipo_map[tipo]
 
             strip_info = strip_data[strip]
-            profundidad = strip_info["H_s"]
             perimetro_pp = strip_info["perimetro_expuesto"]["primer_piso"]
             perimetro_ps = strip_info["perimetro_expuesto"]["pisos_superiores"]
 
-            ancho = vec_w_i[j]
-            area_interior = vec_area_i[k]
-            area_terraza = vec_area_t[k]
+            profundidad_interior = depto_data["profundidad_interior"]
+            ancho_interior = depto_data["ancho_interior"]
+            area_interior = depto_data["sup_interior"] 
+            area_terraza = depto_data["sup_terraza"] 
+            area_pasillo = depto_data["sup_pasillo"]
 
-            if tipo_label == "Regular"
+            if tipo == "regular"
                 alto = mat_h_ip[k,j]
-                area_pasillo = vec_area_p[j]
                 area_nucleo = 0.0
-                area_total = ancho * alto
-            elseif tipo_label == "Núcleo"
+                area_total = ancho_interior * alto
+            elseif tipo == "regular_nucleo"
                 alto = mat_h_ipn[k,j]
-                area_pasillo = vec_area_p[j]
                 area_nucleo = area_nucleo_depto_local
-                area_total = ancho * alto
-            elseif tipo_label == "Corner"
+                area_total = ancho_interior * alto
+            elseif tipo == "corner"
                 alto = mat_h_in[k,j]
-                area_pasillo = 0.0
                 area_nucleo = 0.0
                 area_total = area_interior
-            elseif tipo_label == "Corner Núcleo"
+            elseif tipo == "corner_nucleo"
                 alto = mat_h_in[k,j]
-                area_pasillo = 0.0
                 area_nucleo = area_nucleo_depto_local
                 area_total = area_interior + area_nucleo
             else
                 alto = mat_h_in_d_corner[k,j]
-                area_pasillo = 0.0
                 area_nucleo = area_nucleo_depto_d_corner_local
                 area_total = area_interior + area_nucleo
             end
@@ -245,12 +241,12 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             if count_pp > 0.001
                 piso_label = tipo_piso_label_map["primer_piso"]
                 perimetro = perimetro_pp
-                push!(all_deptos_global, (strip, piso_label, tipo_label, k, j, count_pp, area_interior, area_pasillo, area_nucleo, area_terraza, area_total, ancho, alto, perimetro, profundidad))
+                push!(all_deptos_global, (strip, piso_label, tipo_label, k, j, count_pp, area_interior, area_pasillo, area_nucleo, area_terraza, area_total, ancho_interior, alto, perimetro, profundidad_interior))
             end
             if count_ps > 0.001
                 piso_label = tipo_piso_label_map["pisos_superiores"]
                 perimetro = perimetro_ps
-                push!(all_deptos_global, (strip, piso_label, tipo_label, k, j, count_ps, area_interior, area_pasillo, area_nucleo, area_terraza, area_total, ancho, alto, perimetro, profundidad))
+                push!(all_deptos_global, (strip, piso_label, tipo_label, k, j, count_ps, area_interior, area_pasillo, area_nucleo, area_terraza, area_total, ancho_interior, alto, perimetro, profundidad_interior))
             end
         end
 
@@ -732,21 +728,26 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
         if has_values(model)
             results["objective_value"] = objective_value(model)
+            results["num_pisos_superiores"] = num_pisos_superiores
+            results["num_pisos_total"] = num_pisos
+            results["flag_dfl2"] = flag_dfl2
+            results["flag_vivienda_economica"] = flag_vivienda_economica
+            results["angulo_rotacion"] = angulo_rotacion
+            results["cr"] = cr
+            results["ps_planta_normalizado"] = ps_planta_normalizado
 
             for s in S
-                perimetro_s_pp = sum(value(num_deptos_primer_piso[t,s,(k,j)]) * mat_exposicion_by_type[t][k,j] 
-                                    for t in T, (k, j) in KJ_feasible)
+                perimetro_s_pp = sum(value(num_deptos_primer_piso[t,s,(k,j)]) * mat_exposicion_by_type[t][k,j] for t in T, (k, j) in KJ_feasible)
 
-                apartment_area_s_pp = sum(value(num_deptos_primer_piso[t,s,(k,j)]) * ancho_depto_ajustado_pp[(s,t,k,j)] * profundidad_depto_interior_pp[(s,t,k,j)] for t in T, (k, j) in KJ_feasible)
+                interior_area_s_pp = sum(value(num_deptos_primer_piso[t,s,(k,j)]) * ancho_depto_ajustado_pp[(s,t,k,j)] * profundidad_depto_interior_pp[(s,t,k,j)] for t in T, (k, j) in KJ_feasible)
 
                 terrace_area_s_pp = sum(value(num_deptos_primer_piso[t,s,(k,j)]) * vec_area_t[k] for t in T, (k, j) in KJ_feasible)
 
                 pasillo_area_s_pp = sum((value(num_deptos_primer_piso[:regular,s,(k,j)]) + value(num_deptos_primer_piso[:regular_nucleo,s,(k,j)])) * vec_area_p[j] for (k, j) in KJ_feasible)
 
-                perimetro_s_ps = sum(value(num_deptos_por_piso_superior[t,s,(k,j)]) * mat_exposicion_by_type[t][k,j] 
-                                    for t in T, (k, j) in KJ_feasible)
+                perimetro_s_ps = sum(value(num_deptos_por_piso_superior[t,s,(k,j)]) * mat_exposicion_by_type[t][k,j] for t in T, (k, j) in KJ_feasible)
 
-                apartment_area_s_ps = sum(value(num_deptos_por_piso_superior[t,s,(k,j)]) * ancho_depto_ajustado_ps[(s,t,k,j)] * profundidad_depto_interior_ps[(s,t,k,j)] for t in T, (k, j) in KJ_feasible)
+                interior_area_s_ps = sum(value(num_deptos_por_piso_superior[t,s,(k,j)]) * ancho_depto_ajustado_ps[(s,t,k,j)] * profundidad_depto_interior_ps[(s,t,k,j)] for t in T, (k, j) in KJ_feasible)
 
                 terrace_area_s_ps = sum(value(num_deptos_por_piso_superior[t,s,(k,j)]) * vec_area_t[k] for t in T, (k, j) in KJ_feasible)
                 
@@ -758,9 +759,9 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                 results["strip"][s]["perimetro_expuesto"] = OrderedDict{String,Float64}()
                 results["strip"][s]["perimetro_expuesto"]["primer_piso"] = perimetro_s_pp
                 results["strip"][s]["perimetro_expuesto"]["pisos_superiores"] = perimetro_s_ps
-                results["strip"][s]["superficie_deptos"] = OrderedDict{String,Float64}()
-                results["strip"][s]["superficie_deptos"]["primer_piso"] = apartment_area_s_pp
-                results["strip"][s]["superficie_deptos"]["pisos_superiores"] = apartment_area_s_ps
+                results["strip"][s]["superficie_interior"] = OrderedDict{String,Float64}()
+                results["strip"][s]["superficie_interior"]["primer_piso"] = interior_area_s_pp
+                results["strip"][s]["superficie_interior"]["pisos_superiores"] = interior_area_s_ps
                 results["strip"][s]["superficie_terraza"] = OrderedDict{String,Float64}()
                 results["strip"][s]["superficie_terraza"]["primer_piso"] = terrace_area_s_pp
                 results["strip"][s]["superficie_terraza"]["pisos_superiores"] = terrace_area_s_ps
@@ -772,10 +773,10 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                 for t in T, (k, j) in KJ_feasible
                     threshold = 0.001
 
-                    val_pp = value(num_deptos_primer_piso[t,s,(k,j)])
-                    val_ps = value(num_deptos_por_piso_superior[t,s,(k,j)])
+                    num_unidades_pp = value(num_deptos_primer_piso[t,s,(k,j)])
+                    num_unidades_ps = value(num_deptos_por_piso_superior[t,s,(k,j)])
 
-                    if val_pp > threshold || val_ps > threshold
+                    if num_unidades_pp > threshold || num_unidades_ps > threshold
                         depto_index = length(results["deptos"]) + 1
                         results["deptos"][depto_index] = OrderedDict{String,Any}()
 
@@ -785,32 +786,21 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                         results["deptos"][depto_index]["k"] = k
                         results["deptos"][depto_index]["j"] = j
                         results["deptos"][depto_index]["tipo"] = tipo
-
-                        results["deptos"][depto_index]["ancho"] = ancho_depto_ajustado_ps[(s,t,k,j)]
-                        results["deptos"][depto_index]["profundidad"] = 0.0
-
-                        ancho_terraza_calc = mat_h_t[k,j]
-                        profundidad_terraza_calc = vec_area_t[k] / ancho_terraza_calc
-                        results["deptos"][depto_index]["ancho_terraza"] = ancho_terraza_calc
-                        results["deptos"][depto_index]["profundidad_terraza"] = profundidad_terraza_calc
-                        results["deptos"][depto_index]["num_unidades_primer_piso"] = val_pp
-                        results["deptos"][depto_index]["num_unidades_por_piso_superior"] = val_ps
-                        results["deptos"][depto_index]["num_unidades_edificio"] = val_pp + val_ps * num_pisos_superiores
-                        results["deptos"][depto_index]["sup_interior"] = ancho_depto_ajustado_ps[(s,t,k,j)] * profundidad_depto_interior_ps[(s,t,k,j)]
-                        results["deptos"][depto_index]["sup_terraza"] = vec_area_t[k]
-                        results["deptos"][depto_index]["sup_pasillo"] = 0.0
-                        results["deptos"][depto_index]["sup_nucleo"] = 0.0
-
-                        if t in T_regular
-                            profundidad_adjusted = (vec_area_i[k] + vec_area_p[j]) / ancho_depto_ajustado_ps[(s,t,k,j)]
-                        else
-                            profundidad_adjusted = vec_area_i[k] / ancho_depto_ajustado_ps[(s,t,k,j)]
-                        end
-                        
-                        results["deptos"][depto_index]["profundidad"] = profundidad_adjusted
-                        results["deptos"][depto_index]["sup_pasillo"] = vec_area_p[j]
                         results["deptos"][depto_index]["ancho_interior"] = ancho_depto_ajustado_ps[(s,t,k,j)]
                         results["deptos"][depto_index]["profundidad_interior"] = profundidad_depto_interior_ps[(s,t,k,j)]
+                        results["deptos"][depto_index]["ancho_terraza"] = vec_area_t[k] / mat_h_t[k,j]
+                        results["deptos"][depto_index]["profundidad_terraza"] = mat_h_t[k,j]
+                        results["deptos"][depto_index]["num_unidades_primer_piso"] = num_unidades_pp
+                        results["deptos"][depto_index]["num_unidades_por_piso_superior"] = num_unidades_ps
+                        results["deptos"][depto_index]["num_unidades_edificio"] = num_unidades_pp + num_unidades_ps * num_pisos_superiores
+                        results["deptos"][depto_index]["sup_interior"] = ancho_depto_ajustado_ps[(s,t,k,j)] * profundidad_depto_interior_ps[(s,t,k,j)]
+                        results["deptos"][depto_index]["sup_terraza"] = vec_area_t[k]
+                        results["deptos"][depto_index]["sup_pasillo"] = vec_area_p[j]
+                        if t == :regular_nucleo || t == :corner_nucleo
+                            results["deptos"][depto_index]["sup_nucleo"] = area_nucleo_depto
+                        elseif t == :d_corner_nucleo
+                            results["deptos"][depto_index]["sup_nucleo"] = area_nucleo_depto_d_corner
+                        end
                     end
                 end
             end
@@ -822,11 +812,11 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                 deptos_pisos_superiores += depto_data["num_unidades_por_piso_superior"]
             end
 
-            sup_int_pp = sum(results["strip"][s]["superficie_deptos"]["primer_piso"] for s in S)
+            sup_int_pp = sum(results["strip"][s]["superficie_interior"]["primer_piso"] for s in S)
             sup_terr_pp = sum(results["strip"][s]["superficie_terraza"]["primer_piso"] for s in S)
             sup_pas_pp = sum(results["strip"][s]["superficie_pasillo"]["primer_piso"] for s in S)
 
-            sup_int_ps = sum(results["strip"][s]["superficie_deptos"]["pisos_superiores"] for s in S)
+            sup_int_ps = sum(results["strip"][s]["superficie_interior"]["pisos_superiores"] for s in S)
             sup_terr_ps = sum(results["strip"][s]["superficie_terraza"]["pisos_superiores"] for s in S)
             sup_pas_ps = sum(results["strip"][s]["superficie_pasillo"]["pisos_superiores"] for s in S)
 
@@ -895,14 +885,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             results["superficie_terraza_edificio"] = results["totals"]["superficie_terraza"]["edificio"]
             results["superficie_pasillo_edificio"] = results["totals"]["superficie_pasillo"]["edificio"]
             results["superficie_total_edificio"] = results["superficie_interior_edificio"] + results["superficie_terraza_edificio"] + results["superficie_pasillo_edificio"]
-
-            results["num_pisos_superiores"] = num_pisos_superiores
-            results["num_pisos_total"] = num_pisos
-            results["flag_dfl2"] = flag_dfl2
-            results["flag_vivienda_economica"] = flag_vivienda_economica
-            results["angulo_rotacion"] = angulo_rotacion
-            results["cr"] = cr
-            results["ps_planta_normalizado"] = ps_planta_normalizado
 
        else
             results["objective_value"] = nothing
@@ -983,7 +965,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
     println("="^60)
 
-    print_results(results, vec_area_i, vec_area_t, vec_area_p, mat_h_t, vec_w_i,
+    print_results(results,
                   mat_h_ip, mat_h_ipn, mat_h_in, mat_h_in_d_corner,
                   area_nucleo_depto, area_nucleo_depto_d_corner, W, H)
 
