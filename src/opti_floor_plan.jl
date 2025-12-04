@@ -16,7 +16,7 @@ get_tipo(t::Tuple{Float64, Int, Int}) = t[2]
 
 # Generates apartment geometries along one strip using pre-calculated dimensions
 function genera_deptos_franja(mat_deptos::Matrix{Float64}, coord_min_planta::Float64,
-            profundidad_franja::Float64, ancho_franja::Float64, is_vertical::Bool, coord_base::Float64, franja::Symbol,
+            is_vertical::Bool, coord_base::Float64, franja::Symbol,
             vec_tipos::Vector{String}=String[])
 
     vec_coord_ini = Float64[]
@@ -26,21 +26,9 @@ function genera_deptos_franja(mat_deptos::Matrix{Float64}, coord_min_planta::Flo
     vec_tipo_deptos = Int[]
     vec_tipo_strings = String[]
 
-    if isempty(mat_deptos) || profundidad_franja <= 0.0
-        return vec_coord_ini, vec_coord_fin, vec_dimension1_deptos, vec_dimension2_deptos, vec_tipo_deptos, PolyShape[], vec_tipo_strings
-    end
-
-    if !isfinite(profundidad_franja)
-        error("Invalid profundidad_franja: $profundidad_franja")
-    end
-    if ancho_franja <= 0.0 || !isfinite(ancho_franja)
-        error("Invalid ancho_franja: $ancho_franja")
-    end
-
     coord_current = coord_min_planta
 
     for i in 1:size(mat_deptos, 1)
-        sup_interior = mat_deptos[i, 1]
         ancho_interior = mat_deptos[i, 2]
         profundidad_interior = mat_deptos[i, 3]
 
@@ -162,12 +150,10 @@ end
 # Creates axis-aligned box with franja-aware positioning (vertical: X-axis, horizontal: Y-axis)
 function polyBoxAligned(base1::Float64, base2::Float64, profundidad_depto::Float64, ancho_depto::Float64, franja::Symbol, is_vertical::Bool)
     if is_vertical
-        is_positive_franja = (franja == :este)
-        offset = is_positive_franja ? base1 : base1 - profundidad_depto
+        offset = (franja == :este) ? base1 : base1 - profundidad_depto
         return polyShape.polyBox(offset, base2, profundidad_depto, ancho_depto, 0.0)
     else
-        is_positive_franja = (franja == :norte)
-        offset = is_positive_franja ? base1 : base1 - profundidad_depto
+        offset = (franja == :norte) ? base1 : base1 - profundidad_depto
         return polyShape.polyBox(base2, offset, ancho_depto, profundidad_depto, 0.0)
     end
 end
@@ -676,24 +662,35 @@ function genera_layout_pisos_superiores(dict_edificio_deptos;
         n_repeat = Int(round(row.num_unidades_por_piso_superior))
         for _ in 1:n_repeat
             if row.strip == 1
-                mat_deptos_strip1 = vcat(mat_deptos_strip1, [row.sup_interior row.ancho_interior row.profundidad_interior])
+                mat_deptos_strip1 = vcat(mat_deptos_strip1, [row.sup_interior row.ancho_interior row.profundidad_interior+4])
                 push!(vec_tipos_strip1, string(row.tipo))
                 push!(vec_terrazas_areas_strip1, row.sup_terraza)
             else
-                mat_deptos_strip2 = vcat(mat_deptos_strip2, [row.sup_interior row.ancho_interior row.profundidad_interior])
+                mat_deptos_strip2 = vcat(mat_deptos_strip2, [row.sup_interior row.ancho_interior row.profundidad_interior+4])
                 push!(vec_tipos_strip2, string(row.tipo))
                 push!(vec_terrazas_areas_strip2, row.sup_terraza)
             end
         end
     end
 
-    vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, vec_tipo_deptos1,
-            vec_ps_deptos_franja_1_normalizado, vec_tipo_strings1 = genera_deptos_franja(mat_deptos_strip1, coord_min,
-                                            dimension_depto1, coord_disponible, is_vertical, coord_base, franja1, vec_tipos_strip1)
+    coord_min_planta = coord_min
+    is_vertical = is_vertical
+    coord_base = coord_base
 
+    mat_deptos = mat_deptos_strip1
+    franja = franja1
+    vec_tipos = vec_tipos_strip1
+    vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, vec_tipo_deptos1,
+            vec_ps_deptos_franja_1_normalizado, vec_tipo_strings1 = genera_deptos_franja(mat_deptos, coord_min_planta,
+                                            is_vertical, coord_base, franja, vec_tipos)
+
+    mat_deptos = mat_deptos_strip2
+    franja = franja2
+    vec_tipos = vec_tipos_strip2
     vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, vec_tipo_deptos2,
-            vec_ps_deptos_franja_2_normalizado, vec_tipo_strings2 = genera_deptos_franja(mat_deptos_strip2, coord_min,
-                                            dimension_depto2, coord_disponible, is_vertical, coord_base, franja2, vec_tipos_strip2)
+            vec_ps_deptos_franja_2_normalizado, vec_tipo_strings2 = genera_deptos_franja(mat_deptos, coord_min_planta,
+                                            is_vertical, coord_base, franja, vec_tipos)
+
 
     ancho_pasillo, ps_pasillo_normalizado = calcula_geometria_pasillo(
                                             vec_coord_fin1, vec_coord_fin2, vec_coord_ini1, vec_coord_ini2,
@@ -702,6 +699,15 @@ function genera_layout_pisos_superiores(dict_edificio_deptos;
                                             coord_min, min_ancho_pasillo,
                                             vec_tipo_deptos1, vec_tipo_deptos2,
                                             vec_tipo_strings1, vec_tipo_strings2)
+
+    fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta_normalizado, "green", 0.2)
+    for apt_poly in vec_ps_deptos_franja_1_normalizado
+        polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
+    end
+    for apt_poly in vec_ps_deptos_franja_2_normalizado
+        polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
+    end
+    polyPlot.plotPolyshape2D(ps_pasillo_normalizado, "gray", 0.8, fig=fig, ax=ax, ax_mat=ax_mat)
 
     vec_ps_deptos_franja_1_normalizado, vec_extension_dimension1_1 = extiende_deptos_con_interseccion_pasillo(vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, coord_base, ps_pasillo_normalizado, franja1, is_vertical, vec_ps_deptos_franja_1_normalizado, ps_pasillo_normalizado)
     vec_ps_deptos_franja_2_normalizado, vec_extension_dimension1_2 = extiende_deptos_con_interseccion_pasillo(vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, coord_base, ps_pasillo_normalizado, franja2, is_vertical, vec_ps_deptos_franja_2_normalizado, ps_pasillo_normalizado)
