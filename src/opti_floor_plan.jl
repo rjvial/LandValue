@@ -590,6 +590,7 @@ function empaqueta_resultados(dimension1::Float64, dimension2::Float64,
     return result
 end
 
+
 # Checks if all terraces are fully contained within floor plan boundaries
 function verifica_inscripcion_terrazas(ps_planta::PolyShape, vec_terrazas::Vector{PolyShape})
     for terraza in vec_terrazas
@@ -914,3 +915,4 @@ function opti_floor_plan(dict_edificio_deptos;
         "primer_piso" => results_primer_piso
     )
 end
+
