@@ -460,34 +460,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
         optimize!(model)
 
-        ancho_depto_pp = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
-        ancho_depto_ps = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
-        profundidad_depto_ipn_ps = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
-        profundidad_depto_ipn_pp = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
-        profundidad_depto_ip_ps = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
-        profundidad_depto_ip_pp = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
-        profundidad_depto_i_ps = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
-        profundidad_depto_i_pp = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
-        if has_values(model)
-            for s in S
-                for t in T, (k, j) in KJ_feasible
-                    if value(num_deptos_por_piso_superior[t,s,(k,j)]) > 0.01
-                        ancho_depto_ps[(s,t,k,j)] = vec_w_i[j]
-                        profundidad_depto_ipn_ps[(s,t,k,j)] = mat_h_ipn_by_type[t](k,j)
-                        profundidad_depto_ip_ps[(s,t,k,j)] = (t == :regular || t == :regular_nucleo) ? mat_h_ip[k,j] : mat_h_i[k,j]
-                        profundidad_depto_i_ps[(s,t,k,j)] = mat_h_i[k,j]
-                    end
-                    if value(num_deptos_primer_piso[t,s,(k,j)]) > 0.01
-                        ancho_depto_pp[(s,t,k,j)] = vec_w_i[j]
-                        profundidad_depto_ipn_pp[(s,t,k,j)] = mat_h_ipn_by_type[t](k,j)
-                        profundidad_depto_ip_pp[(s,t,k,j)] = (t == :regular || t == :regular_nucleo) ? mat_h_ip[k,j] : mat_h_i[k,j]
-                        profundidad_depto_i_pp[(s,t,k,j)] = mat_h_i[k,j]
-                    end
-                end
-            end
-        end
-
-        # Block to adjust apartment widths if total width per strip is less than building width W
         ancho_depto_ajustado_pp = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
         ancho_depto_ajustado_ps = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
         profundidad_depto_ipn_ajustado_pp = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
@@ -496,34 +468,39 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         profundidad_depto_ip_ajustado_ps = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
         profundidad_depto_i_ajustado_pp = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
         profundidad_depto_i_ajustado_ps = Dict{Tuple{Int,Symbol,Int,Int},Float64}()
-        if has_values(model)
-            for s in S, t in T, (k, j) in KJ_feasible
-                ancho_depto_ajustado_ps[(s,t,k,j)] = get(ancho_depto_ps, (s,t,k,j), 0.0)
-                ancho_depto_ajustado_pp[(s,t,k,j)] = get(ancho_depto_pp, (s,t,k,j), 0.0)
-                profundidad_depto_ipn_ajustado_ps[(s,t,k,j)] = get(profundidad_depto_ipn_ps, (s,t,k,j), 0.0)
-                profundidad_depto_ipn_ajustado_pp[(s,t,k,j)] = get(profundidad_depto_ipn_pp, (s,t,k,j), 0.0)
-                profundidad_depto_ip_ajustado_ps[(s,t,k,j)] = get(profundidad_depto_ip_ps, (s,t,k,j), 0.0)
-                profundidad_depto_ip_ajustado_pp[(s,t,k,j)] = get(profundidad_depto_ip_pp, (s,t,k,j), 0.0)
-                profundidad_depto_i_ajustado_ps[(s,t,k,j)] = get(profundidad_depto_i_ps, (s,t,k,j), 0.0)
-                profundidad_depto_i_ajustado_pp[(s,t,k,j)] = get(profundidad_depto_i_pp, (s,t,k,j), 0.0)
-            end
 
+        if has_values(model)
             for s in S
                 total_width_ps = sum(value(num_deptos_por_piso_superior[t,s,(k,j)]) * vec_w_i[j] for t in T, (k, j) in KJ_feasible)
+                scale_factor_ps = (total_width_ps > 0.01 && total_width_ps < W - 0.01) ? W / total_width_ps : 1.0
 
-                if total_width_ps > 0.01 && total_width_ps < W - 0.01
-                    scale_factor_ps = W / total_width_ps
+                if scale_factor_ps != 1.0
                     println("Strip $(s) - Pisos Superiores: Total width $(round(total_width_ps, digits=2))m < W $(round(W, digits=2))m. Scaling width by factor $(round(scale_factor_ps, digits=4)), depth by factor $(round(1/scale_factor_ps, digits=4))")
+                end
 
-                    for t in T, (k, j) in KJ_feasible
-                        ancho_depto_ajustado_ps[(s,t,k,j)] = get(ancho_depto_ps, (s,t,k,j), 0.0) * scale_factor_ps
-                        ancho_depto_ajustado_pp[(s,t,k,j)] = get(ancho_depto_pp, (s,t,k,j), 0.0) * scale_factor_ps
-                        profundidad_depto_ipn_ajustado_ps[(s,t,k,j)] = get(profundidad_depto_ipn_ps, (s,t,k,j), 0.0) / scale_factor_ps
-                        profundidad_depto_ipn_ajustado_pp[(s,t,k,j)] = get(profundidad_depto_ipn_pp, (s,t,k,j), 0.0) / scale_factor_ps
-                        profundidad_depto_ip_ajustado_ps[(s,t,k,j)] = get(profundidad_depto_ip_ps, (s,t,k,j), 0.0) / scale_factor_ps
-                        profundidad_depto_ip_ajustado_pp[(s,t,k,j)] = get(profundidad_depto_ip_pp, (s,t,k,j), 0.0) / scale_factor_ps
-                        profundidad_depto_i_ajustado_ps[(s,t,k,j)] = get(profundidad_depto_i_ps, (s,t,k,j), 0.0) / scale_factor_ps
-                        profundidad_depto_i_ajustado_pp[(s,t,k,j)] = get(profundidad_depto_i_pp, (s,t,k,j), 0.0) / scale_factor_ps
+                for t in T, (k, j) in KJ_feasible
+                    if value(num_deptos_por_piso_superior[t,s,(k,j)]) > 0.01
+                        ancho_depto_ajustado_ps[(s,t,k,j)] = vec_w_i[j] * scale_factor_ps
+                        profundidad_depto_ipn_ajustado_ps[(s,t,k,j)] = mat_h_ipn_by_type[t](k,j) / scale_factor_ps
+                        profundidad_depto_ip_ajustado_ps[(s,t,k,j)] = ((t == :regular || t == :regular_nucleo) ? mat_h_ip[k,j] : mat_h_i[k,j]) / scale_factor_ps
+                        profundidad_depto_i_ajustado_ps[(s,t,k,j)] = mat_h_i[k,j] / scale_factor_ps
+                    else
+                        ancho_depto_ajustado_ps[(s,t,k,j)] = 0.0
+                        profundidad_depto_ipn_ajustado_ps[(s,t,k,j)] = 0.0
+                        profundidad_depto_ip_ajustado_ps[(s,t,k,j)] = 0.0
+                        profundidad_depto_i_ajustado_ps[(s,t,k,j)] = 0.0
+                    end
+
+                    if value(num_deptos_primer_piso[t,s,(k,j)]) > 0.01
+                        ancho_depto_ajustado_pp[(s,t,k,j)] = vec_w_i[j] * scale_factor_ps
+                        profundidad_depto_ipn_ajustado_pp[(s,t,k,j)] = mat_h_ipn_by_type[t](k,j) / scale_factor_ps
+                        profundidad_depto_ip_ajustado_pp[(s,t,k,j)] = ((t == :regular || t == :regular_nucleo) ? mat_h_ip[k,j] : mat_h_i[k,j]) / scale_factor_ps
+                        profundidad_depto_i_ajustado_pp[(s,t,k,j)] = mat_h_i[k,j] / scale_factor_ps
+                    else
+                        ancho_depto_ajustado_pp[(s,t,k,j)] = 0.0
+                        profundidad_depto_ipn_ajustado_pp[(s,t,k,j)] = 0.0
+                        profundidad_depto_ip_ajustado_pp[(s,t,k,j)] = 0.0
+                        profundidad_depto_i_ajustado_pp[(s,t,k,j)] = 0.0
                     end
                 end
             end
