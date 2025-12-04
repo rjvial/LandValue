@@ -215,13 +215,7 @@ function print_results(results::AbstractDict)
         alto = profundidad_interior
         area_nucleo = get(depto_data, "sup_nucleo", 0.0)
 
-        if tipo == "regular" || tipo == "regular_nucleo"
-            area_total = ancho_interior * alto
-        elseif tipo == "corner"
-            area_total = area_interior
-        else
-            area_total = area_interior + area_nucleo
-        end
+        area_total = area_interior + area_pasillo + area_nucleo
 
         count_pp = depto_data["num_unidades_primer_piso"]
         count_ps = depto_data["num_unidades_por_piso_superior"]
@@ -256,8 +250,8 @@ function print_results(results::AbstractDict)
 
         println("└──────┴────────────┴──────────────┴──────┴────────┴───────┴──────────┴──────────┴──────────┴─────────┴──────────┴─────────┘")
         println("\nNotas:")
-        println("  • Total = área del rectángulo principal (Ancho × Profundidad para Regular/Núcleo, solo Interior para Corner)")
-        println("  • Terraza está fuera del rectángulo principal")
+        println("  • Total = Interior + Pasillo + Núcleo")
+        println("  • Terraza no está incluida en Total")
     end
     println("\n" * "="^180)
 end
