@@ -66,12 +66,6 @@ function extiende_deptos_con_interseccion_pasillo(vec_coord_ini::Vector{Float64}
     end
 
     for i in eachindex(vec_coord_ini)
-        if !isfinite(vec_coord_ini[i]) || !isfinite(vec_coord_fin[i])
-            error("Invalid coordinates at index $i: coord_ini=$(vec_coord_ini[i]), coord_fin=$(vec_coord_fin[i])")
-        end
-        if !isfinite(vec_dimension1_deptos[i]) || !isfinite(vec_dimension2_deptos[i])
-            error("Invalid dimensions at index $i: profundidad_depto=$(vec_dimension1_deptos[i]), ancho_depto=$(vec_dimension2_deptos[i])")
-        end
 
         ps_depto_normalizado = vec_ps_deptos_normalizado[i]
         ps_intersection = polyShape.polyIntersection(ps_depto_normalizado, ps_pasillo_normalizado)
@@ -87,10 +81,6 @@ function extiende_deptos_con_interseccion_pasillo(vec_coord_ini::Vector{Float64}
 
         dimension1_total = vec_dimension1_deptos[i] + extension_dimension
         dimension2 = vec_coord_fin[i] - vec_coord_ini[i]
-
-        if !isfinite(dimension1_total) || !isfinite(dimension2) || dimension1_total <= 0.0 || dimension2 <= 0.0
-            error("Invalid extended dimensions at index $i: dimension1_total=$dimension1_total, dimension2=$dimension2")
-        end
 
         extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini[i], dimension1_total, dimension2, extend_franja, is_vertical)
         extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
@@ -691,7 +681,6 @@ function genera_layout_pisos_superiores(dict_edificio_deptos;
             vec_ps_deptos_franja_2_normalizado, vec_tipo_strings2 = genera_deptos_franja(mat_deptos, coord_min_planta,
                                             is_vertical, coord_base, franja, vec_tipos)
 
-
     ancho_pasillo, ps_pasillo_normalizado = calcula_geometria_pasillo(
                                             vec_coord_fin1, vec_coord_fin2, vec_coord_ini1, vec_coord_ini2,
                                             coord_base, profundidad_pasillo, is_vertical,
@@ -709,8 +698,32 @@ function genera_layout_pisos_superiores(dict_edificio_deptos;
     end
     polyPlot.plotPolyshape2D(ps_pasillo_normalizado, "gray", 0.8, fig=fig, ax=ax, ax_mat=ax_mat)
 
-    vec_ps_deptos_franja_1_normalizado, vec_extension_dimension1_1 = extiende_deptos_con_interseccion_pasillo(vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, coord_base, ps_pasillo_normalizado, franja1, is_vertical, vec_ps_deptos_franja_1_normalizado, ps_pasillo_normalizado)
-    vec_ps_deptos_franja_2_normalizado, vec_extension_dimension1_2 = extiende_deptos_con_interseccion_pasillo(vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, coord_base, ps_pasillo_normalizado, franja2, is_vertical, vec_ps_deptos_franja_2_normalizado, ps_pasillo_normalizado)
+    ps_pasillo = ps_pasillo_normalizado
+
+    vec_coord_ini = vec_coord_ini1
+    vec_coord_fin = vec_coord_fin1
+    vec_dimension1_deptos = vec_dimension1_deptos1
+    vec_dimension2_deptos = vec_dimension2_deptos1
+    extend_franja = franja1
+    vec_ps_deptos_normalizado = vec_ps_deptos_franja_1_normalizado
+    vec_ps_deptos_franja_1_normalizado, vec_extension_dimension1_1 = extiende_deptos_con_interseccion_pasillo(vec_coord_ini, vec_coord_fin, vec_dimension1_deptos, vec_dimension2_deptos, coord_base, ps_pasillo_normalizado, extend_franja, is_vertical, vec_ps_deptos_normalizado, ps_pasillo_normalizado)
+
+    vec_coord_ini = vec_coord_ini2
+    vec_coord_fin = vec_coord_fin2
+    vec_dimension1_deptos = vec_dimension1_deptos2
+    vec_dimension2_deptos = vec_dimension2_deptos2
+    extend_franja = franja2
+    vec_ps_deptos_normalizado = vec_ps_deptos_franja_2_normalizado
+    vec_ps_deptos_franja_2_normalizado, vec_extension_dimension1_2 = extiende_deptos_con_interseccion_pasillo(vec_coord_ini, vec_coord_fin, vec_dimension1_deptos, vec_dimension2_deptos, coord_base, ps_pasillo_normalizado, extend_franja, is_vertical, vec_ps_deptos_normalizado, ps_pasillo_normalizado)
+
+    fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta_normalizado, "green", 0.2)
+    for apt_poly in vec_ps_deptos_franja_1_normalizado
+        polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
+    end
+    for apt_poly in vec_ps_deptos_franja_2_normalizado
+        polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
+    end
+    polyPlot.plotPolyshape2D(ps_pasillo_normalizado, "gray", 0.8, fig=fig, ax=ax, ax_mat=ax_mat)
 
     deptos_ordenados1 = [(mat_deptos_strip1[i, 1], 0) for i in 1:size(mat_deptos_strip1, 1)]
     deptos_ordenados2 = [(mat_deptos_strip2[i, 1], 0) for i in 1:size(mat_deptos_strip2, 1)]
@@ -726,8 +739,8 @@ function genera_layout_pisos_superiores(dict_edificio_deptos;
         H = H
     )
 
-    vec_terrazas_strip1, vec_terrazas_strip2, vec_ps_deptos_franja_1_normalizado, vec_ps_deptos_franja_2_normalizado, ps_pasillo_normalizado =
-            genera_terrazas_ambas_franjas(vec_terrazas_areas_strip1, vec_terrazas_areas_strip2, planta_normalizada,
+    vec_terrazas_strip1, vec_terrazas_strip2, vec_ps_deptos_franja_1_normalizado, vec_ps_deptos_franja_2_normalizado, 
+        ps_pasillo_normalizado = genera_terrazas_ambas_franjas(vec_terrazas_areas_strip1, vec_terrazas_areas_strip2, planta_normalizada,
                                         vec_dimension1_deptos1, vec_dimension1_deptos2,
                                         vec_dimension2_deptos1, vec_dimension2_deptos2,
                                         vec_coord_ini1, vec_coord_ini2,
@@ -735,6 +748,13 @@ function genera_layout_pisos_superiores(dict_edificio_deptos;
                                         coord_base, franja1, franja2,
                                         is_vertical, vec_ps_deptos_franja_1_normalizado,
                                         vec_ps_deptos_franja_2_normalizado, ps_pasillo_normalizado)
+
+    for ter_poly in vec_terrazas_strip1
+        polyPlot.plotPolyshape2D(ter_poly, "blue", 0.8, fig=fig, ax=ax, ax_mat=ax_mat)
+    end
+    for ter_poly in vec_terrazas_strip2
+        polyPlot.plotPolyshape2D(ter_poly, "blue", 0.8, fig=fig, ax=ax, ax_mat=ax_mat)
+    end
 
     franjas_computadas = (vec_ps_deptos_strip1_normalizado=vec_ps_deptos_franja_1_normalizado, vec_ps_deptos_strip2_normalizado=vec_ps_deptos_franja_2_normalizado,
             vec_terrazas_strip1=vec_terrazas_strip1, vec_terrazas_strip2=vec_terrazas_strip2,
