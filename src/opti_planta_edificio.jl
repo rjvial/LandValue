@@ -484,11 +484,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                         profundidad_depto_ipn_ajustado_ps[(s,t,k,j)] = mat_h_ipn_by_type[t](k,j) / scale_factor_ps
                         profundidad_depto_ip_ajustado_ps[(s,t,k,j)] = ((t == :regular || t == :regular_nucleo) ? mat_h_ip[k,j] : mat_h_i[k,j]) / scale_factor_ps
                         profundidad_depto_i_ajustado_ps[(s,t,k,j)] = mat_h_i[k,j] / scale_factor_ps
-                    else
-                        ancho_depto_ajustado_ps[(s,t,k,j)] = 0.0
-                        profundidad_depto_ipn_ajustado_ps[(s,t,k,j)] = 0.0
-                        profundidad_depto_ip_ajustado_ps[(s,t,k,j)] = 0.0
-                        profundidad_depto_i_ajustado_ps[(s,t,k,j)] = 0.0
                     end
 
                     if value(num_deptos_primer_piso[t,s,(k,j)]) > 0.01
@@ -496,11 +491,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                         profundidad_depto_ipn_ajustado_pp[(s,t,k,j)] = mat_h_ipn_by_type[t](k,j) / scale_factor_ps
                         profundidad_depto_ip_ajustado_pp[(s,t,k,j)] = ((t == :regular || t == :regular_nucleo) ? mat_h_ip[k,j] : mat_h_i[k,j]) / scale_factor_ps
                         profundidad_depto_i_ajustado_pp[(s,t,k,j)] = mat_h_i[k,j] / scale_factor_ps
-                    else
-                        ancho_depto_ajustado_pp[(s,t,k,j)] = 0.0
-                        profundidad_depto_ipn_ajustado_pp[(s,t,k,j)] = 0.0
-                        profundidad_depto_ip_ajustado_pp[(s,t,k,j)] = 0.0
-                        profundidad_depto_i_ajustado_pp[(s,t,k,j)] = 0.0
                     end
                 end
             end
