@@ -735,13 +735,8 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             results["totals"]["superficie_no_utilizada"]["pisos_superiores"] = area_no_utilizada_ps_calc
             results["totals"]["superficie_no_utilizada"]["edificio"] = area_no_utilizada_pp_calc + area_no_utilizada_ps_calc * num_pisos_superiores
 
-            results["superficie_losa_primer_piso"] = sup_int_pp + sup_terr_pp + sup_pas_pp
-            results["superficie_losa_pisos_superiores"] = (sup_int_ps + sup_terr_ps + sup_pas_ps) * num_pisos_superiores
-            results["superficie_losa_total"] = results["superficie_losa_primer_piso"] + results["superficie_losa_pisos_superiores"]
             results["superficie_interior_edificio"] = results["totals"]["superficie_interior"]["edificio"]
             results["superficie_terraza_edificio"] = results["totals"]["superficie_terraza"]["edificio"]
-            results["superficie_pasillo_edificio"] = results["totals"]["superficie_pasillo"]["edificio"]
-            results["superficie_total_edificio"] = results["superficie_interior_edificio"] + results["superficie_terraza_edificio"] + results["superficie_pasillo_edificio"]
 
        else
             results["objective_value"] = nothing
@@ -793,8 +788,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         best_layout = 2
         println("\n✓ Best layout: Layout 2 (oriente/poniente) - $(round(area_util_2 - area_util_1, digits=2)) m² better")
         results["best_layout"] = 2
-        results["best_layout_area_util"] = area_util_2
-        results["alternative_layout_area_util"] = area_util_1
     else
         results = results_1
         W = W_1
@@ -802,8 +795,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         best_layout = 1
         println("\n✓ Best layout: Layout 1 (norte/sur) - $(round(area_util_1 - area_util_2, digits=2)) m² better")
         results["best_layout"] = 1
-        results["best_layout_area_util"] = area_util_1
-        results["alternative_layout_area_util"] = area_util_2
     end
 
     results["W"] = W
