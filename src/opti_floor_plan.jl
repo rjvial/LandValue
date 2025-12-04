@@ -642,8 +642,8 @@ function genera_layout_pisos_superiores(dict_edificio_deptos;
     coord_min_x = minimum(vec_x_planta)
     coord_min_y = minimum(vec_y_planta)
 
-    H_s_strip1 = dict_edificio_deptos["strip"][1]["H_s"]
-    H_s_strip2 = dict_edificio_deptos["strip"][2]["H_s"]
+    H_s_strip1 = dict_edificio_deptos["strip_1_H_s"]
+    H_s_strip2 = dict_edificio_deptos["strip_2_H_s"]
 
     if is_vertical
         coord_base = coord_min_x + H_s_strip2

@@ -483,7 +483,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         end
 
         results = OrderedDict{String,Any}()
-        results["strip"] = OrderedDict{Int,Any}()
+        df_deptos_data = []
 
         if has_values(model)
             results["angulo_rotacion"] = angulo_rotacion
@@ -491,8 +491,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             results["ps_planta_normalizado"] = ps_planta_normalizado
 
             for s in S
-                results["strip"][s] = OrderedDict{String,Any}()
-                results["strip"][s]["H_s"] = value(H_s[s])
+                results["strip_$(s)_H_s"] = value(H_s[s])
 
                 for t in T, (k, j) in KJ_feasible
                     threshold = 0.001
@@ -526,11 +525,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                             sup_nucleo = area_nucleo_depto_d_corner
                         end
 
-                        if !haskey(results, "df_deptos_data")
-                            results["df_deptos_data"] = []
-                        end
-
-                        push!(results["df_deptos_data"], (
+                        push!(df_deptos_data, (
                             strip = s,
                             tipo = tipo,
                             sup_interior = sup_interior,
@@ -559,7 +554,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             area_nucleo_pp = 0.0
             area_nucleo_ps = 0.0
 
-            for depto_data in results["df_deptos_data"]
+            for depto_data in df_deptos_data
                 sup_int_pp += depto_data.num_unidades_primer_piso * depto_data.sup_interior
                 sup_terr_pp += depto_data.num_unidades_primer_piso * depto_data.sup_terraza
                 sup_pas_pp += depto_data.num_unidades_primer_piso * depto_data.sup_pasillo
@@ -578,35 +573,32 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             area_no_utilizada_pp_calc = area_emplazamiento_por_piso - (sup_int_pp + sup_terr_pp + area_comun_pp_ajustada)
             area_no_utilizada_ps_calc = area_emplazamiento_por_piso - (sup_int_ps + sup_terr_ps + area_comun_ps_ajustada)
 
-            results["totals"] = OrderedDict{String,Any}()
-            results["totals"]["deptos"] = OrderedDict{String,Float64}()
-            results["totals"]["deptos"]["edificio"] = deptos_primer_piso + deptos_pisos_superiores * num_pisos_superiores
-
-            results["totals"]["superficie_interior"] = OrderedDict{String,Float64}()
-            results["totals"]["superficie_interior"]["primer_piso"] = sup_int_pp
-            results["totals"]["superficie_interior"]["pisos_superiores"] = sup_int_ps
-            results["totals"]["superficie_interior"]["edificio"] = sup_int_pp + sup_int_ps * num_pisos_superiores
-
-            results["totals"]["superficie_terraza"] = OrderedDict{String,Float64}()
-            results["totals"]["superficie_terraza"]["primer_piso"] = sup_terr_pp
-            results["totals"]["superficie_terraza"]["pisos_superiores"] = sup_terr_ps
-            results["totals"]["superficie_terraza"]["edificio"] = sup_terr_pp + sup_terr_ps * num_pisos_superiores
-
-            results["totals"]["superficie_comun"] = OrderedDict{String,Float64}()
-            results["totals"]["superficie_comun"]["edificio"] = area_comun_pp_ajustada + area_comun_ps_ajustada * num_pisos_superiores
-            results["totals"]["superficie_comun"]["primer_piso"] = area_comun_pp_ajustada
-            results["totals"]["superficie_comun"]["pisos_superiores"] = area_comun_ps_ajustada
-
-            results["totals"]["superficie_no_utilizada"] = OrderedDict{String,Float64}()
-            results["totals"]["superficie_no_utilizada"]["edificio"] = area_no_utilizada_pp_calc + area_no_utilizada_ps_calc * num_pisos_superiores
-
-            results["superficie_interior_edificio"] = results["totals"]["superficie_interior"]["edificio"]
-            results["superficie_terraza_edificio"] = results["totals"]["superficie_terraza"]["edificio"]
+            results["num_deptos_edificio"] = deptos_primer_piso + deptos_pisos_superiores * num_pisos_superiores
+            results["sup_interior_primer_piso"] = sup_int_pp
+            results["sup_interior_pisos_superiores"] = sup_int_ps
+            results["sup_interior_edificio"] = sup_int_pp + sup_int_ps * num_pisos_superiores
+            results["sup_terraza_primer_piso"] = sup_terr_pp
+            results["sup_terraza_pisos_superiores"] = sup_terr_ps
+            results["sup_terraza_edificio"] = sup_terr_pp + sup_terr_ps * num_pisos_superiores
+            results["sup_comun_primer_piso"] = area_comun_pp_ajustada
+            results["sup_comun_pisos_superiores"] = area_comun_ps_ajustada
+            results["sup_comun_edificio"] = area_comun_pp_ajustada + area_comun_ps_ajustada * num_pisos_superiores
+            results["sup_no_utilizada_edificio"] = area_no_utilizada_pp_calc + area_no_utilizada_ps_calc * num_pisos_superiores
+            results["df_deptos"] = DataFrame(df_deptos_data)
 
        else
-            results["superficie_interior_edificio"] = 0.0
-            results["superficie_terraza_edificio"] = 0.0
-            results["df_deptos_data"] = []
+            results["sup_interior_edificio"] = 0.0
+            results["sup_terraza_edificio"] = 0.0
+            results["num_deptos_edificio"] = 0.0
+            results["sup_interior_primer_piso"] = 0.0
+            results["sup_interior_pisos_superiores"] = 0.0
+            results["sup_terraza_primer_piso"] = 0.0
+            results["sup_terraza_pisos_superiores"] = 0.0
+            results["sup_comun_primer_piso"] = 0.0
+            results["sup_comun_pisos_superiores"] = 0.0
+            results["sup_comun_edificio"] = 0.0
+            results["sup_no_utilizada_edificio"] = 0.0
+            results["df_deptos"] = DataFrame()
             println("\n⚠️  WARNING: No feasible solution found!")
         end
         return results, W, H, angulo_rotacion
@@ -635,8 +627,8 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                                 vec_ps_opt, vec_np_opt, flag_dfl2, flag_vivienda_economica,
                                 2, total_threads)
 
-    area_util_1 = results_1["superficie_interior_edificio"] + results_1["superficie_terraza_edificio"] * 0.5
-    area_util_2 = results_2["superficie_interior_edificio"] + results_2["superficie_terraza_edificio"] * 0.5
+    area_util_1 = results_1["sup_interior_edificio"] + results_1["sup_terraza_edificio"] * 0.5
+    area_util_2 = results_2["sup_interior_edificio"] + results_2["sup_terraza_edificio"] * 0.5
 
     println("\n" * "="^60)
     println("LAYOUT COMPARISON")
@@ -662,9 +654,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
     results["W"] = W
     results["H"] = H
-
-    results["df_deptos"] = DataFrame(results["df_deptos_data"])
-
     results["ps_planta"] = vec_ps_opt[1]
 
     println("="^60)
