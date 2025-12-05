@@ -1,8 +1,3 @@
-const CONVERGENCE_TOLERANCE = 0.005
-const INTERSECTION_TOLERANCE = 0.1
-const TERRACE_ASPECT_RATIO = 1.75
-const MAX_ADJUSTMENT_ITERATIONS = 10
-
 get_tipo(t::Tuple{Float64, Int}) = t[2]
 get_tipo(t::Tuple{Float64, Int, Int}) = t[2]
 
@@ -86,44 +81,6 @@ function extiende_deptos_con_interseccion_pasillo(vec_coord_ini::Vector{Float64}
     return ps_deptos_extendidos, vec_dimension1_extendido
 end
 
-# Creates terrace geometries for each apartment based on required areas and available dimensions
-function genera_terrazas_franja(vec_orden_deptos::Vector{Tuple{Float64, Int}}, vec_sup_terraza::Vector{Float64},
-                    vec_dimension2_deptos::Vector{Float64}, vec_coord_ini::Vector{Float64},
-                    coord_terrace_base::Vector{Float64}, terrace_franja::Symbol, max_ancho_terraza::Float64,
-                    is_vertical::Bool)
-
-    vec_terrazas = PolyShape[]
-
-    for (i, depto) in enumerate(vec_orden_deptos)
-        tipo_depto = get_tipo(depto)
-        if tipo_depto == -1
-            push!(vec_terrazas, PolyShape([zeros(0, 2)], 0))
-        else
-            area_terraza = vec_sup_terraza[i]
-            if area_terraza > 0.0
-                dimension2_depto = vec_dimension2_deptos[i]
-
-                dim_parallel = min(dimension2_depto, area_terraza / TERRACE_ASPECT_RATIO)
-                dim_perpendicular = area_terraza / dim_parallel
-
-                if dim_perpendicular > max_ancho_terraza
-                    dim_perpendicular = max_ancho_terraza
-                end
-
-                coord_depto_ini = vec_coord_ini[i]
-                coord_terraza_ini = coord_depto_ini + (dimension2_depto - dim_parallel) / 2
-
-                terrace_poly = polyBoxAligned(coord_terrace_base[i], coord_terraza_ini, dim_perpendicular, dim_parallel, terrace_franja, is_vertical)
-                push!(vec_terrazas, terrace_poly)
-            else
-                push!(vec_terrazas, PolyShape([zeros(0, 2)], 0))
-            end
-        end
-    end
-
-    return vec_terrazas
-end
-
 # ──────────────────────────────────────────────────────────────────────────────────
 # Geometric transformation helpers
 # ──────────────────────────────────────────────────────────────────────────────────
@@ -142,51 +99,6 @@ function polyBoxAligned(base1::Float64, base2::Float64, profundidad_depto::Float
         offset = (franja == :norte) ? base1 : base1 - profundidad_depto
         return polyShape.polyBox(base2, offset, ancho_depto, profundidad_depto, 0.0)
     end
-end
-
-# ──────────────────────────────────────────────────────────────────────────────────
-# Coordinate and bounds helpers
-# ──────────────────────────────────────────────────────────────────────────────────
-
-# Returns coordinate index for axis (1 for X, 2 for Y)
-function get_coord_index(is_vertical::Bool)
-    return is_vertical ? 1 : 2
-end
-
-# Returns floor plan min and max coordinates
-function get_floor_bounds(vec_planta::Vector{Float64})
-    return minimum(vec_planta), maximum(vec_planta)
-end
-
-# Returns min or max coordinate from non-empty terraces along axis
-function get_terrace_bounds(vec_terrazas::Vector{PolyShape}, is_vertical::Bool, get_max::Bool)
-    terrazas_con_area = [t for t in vec_terrazas if polyShape.polyArea(t) > 0.0]
-    isempty(terrazas_con_area) && return nothing
-
-    coord_idx = get_coord_index(is_vertical)
-    return get_max ? maximum([maximum(t.Vertices[1][:, coord_idx]) for t in terrazas_con_area]) :
-                        minimum([minimum(t.Vertices[1][:, coord_idx]) for t in terrazas_con_area])
-end
-
-# Returns outermost extent of apartments and terraces along axis
-function get_strip_outermost_extent(vec_ps_deptos::Vector{PolyShape}, vec_terrazas::Vector{PolyShape}, is_vertical::Bool, get_max::Bool)
-    coord_idx = get_coord_index(is_vertical)
-    all_coords = Float64[]
-
-    for apt in vec_ps_deptos
-        if polyShape.polyArea(apt) > 0.0
-            append!(all_coords, apt.Vertices[1][:, coord_idx])
-        end
-    end
-
-    for terrace in vec_terrazas
-        if polyShape.polyArea(terrace) > 0.0
-            append!(all_coords, terrace.Vertices[1][:, coord_idx])
-        end
-    end
-
-    isempty(all_coords) && return nothing
-    return get_max ? maximum(all_coords) : minimum(all_coords)
 end
 
 # Processes terraces for both strips including generation, verification, and correction
@@ -237,51 +149,6 @@ function genera_terrazas_ambas_franjas(vec_terrazas_areas_strip1, vec_terrazas_a
     end
     
     return vec_terrazas_strip1, vec_terrazas_strip2
-end
-
-# Corrects outbound terraces by shifting geometries; limits shift to prevent opposite side outbound
-function correct_outbound_terraces(vec_terrazas1::Vector{PolyShape}, vec_terrazas2::Vector{PolyShape},
-                                    vec_ps_deptos_franja_1::Vector{PolyShape}, vec_ps_deptos_franja_2::Vector{PolyShape},
-                                    ps_pasillo::PolyShape, vec_floor_coords::Vector{Float64},
-                                    is_vertical::Bool, franja1_outbound::Bool, get_max_outbound::Bool)
-
-    outbound_terraces = franja1_outbound ? vec_terrazas1 : vec_terrazas2
-    inbound_terraces = franja1_outbound ? vec_terrazas2 : vec_terrazas1
-    inbound_deptos = franja1_outbound ? vec_ps_deptos_franja_2 : vec_ps_deptos_franja_1
-
-    outbound_coord = get_terrace_bounds(outbound_terraces, is_vertical, get_max_outbound)
-    outbound_coord === nothing && return vec_ps_deptos_franja_1, vec_ps_deptos_franja_2, vec_terrazas1, vec_terrazas2, ps_pasillo
-
-    floor_min, floor_max = get_floor_bounds(vec_floor_coords)
-    target_coord = get_max_outbound ? floor_max : floor_min
-    delta = abs(outbound_coord - target_coord)
-
-    inbound_outermost = get_strip_outermost_extent(inbound_deptos, inbound_terraces, is_vertical, !get_max_outbound)
-    if inbound_outermost !== nothing
-        inbound_limit = get_max_outbound ? floor_min : floor_max
-        max_safe_delta = abs(inbound_outermost - inbound_limit)
-        delta = min(delta, max_safe_delta)
-    end
-
-    if delta > 0.0
-        shift_franja = get_max_outbound ? (is_vertical ? :oeste : :sur) : (is_vertical ? :este : :norte)
-
-        if is_vertical
-            delta_x = (shift_franja == :este) ? delta : -delta
-            dx, dy = delta_x, 0.0
-        else
-            delta_y = (shift_franja == :norte) ? delta : -delta
-            dx, dy = 0.0, delta_y
-        end
-
-        return ([polyShape.polyTranslate(p, dx, dy) for p in vec_ps_deptos_franja_1],
-                [polyShape.polyTranslate(p, dx, dy) for p in vec_ps_deptos_franja_2],
-                [polyShape.polyTranslate(t, dx, dy) for t in vec_terrazas1],
-                [polyShape.polyTranslate(t, dx, dy) for t in vec_terrazas2],
-                polyShape.polyTranslate(ps_pasillo, dx, dy))
-    end
-
-    return vec_ps_deptos_franja_1, vec_ps_deptos_franja_2, vec_terrazas1, vec_terrazas2, ps_pasillo
 end
 
 # ──────────────────────────────────────────────────────────────────────────────────
@@ -562,21 +429,6 @@ function empaqueta_resultados(dimension1::Float64, dimension2::Float64,
     result["area_outbound"] = round(area_outbound, digits=2)
 
     return result
-end
-
-
-# Checks if all terraces are fully contained within floor plan boundaries
-function verifica_inscripcion_terrazas(ps_planta::PolyShape, vec_terrazas::Vector{PolyShape})
-    for terraza in vec_terrazas
-        inters = polyShape.polyIntersection(ps_planta, terraza)
-        area_inters = polyShape.polyArea(inters)
-        area_terraza = polyShape.polyArea(terraza)
-        if abs(area_inters - area_terraza) > INTERSECTION_TOLERANCE
-            return false
-        end
-    end
-
-    return true
 end
 
 # ──────────────────────────────────────────────────────────────────────────────────
