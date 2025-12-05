@@ -190,51 +190,38 @@ function get_strip_outermost_extent(vec_ps_deptos::Vector{PolyShape}, vec_terraz
 end
 
 # Processes terraces for both strips including generation, verification, and correction
-function genera_terrazas_ambas_franjas(vec_terrazas_areas_strip1::Vector{Float64}, vec_terrazas_areas_strip2::Vector{Float64}, planta_normalizada,
-                                            vec_dimension1_franja1_deptos::Vector{Float64}, vec_dimension1_franja2_deptos::Vector{Float64},
-                                            vec_dimension2_franja1_deptos::Vector{Float64}, vec_dimension2_franja2_deptos::Vector{Float64},
-                                            vec_coord_ini1::Vector{Float64}, vec_coord_ini2::Vector{Float64},
-                                            vec_extension_dimension1_1::Vector{Float64}, vec_extension_dimension1_2::Vector{Float64},
-                                            coord_base::Float64, franja1::Symbol, franja2::Symbol,
-                                            is_vertical::Bool, vec_ps_deptos_franja_1_normalizado::Vector{PolyShape},
-                                            vec_ps_deptos_franja_2_normalizado::Vector{PolyShape}, ps_pasillo_normalizado::PolyShape)
+function genera_terrazas_ambas_franjas(vec_terrazas_areas_strip1, vec_terrazas_areas_strip2,
+                                        vec_dimension1_franja1_deptos, vec_dimension1_franja2_deptos,
+                                        vec_dimension2_franja1_deptos, vec_dimension2_franja2_deptos,
+                                        vec_coord_ini1, vec_coord_ini2,
+                                        coord_base, franja1, franja2,
+                                        is_vertical)
 
     vec_terrazas_strip1 = PolyShape[]
     vec_terrazas_strip2 = PolyShape[]
 
-    if !isempty(vec_dimension1_franja1_deptos) && length(vec_dimension1_franja1_deptos) == length(planta_normalizada.deptos_ordenados1)
-        coord_terrace_base1 = [coord_base + vec_dimension1_franja1_deptos[i] + vec_extension_dimension1_1[i] for i in eachindex(vec_dimension1_franja1_deptos)]
-        vec_terrazas_strip1 = genera_terrazas_franja(planta_normalizada.deptos_ordenados1, vec_terrazas_areas_strip1, vec_dimension2_franja1_deptos, vec_coord_ini1, coord_terrace_base1, franja1, planta_normalizada.dimension_terraza_max, is_vertical)
+    if is_vertical
+        a=1
+    else
+        for i in eachindex(vec_terrazas_areas_strip1)
+            profundidad_terrazas_areas_strip1 = max(2, vec_terrazas_areas_strip1[i] / vec_dimension2_franja1_deptos[i])
+            ancho_terrazas_areas_strip1 = vec_terrazas_areas_strip1[i] / profundidad_terrazas_areas_strip1
+            base1 = coord_base + vec_dimension1_franja1_deptos[i]
+            base2 = vec_coord_ini1[i] + vec_dimension2_franja1_deptos[i] / 2 - ancho_terrazas_areas_strip1 / 2
+            ps_terrace_franja1 = polyShape.polyBox(base2, base1, ancho_terrazas_areas_strip1, profundidad_terrazas_areas_strip1, 0.0)
+            push!(vec_terrazas_strip1, ps_terrace_franja1)
+        end
+        for i in eachindex(vec_terrazas_areas_strip2)
+            profundidad_terrazas_areas_strip2 = max(2, vec_terrazas_areas_strip2[i] / vec_dimension2_franja2_deptos[i])
+            ancho_terrazas_areas_strip2 = vec_terrazas_areas_strip2[i] / profundidad_terrazas_areas_strip2
+            base1 = coord_base - vec_dimension1_franja2_deptos[i]
+            base2 = vec_coord_ini2[i] + vec_dimension2_franja2_deptos[i] / 2 - ancho_terrazas_areas_strip2 / 2
+            ps_terrace_franja2 = polyShape.polyBox(base2, base1 - profundidad_terrazas_areas_strip2, ancho_terrazas_areas_strip2, profundidad_terrazas_areas_strip2, 0.0)
+            push!(vec_terrazas_strip2, ps_terrace_franja2)
+        end
     end
-
-    if !isempty(vec_dimension1_franja2_deptos) && length(vec_dimension1_franja2_deptos) == length(planta_normalizada.deptos_ordenados2)
-        coord_terrace_base2 = [coord_base - vec_dimension1_franja2_deptos[i] - vec_extension_dimension1_2[i] for i in eachindex(vec_dimension1_franja2_deptos)]
-        vec_terrazas_strip2 = genera_terrazas_franja(planta_normalizada.deptos_ordenados2, vec_terrazas_areas_strip2, vec_dimension2_franja2_deptos, vec_coord_ini2, coord_terrace_base2, franja2, planta_normalizada.dimension_terraza_max, is_vertical)
-    end
-
-    flag_inscripcion1 = verifica_inscripcion_terrazas(planta_normalizada.ps_planta_normalizado, vec_terrazas_strip1)
-    flag_inscripcion2 = verifica_inscripcion_terrazas(planta_normalizada.ps_planta_normalizado, vec_terrazas_strip2)
-
-    if !flag_inscripcion1 && !flag_inscripcion2
-        @warn "Both strips have outbound terraces - layout may not fit properly"
-    end
-
-    vec_floor_coords = is_vertical ? planta_normalizada.vec_x_planta : planta_normalizada.vec_y_planta
-
-    if !flag_inscripcion1
-        vec_ps_deptos_franja_1_normalizado, vec_ps_deptos_franja_2_normalizado, vec_terrazas_strip1, vec_terrazas_strip2, ps_pasillo_normalizado =
-            correct_outbound_terraces(vec_terrazas_strip1, vec_terrazas_strip2,
-                                        vec_ps_deptos_franja_1_normalizado, vec_ps_deptos_franja_2_normalizado,
-                                        ps_pasillo_normalizado, vec_floor_coords, is_vertical, true, true)
-    end
-    if !flag_inscripcion2
-        vec_ps_deptos_franja_1_normalizado, vec_ps_deptos_franja_2_normalizado, vec_terrazas_strip1, vec_terrazas_strip2, ps_pasillo_normalizado =
-            correct_outbound_terraces(vec_terrazas_strip1, vec_terrazas_strip2,
-                                        vec_ps_deptos_franja_1_normalizado, vec_ps_deptos_franja_2_normalizado,
-                                        ps_pasillo_normalizado, vec_floor_coords, is_vertical, false, false)
-    end
-
-    return vec_terrazas_strip1, vec_terrazas_strip2, vec_ps_deptos_franja_1_normalizado, vec_ps_deptos_franja_2_normalizado, ps_pasillo_normalizado
+    
+    return vec_terrazas_strip1, vec_terrazas_strip2
 end
 
 # Corrects outbound terraces by shifting geometries; limits shift to prevent opposite side outbound
@@ -703,66 +690,47 @@ function genera_layout_pisos_superiores(dict_edificio_deptos;
     vec_ps_deptos_normalizado = vec_ps_deptos_franja_2_normalizado
     vec_ps_deptos_franja_2_normalizado, vec_dimension1_franja2_deptos_ext = extiende_deptos_con_interseccion_pasillo(vec_coord_ini, vec_coord_fin, vec_dimension1_deptos, vec_dimension2_deptos, coord_base, ps_pasillo_normalizado, extend_franja, is_vertical, vec_ps_deptos_normalizado, ps_pasillo_normalizado)
 
-    fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta_normalizado, "green", 0.2)
-    for apt_poly in vec_ps_deptos_franja_1_normalizado
-        polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
-    end
-    for apt_poly in vec_ps_deptos_franja_2_normalizado
-        polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
-    end
-    polyPlot.plotPolyshape2D(ps_pasillo_normalizado, "gray", 0.8, fig=fig, ax=ax, ax_mat=ax_mat)
 
-    deptos_ordenados1 = [(mat_deptos_strip1[i, 1], 0) for i in 1:size(mat_deptos_strip1, 1)]
-    deptos_ordenados2 = [(mat_deptos_strip2[i, 1], 0) for i in 1:size(mat_deptos_strip2, 1)]
 
-    planta_normalizada = (
-        deptos_ordenados1 = deptos_ordenados1,
-        deptos_ordenados2 = deptos_ordenados2,
-        dimension_terraza_max = max_ancho_terraza,
-        ps_planta_normalizado = ps_planta_normalizado,
-        vec_x_planta = vec_x_planta,
-        vec_y_planta = vec_y_planta,
-        W = W,
-        H = H
-    )
-
-    vec_terrazas_strip1, vec_terrazas_strip2, vec_ps_deptos_franja_1_normalizado, vec_ps_deptos_franja_2_normalizado, 
-        ps_pasillo_normalizado = genera_terrazas_ambas_franjas(vec_terrazas_areas_strip1, vec_terrazas_areas_strip2, planta_normalizada,
-                                        vec_dimension1_franja1_deptos, vec_dimension1_franja2_deptos,
+    vec_terrazas_strip1, vec_terrazas_strip2 = genera_terrazas_ambas_franjas(vec_terrazas_areas_strip1, vec_terrazas_areas_strip2,
+                                        vec_dimension1_franja1_deptos_ext, vec_dimension1_franja2_deptos_ext,
                                         vec_dimension2_franja1_deptos, vec_dimension2_franja2_deptos,
                                         vec_coord_ini1, vec_coord_ini2,
-                                        vec_extension_dimension1_1, vec_extension_dimension1_2,
                                         coord_base, franja1, franja2,
-                                        is_vertical, vec_ps_deptos_franja_1_normalizado,
-                                        vec_ps_deptos_franja_2_normalizado, ps_pasillo_normalizado)
+                                        is_vertical)
 
-    for ter_poly in vec_terrazas_strip1
-        polyPlot.plotPolyshape2D(ter_poly, "blue", 0.8, fig=fig, ax=ax, ax_mat=ax_mat)
-    end
-    for ter_poly in vec_terrazas_strip2
-        polyPlot.plotPolyshape2D(ter_poly, "blue", 0.8, fig=fig, ax=ax, ax_mat=ax_mat)
-    end
-
-    franjas_computadas = (vec_ps_deptos_strip1_normalizado=vec_ps_deptos_franja_1_normalizado, vec_ps_deptos_strip2_normalizado=vec_ps_deptos_franja_2_normalizado,
-            vec_terrazas_strip1=vec_terrazas_strip1, vec_terrazas_strip2=vec_terrazas_strip2,
-            ps_pasillo_normalizado=ps_pasillo_normalizado, ancho_pasillo=ancho_pasillo,
-            vec_dimension2_deptos_strip2=vec_dimension2_franja2_deptos, vec_tipo_deptos_strip2=vec_tipo_deptos2)
 
     # ──────────────────────────────────────────────────────────────────────────────────
     # Stage 3: Rotation back to original coordinates
     # ──────────────────────────────────────────────────────────────────────────────────
-    vec_ps_deptos_strip1 = rota_polyshapes(franjas_computadas.vec_ps_deptos_strip1_normalizado, angulo_rotacion, cr)
-    vec_ps_deptos_strip2 = rota_polyshapes(franjas_computadas.vec_ps_deptos_strip2_normalizado, angulo_rotacion, cr)
-    vec_terrazas_strip1 = rota_polyshapes(franjas_computadas.vec_terrazas_strip1, angulo_rotacion, cr)
-    vec_terrazas_strip2 = rota_polyshapes(franjas_computadas.vec_terrazas_strip2, angulo_rotacion, cr)
-    ps_pasillo = polyShape.polyRotate(franjas_computadas.ps_pasillo_normalizado, -angulo_rotacion, cr)
+    vec_ps_deptos_strip1 = rota_polyshapes(vec_ps_deptos_franja_1_normalizado, angulo_rotacion, cr)
+    vec_ps_deptos_strip2 = rota_polyshapes(vec_ps_deptos_franja_2_normalizado, angulo_rotacion, cr)
+    vec_terrazas_strip1 = rota_polyshapes(vec_terrazas_strip1, angulo_rotacion, cr)
+    vec_terrazas_strip2 = rota_polyshapes(vec_terrazas_strip2, angulo_rotacion, cr)
+    ps_pasillo = polyShape.polyRotate(ps_pasillo_normalizado, -angulo_rotacion, cr)
+
+    ps_planta = dict_edificio_deptos["ps_planta"]
+
+    fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
+    for apt_poly in vec_ps_deptos_strip1
+        polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
+    end
+    for apt_poly in vec_ps_deptos_strip2
+        polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
+    end
+    polyPlot.plotPolyshape2D(ps_pasillo, "gray", 0.8, fig=fig, ax=ax, ax_mat=ax_mat)
+    for ter_poly in vec_terrazas_strip1
+        polyPlot.plotPolyshape2D(ter_poly, "blue", 0.4, fig=fig, ax=ax, ax_mat=ax_mat)
+    end
+    for ter_poly in vec_terrazas_strip2
+        polyPlot.plotPolyshape2D(ter_poly, "blue", 0.4, fig=fig, ax=ax, ax_mat=ax_mat)
+    end
 
     # ──────────────────────────────────────────────────────────────────────────────────
     # Stage 4: Results packaging
     # ──────────────────────────────────────────────────────────────────────────────────
-    ps_planta = dict_edificio_deptos["ps_planta"]
 
-    results = empaqueta_resultados(dimension_depto1, dimension_depto2, W, H, profundidad_pasillo, franjas_computadas.ancho_pasillo, ps_pasillo,
+    results = empaqueta_resultados(dimension_depto1, dimension_depto2, W, H, profundidad_pasillo, ancho_pasillo, ps_pasillo,
                                     vec_ps_deptos_strip1, vec_ps_deptos_strip2,
                                     vec_terrazas_strip1, vec_terrazas_strip2, is_vertical, ps_planta, vec_tipo_strings1, vec_tipo_strings2)
 
