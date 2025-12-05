@@ -201,7 +201,22 @@ function genera_terrazas_ambas_franjas(vec_terrazas_areas_strip1, vec_terrazas_a
     vec_terrazas_strip2 = PolyShape[]
 
     if is_vertical
-        a=1
+        for i in eachindex(vec_terrazas_areas_strip1)
+            profundidad_terrazas_areas_strip1 = max(2, vec_terrazas_areas_strip1[i] / vec_dimension2_franja1_deptos[i])
+            ancho_terrazas_areas_strip1 = vec_terrazas_areas_strip1[i] / profundidad_terrazas_areas_strip1
+            base1 = coord_base + vec_dimension1_franja1_deptos[i]
+            base2 = vec_coord_ini1[i] + vec_dimension2_franja1_deptos[i] / 2 - ancho_terrazas_areas_strip1 / 2
+            ps_terrace_franja1 = polyShape.polyBox(base1, base2, profundidad_terrazas_areas_strip1, ancho_terrazas_areas_strip1, 0.0)
+            push!(vec_terrazas_strip1, ps_terrace_franja1)
+        end
+        for i in eachindex(vec_terrazas_areas_strip2)
+            profundidad_terrazas_areas_strip2 = max(2, vec_terrazas_areas_strip2[i] / vec_dimension2_franja2_deptos[i])
+            ancho_terrazas_areas_strip2 = vec_terrazas_areas_strip2[i] / profundidad_terrazas_areas_strip2
+            base1 = coord_base - vec_dimension1_franja2_deptos[i]
+            base2 = vec_coord_ini2[i] + vec_dimension2_franja2_deptos[i] / 2 - ancho_terrazas_areas_strip2 / 2
+            ps_terrace_franja2 = polyShape.polyBox(base1 - profundidad_terrazas_areas_strip2, base2, profundidad_terrazas_areas_strip2, ancho_terrazas_areas_strip2, 0.0)
+            push!(vec_terrazas_strip2, ps_terrace_franja2)
+        end
     else
         for i in eachindex(vec_terrazas_areas_strip1)
             profundidad_terrazas_areas_strip1 = max(2, vec_terrazas_areas_strip1[i] / vec_dimension2_franja1_deptos[i])
@@ -635,11 +650,11 @@ function genera_layout_pisos_superiores(dict_edificio_deptos;
         n_repeat = Int(round(row.num_unidades_por_piso_superior))
         for _ in 1:n_repeat
             if row.strip == 1
-                mat_deptos_strip1 = vcat(mat_deptos_strip1, [row.sup_interior row.ancho_interior row.profundidad_interior+4])
+                mat_deptos_strip1 = vcat(mat_deptos_strip1, [row.sup_interior row.ancho_interior row.profundidad_interior])
                 push!(vec_tipos_strip1, string(row.tipo))
                 push!(vec_terrazas_areas_strip1, row.sup_terraza)
             else
-                mat_deptos_strip2 = vcat(mat_deptos_strip2, [row.sup_interior row.ancho_interior row.profundidad_interior+4])
+                mat_deptos_strip2 = vcat(mat_deptos_strip2, [row.sup_interior row.ancho_interior row.profundidad_interior])
                 push!(vec_tipos_strip2, string(row.tipo))
                 push!(vec_terrazas_areas_strip2, row.sup_terraza)
             end
