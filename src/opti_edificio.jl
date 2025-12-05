@@ -258,8 +258,17 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
 
     cabida_data = Dict{String, Any}()
     if dict_normativa["tipo_edificio"] == "departamento"
-        cabida_data["vec_sup_deptos"] = df_deptos_resumen[:,"sup_interior"]
-        cabida_data["vec_num_deptos"] = Int.(round.(df_deptos_resumen[:,"num_unidades_edificio"]))
+        vec_sup_target = df_deptos_resumen[:,"sup_interior"]
+        vec_num_deptos_resumen = df_deptos_resumen[:,"num_unidades_edificio"]
+
+        total_sup_target = sum(vec_sup_target[i] * vec_num_deptos_resumen[i] for i in eachindex(vec_sup_target))
+        total_sup_actual = sup_interior_edificio
+
+        scale_factor = total_sup_target > 0.0 ? total_sup_actual / total_sup_target : 1.0
+        vec_sup_actual = vec_sup_target .* scale_factor
+
+        cabida_data["vec_sup_deptos"] = vec_sup_actual
+        cabida_data["vec_num_deptos"] = Int.(round.(vec_num_deptos_resumen))
         cabida_data["vec_sup_comercio"] = 0
         cabida_data["vec_num_comercio"] = 0
         cabida_data["vec_sup_oficinas"] = 0
