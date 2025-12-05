@@ -226,7 +226,7 @@ flag_create_table = false # let flag_create_table = false
         dict_arquitectura["arq_vecBanos"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1,"n_banos_tipos_comuna"]))
 
         # try
-            dict_proyecto, dict_normativa, dict_edificio_deptos, results_pisos_superiores, results_primer_piso = opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti, id_combi)
+            dict_proyecto, dict_normativa, results_pisos_superiores, results_primer_piso = opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti, id_combi)
 
             ####################################
             ####################################
