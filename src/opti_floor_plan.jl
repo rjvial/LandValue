@@ -58,11 +58,11 @@ function extiende_deptos_con_interseccion_pasillo(vec_coord_ini::Vector{Float64}
             ps_pasillo::PolyShape, extend_franja::Symbol, is_vertical::Bool, vec_ps_deptos_normalizado::Vector{PolyShape},
             ps_pasillo_normalizado::PolyShape)
 
-    vec_extension_dimension1 = Float64[]
+    vec_dimension1_extendido = Float64[]
     ps_deptos_extendidos = PolyShape[]
 
     if isempty(vec_coord_ini)
-        return ps_deptos_extendidos, vec_extension_dimension1
+        return ps_deptos_extendidos, vec_dimension1_extendido
     end
 
     for i in eachindex(vec_coord_ini)
@@ -70,16 +70,12 @@ function extiende_deptos_con_interseccion_pasillo(vec_coord_ini::Vector{Float64}
         ps_depto_normalizado = vec_ps_deptos_normalizado[i]
         ps_intersection = polyShape.polyIntersection(ps_depto_normalizado, ps_pasillo_normalizado)
         intersection_area = polyShape.polyArea(ps_intersection)
+        depto_area = polyShape.polyArea(ps_depto_normalizado)
 
-        if intersection_area > 0.0
-            extension_dimension = intersection_area / vec_dimension2_deptos[i]
-        else
-            extension_dimension = 0.0
-        end
+        dimension1_total = (intersection_area + depto_area) / vec_dimension2_deptos[i]
 
-        push!(vec_extension_dimension1, extension_dimension)
+        push!(vec_dimension1_extendido, dimension1_total)
 
-        dimension1_total = vec_dimension1_deptos[i] + extension_dimension
         dimension2 = vec_coord_fin[i] - vec_coord_ini[i]
 
         extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini[i], dimension1_total, dimension2, extend_franja, is_vertical)
@@ -87,7 +83,7 @@ function extiende_deptos_con_interseccion_pasillo(vec_coord_ini::Vector{Float64}
         push!(ps_deptos_extendidos, extended_poly_final)
     end
 
-    return ps_deptos_extendidos, vec_extension_dimension1
+    return ps_deptos_extendidos, vec_dimension1_extendido
 end
 
 # Creates terrace geometries for each apartment based on required areas and available dimensions
@@ -195,8 +191,8 @@ end
 
 # Processes terraces for both strips including generation, verification, and correction
 function genera_terrazas_ambas_franjas(vec_terrazas_areas_strip1::Vector{Float64}, vec_terrazas_areas_strip2::Vector{Float64}, planta_normalizada,
-                                            vec_dimension1_deptos1::Vector{Float64}, vec_dimension1_deptos2::Vector{Float64},
-                                            vec_dimension2_deptos1::Vector{Float64}, vec_dimension2_deptos2::Vector{Float64},
+                                            vec_dimension1_franja1_deptos::Vector{Float64}, vec_dimension1_franja2_deptos::Vector{Float64},
+                                            vec_dimension2_franja1_deptos::Vector{Float64}, vec_dimension2_franja2_deptos::Vector{Float64},
                                             vec_coord_ini1::Vector{Float64}, vec_coord_ini2::Vector{Float64},
                                             vec_extension_dimension1_1::Vector{Float64}, vec_extension_dimension1_2::Vector{Float64},
                                             coord_base::Float64, franja1::Symbol, franja2::Symbol,
@@ -206,14 +202,14 @@ function genera_terrazas_ambas_franjas(vec_terrazas_areas_strip1::Vector{Float64
     vec_terrazas_strip1 = PolyShape[]
     vec_terrazas_strip2 = PolyShape[]
 
-    if !isempty(vec_dimension1_deptos1) && length(vec_dimension1_deptos1) == length(planta_normalizada.deptos_ordenados1)
-        coord_terrace_base1 = [coord_base + vec_dimension1_deptos1[i] + vec_extension_dimension1_1[i] for i in eachindex(vec_dimension1_deptos1)]
-        vec_terrazas_strip1 = genera_terrazas_franja(planta_normalizada.deptos_ordenados1, vec_terrazas_areas_strip1, vec_dimension2_deptos1, vec_coord_ini1, coord_terrace_base1, franja1, planta_normalizada.dimension_terraza_max, is_vertical)
+    if !isempty(vec_dimension1_franja1_deptos) && length(vec_dimension1_franja1_deptos) == length(planta_normalizada.deptos_ordenados1)
+        coord_terrace_base1 = [coord_base + vec_dimension1_franja1_deptos[i] + vec_extension_dimension1_1[i] for i in eachindex(vec_dimension1_franja1_deptos)]
+        vec_terrazas_strip1 = genera_terrazas_franja(planta_normalizada.deptos_ordenados1, vec_terrazas_areas_strip1, vec_dimension2_franja1_deptos, vec_coord_ini1, coord_terrace_base1, franja1, planta_normalizada.dimension_terraza_max, is_vertical)
     end
 
-    if !isempty(vec_dimension1_deptos2) && length(vec_dimension1_deptos2) == length(planta_normalizada.deptos_ordenados2)
-        coord_terrace_base2 = [coord_base - vec_dimension1_deptos2[i] - vec_extension_dimension1_2[i] for i in eachindex(vec_dimension1_deptos2)]
-        vec_terrazas_strip2 = genera_terrazas_franja(planta_normalizada.deptos_ordenados2, vec_terrazas_areas_strip2, vec_dimension2_deptos2, vec_coord_ini2, coord_terrace_base2, franja2, planta_normalizada.dimension_terraza_max, is_vertical)
+    if !isempty(vec_dimension1_franja2_deptos) && length(vec_dimension1_franja2_deptos) == length(planta_normalizada.deptos_ordenados2)
+        coord_terrace_base2 = [coord_base - vec_dimension1_franja2_deptos[i] - vec_extension_dimension1_2[i] for i in eachindex(vec_dimension1_franja2_deptos)]
+        vec_terrazas_strip2 = genera_terrazas_franja(planta_normalizada.deptos_ordenados2, vec_terrazas_areas_strip2, vec_dimension2_franja2_deptos, vec_coord_ini2, coord_terrace_base2, franja2, planta_normalizada.dimension_terraza_max, is_vertical)
     end
 
     flag_inscripcion1 = verifica_inscripcion_terrazas(planta_normalizada.ps_planta_normalizado, vec_terrazas_strip1)
@@ -670,14 +666,14 @@ function genera_layout_pisos_superiores(dict_edificio_deptos;
     mat_deptos = mat_deptos_strip1
     franja = franja1
     vec_tipos = vec_tipos_strip1
-    vec_coord_ini1, vec_coord_fin1, vec_dimension1_deptos1, vec_dimension2_deptos1, vec_tipo_deptos1,
+    vec_coord_ini1, vec_coord_fin1, vec_dimension1_franja1_deptos, vec_dimension2_franja1_deptos, vec_tipo_deptos1,
             vec_ps_deptos_franja_1_normalizado, vec_tipo_strings1 = genera_deptos_franja(mat_deptos, coord_min_planta,
                                             is_vertical, coord_base, franja, vec_tipos)
 
     mat_deptos = mat_deptos_strip2
     franja = franja2
     vec_tipos = vec_tipos_strip2
-    vec_coord_ini2, vec_coord_fin2, vec_dimension1_deptos2, vec_dimension2_deptos2, vec_tipo_deptos2,
+    vec_coord_ini2, vec_coord_fin2, vec_dimension1_franja2_deptos, vec_dimension2_franja2_deptos, vec_tipo_deptos2,
             vec_ps_deptos_franja_2_normalizado, vec_tipo_strings2 = genera_deptos_franja(mat_deptos, coord_min_planta,
                                             is_vertical, coord_base, franja, vec_tipos)
 
@@ -689,32 +685,23 @@ function genera_layout_pisos_superiores(dict_edificio_deptos;
                                             vec_tipo_deptos1, vec_tipo_deptos2,
                                             vec_tipo_strings1, vec_tipo_strings2)
 
-    fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta_normalizado, "green", 0.2)
-    for apt_poly in vec_ps_deptos_franja_1_normalizado
-        polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
-    end
-    for apt_poly in vec_ps_deptos_franja_2_normalizado
-        polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
-    end
-    polyPlot.plotPolyshape2D(ps_pasillo_normalizado, "gray", 0.8, fig=fig, ax=ax, ax_mat=ax_mat)
-
     ps_pasillo = ps_pasillo_normalizado
 
     vec_coord_ini = vec_coord_ini1
     vec_coord_fin = vec_coord_fin1
-    vec_dimension1_deptos = vec_dimension1_deptos1
-    vec_dimension2_deptos = vec_dimension2_deptos1
+    vec_dimension1_deptos = vec_dimension1_franja1_deptos
+    vec_dimension2_deptos = vec_dimension2_franja1_deptos
     extend_franja = franja1
     vec_ps_deptos_normalizado = vec_ps_deptos_franja_1_normalizado
-    vec_ps_deptos_franja_1_normalizado, vec_extension_dimension1_1 = extiende_deptos_con_interseccion_pasillo(vec_coord_ini, vec_coord_fin, vec_dimension1_deptos, vec_dimension2_deptos, coord_base, ps_pasillo_normalizado, extend_franja, is_vertical, vec_ps_deptos_normalizado, ps_pasillo_normalizado)
+    vec_ps_deptos_franja_1_normalizado, vec_dimension1_franja1_deptos_ext = extiende_deptos_con_interseccion_pasillo(vec_coord_ini, vec_coord_fin, vec_dimension1_deptos, vec_dimension2_deptos, coord_base, ps_pasillo_normalizado, extend_franja, is_vertical, vec_ps_deptos_normalizado, ps_pasillo_normalizado)
 
     vec_coord_ini = vec_coord_ini2
     vec_coord_fin = vec_coord_fin2
-    vec_dimension1_deptos = vec_dimension1_deptos2
-    vec_dimension2_deptos = vec_dimension2_deptos2
+    vec_dimension1_deptos = vec_dimension1_franja2_deptos
+    vec_dimension2_deptos = vec_dimension2_franja2_deptos
     extend_franja = franja2
     vec_ps_deptos_normalizado = vec_ps_deptos_franja_2_normalizado
-    vec_ps_deptos_franja_2_normalizado, vec_extension_dimension1_2 = extiende_deptos_con_interseccion_pasillo(vec_coord_ini, vec_coord_fin, vec_dimension1_deptos, vec_dimension2_deptos, coord_base, ps_pasillo_normalizado, extend_franja, is_vertical, vec_ps_deptos_normalizado, ps_pasillo_normalizado)
+    vec_ps_deptos_franja_2_normalizado, vec_dimension1_franja2_deptos_ext = extiende_deptos_con_interseccion_pasillo(vec_coord_ini, vec_coord_fin, vec_dimension1_deptos, vec_dimension2_deptos, coord_base, ps_pasillo_normalizado, extend_franja, is_vertical, vec_ps_deptos_normalizado, ps_pasillo_normalizado)
 
     fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta_normalizado, "green", 0.2)
     for apt_poly in vec_ps_deptos_franja_1_normalizado
@@ -741,8 +728,8 @@ function genera_layout_pisos_superiores(dict_edificio_deptos;
 
     vec_terrazas_strip1, vec_terrazas_strip2, vec_ps_deptos_franja_1_normalizado, vec_ps_deptos_franja_2_normalizado, 
         ps_pasillo_normalizado = genera_terrazas_ambas_franjas(vec_terrazas_areas_strip1, vec_terrazas_areas_strip2, planta_normalizada,
-                                        vec_dimension1_deptos1, vec_dimension1_deptos2,
-                                        vec_dimension2_deptos1, vec_dimension2_deptos2,
+                                        vec_dimension1_franja1_deptos, vec_dimension1_franja2_deptos,
+                                        vec_dimension2_franja1_deptos, vec_dimension2_franja2_deptos,
                                         vec_coord_ini1, vec_coord_ini2,
                                         vec_extension_dimension1_1, vec_extension_dimension1_2,
                                         coord_base, franja1, franja2,
@@ -759,7 +746,7 @@ function genera_layout_pisos_superiores(dict_edificio_deptos;
     franjas_computadas = (vec_ps_deptos_strip1_normalizado=vec_ps_deptos_franja_1_normalizado, vec_ps_deptos_strip2_normalizado=vec_ps_deptos_franja_2_normalizado,
             vec_terrazas_strip1=vec_terrazas_strip1, vec_terrazas_strip2=vec_terrazas_strip2,
             ps_pasillo_normalizado=ps_pasillo_normalizado, ancho_pasillo=ancho_pasillo,
-            vec_dimension2_deptos_strip2=vec_dimension2_deptos2, vec_tipo_deptos_strip2=vec_tipo_deptos2)
+            vec_dimension2_deptos_strip2=vec_dimension2_franja2_deptos, vec_tipo_deptos_strip2=vec_tipo_deptos2)
 
     # ──────────────────────────────────────────────────────────────────────────────────
     # Stage 3: Rotation back to original coordinates
