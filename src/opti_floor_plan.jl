@@ -48,37 +48,76 @@ function genera_deptos_franja(mat_deptos::Matrix{Float64}, coord_min_planta::Flo
 end
 
 # Extends apartments with corridor space overlap for both strips, then subtracts corridor geometry
+# Respects max_constructibilidad constraint for entire building: sum(interior_areas) + 0.5 * sum(terrace_areas)
 function extiende_deptos_con_interseccion_pasillo(vec_profundidad_terraza_strip1, vec_profundidad_terraza_strip2,
             vec_coord_ini1::Vector{Float64}, vec_coord_fin1::Vector{Float64},
             vec_coord_ini2::Vector{Float64}, vec_coord_fin2::Vector{Float64},
             coord_base::Float64, ps_pasillo::PolyShape, franja1::Symbol, franja2::Symbol, is_vertical::Bool,
-            H_s_strip1, H_s_strip2)
+            H_s_strip1, H_s_strip2,
+            vec_terrazas_areas_strip1, vec_terrazas_areas_strip2,
+            vec_terrazas_areas_pp_strip1, vec_terrazas_areas_pp_strip2,
+            vec_en_primer_piso_strip1::Vector{Bool}, vec_en_primer_piso_strip2::Vector{Bool},
+            num_pisos_superiores::Int,
+            max_constructibilidad::Float64)
 
-    vec_dimension1_extendido_strip1 = Float64[]
+    vec_dimension2_strip1 = [vec_coord_fin1[i] - vec_coord_ini1[i] for i in eachindex(vec_coord_ini1)]
+    vec_dimension2_strip2 = [vec_coord_fin2[i] - vec_coord_ini2[i] for i in eachindex(vec_coord_ini2)]
+
+    vec_dimension1_strip1 = [H_s_strip1 - vec_profundidad_terraza_strip1[i] for i in eachindex(vec_coord_ini1)]
+    vec_dimension1_strip2 = [H_s_strip2 - vec_profundidad_terraza_strip2[i] for i in eachindex(vec_coord_ini2)]
+
     ps_deptos_extendidos_strip1 = PolyShape[]
-
-    for i in eachindex(vec_coord_ini1)
-        dimension1_total = H_s_strip1 - vec_profundidad_terraza_strip1[i]
-        push!(vec_dimension1_extendido_strip1, dimension1_total)
-        dimension2 = vec_coord_fin1[i] - vec_coord_ini1[i]
-        extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini1[i], dimension1_total, dimension2, franja1, is_vertical)
-        extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
-        push!(ps_deptos_extendidos_strip1, extended_poly_final)
-    end
-
-    vec_dimension1_extendido_strip2 = Float64[]
     ps_deptos_extendidos_strip2 = PolyShape[]
+    cond = true
+    cont = 0
+    while cond
+        cont += 1
+        for i in eachindex(vec_coord_ini1)
+            extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini1[i], vec_dimension1_strip1[i], vec_dimension2_strip1[i], franja1, is_vertical)
+            extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
+            push!(ps_deptos_extendidos_strip1, extended_poly_final)
+        end
 
-    for i in eachindex(vec_coord_ini2)
-        dimension1_total = H_s_strip2 - vec_profundidad_terraza_strip2[i]
-        push!(vec_dimension1_extendido_strip2, dimension1_total)
-        dimension2 = vec_coord_fin2[i] - vec_coord_ini2[i]
-        extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini2[i], dimension1_total, dimension2, franja2, is_vertical)
-        extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
-        push!(ps_deptos_extendidos_strip2, extended_poly_final)
+        for i in eachindex(vec_coord_ini2)
+            extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini2[i], vec_dimension1_strip2[i], vec_dimension2_strip2[i], franja2, is_vertical)
+            extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
+            push!(ps_deptos_extendidos_strip2, extended_poly_final)
+        end
+
+        interior_area_piso_superior = sum(polyShape.polyArea.(ps_deptos_extendidos_strip1)) + sum(polyShape.polyArea.(ps_deptos_extendidos_strip2))
+        terrace_area_piso_superior = sum(vec_terrazas_areas_strip1) + sum(vec_terrazas_areas_strip2)
+
+        interior_area_primer_piso = sum(polyShape.polyArea.(ps_deptos_extendidos_strip1) .* vec_en_primer_piso_strip1) +
+                                    sum(polyShape.polyArea.(ps_deptos_extendidos_strip2) .* vec_en_primer_piso_strip2)
+        terrace_area_primer_piso = sum(vec_terrazas_areas_pp_strip1) + sum(vec_terrazas_areas_pp_strip2)
+
+        constructibilidad_piso_superior = interior_area_piso_superior + 0.5 * terrace_area_piso_superior
+        constructibilidad_primer_piso = interior_area_primer_piso + 0.5 * terrace_area_primer_piso
+        constructibilidad_edificio_max = num_pisos_superiores * constructibilidad_piso_superior + constructibilidad_primer_piso
+
+        total_interior_area_edificio_max = num_pisos_superiores * interior_area_piso_superior + interior_area_primer_piso
+
+        println("max_constructibilidad: $(round(max_constructibilidad, digits=2))")
+        println("constructibilidad_piso_superior: $(round(constructibilidad_piso_superior, digits=2))")
+        println("constructibilidad_primer_piso: $(round(constructibilidad_primer_piso, digits=2))")
+        println("constructibilidad_edificio_max: $(round(constructibilidad_edificio_max, digits=2)) ($(num_pisos_superiores) pisos sup + 1 primer piso)")
+
+        if (constructibilidad_edificio_max - max_constructibilidad) > 10
+            excess = constructibilidad_edificio_max - max_constructibilidad
+            reduction_factor = excess / total_interior_area_edificio_max
+            vec_dimension1_strip1 = vec_dimension1_strip1 .* (1.0 - reduction_factor)
+            vec_dimension1_strip2 = vec_dimension1_strip2 .* (1.0 - reduction_factor)
+            ps_deptos_extendidos_strip1 = PolyShape[]
+            ps_deptos_extendidos_strip2 = PolyShape[]
+        else
+            cond = false
+        end
+        if cont >= 2
+            cond = false
+        end
     end
 
-    return ps_deptos_extendidos_strip1, vec_dimension1_extendido_strip1, ps_deptos_extendidos_strip2, vec_dimension1_extendido_strip2
+    return ps_deptos_extendidos_strip1, vec_dimension1_strip1, ps_deptos_extendidos_strip2, vec_dimension1_strip2
 end
 
 # ──────────────────────────────────────────────────────────────────────────────────
@@ -112,9 +151,11 @@ function genera_terrazas_ambas_franjas(vec_terrazas_areas_strip1, vec_terrazas_a
     vec_terrazas_strip1 = PolyShape[]
     vec_terrazas_strip2 = PolyShape[]
 
+    min_profundidad_terraza = 1.5
+
     if is_vertical
         for i in eachindex(vec_terrazas_areas_strip1)
-            profundidad_terrazas_areas_strip1 = max(2, vec_terrazas_areas_strip1[i] / vec_dimension2_franja1_deptos[i])
+            profundidad_terrazas_areas_strip1 = max(min_profundidad_terraza, vec_terrazas_areas_strip1[i] / vec_dimension2_franja1_deptos[i])
             ancho_terrazas_areas_strip1 = vec_terrazas_areas_strip1[i] / profundidad_terrazas_areas_strip1
             base1 = coord_base + vec_dimension1_franja1_deptos[i]
             base2 = vec_coord_ini1[i] + vec_dimension2_franja1_deptos[i] / 2 - ancho_terrazas_areas_strip1 / 2
@@ -122,7 +163,7 @@ function genera_terrazas_ambas_franjas(vec_terrazas_areas_strip1, vec_terrazas_a
             push!(vec_terrazas_strip1, ps_terrace_franja1)
         end
         for i in eachindex(vec_terrazas_areas_strip2)
-            profundidad_terrazas_areas_strip2 = max(2, vec_terrazas_areas_strip2[i] / vec_dimension2_franja2_deptos[i])
+            profundidad_terrazas_areas_strip2 = max(min_profundidad_terraza, vec_terrazas_areas_strip2[i] / vec_dimension2_franja2_deptos[i])
             ancho_terrazas_areas_strip2 = vec_terrazas_areas_strip2[i] / profundidad_terrazas_areas_strip2
             base1 = coord_base - vec_dimension1_franja2_deptos[i]
             base2 = vec_coord_ini2[i] + vec_dimension2_franja2_deptos[i] / 2 - ancho_terrazas_areas_strip2 / 2
@@ -131,7 +172,7 @@ function genera_terrazas_ambas_franjas(vec_terrazas_areas_strip1, vec_terrazas_a
         end
     else
         for i in eachindex(vec_terrazas_areas_strip1)
-            profundidad_terrazas_areas_strip1 = max(2, vec_terrazas_areas_strip1[i] / vec_dimension2_franja1_deptos[i])
+            profundidad_terrazas_areas_strip1 = max(min_profundidad_terraza, vec_terrazas_areas_strip1[i] / vec_dimension2_franja1_deptos[i])
             ancho_terrazas_areas_strip1 = vec_terrazas_areas_strip1[i] / profundidad_terrazas_areas_strip1
             base1 = coord_base + vec_dimension1_franja1_deptos[i]
             base2 = vec_coord_ini1[i] + vec_dimension2_franja1_deptos[i] / 2 - ancho_terrazas_areas_strip1 / 2
@@ -139,7 +180,7 @@ function genera_terrazas_ambas_franjas(vec_terrazas_areas_strip1, vec_terrazas_a
             push!(vec_terrazas_strip1, ps_terrace_franja1)
         end
         for i in eachindex(vec_terrazas_areas_strip2)
-            profundidad_terrazas_areas_strip2 = max(2, vec_terrazas_areas_strip2[i] / vec_dimension2_franja2_deptos[i])
+            profundidad_terrazas_areas_strip2 = max(min_profundidad_terraza, vec_terrazas_areas_strip2[i] / vec_dimension2_franja2_deptos[i])
             ancho_terrazas_areas_strip2 = vec_terrazas_areas_strip2[i] / profundidad_terrazas_areas_strip2
             base1 = coord_base - vec_dimension1_franja2_deptos[i]
             base2 = vec_coord_ini2[i] + vec_dimension2_franja2_deptos[i] / 2 - ancho_terrazas_areas_strip2 / 2
@@ -436,7 +477,7 @@ end
 # ──────────────────────────────────────────────────────────────────────────────────
 
 # Main floor plan optimization function: distributes apartments in two strips with corridor and terraces
-function genera_layout(dict_edificio_deptos;
+function genera_layout(dict_edificio_deptos, max_constructibilidad::Float64, num_pisos_superiores::Int;
                         profundidad_pasillo::Float64 = 1.5,
                         min_ancho_pasillo::Float64 = 0.0)
 
@@ -494,18 +535,32 @@ function genera_layout(dict_edificio_deptos;
     vec_tipos_strip2 = String[]
     vec_terrazas_areas_strip1 = Float64[]
     vec_terrazas_areas_strip2 = Float64[]
+    vec_en_primer_piso_strip1 = Bool[]
+    vec_en_primer_piso_strip2 = Bool[]
+    vec_terrazas_areas_pp_strip1 = Float64[]
+    vec_terrazas_areas_pp_strip2 = Float64[]
 
     for row in eachrow(df_deptos_sorted)
-        n_repeat = Int(round(row.num_unidades_por_piso_superior))
-        for _ in 1:n_repeat
+        n_repeat_superior = Int(round(row.num_unidades_por_piso_superior))
+        n_repeat_primer = Int(round(row.num_unidades_primer_piso))
+        for i in 1:n_repeat_superior
+            en_primer_piso = i <= n_repeat_primer
             if row.strip == 1
                 mat_deptos_strip1 = vcat(mat_deptos_strip1, [row.sup_interior row.ancho_interior row.profundidad_interior])
                 push!(vec_tipos_strip1, string(row.tipo))
                 push!(vec_terrazas_areas_strip1, row.sup_terraza)
+                push!(vec_en_primer_piso_strip1, en_primer_piso)
+                if en_primer_piso
+                    push!(vec_terrazas_areas_pp_strip1, row.sup_terraza)
+                end
             else
                 mat_deptos_strip2 = vcat(mat_deptos_strip2, [row.sup_interior row.ancho_interior row.profundidad_interior])
                 push!(vec_tipos_strip2, string(row.tipo))
                 push!(vec_terrazas_areas_strip2, row.sup_terraza)
+                push!(vec_en_primer_piso_strip2, en_primer_piso)
+                if en_primer_piso
+                    push!(vec_terrazas_areas_pp_strip2, row.sup_terraza)
+                end
             end
         end
     end
@@ -540,28 +595,29 @@ function genera_layout(dict_edificio_deptos;
     vec_profundidad_terraza_strip2 = Float64[]
     vec_ancho_terraza_strip1 = Float64[]
     vec_ancho_terraza_strip2 = Float64[]
+    min_profundidad_terraza = 1.5
     if is_vertical
         for i in eachindex(vec_terrazas_areas_strip1)
-            profundidad_terrazas_areas_strip1 = max(2, vec_terrazas_areas_strip1[i] / vec_dimension2_franja1_deptos[i])
+            profundidad_terrazas_areas_strip1 = max(min_profundidad_terraza, vec_terrazas_areas_strip1[i] / vec_dimension2_franja1_deptos[i])
             ancho_terrazas_areas_strip1 = vec_terrazas_areas_strip1[i] / profundidad_terrazas_areas_strip1
             push!(vec_ancho_terraza_strip1, ancho_terrazas_areas_strip1)
             push!(vec_profundidad_terraza_strip1, profundidad_terrazas_areas_strip1)
         end
         for i in eachindex(vec_terrazas_areas_strip2)
-            profundidad_terrazas_areas_strip2 = max(2, vec_terrazas_areas_strip2[i] / vec_dimension2_franja2_deptos[i])
+            profundidad_terrazas_areas_strip2 = max(min_profundidad_terraza, vec_terrazas_areas_strip2[i] / vec_dimension2_franja2_deptos[i])
             ancho_terrazas_areas_strip2 = vec_terrazas_areas_strip2[i] / profundidad_terrazas_areas_strip2
             push!(vec_ancho_terraza_strip2, ancho_terrazas_areas_strip2)
             push!(vec_profundidad_terraza_strip2, profundidad_terrazas_areas_strip2)
         end
     else
         for i in eachindex(vec_terrazas_areas_strip1)
-            profundidad_terrazas_areas_strip1 = max(2, vec_terrazas_areas_strip1[i] / vec_dimension2_franja1_deptos[i])
+            profundidad_terrazas_areas_strip1 = max(min_profundidad_terraza, vec_terrazas_areas_strip1[i] / vec_dimension2_franja1_deptos[i])
             ancho_terrazas_areas_strip1 = vec_terrazas_areas_strip1[i] / profundidad_terrazas_areas_strip1
             push!(vec_ancho_terraza_strip1, ancho_terrazas_areas_strip1)
             push!(vec_profundidad_terraza_strip1, profundidad_terrazas_areas_strip1)
         end
         for i in eachindex(vec_terrazas_areas_strip2)
-            profundidad_terrazas_areas_strip2 = max(2, vec_terrazas_areas_strip2[i] / vec_dimension2_franja2_deptos[i])
+            profundidad_terrazas_areas_strip2 = max(min_profundidad_terraza, vec_terrazas_areas_strip2[i] / vec_dimension2_franja2_deptos[i])
             ancho_terrazas_areas_strip2 = vec_terrazas_areas_strip2[i] / profundidad_terrazas_areas_strip2
             push!(vec_ancho_terraza_strip2, ancho_terrazas_areas_strip2)
             push!(vec_profundidad_terraza_strip2, profundidad_terrazas_areas_strip2)
@@ -575,7 +631,12 @@ function genera_layout(dict_edificio_deptos;
                                                                                     vec_coord_ini2, vec_coord_fin2,
                                                                                     coord_base, ps_pasillo_normalizado,
                                                                                     franja1, franja2, is_vertical,
-                                                                                    H_s_strip1, H_s_strip2)
+                                                                                    H_s_strip1, H_s_strip2,
+                                                                                    vec_terrazas_areas_strip1, vec_terrazas_areas_strip2,
+                                                                                    vec_terrazas_areas_pp_strip1, vec_terrazas_areas_pp_strip2,
+                                                                                    vec_en_primer_piso_strip1, vec_en_primer_piso_strip2,
+                                                                                    num_pisos_superiores,
+                                                                                    max_constructibilidad)
 
 
 
@@ -726,11 +787,11 @@ function genera_layout(dict_edificio_deptos;
     return results_pisos_superiores, results_primer_piso
 end
 
-function opti_floor_plan(dict_edificio_deptos;
+function opti_floor_plan(dict_edificio_deptos, max_constructibilidad::Float64, num_pisos_superiores::Int;
                         profundidad_pasillo::Float64 = 1.5,
                         min_ancho_pasillo::Float64 = 0.0)
 
-    results_pisos_superiores, results_primer_piso = genera_layout(dict_edificio_deptos,
+    results_pisos_superiores, results_primer_piso = genera_layout(dict_edificio_deptos, max_constructibilidad, num_pisos_superiores,
                 profundidad_pasillo=profundidad_pasillo,
                 min_ancho_pasillo=min_ancho_pasillo)
 

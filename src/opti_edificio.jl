@@ -212,15 +212,15 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # ============================================================================
     # 5. APARTMENT SHAPE COMPILATION
     # ============================================================================
-    results = opti_floor_plan(dict_edificio_deptos,
+    num_pisos = vec_np_opt[1]
+    num_pisos_superiores = num_pisos - 1
+
+    results = opti_floor_plan(dict_edificio_deptos, max_constructibilidad, num_pisos_superiores,
                 profundidad_pasillo=profundidad_pasillo,
                 min_ancho_pasillo=min_ancho_pasillo)
 
     results_pisos_superiores = results["pisos_superiores"]
     results_primer_piso = results["primer_piso"]
-
-    num_pisos = vec_np_opt[1]
-    num_pisos_superiores = num_pisos - 1
 
     sup_interior_pisos_superiores = sum([polyShape.polyArea(ps) for ps in results_pisos_superiores["vec_ps_deptos_all"]])
     sup_terraza_pisos_superiores = sum([polyShape.polyArea(ps) for ps in results_pisos_superiores["vec_ps_terrazas_all"] if polyShape.polyArea(ps) > 0.0])
