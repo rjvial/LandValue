@@ -386,7 +386,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             constraint_14, sum(H_s[s] for s in S) == H
 
             # Each strip must have minimum depth
-            constraint_15[s in S], H_s[s] >= (H - 3) / 2
+            constraint_15[s in S], H_s[s] >= (H - 2) / 2
 
             # Apartment height (interior + terrace) + unused depth equals strip depth for each apartment type
             constraint_16[t in T, s in S, (k, j) in KJ_feasible], x[t,s,(k,j)] * (mat_h_ipn_by_type[t](k,j) + mat_h_t[k,j])  <= H_s[s]
@@ -655,6 +655,8 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
     results["W"] = W
     results["H"] = H
     results["ps_planta"] = vec_ps_opt[1]
+    results["flag_dfl2"] = flag_dfl2
+    results["flag_vivienda_economica"] = flag_vivienda_economica
 
     println("="^60)
 

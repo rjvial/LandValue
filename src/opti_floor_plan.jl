@@ -58,7 +58,9 @@ function extiende_deptos_con_interseccion_pasillo(vec_profundidad_terraza_strip1
             vec_terrazas_areas_pp_strip1, vec_terrazas_areas_pp_strip2,
             vec_en_primer_piso_strip1::Vector{Bool}, vec_en_primer_piso_strip2::Vector{Bool},
             num_pisos_superiores::Int,
-            max_constructibilidad::Float64)
+            max_constructibilidad::Float64,
+            flag_dfl2::Bool = false,
+            flag_vivienda_economica::Bool = false)
 
     vec_dimension2_strip1 = [vec_coord_fin1[i] - vec_coord_ini1[i] for i in eachindex(vec_coord_ini1)]
     vec_dimension2_strip2 = [vec_coord_fin2[i] - vec_coord_ini2[i] for i in eachindex(vec_coord_ini2)]
@@ -68,21 +70,23 @@ function extiende_deptos_con_interseccion_pasillo(vec_profundidad_terraza_strip1
 
     ps_deptos_extendidos_strip1 = PolyShape[]
     ps_deptos_extendidos_strip2 = PolyShape[]
+    for i in eachindex(vec_coord_ini1)
+        extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini1[i], vec_dimension1_strip1[i], vec_dimension2_strip1[i], franja1, is_vertical)
+        extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
+        push!(ps_deptos_extendidos_strip1, extended_poly_final)
+    end
+
+    for i in eachindex(vec_coord_ini2)
+        extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini2[i], vec_dimension1_strip2[i], vec_dimension2_strip2[i], franja2, is_vertical)
+        extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
+        push!(ps_deptos_extendidos_strip2, extended_poly_final)
+    end
+
+
     cond = true
     cont = 0
     while cond
         cont += 1
-        for i in eachindex(vec_coord_ini1)
-            extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini1[i], vec_dimension1_strip1[i], vec_dimension2_strip1[i], franja1, is_vertical)
-            extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
-            push!(ps_deptos_extendidos_strip1, extended_poly_final)
-        end
-
-        for i in eachindex(vec_coord_ini2)
-            extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini2[i], vec_dimension1_strip2[i], vec_dimension2_strip2[i], franja2, is_vertical)
-            extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
-            push!(ps_deptos_extendidos_strip2, extended_poly_final)
-        end
 
         interior_area_piso_superior = sum(polyShape.polyArea.(ps_deptos_extendidos_strip1)) + sum(polyShape.polyArea.(ps_deptos_extendidos_strip2))
         terrace_area_piso_superior = sum(vec_terrazas_areas_strip1) + sum(vec_terrazas_areas_strip2)
@@ -112,6 +116,37 @@ function extiende_deptos_con_interseccion_pasillo(vec_profundidad_terraza_strip1
         else
             cond = false
         end
+
+        if flag_dfl2 || flag_vivienda_economica
+            for i in eachindex(vec_coord_ini1)
+                util_area_i = polyShape.polyArea(ps_deptos_extendidos_strip1[i]) + 0.5 * vec_terrazas_areas_strip1[i]
+                if util_area_i > 140
+                    vec_dimension1_strip1[i] = vec_dimension1_strip1[i] * 140 / util_area_i 
+                end
+            end
+
+            for i in eachindex(vec_coord_ini2)
+                util_area_i = polyShape.polyArea(ps_deptos_extendidos_strip2[i]) + 0.5 * vec_terrazas_areas_strip2[i]
+                if util_area_i > 140
+                    vec_dimension1_strip2[i] = vec_dimension1_strip2[i] * 140 / util_area_i 
+                end
+            end
+        end
+
+        ps_deptos_extendidos_strip1 = PolyShape[]
+        ps_deptos_extendidos_strip2 = PolyShape[]
+        for i in eachindex(vec_coord_ini1)
+            extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini1[i], vec_dimension1_strip1[i], vec_dimension2_strip1[i], franja1, is_vertical)
+            extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
+            push!(ps_deptos_extendidos_strip1, extended_poly_final)
+        end
+
+        for i in eachindex(vec_coord_ini2)
+            extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini2[i], vec_dimension1_strip2[i], vec_dimension2_strip2[i], franja2, is_vertical)
+            extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
+            push!(ps_deptos_extendidos_strip2, extended_poly_final)
+        end
+
         if cont >= 2
             cond = false
         end
@@ -479,7 +514,9 @@ end
 # Main floor plan optimization function: distributes apartments in two strips with corridor and terraces
 function genera_layout(dict_edificio_deptos, max_constructibilidad::Float64, num_pisos_superiores::Int;
                         profundidad_pasillo::Float64 = 1.5,
-                        min_ancho_pasillo::Float64 = 0.0)
+                        min_ancho_pasillo::Float64 = 0.0,
+                        flag_dfl2::Bool = false,
+                        flag_vivienda_economica::Bool = false)
 
     best_layout = dict_edificio_deptos["best_layout"]
     is_vertical = (best_layout == 2)
@@ -636,7 +673,9 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad::Float64, num
                                                                                     vec_terrazas_areas_pp_strip1, vec_terrazas_areas_pp_strip2,
                                                                                     vec_en_primer_piso_strip1, vec_en_primer_piso_strip2,
                                                                                     num_pisos_superiores,
-                                                                                    max_constructibilidad)
+                                                                                    max_constructibilidad,
+                                                                                    flag_dfl2,
+                                                                                    flag_vivienda_economica)
 
 
 
@@ -791,9 +830,14 @@ function opti_floor_plan(dict_edificio_deptos, max_constructibilidad::Float64, n
                         profundidad_pasillo::Float64 = 1.5,
                         min_ancho_pasillo::Float64 = 0.0)
 
+    flag_dfl2 = get(dict_edificio_deptos, "flag_dfl2", false)
+    flag_vivienda_economica = get(dict_edificio_deptos, "flag_vivienda_economica", false)
+
     results_pisos_superiores, results_primer_piso = genera_layout(dict_edificio_deptos, max_constructibilidad, num_pisos_superiores,
                 profundidad_pasillo=profundidad_pasillo,
-                min_ancho_pasillo=min_ancho_pasillo)
+                min_ancho_pasillo=min_ancho_pasillo,
+                flag_dfl2=flag_dfl2,
+                flag_vivienda_economica=flag_vivienda_economica)
 
     angulo_rotacion = dict_edificio_deptos["angulo_rotacion"]
     cr = dict_edificio_deptos["cr"]
