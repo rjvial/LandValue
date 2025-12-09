@@ -212,7 +212,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # ============================================================================
     # 5. APARTMENT SHAPE COMPILATION
     # ============================================================================
-    results = opti_floor_plan(dict_edificio_deptos, max_constructibilidad, flag_dfl2,
+    results = opti_floor_plan(dict_edificio_deptos,
                 profundidad_pasillo=profundidad_pasillo,
                 min_ancho_pasillo=min_ancho_pasillo)
 
