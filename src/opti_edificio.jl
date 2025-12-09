@@ -214,9 +214,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # ============================================================================
     results = opti_floor_plan(dict_edificio_deptos, max_constructibilidad, flag_dfl2,
                 profundidad_pasillo=profundidad_pasillo,
-                min_ancho_pasillo=min_ancho_pasillo,
-                max_ancho_terraza=max_ancho_terraza,
-                )
+                min_ancho_pasillo=min_ancho_pasillo)
 
     results_pisos_superiores = results["pisos_superiores"]
     results_primer_piso = results["primer_piso"]

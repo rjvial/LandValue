@@ -432,15 +432,12 @@ end
 # Main floor plan optimization function: distributes apartments in two strips with corridor and terraces
 function genera_layout(dict_edificio_deptos, max_constructibilidad, flag_dfl2;
                         profundidad_pasillo::Float64 = 1.5,
-                        min_ancho_pasillo::Float64 = 0.0,
-                        max_ancho_terraza::Float64 = 2.0)
+                        min_ancho_pasillo::Float64 = 0.0)
 
     best_layout = dict_edificio_deptos["best_layout"]
     is_vertical = (best_layout == 2)
 
     ps_planta_normalizado = dict_edificio_deptos["ps_planta_normalizado"]
-    angulo_rotacion = dict_edificio_deptos["angulo_rotacion"]
-    cr = dict_edificio_deptos["cr"]
 
     V_planta_normalizado = ps_planta_normalizado.Vertices[1]
     vec_x_planta = V_planta_normalizado[:, 1]
@@ -533,8 +530,6 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad, flag_dfl2;
                                             vec_tipo_deptos1, vec_tipo_deptos2,
                                             vec_tipo_strings1, vec_tipo_strings2)
 
-    ps_pasillo = ps_pasillo_normalizado
-
     vec_profundidad_terraza_strip1 = Float64[]
     vec_profundidad_terraza_strip2 = Float64[]
     vec_ancho_terraza_strip1 = Float64[]
@@ -623,38 +618,16 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad, flag_dfl2;
 
 
     # ──────────────────────────────────────────────────────────────────────────────────
-    # Stage 3: Rotation back to original coordinates
+    # Stage 3: Results packaging (normalized coordinates)
     # ──────────────────────────────────────────────────────────────────────────────────
-    vec_ps_deptos_strip1 = rota_polyshapes(vec_ps_deptos_franja_1_normalizado, angulo_rotacion, cr)
-    vec_ps_deptos_strip2 = rota_polyshapes(vec_ps_deptos_franja_2_normalizado, angulo_rotacion, cr)
-    vec_terrazas_strip1 = rota_polyshapes(vec_terrazas_strip1, angulo_rotacion, cr)
-    vec_terrazas_strip2 = rota_polyshapes(vec_terrazas_strip2, angulo_rotacion, cr)
-    ps_pasillo = polyShape.polyRotate(ps_pasillo_normalizado, -angulo_rotacion, cr)
 
     ps_planta = dict_edificio_deptos["ps_planta"]
 
-    fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
-    for apt_poly in vec_ps_deptos_strip1
-        polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
-    end
-    for apt_poly in vec_ps_deptos_strip2
-        polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
-    end
-    polyPlot.plotPolyshape2D(ps_pasillo, "gray", 0.8, fig=fig, ax=ax, ax_mat=ax_mat)
-    for ter_poly in vec_terrazas_strip1
-        polyPlot.plotPolyshape2D(ter_poly, "blue", 0.4, fig=fig, ax=ax, ax_mat=ax_mat)
-    end
-    for ter_poly in vec_terrazas_strip2
-        polyPlot.plotPolyshape2D(ter_poly, "blue", 0.4, fig=fig, ax=ax, ax_mat=ax_mat)
-    end
+    results = empaqueta_resultados(dimension_depto1, dimension_depto2, W, H, profundidad_pasillo, ancho_pasillo, ps_pasillo_normalizado,
+                                    vec_ps_deptos_franja_1_normalizado, vec_ps_deptos_franja_2_normalizado,
+                                    vec_terrazas_strip1, vec_terrazas_strip2, is_vertical, ps_planta_normalizado, vec_tipo_strings1, vec_tipo_strings2)
 
-    # ──────────────────────────────────────────────────────────────────────────────────
-    # Stage 4: Results packaging
-    # ──────────────────────────────────────────────────────────────────────────────────
-
-    results = empaqueta_resultados(dimension_depto1, dimension_depto2, W, H, profundidad_pasillo, ancho_pasillo, ps_pasillo,
-                                    vec_ps_deptos_strip1, vec_ps_deptos_strip2,
-                                    vec_terrazas_strip1, vec_terrazas_strip2, is_vertical, ps_planta, vec_tipo_strings1, vec_tipo_strings2)
+    results["ps_planta"] = ps_planta
 
     delta = 0.02
     buffer_size = 0.2
@@ -680,16 +653,9 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad, flag_dfl2;
     end
     results["ps_union_terrazas"] = ps_union_terrazas
 
-    ps_area_comun_total = polyClipper.polyOffset(ps_pasillo, delta)
+    ps_area_comun_total = polyClipper.polyOffset(ps_pasillo_normalizado, delta)
     ps_area_comun_total = polyClipper.polyOffset(ps_area_comun_total, -delta)
     results["ps_area_comun_total"] = ps_area_comun_total
-
-    if !isempty(vec_ps_deptos_all) && polyShape.polyArea(ps_union_deptos) > 0.0
-        vec_apartamentos_orientaciones = calcula_orientaciones_apartamentos(vec_ps_deptos_all, ps_union_deptos, ps_area_comun_total)
-        results["vec_apartamentos_orientaciones"] = vec_apartamentos_orientaciones
-    else
-        results["vec_apartamentos_orientaciones"] = Vector{Dict}()
-    end
 
     results_pisos_superiores = results
 
@@ -792,13 +758,72 @@ end
 
 function opti_floor_plan(dict_edificio_deptos, max_constructibilidad, flag_dfl2;
                         profundidad_pasillo::Float64 = 1.5,
-                        min_ancho_pasillo::Float64 = 0.0,
-                        max_ancho_terraza::Float64 = 2.0)
+                        min_ancho_pasillo::Float64 = 0.0)
 
     results_pisos_superiores, results_primer_piso = genera_layout(dict_edificio_deptos, max_constructibilidad, flag_dfl2,
                 profundidad_pasillo=profundidad_pasillo,
-                min_ancho_pasillo=min_ancho_pasillo,
-                max_ancho_terraza=max_ancho_terraza)
+                min_ancho_pasillo=min_ancho_pasillo)
+
+    angulo_rotacion = dict_edificio_deptos["angulo_rotacion"]
+    cr = dict_edificio_deptos["cr"]
+
+    ps_planta = results_pisos_superiores["ps_planta"]
+
+    vec_ps_deptos_all = results_pisos_superiores["vec_ps_deptos_all"]
+    vec_ps_terrazas_all = results_pisos_superiores["vec_ps_terrazas_all"]
+    ps_pasillo = results_pisos_superiores["ps_pasillo"]
+    ps_union_deptos = results_pisos_superiores["ps_union_deptos"]
+    ps_area_comun_total = results_pisos_superiores["ps_area_comun_total"]
+
+    vec_ps_deptos_all_rotated = rota_polyshapes(vec_ps_deptos_all, angulo_rotacion, cr)
+    vec_ps_terrazas_all_rotated = rota_polyshapes(vec_ps_terrazas_all, angulo_rotacion, cr)
+    ps_pasillo_rotated = polyShape.polyRotate(ps_pasillo, -angulo_rotacion, cr)
+    ps_union_deptos_rotated = polyShape.polyArea(ps_union_deptos) > 0.0 ? polyShape.polyRotate(ps_union_deptos, -angulo_rotacion, cr) : ps_union_deptos
+    ps_area_comun_total_rotated = polyShape.polyRotate(ps_area_comun_total, -angulo_rotacion, cr)
+
+    results_pisos_superiores["vec_ps_deptos_all"] = vec_ps_deptos_all_rotated
+    results_pisos_superiores["vec_ps_terrazas_all"] = vec_ps_terrazas_all_rotated
+    results_pisos_superiores["ps_pasillo"] = ps_pasillo_rotated
+    results_pisos_superiores["ps_union_deptos"] = ps_union_deptos_rotated
+    results_pisos_superiores["ps_area_comun_total"] = ps_area_comun_total_rotated
+
+    fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
+    for apt_poly in vec_ps_deptos_all_rotated
+        polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
+    end
+    polyPlot.plotPolyshape2D(ps_pasillo_rotated, "gray", 0.8, fig=fig, ax=ax, ax_mat=ax_mat)
+    for ter_poly in vec_ps_terrazas_all_rotated
+        if polyShape.polyArea(ter_poly) > 0.0
+            polyPlot.plotPolyshape2D(ter_poly, "blue", 0.4, fig=fig, ax=ax, ax_mat=ax_mat)
+        end
+    end
+
+    if !isempty(vec_ps_deptos_all_rotated) && polyShape.polyArea(ps_union_deptos_rotated) > 0.0
+        vec_apartamentos_orientaciones = calcula_orientaciones_apartamentos(vec_ps_deptos_all_rotated, ps_union_deptos_rotated, ps_area_comun_total_rotated)
+        results_pisos_superiores["vec_apartamentos_orientaciones"] = vec_apartamentos_orientaciones
+    else
+        results_pisos_superiores["vec_apartamentos_orientaciones"] = Vector{Dict}()
+    end
+
+    if !isnothing(results_primer_piso)
+        vec_ps_deptos_pp = results_primer_piso["vec_ps_deptos_all"]
+        vec_ps_terrazas_pp = results_primer_piso["vec_ps_terrazas_all"]
+        ps_pasillo_pp = results_primer_piso["ps_pasillo"]
+        ps_area_comun_total_pp = results_primer_piso["ps_area_comun_total"]
+        ps_union_deptos_pp = results_primer_piso["ps_union_deptos"]
+
+        vec_ps_deptos_pp_rotated = rota_polyshapes(vec_ps_deptos_pp, angulo_rotacion, cr)
+        vec_ps_terrazas_pp_rotated = rota_polyshapes(vec_ps_terrazas_pp, angulo_rotacion, cr)
+        ps_pasillo_pp_rotated = polyShape.polyRotate(ps_pasillo_pp, -angulo_rotacion, cr)
+        ps_area_comun_total_pp_rotated = polyShape.polyRotate(ps_area_comun_total_pp, -angulo_rotacion, cr)
+        ps_union_deptos_pp_rotated = polyShape.polyArea(ps_union_deptos_pp) > 0.0 ? polyShape.polyRotate(ps_union_deptos_pp, -angulo_rotacion, cr) : ps_union_deptos_pp
+
+        results_primer_piso["vec_ps_deptos_all"] = vec_ps_deptos_pp_rotated
+        results_primer_piso["vec_ps_terrazas_all"] = vec_ps_terrazas_pp_rotated
+        results_primer_piso["ps_pasillo"] = ps_pasillo_pp_rotated
+        results_primer_piso["ps_area_comun_total"] = ps_area_comun_total_pp_rotated
+        results_primer_piso["ps_union_deptos"] = ps_union_deptos_pp_rotated
+    end
 
     return Dict(
         "pisos_superiores" => results_pisos_superiores,
