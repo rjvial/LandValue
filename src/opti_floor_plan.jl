@@ -258,8 +258,7 @@ function calcula_geometria_pasillo(vec_coord_fin1::Vector{Float64}, vec_coord_fi
                     vec_coord_ini1::Vector{Float64}, vec_coord_ini2::Vector{Float64}, coord_base::Float64,
                     profundidad_pasillo::Float64, is_vertical::Bool, W::Float64, H::Float64, coord_min::Float64,
                     min_ancho_pasillo::Float64, vec_tipo_deptos1::Vector{Int},
-                    vec_tipo_deptos2::Vector{Int},
-                    vec_tipo_strings1::Vector{String}=String[], vec_tipo_strings2::Vector{String}=String[])
+                    vec_tipo_deptos2::Vector{Int})
 
     num_deptos_franja1 = count(t -> t != -1, vec_tipo_deptos1)
     num_deptos_franja2 = count(t -> t != -1, vec_tipo_deptos2)
@@ -317,40 +316,27 @@ function calcula_geometria_pasillo(vec_coord_fin1::Vector{Float64}, vec_coord_fi
         y_centroide = coord_base
     end
 
-    indices_nucleo1 = findall(t -> contains(t, "nucleo"), vec_tipo_strings1)
-    indices_nucleo2 = findall(t -> contains(t, "nucleo"), vec_tipo_strings2)
-
     profundidad_nucleo = 2.0 + .75
     ancho_nucleo_box = 5.0
 
-    if !isempty(indices_nucleo1) && length(indices_nucleo1) >= 1
-        idx_first = indices_nucleo1[1]
-        idx_last = indices_nucleo1[end]
-
-        coord_ini_span = vec_coord_ini1[idx_first]
-        coord_fin_span = vec_coord_fin1[idx_last]
-        coord_centro_span = (coord_ini_span + coord_fin_span) / 2
+    if !isempty(vec_coord_ini1) && !isempty(vec_coord_fin1)
+        coord_centro_strip1 = (vec_coord_ini1[1] + vec_coord_fin1[end]) / 2
 
         if is_vertical
-            ps_nucleo1 = polyShape.polyBox(coord_base, coord_centro_span - ancho_nucleo_box / 2, profundidad_nucleo, ancho_nucleo_box, 0.0)
+            ps_nucleo1 = polyShape.polyBox(coord_base, coord_centro_strip1 - ancho_nucleo_box / 2, profundidad_nucleo, ancho_nucleo_box, 0.0)
         else
-            ps_nucleo1 = polyShape.polyBox(coord_centro_span - ancho_nucleo_box / 2, coord_base, ancho_nucleo_box, profundidad_nucleo, 0.0)
+            ps_nucleo1 = polyShape.polyBox(coord_centro_strip1 - ancho_nucleo_box / 2, coord_base, ancho_nucleo_box, profundidad_nucleo, 0.0)
         end
         ps_pasillo = polyShape.polyUnion(ps_pasillo, ps_nucleo1)
     end
 
-    if !isempty(indices_nucleo2) && length(indices_nucleo2) >= 1
-        idx_first = indices_nucleo2[1]
-        idx_last = indices_nucleo2[end]
-
-        coord_ini_span = vec_coord_ini2[idx_first]
-        coord_fin_span = vec_coord_fin2[idx_last]
-        coord_centro_span = (coord_ini_span + coord_fin_span) / 2
+    if !isempty(vec_coord_ini2) && !isempty(vec_coord_fin2)
+        coord_centro_strip2 = (vec_coord_ini2[1] + vec_coord_fin2[end]) / 2
 
         if is_vertical
-            ps_nucleo2 = polyShape.polyBox(coord_base - profundidad_nucleo, coord_centro_span - ancho_nucleo_box / 2, profundidad_nucleo, ancho_nucleo_box, 0.0)
+            ps_nucleo2 = polyShape.polyBox(coord_base - profundidad_nucleo, coord_centro_strip2 - ancho_nucleo_box / 2, profundidad_nucleo, ancho_nucleo_box, 0.0)
         else
-            ps_nucleo2 = polyShape.polyBox(coord_centro_span - ancho_nucleo_box / 2, coord_base - profundidad_nucleo, ancho_nucleo_box, profundidad_nucleo, 0.0)
+            ps_nucleo2 = polyShape.polyBox(coord_centro_strip2 - ancho_nucleo_box / 2, coord_base - profundidad_nucleo, ancho_nucleo_box, profundidad_nucleo, 0.0)
         end
         ps_pasillo = polyShape.polyUnion(ps_pasillo, ps_nucleo2)
     end
@@ -625,8 +611,7 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad::Float64, num
                                             coord_base, profundidad_pasillo, is_vertical,
                                             W, H,
                                             coord_min, min_ancho_pasillo,
-                                            vec_tipo_deptos1, vec_tipo_deptos2,
-                                            vec_tipo_strings1, vec_tipo_strings2)
+                                            vec_tipo_deptos1, vec_tipo_deptos2)
 
     vec_profundidad_terraza_strip1 = Float64[]
     vec_profundidad_terraza_strip2 = Float64[]

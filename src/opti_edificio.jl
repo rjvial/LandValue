@@ -202,12 +202,8 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # ============================================================================
     max_constructibilidad = dict_normativa["norm_max_constructibilidad"]
     max_deptos = dict_normativa["norm_max_unidades"]
-    flag_dfl2 = dict_normativa["flag_dfl2"]
 
-    flag_vivienda_economica = sup_patio_vivienda_economica > 0
-
-    dict_edificio_deptos = opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_deptos,
-                            vec_ps_opt, vec_np_opt, flag_dfl2, flag_vivienda_economica)
+    dict_edificio_deptos = opti_planta_edificio(max_constructibilidad, max_deptos, vec_ps_opt, vec_np_opt)
 
     # ============================================================================
     # 5. APARTMENT SHAPE COMPILATION
@@ -222,13 +218,13 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     results_pisos_superiores = results["pisos_superiores"]
     results_primer_piso = results["primer_piso"]
 
-    sup_interior_pisos_superiores = sum([polyShape.polyArea(ps) for ps in results_pisos_superiores["vec_ps_deptos_all"]])
-    sup_terraza_pisos_superiores = sum([polyShape.polyArea(ps) for ps in results_pisos_superiores["vec_ps_terrazas_all"] if polyShape.polyArea(ps) > 0.0])
+    sup_interior_pisos_superiores = sum([polyShape.polyArea(ps) for ps in results_pisos_superiores["vec_ps_deptos_all"]]; init=0.0)
+    sup_terraza_pisos_superiores = sum([polyShape.polyArea(ps) for ps in results_pisos_superiores["vec_ps_terrazas_all"] if polyShape.polyArea(ps) > 0.0]; init=0.0)
     sup_comun_pisos_superiores = polyShape.polyArea(results_pisos_superiores["ps_area_comun_total"])
 
     if !isnothing(results_primer_piso)
-        sup_interior_primer_piso = sum([polyShape.polyArea(ps) for ps in results_primer_piso["vec_ps_deptos_all"]])
-        sup_terraza_primer_piso = sum([polyShape.polyArea(ps) for ps in results_primer_piso["vec_ps_terrazas_all"] if polyShape.polyArea(ps) > 0.0])
+        sup_interior_primer_piso = sum([polyShape.polyArea(ps) for ps in results_primer_piso["vec_ps_deptos_all"]]; init=0.0)
+        sup_terraza_primer_piso = sum([polyShape.polyArea(ps) for ps in results_primer_piso["vec_ps_terrazas_all"] if polyShape.polyArea(ps) > 0.0]; init=0.0)
         sup_comun_primer_piso = polyShape.polyArea(results_primer_piso["ps_area_comun_total"])
     else
         sup_interior_primer_piso = 0.0
