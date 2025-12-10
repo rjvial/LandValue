@@ -202,8 +202,9 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # ============================================================================
     max_constructibilidad = dict_normativa["norm_max_constructibilidad"]
     max_deptos = dict_normativa["norm_max_unidades"]
+    vec_area_t = dict_arquitectura["arq_vecSupTerraza"]
 
-    dict_edificio_deptos = opti_planta_edificio(max_constructibilidad, max_deptos, vec_ps_opt, vec_np_opt)
+    dict_edificio_deptos = opti_planta_edificio(max_constructibilidad, max_deptos, vec_ps_opt, vec_np_opt, vec_area_t)
 
     # ============================================================================
     # 5. APARTMENT SHAPE COMPILATION
@@ -241,7 +242,9 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
         num_deptos_edificio += length(results_primer_piso["vec_ps_deptos_all"])
     end
 
-    sup_no_utilizada_edificio = dict_edificio_deptos["sup_no_utilizada_edificio"]
+    W = dict_edificio_deptos["W"]
+    H = dict_edificio_deptos["H"]
+    sup_no_utilizada_edificio = W * H * num_pisos - sup_interior_edificio - sup_comun_edificio - sup_terraza_edificio
 
     # ============================================================================
     # 6. CAPACITY DATA CALCULATION

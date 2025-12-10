@@ -8,8 +8,9 @@ Selecciona entre configuraciones de departamentos con anchos y alturas predefini
 - `max_deptos::Int`: Número máximo de departamentos totales
 - `vec_ps_opt`: Vector de PolyShape con plantas optimizadas
 - `vec_np_opt`: Vector de número de pisos por planta
+- `vec_area_t`: Vector de áreas de terraza por tipo de departamento
 """
-function opti_planta_edificio(max_constructibilidad, max_deptos, vec_ps_opt, vec_np_opt)
+function opti_planta_edificio(max_constructibilidad, max_deptos, vec_ps_opt, vec_np_opt, vec_area_t)
 
     # Rotates floor plan to axis-aligned rectangle with width > height, returns dimensions and transformation
     function normaliza_planta_rectangular(ps_planta::PolyShape, layout)
@@ -42,10 +43,10 @@ function opti_planta_edificio(max_constructibilidad, max_deptos, vec_ps_opt, vec
         return W, H, angulo_rotacion, cr, ps_planta_normalizado
     end
 
-    function compute_depto_configs()
+    function compute_depto_configs(vec_area_t_input::Vector{Float64})
         vec_w = collect(6.0:0.5:14.0)
         vec_h = collect(4.0:0.5:12.0)
-        h_terraza = 2.0
+        min_h_terraza = 1.5
 
         depto_configs = Vector{NamedTuple{(:w, :h, :area, :h_t, :area_t), Tuple{Float64, Float64, Float64, Float64, Float64}}}()
 
@@ -53,14 +54,39 @@ function opti_planta_edificio(max_constructibilidad, max_deptos, vec_ps_opt, vec
             for h in vec_h
                 aspect_ratio = h / w
                 area = w * h
-                area_t = w * h_terraza
                 if aspect_ratio >= 0.4 && aspect_ratio <= 2.5 && area >= 24.0 && area <= 140.0
-                    push!(depto_configs, (w=w, h=h, area=area, h_t=h_terraza, area_t=area_t))
+                    area_t_target = interpolate_terrace_area(area, vec_area_t_input)
+                    h_t = max(min_h_terraza, area_t_target / w)
+                    area_t = w * h_t
+                    push!(depto_configs, (w=w, h=h, area=area, h_t=h_t, area_t=area_t))
                 end
             end
         end
 
         return depto_configs
+    end
+
+    function interpolate_terrace_area(interior_area::Float64, vec_area_t::Vector{Float64})
+        vec_area_i_ref = [30.0, 45.0, 60.0, 75.0, 90.0, 105.0, 120.0, 140.0]
+
+        if length(vec_area_t) < length(vec_area_i_ref)
+            vec_area_t = vcat(vec_area_t, fill(vec_area_t[end], length(vec_area_i_ref) - length(vec_area_t)))
+        end
+
+        if interior_area <= vec_area_i_ref[1]
+            return vec_area_t[1]
+        elseif interior_area >= vec_area_i_ref[end]
+            return vec_area_t[end]
+        end
+
+        for i in 1:(length(vec_area_i_ref)-1)
+            if interior_area >= vec_area_i_ref[i] && interior_area <= vec_area_i_ref[i+1]
+                t = (interior_area - vec_area_i_ref[i]) / (vec_area_i_ref[i+1] - vec_area_i_ref[i])
+                return vec_area_t[i] + t * (vec_area_t[min(i+1, length(vec_area_t))] - vec_area_t[i])
+            end
+        end
+
+        return vec_area_t[end]
     end
 
     function opti_planta_edificio_layout(depto_configs, max_constructibilidad, max_deptos,
@@ -97,6 +123,7 @@ function opti_planta_edificio(max_constructibilidad, max_deptos, vec_ps_opt, vec
             H_s[s in S] >= 0
             0 <= n[i in I_feasible, s in S] <= max_apts_per_strip, Int
             x[i in I_feasible, s in S], Bin
+            0 <= n_primer[i in I_feasible, s in S] <= max_apts_per_strip, Int
             area_util_no_utilizada >= 0
         end)
 
@@ -104,15 +131,18 @@ function opti_planta_edificio(max_constructibilidad, max_deptos, vec_ps_opt, vec
             total_num_deptos_por_piso, sum(n[i,s] for i in I_feasible, s in S)
             area_interior_por_piso, sum(n[i,s] * depto_configs[i].area for i in I_feasible, s in S)
             area_terraza_por_piso, sum(n[i,s] * depto_configs[i].area_t for i in I_feasible, s in S)
-            area_interior_total, area_interior_por_piso * num_pisos
-            area_terraza_total, area_terraza_por_piso * num_pisos
+            total_num_deptos_primer_piso, sum(n_primer[i,s] for i in I_feasible, s in S)
+            area_interior_primer_piso, sum(n_primer[i,s] * depto_configs[i].area for i in I_feasible, s in S)
+            area_terraza_primer_piso, sum(n_primer[i,s] * depto_configs[i].area_t for i in I_feasible, s in S)
+            area_interior_total, area_interior_primer_piso + area_interior_por_piso * (num_pisos - 1)
+            area_terraza_total, area_terraza_primer_piso + area_terraza_por_piso * (num_pisos - 1)
             area_util_total, area_interior_total + 0.5 * area_terraza_total
-            deptos_total, total_num_deptos_por_piso * num_pisos
-            area_no_utilizada_por_piso, W * H - area_interior_por_piso - area_terraza_por_piso
+            deptos_total, total_num_deptos_primer_piso + total_num_deptos_por_piso * (num_pisos - 1)
+            area_no_utilizada_edificio, W * H * num_pisos - area_interior_total - area_terraza_total
         end)
 
         @constraints(model, begin
-            constraint_buildability, area_util_total + area_util_no_utilizada == max_constructibilidad
+            constraint_buildability, area_util_total <= max_constructibilidad
             constraint_min_deptos, deptos_total >= min_deptos
             constraint_max_deptos, deptos_total <= max_deptos
             constraint_strip_depth_sum, sum(H_s[s] for s in S) == H
@@ -121,6 +151,8 @@ function opti_planta_edificio(max_constructibilidad, max_deptos, vec_ps_opt, vec
             constraint_strip_area[s in S], sum(n[i,s] * (depto_configs[i].area + depto_configs[i].area_t) for i in I_feasible) <= W * H_s[s]
             constraint_strip_width[s in S], sum(n[i,s] * depto_configs[i].w for i in I_feasible) <= W
             constraint_link_n_x[i in I_feasible, s in S], n[i,s] <= max_apts_per_strip * x[i,s]
+            constraint_primer_subset[i in I_feasible, s in S], n_primer[i,s] <= n[i,s]
+            constraint_primer_fewer_deptos, total_num_deptos_primer_piso <= total_num_deptos_por_piso - 1
         end)
 
         @constraint(model, sum(n[i,1] for i in I_feasible) >= sum(n[i,2] for i in I_feasible))
@@ -155,8 +187,9 @@ function opti_planta_edificio(max_constructibilidad, max_deptos, vec_ps_opt, vec
                 scale_factor = (total_width > 0.01 && total_width < W - 0.01) ? W / total_width : 1.0
 
                 for i in I_feasible
-                    num_unidades = value(n[i,s])
-                    if num_unidades > 0.001
+                    num_unidades_superior = value(n[i,s])
+                    num_unidades_primer = value(n_primer[i,s])
+                    if num_unidades_superior > 0.001 || num_unidades_primer > 0.001
                         cfg = depto_configs[i]
                         ancho_ajustado = cfg.w * scale_factor
                         profundidad_ajustada = cfg.h / scale_factor
@@ -169,9 +202,9 @@ function opti_planta_edificio(max_constructibilidad, max_deptos, vec_ps_opt, vec
                             sup_terraza = ancho_ajustado * profundidad_terraza_ajustada,
                             ancho_interior = ancho_ajustado,
                             profundidad_interior = profundidad_ajustada,
-                            num_unidades_por_piso_superior = num_unidades,
-                            num_unidades_primer_piso = num_unidades,
-                            num_unidades_edificio = num_unidades * num_pisos,
+                            num_unidades_por_piso_superior = num_unidades_superior,
+                            num_unidades_primer_piso = num_unidades_primer,
+                            num_unidades_edificio = num_unidades_primer + num_unidades_superior * (num_pisos - 1),
                             sup_pasillo = 0.0,
                             sup_nucleo = 0.0
                         ))
@@ -179,26 +212,31 @@ function opti_planta_edificio(max_constructibilidad, max_deptos, vec_ps_opt, vec
                 end
             end
 
-            deptos_por_piso = sum(value(n[i,s]) for i in I_feasible, s in S)
+            deptos_por_piso_superior = sum(value(n[i,s]) for i in I_feasible, s in S)
+            deptos_primer_piso = sum(value(n_primer[i,s]) for i in I_feasible, s in S)
 
-            sup_int = 0.0
-            sup_terr = 0.0
+            sup_int_superior = 0.0
+            sup_terr_superior = 0.0
+            sup_int_primer = 0.0
+            sup_terr_primer = 0.0
             for depto_data in df_deptos_data
-                sup_int += depto_data.num_unidades_por_piso_superior * depto_data.sup_interior
-                sup_terr += depto_data.num_unidades_por_piso_superior * depto_data.sup_terraza
+                sup_int_superior += depto_data.num_unidades_por_piso_superior * depto_data.sup_interior
+                sup_terr_superior += depto_data.num_unidades_por_piso_superior * depto_data.sup_terraza
+                sup_int_primer += depto_data.num_unidades_primer_piso * depto_data.sup_interior
+                sup_terr_primer += depto_data.num_unidades_primer_piso * depto_data.sup_terraza
             end
 
-            results["num_deptos_edificio"] = deptos_por_piso * num_pisos
-            results["sup_interior_primer_piso"] = sup_int
-            results["sup_interior_pisos_superiores"] = sup_int
-            results["sup_interior_edificio"] = sup_int * num_pisos
-            results["sup_terraza_primer_piso"] = sup_terr
-            results["sup_terraza_pisos_superiores"] = sup_terr
-            results["sup_terraza_edificio"] = sup_terr * num_pisos
+            results["num_deptos_edificio"] = deptos_primer_piso + deptos_por_piso_superior * (num_pisos - 1)
+            results["sup_interior_primer_piso"] = sup_int_primer
+            results["sup_interior_pisos_superiores"] = sup_int_superior
+            results["sup_interior_edificio"] = sup_int_primer + sup_int_superior * (num_pisos - 1)
+            results["sup_terraza_primer_piso"] = sup_terr_primer
+            results["sup_terraza_pisos_superiores"] = sup_terr_superior
+            results["sup_terraza_edificio"] = sup_terr_primer + sup_terr_superior * (num_pisos - 1)
             results["sup_comun_primer_piso"] = 0.0
             results["sup_comun_pisos_superiores"] = 0.0
             results["sup_comun_edificio"] = 0.0
-            results["sup_no_utilizada_edificio"] = value(area_no_utilizada_por_piso) * num_pisos
+            results["sup_no_utilizada_edificio"] = value(area_no_utilizada_edificio)
             results["df_deptos"] = DataFrame(df_deptos_data)
 
         else
@@ -220,7 +258,7 @@ function opti_planta_edificio(max_constructibilidad, max_deptos, vec_ps_opt, vec
     end
 
 
-    depto_configs = compute_depto_configs()
+    depto_configs = compute_depto_configs(vec_area_t)
 
     total_threads = Threads.nthreads()
 
