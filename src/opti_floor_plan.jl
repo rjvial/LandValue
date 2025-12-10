@@ -1,6 +1,37 @@
 get_tipo(t::Tuple{Float64, Int}) = t[2]
 get_tipo(t::Tuple{Float64, Int, Int}) = t[2]
 
+function reordena_deptos_grandes_en_extremos(mat_deptos::Matrix{Float64}, vec_tipos::Vector{String},
+                                              vec_terrazas_areas::Vector{Float64}, vec_en_primer_piso::Vector{Bool})
+    n = size(mat_deptos, 1)
+    if n <= 2
+        return mat_deptos, vec_tipos, vec_terrazas_areas, vec_en_primer_piso
+    end
+
+    areas = mat_deptos[:, 1]
+    sorted_indices = sortperm(areas, rev=true)
+
+    new_order = Vector{Int}(undef, n)
+    left = 1
+    right = n
+    for (i, idx) in enumerate(sorted_indices)
+        if i % 2 == 1
+            new_order[left] = idx
+            left += 1
+        else
+            new_order[right] = idx
+            right -= 1
+        end
+    end
+
+    mat_deptos_reordered = mat_deptos[new_order, :]
+    vec_tipos_reordered = vec_tipos[new_order]
+    vec_terrazas_areas_reordered = vec_terrazas_areas[new_order]
+    vec_en_primer_piso_reordered = vec_en_primer_piso[new_order]
+
+    return mat_deptos_reordered, vec_tipos_reordered, vec_terrazas_areas_reordered, vec_en_primer_piso_reordered
+end
+
 # ══════════════════════════════════════════════════════════════════════════════════
 # HELPER FUNCTIONS
 # ══════════════════════════════════════════════════════════════════════════════════
@@ -587,6 +618,11 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad::Float64, num
             end
         end
     end
+
+    mat_deptos_strip1, vec_tipos_strip1, vec_terrazas_areas_strip1, vec_en_primer_piso_strip1 = reordena_deptos_grandes_en_extremos(
+        mat_deptos_strip1, vec_tipos_strip1, vec_terrazas_areas_strip1, vec_en_primer_piso_strip1)
+    mat_deptos_strip2, vec_tipos_strip2, vec_terrazas_areas_strip2, vec_en_primer_piso_strip2 = reordena_deptos_grandes_en_extremos(
+        mat_deptos_strip2, vec_tipos_strip2, vec_terrazas_areas_strip2, vec_en_primer_piso_strip2)
 
     coord_min_planta = coord_min
     is_vertical = is_vertical
