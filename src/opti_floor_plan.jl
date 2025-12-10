@@ -99,6 +99,20 @@ function extiende_deptos_con_interseccion_pasillo(vec_profundidad_terraza_strip1
     vec_dimension1_strip1 = [H_s_strip1 - vec_profundidad_terraza_strip1[i] for i in eachindex(vec_coord_ini1)]
     vec_dimension1_strip2 = [H_s_strip2 - vec_profundidad_terraza_strip2[i] for i in eachindex(vec_coord_ini2)]
 
+    max_profundidad_interior = 7.5
+    n1 = length(vec_dimension1_strip1)
+    for i in 2:(n1-1)
+        if vec_dimension1_strip1[i] > max_profundidad_interior
+            vec_dimension1_strip1[i] = max_profundidad_interior
+        end
+    end
+    n2 = length(vec_dimension1_strip2)
+    for i in 2:(n2-1)
+        if vec_dimension1_strip2[i] > max_profundidad_interior
+            vec_dimension1_strip2[i] = max_profundidad_interior
+        end
+    end
+
     ps_deptos_extendidos_strip1 = PolyShape[]
     ps_deptos_extendidos_strip2 = PolyShape[]
     for i in eachindex(vec_coord_ini1)
