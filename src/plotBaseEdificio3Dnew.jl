@@ -91,21 +91,21 @@ function plotBaseEdificio3Dnew(fpe, alturaPiso, ps_predio, dict_resultado, resul
         ps_pasillo = results_pisos_superiores["ps_pasillo"]
         ps_area_comun_total_primer_piso = results_primer_piso["ps_area_comun_total"]
 
-        ps_union_deptos_primer = results_primer_piso["ps_union_deptos"]
-        ps_union_terrazas_primer = results_primer_piso["ps_union_terrazas"]
+        vec_deptos_primer = results_primer_piso["vec_ps_deptos_all"]
+        vec_terrazas_primer = results_primer_piso["vec_ps_terrazas_all"]
 
         fig, ax, ax_mat = plot_common_area_new(ps_area_comun_total_primer_piso, 0.0, alturaPiso, "#303030", 0.9, fig, ax, ax_mat)
-        fig, ax, ax_mat = plot_unified_apartments_floor(ps_union_deptos_primer, 0.0, alturaPiso, "teal", 1.0, fig, ax, ax_mat)
-        fig, ax, ax_mat = plot_unified_apartments_floor(ps_union_terrazas_primer, 0.0, 1.0, "#2F4F4F", 1.0, fig, ax, ax_mat)
+        fig, ax, ax_mat = plot_apartments_floor_new(vec_deptos_primer, 0.0, alturaPiso, "teal", 1.0, fig, ax, ax_mat)
+        fig, ax, ax_mat = plot_apartments_floor_new(vec_terrazas_primer, 0.0, 1.0, "#2F4F4F", 1.0, fig, ax, ax_mat)
 
-        ps_union_deptos_sup = results_pisos_superiores["ps_union_deptos"]
-        ps_union_terrazas_sup = results_pisos_superiores["ps_union_terrazas"]
+        vec_deptos_sup = results_pisos_superiores["vec_ps_deptos_all"]
+        vec_terrazas_sup = results_pisos_superiores["vec_ps_terrazas_all"]
 
         for piso in 1:num_pisos_superiores
             z_low = alturaPiso * piso
             z_high = alturaPiso * (piso + 1)
-            fig, ax, ax_mat = plot_unified_apartments_floor(ps_union_deptos_sup, z_low, z_high, "teal", 1.0, fig, ax, ax_mat)
-            fig, ax, ax_mat = plot_unified_apartments_floor(ps_union_terrazas_sup, z_low, z_low + 1.0, "#2F4F4F", 1.0, fig, ax, ax_mat)
+            fig, ax, ax_mat = plot_apartments_floor_new(vec_deptos_sup, z_low, z_high, "teal", 1.0, fig, ax, ax_mat)
+            fig, ax, ax_mat = plot_apartments_floor_new(vec_terrazas_sup, z_low, z_low + 1.0, "#2F4F4F", 1.0, fig, ax, ax_mat)
             fig, ax, ax_mat = plot_common_area_new(ps_pasillo, z_low, z_high, "#303030", 0.6, fig, ax, ax_mat)
         end
 

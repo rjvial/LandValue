@@ -249,23 +249,42 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # ============================================================================
     # 6. CAPACITY DATA CALCULATION
     # ============================================================================
-    df_deptos_resumen = combine(
-        groupby(dict_edificio_deptos["df_deptos"], [:strip, :sup_interior, :ancho_interior, :profundidad_interior, :num_unidades_por_piso_superior, :num_unidades_primer_piso]),
-        :num_unidades_edificio => sum => :num_unidades_edificio)
-
     cabida_data = Dict{String, Any}()
     if dict_normativa["tipo_edificio"] == "departamento"
-        vec_sup_target = df_deptos_resumen[:,"sup_interior"]
-        vec_num_deptos_resumen = df_deptos_resumen[:,"num_unidades_edificio"]
+        vec_areas_pisos_superiores = [polyShape.polyArea(ps) for ps in results_pisos_superiores["vec_ps_deptos_all"]]
+        vec_areas_primer_piso = !isnothing(results_primer_piso) ? [polyShape.polyArea(ps) for ps in results_primer_piso["vec_ps_deptos_all"]] : Float64[]
 
-        total_sup_target = sum(vec_sup_target[i] * vec_num_deptos_resumen[i] for i in eachindex(vec_sup_target))
-        total_sup_actual = sup_interior_edificio
+        all_areas = vcat(vec_areas_pisos_superiores, vec_areas_primer_piso)
+        num_pisos_sup = length(vec_areas_pisos_superiores)
 
-        scale_factor = total_sup_target > 0.0 ? total_sup_actual / total_sup_target : 1.0
-        vec_sup_actual = vec_sup_target .* scale_factor
+        area_dict = Dict{Float64, Vector{Int}}()
+        for (idx, area) in enumerate(all_areas)
+            if !haskey(area_dict, area)
+                area_dict[area] = Int[]
+            end
+            push!(area_dict[area], idx)
+        end
 
-        cabida_data["vec_sup_deptos"] = vec_sup_actual
-        cabida_data["vec_num_deptos"] = Int.(round.(vec_num_deptos_resumen))
+        vec_sup_deptos = Float64[]
+        vec_num_deptos = Int[]
+        vec_num_deptos_primerPiso = Int[]
+        vec_num_deptos_pisosSup = Int[]
+
+        for (area, indices) in sort(collect(area_dict), by=x->x[1])
+            push!(vec_sup_deptos, area)
+
+            count_primer = count(idx -> idx > num_pisos_sup, indices)
+            count_superior = count(idx -> idx <= num_pisos_sup, indices)
+
+            push!(vec_num_deptos_primerPiso, count_primer)
+            push!(vec_num_deptos_pisosSup, count_superior)
+            push!(vec_num_deptos, count_primer + count_superior * (num_pisos - 1))
+        end
+
+        cabida_data["vec_sup_deptos"] = vec_sup_deptos
+        cabida_data["vec_num_deptos"] = vec_num_deptos
+        cabida_data["vec_num_deptos_primerPiso"] = vec_num_deptos_primerPiso
+        cabida_data["vec_num_deptos_pisosSup"] = vec_num_deptos_pisosSup
         cabida_data["vec_sup_comercio"] = 0
         cabida_data["vec_num_comercio"] = 0
         cabida_data["vec_sup_oficinas"] = 0
@@ -280,6 +299,8 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
         end
         cabida_data["vec_sup_deptos"] = 0
         cabida_data["vec_num_deptos"] = 0
+        cabida_data["vec_num_deptos_primerPiso"] = 0
+        cabida_data["vec_num_deptos_pisosSup"] = 0
         cabida_data["vec_sup_comercio"] = 0
         cabida_data["vec_num_comercio"] = 0
         cabida_data["vec_sup_oficinas"] = OFFICE_AREA_PER_UNIT
@@ -403,8 +424,8 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
         "proyecto_pisos_bnt" => Int8(sum(vec_np_subte[i] for i in eachindex(vec_ps_subte))),
         "proyecto_vec_sup_deptos" => cabida_data["vec_sup_deptos"],
         "proyecto_vec_num_deptos" => cabida_data["vec_num_deptos"],
-        "proyecto_vec_num_deptos_primerPiso" => Int.(round.(df_deptos_resumen[:,"num_unidades_primer_piso"])),
-        "proyecto_vec_num_deptos_pisosSup" => Int.(round.(df_deptos_resumen[:,"num_unidades_por_piso_superior"])),
+        "proyecto_vec_num_deptos_primerPiso" => cabida_data["vec_num_deptos_primerPiso"],
+        "proyecto_vec_num_deptos_pisosSup" => cabida_data["vec_num_deptos_pisosSup"],
         "proyecto_vec_sup_comercio" => cabida_data["vec_sup_comercio"],
         "proyecto_vec_num_comercio" => cabida_data["vec_num_comercio"],
         "proyecto_vec_sup_oficinas" => cabida_data["vec_sup_oficinas"],
