@@ -89,6 +89,26 @@ function opti_planta_edificio(max_constructibilidad, max_deptos, vec_ps_opt, vec
         return vec_area_t[end]
     end
 
+    function generate_area_sequences(I_dim_feasible, depto_configs, max_ratio)
+        areas = [(i, depto_configs[i].area) for i in I_dim_feasible]
+        sort!(areas, by=x->x[2])
+
+        sequences = Vector{Vector{Int}}()
+        for start_idx in eachindex(areas)
+            min_area = areas[start_idx][2]
+            seq = [areas[start_idx][1]]
+            for j in (start_idx+1):lastindex(areas)
+                if areas[j][2] / min_area <= max_ratio
+                    push!(seq, areas[j][1])
+                else
+                    break
+                end
+            end
+            push!(sequences, seq)
+        end
+        return sequences
+    end
+
     function opti_planta_edificio_layout(depto_configs, max_constructibilidad, max_deptos,
                                 vec_ps_opt, vec_np_opt, layout, num_threads_highs)
 
@@ -102,7 +122,10 @@ function opti_planta_edificio(max_constructibilidad, max_deptos, vec_ps_opt, vec
         I = 1:length(depto_configs)
         S = 1:num_strips
 
-        I_feasible = [i for i in I if depto_configs[i].h <= H/2 + 1 && depto_configs[i].w <= W]
+        I_dim_feasible = [i for i in I if depto_configs[i].h <= H/2 + 1 && depto_configs[i].w <= W]
+        sequences = generate_area_sequences(I_dim_feasible, depto_configs, 2.0)
+        K = 1:length(sequences)
+        I_feasible = I_dim_feasible
 
         model = Model(HiGHS.Optimizer)
         set_silent(model)
@@ -125,6 +148,7 @@ function opti_planta_edificio(max_constructibilidad, max_deptos, vec_ps_opt, vec
             x[i in I_feasible, s in S], Bin
             0 <= n_primer[i in I_feasible, s in S] <= max_apts_per_strip, Int
             area_util_no_utilizada >= 0
+            z[k in K], Bin
         end)
 
         @expressions(model, begin
@@ -154,6 +178,15 @@ function opti_planta_edificio(max_constructibilidad, max_deptos, vec_ps_opt, vec
             constraint_primer_subset[i in I_feasible, s in S], n_primer[i,s] <= n[i,s]
             constraint_primer_fewer_deptos, total_num_deptos_primer_piso <= total_num_deptos_por_piso - 1
         end)
+
+        @constraint(model, constraint_one_sequence, sum(z[k] for k in K) == 1)
+
+        for i in I_feasible
+            sequences_with_i = [k for k in K if i in sequences[k]]
+            if length(sequences_with_i) < length(K)
+                @constraint(model, [s in S], n[i,s] <= max_apts_per_strip * sum(z[k] for k in sequences_with_i))
+            end
+        end
 
         @constraint(model, sum(n[i,1] for i in I_feasible) >= sum(n[i,2] for i in I_feasible))
 

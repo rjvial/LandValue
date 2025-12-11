@@ -2,7 +2,7 @@
 #                    SCRIPT 2A - VOLUMETRIC OPTIMIZATION                     #
 ################################################################################
 
-using LandValue, DotEnv, LinearAlgebra, OrderedCollections, JSON
+using LandValue, DotEnv, LinearAlgebra, OrderedCollections, JSON, DataFrames
 
 ################################################################################
 #                        DATABASE CONNECTION SETUP                           #
@@ -167,7 +167,7 @@ const PRIMARY_KEY = "id_opti"
 const TABLE_NAME = "tabla_resultados_optimizacion"
 const PRIORITY_KEYS = ["id_opti", "id_combi", "flag_sombra", "arq_variante_normativa", "arq_tipo_edificio"]
 
-flag_create_table = false # let flag_create_table = false
+let flag_create_table = false, combi_aux = "", dict_geom = nothing
 
     # Check if results table already exists
     table_check_query = """
@@ -182,88 +182,76 @@ flag_create_table = false # let flag_create_table = false
         println("Table '$TABLE_NAME' already exists")
     end
 
-    combi_aux = ""
-    dict_geom = nothing
-
     for row in eachrow(df_instancias)
-        id_combi = row.id_combi
-        id_opti = row.id_opti
+        try
+            id_combi = row.id_combi
+            id_opti = row.id_opti
 
-        df_combis_row = filter(r -> r.id_combi == id_combi, df_combis)
-        vec_predios = parse.(Int, split(strip(df_combis_row[1, "list_predios"], ['(', ')']), ';'))
+            df_combis_row = filter(r -> r.id_combi == id_combi, df_combis)
+            vec_predios = parse.(Int, split(strip(df_combis_row[1, "list_predios"], ['(', ')']), ';'))
 
-        # Process geometry once per combi
-        if id_combi != combi_aux
-            println("\nProcessing Combi ID: $id_combi\n")
-            df_combined_row = filter(r -> r.id_combi == id_combi, df_combined)
+            # Process geometry once per combi
+            if id_combi != combi_aux
+                println("\nProcessing Combi ID: $id_combi\n")
+                df_combined_row = filter(r -> r.id_combi == id_combi, df_combined)
 
-            # if isempty(df_combined_row)
-            #     handle_optimization_error(conn_postgres, id_opti, "No geometries found", "")
-            #     continue
-            # end
+                if nrow(df_combined_row) == 0
+                    println("WARNING: No geometry data for id_combi = $id_combi. Skipping...")
+                    continue
+                end
 
-            # try
                 dict_geom = obtiene_geometrias_combi(df_combined_row)
-            # catch e
-            #     println("Geometry processing error for Combi ID $(id_combi): $(e). Skipping this optimization.")
-            #     handle_optimization_error(conn_postgres, id_opti, "Geometry processing error", string(e))
-            #     continue
-            # end
 
-            combi_aux = id_combi
-        end
+                combi_aux = id_combi
+            end
 
-        println("Processing ID Opti: $(id_opti)")
+            println("Processing ID Opti: $(id_opti)")
 
-        dict_arquitectura = createArchitectureDict(row.variante_norm)
-        dict_normativa_raw, id_zona_edificacion = obtiene_requerimientos_normativos(vec_predios[1], dict_arquitectura["arq_variante_normativa"], conn_neo4j)
+            dict_arquitectura = createArchitectureDict(row.variante_norm)
+            dict_normativa_raw, id_zona_edificacion = obtiene_requerimientos_normativos(vec_predios[1], dict_arquitectura["arq_variante_normativa"], conn_neo4j)
 
-        df_tipo_deptos_filtered = filter(r -> r.id_zona_edificacion == id_zona_edificacion, df_tipo_deptos)
-        dict_arquitectura["arq_vecSupUtil"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1,"sup_util_tipos_comuna"]))
-        dict_arquitectura["arq_vecSupInterior"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1,"sup_interior_tipos_comuna"]))
-        dict_arquitectura["arq_vecSupTerraza"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1,"sup_terraza_tipos_comuna"]))
-        dict_arquitectura["arq_vecDormitorios"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1,"n_dorm_tipos_comuna"]))
-        dict_arquitectura["arq_vecBanos"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1,"n_banos_tipos_comuna"]))
+            df_tipo_deptos_filtered = filter(r -> r.id_zona_edificacion == id_zona_edificacion, df_tipo_deptos)
+            dict_arquitectura["arq_vecSupUtil"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1, "sup_util_tipos_comuna"]))
+            dict_arquitectura["arq_vecSupInterior"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1, "sup_interior_tipos_comuna"]))
+            dict_arquitectura["arq_vecSupTerraza"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1, "sup_terraza_tipos_comuna"]))
+            dict_arquitectura["arq_vecDormitorios"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1, "n_dorm_tipos_comuna"]))
+            dict_arquitectura["arq_vecBanos"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1, "n_banos_tipos_comuna"]))
 
-        # try
             dict_proyecto, dict_normativa, results_pisos_superiores, results_primer_piso = opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti, id_combi)
-
-            ####################################
-            ####################################
 
             ps_planta = dict_proyecto["proyecto_vec_ps_opt"][1]
 
-            println("Plotting Pisos Superiores...")
-            fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
+            # println("Plotting Pisos Superiores...")
+            # fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
 
-            if !isnothing(results_pisos_superiores["ps_pasillo"])
-                polyPlot.plotPolyshape2D(results_pisos_superiores["ps_pasillo"], "#505050", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
-            end
-            for apt_poly in results_pisos_superiores["vec_ps_deptos_all"]
-                polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
-            end
-            for terrace in results_pisos_superiores["vec_ps_terrazas_all"]
-                if polyShape.polyArea(terrace) > 0.0
-                    polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig, ax=ax, ax_mat=ax_mat)
-                end
-            end
+            # if !isnothing(results_pisos_superiores["ps_pasillo"])
+            #     polyPlot.plotPolyshape2D(results_pisos_superiores["ps_pasillo"], "#505050", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
+            # end
+            # for apt_poly in results_pisos_superiores["vec_ps_deptos_all"]
+            #     polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
+            # end
+            # for terrace in results_pisos_superiores["vec_ps_terrazas_all"]
+            #     if polyShape.polyArea(terrace) > 0.0
+            #         polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig, ax=ax, ax_mat=ax_mat)
+            #     end
+            # end
 
-            println("Plotting Primer Piso...")
-            ps_planta = results_primer_piso["ps_planta"]
-            fig2, ax2, ax_mat2 = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
+            # println("Plotting Primer Piso...")
+            # ps_planta = results_primer_piso["ps_planta"]
+            # fig2, ax2, ax_mat2 = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
 
-            if !isnothing(results_primer_piso["ps_area_comun_total"]) && polyShape.polyArea(results_primer_piso["ps_area_comun_total"]) > 0.0
-                polyPlot.plotPolyshape2D(results_primer_piso["ps_area_comun_total"], "#505050", 0.9, fig=fig2, ax=ax2, ax_mat=ax_mat2)
-            end
+            # if !isnothing(results_primer_piso["ps_area_comun_total"]) && polyShape.polyArea(results_primer_piso["ps_area_comun_total"]) > 0.0
+            #     polyPlot.plotPolyshape2D(results_primer_piso["ps_area_comun_total"], "#505050", 0.9, fig=fig2, ax=ax2, ax_mat=ax_mat2)
+            # end
 
-            for apt_poly in results_primer_piso["vec_ps_deptos_all"]
-                polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig2, ax=ax2, ax_mat=ax_mat2)
-            end
-            for terrace in results_primer_piso["vec_ps_terrazas_all"]
-                if polyShape.polyArea(terrace) > 0.0
-                    polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig2, ax=ax2, ax_mat=ax_mat2)
-                end
-            end
+            # for apt_poly in results_primer_piso["vec_ps_deptos_all"]
+            #     polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig2, ax=ax2, ax_mat=ax_mat2)
+            # end
+            # for terrace in results_primer_piso["vec_ps_terrazas_all"]
+            #     if polyShape.polyArea(terrace) > 0.0
+            #         polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig2, ax=ax2, ax_mat=ax_mat2)
+            #     end
+            # end
 
             println("Area comun primer piso: $(results_primer_piso["area_comun"]) m²")
             ####################################
@@ -293,15 +281,15 @@ flag_create_table = false # let flag_create_table = false
             dict_json["json_planta_primer_piso"] = polyShape.planta2json(results_primer_piso["vec_ps_deptos_all"], results_primer_piso["vec_ps_terrazas_all"], results_primer_piso["ps_area_comun_total"], nothing, 0.0)
             dict_json["json_planta_pisos_superiores"] = polyShape.planta2json(results_pisos_superiores["vec_ps_deptos_all"], results_pisos_superiores["vec_ps_terrazas_all"], nothing, results_pisos_superiores["ps_pasillo"], dict_arquitectura["arq_alturaPiso"])
 
-            # for (json_key, json_content) in dict_json
-            #     if startswith(json_key, "json_")
-            #         json_file_path = "$(json_key).json"
-            #         open(json_file_path, "w") do f
-            #             write(f, json_content)
-            #         end
-            #         println("Saved JSON to: $json_file_path")
-            #     end
-            # end
+            for (json_key, json_content) in dict_json
+                if startswith(json_key, "json_")
+                    json_file_path = "$(json_key).json"
+                    open(json_file_path, "w") do f
+                        write(f, json_content)
+                    end
+                    println("Saved JSON to: $json_file_path")
+                end
+            end
 
             delete!(dict_normativa, "norm_coeficiente_de_ocupacion_de_suelo")
             delete!(dict_normativa, "norm_superficice_util_max_depto")
@@ -317,28 +305,29 @@ flag_create_table = false # let flag_create_table = false
                 end
             end
 
-            # vecColumnNames, vecColumnTypes = dict2tablevec(dict_all, PRIMARY_KEY)
-            # if flag_create_table
-            #     pg_julia.createTable(conn_postgres, TABLE_NAME, vecColumnNames, vecColumnTypes, PRIMARY_KEY)
-            #     flag_create_table = false
-            # end
-            # vecColumnValue = Vector{Any}(undef, length(vecColumnNames))
-            # for (idx, col_name) in enumerate(vecColumnNames)
-            #     vecColumnValue[idx] = haskey(dict_all, col_name) ? dict_all[col_name] : nothing
-            # end
-            # pg_julia.insertRow!(conn_postgres, TABLE_NAME, vecColumnNames, vecColumnValue, Symbol(PRIMARY_KEY))
-            # update_optimization_status(conn_postgres, id_opti, 1)
+            vecColumnNames, vecColumnTypes = dict2tablevec(dict_all, PRIMARY_KEY)
+            if flag_create_table
+                pg_julia.createTable(conn_postgres, TABLE_NAME, vecColumnNames, vecColumnTypes, PRIMARY_KEY)
+                flag_create_table = false
+            end
+            vecColumnValue = Vector{Any}(undef, length(vecColumnNames))
+            for (idx, col_name) in enumerate(vecColumnNames)
+                vecColumnValue[idx] = haskey(dict_all, col_name) ? dict_all[col_name] : nothing
+            end
+            pg_julia.insertRow!(conn_postgres, TABLE_NAME, vecColumnNames, vecColumnValue, Symbol(PRIMARY_KEY))
+            update_optimization_status(conn_postgres, id_opti, 1)
 
-            fig, ax, ax_mat = plotBaseEdificio3Dnew(fpe, dict_arquitectura["arq_alturaPiso"], dict_geom["ps_combi"], dict_all, results_primer_piso, results_pisos_superiores, num_pisos_superiores)
+            # fig, ax, ax_mat = plotBaseEdificio3Dnew(fpe, dict_arquitectura["arq_alturaPiso"], dict_geom["ps_combi"], dict_all, results_primer_piso, results_pisos_superiores, num_pisos_superiores)
 
             println("Completed optimization for ID Opti: $(id_opti)\n")
 
-        # catch e
-        #     handle_optimization_error(conn_postgres, id_opti, "Optimization failed", e)
-        #     continue
-        # end
-
+        catch e
+            id_opti_str = @isdefined(id_opti) ? string(id_opti) : "unknown"
+            println("ERROR: Failed to process ID Opti: $id_opti_str. Skipping...")
+            continue
+        end
     end
 
-    println("All optimizations completed successfully!")
-# end
+end
+
+println("All optimizations completed successfully!")

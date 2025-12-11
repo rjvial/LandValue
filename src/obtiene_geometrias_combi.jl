@@ -1,6 +1,11 @@
 function obtiene_geometrias_combi(df_combined_row)
     # Unified query to get both Combi and Calle_Combi data in single database call
 
+    # Check if DataFrame has rows
+    if nrow(df_combined_row) == 0
+        error("DataFrame df_combined_row is empty. Cannot extract geometry data.")
+    end
+
     # Extract Combi data (first row contains all combi info)
     if "sup_terreno_sii" in names(df_combined_row)
         sup_terreno_sii = df_combined_row[1,"sup_terreno_sii"]

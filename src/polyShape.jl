@@ -2181,24 +2181,40 @@ function building2json(results_primer_piso::Dict, results_pisos_superiores::Dict
         all_indices = Int[]
 
         if element_name == "deptos"
-            ps_union_deptos_primer = results_primer_piso["ps_union_deptos"]
-            addPolyShapeTo3D(ps_union_deptos_primer, 0.0, alturaPiso, all_vertices, all_indices)
+            vec_deptos_primer = results_primer_piso["vec_ps_deptos_all"]
+            for ps_depto in vec_deptos_primer
+                if polyArea(ps_depto) > 0.0
+                    addPolyShapeTo3D(ps_depto, 0.0, alturaPiso, all_vertices, all_indices)
+                end
+            end
 
-            ps_union_deptos_sup = results_pisos_superiores["ps_union_deptos"]
+            vec_deptos_sup = results_pisos_superiores["vec_ps_deptos_all"]
             for piso in 1:num_pisos_superiores
                 z_low = alturaPiso * piso
                 z_high = alturaPiso * (piso + 1)
-                addPolyShapeTo3D(ps_union_deptos_sup, z_low, z_high, all_vertices, all_indices)
+                for ps_depto in vec_deptos_sup
+                    if polyArea(ps_depto) > 0.0
+                        addPolyShapeTo3D(ps_depto, z_low, z_high, all_vertices, all_indices)
+                    end
+                end
             end
 
         elseif element_name == "terrazas"
-            ps_union_terrazas_primer = results_primer_piso["ps_union_terrazas"]
-            addPolyShapeTo3D(ps_union_terrazas_primer, 0.0, 1.0, all_vertices, all_indices)
+            vec_terrazas_primer = results_primer_piso["vec_ps_terrazas_all"]
+            for ps_terraza in vec_terrazas_primer
+                if polyArea(ps_terraza) > 0.0
+                    addPolyShapeTo3D(ps_terraza, 0.0, 1.0, all_vertices, all_indices)
+                end
+            end
 
-            ps_union_terrazas_sup = results_pisos_superiores["ps_union_terrazas"]
+            vec_terrazas_sup = results_pisos_superiores["vec_ps_terrazas_all"]
             for piso in 1:num_pisos_superiores
                 z_low = alturaPiso * piso
-                addPolyShapeTo3D(ps_union_terrazas_sup, z_low, z_low + 1.0, all_vertices, all_indices)
+                for ps_terraza in vec_terrazas_sup
+                    if polyArea(ps_terraza) > 0.0
+                        addPolyShapeTo3D(ps_terraza, z_low, z_low + 1.0, all_vertices, all_indices)
+                    end
+                end
             end
 
         elseif element_name == "area_comun"
