@@ -197,6 +197,7 @@ let flag_create_table = false, combi_aux = "", dict_geom = nothing
 
                 if nrow(df_combined_row) == 0
                     println("WARNING: No geometry data for id_combi = $id_combi. Skipping...")
+                    update_optimization_status(conn_postgres, id_opti, 9)
                     continue
                 end
 
@@ -324,6 +325,9 @@ let flag_create_table = false, combi_aux = "", dict_geom = nothing
         catch e
             id_opti_str = @isdefined(id_opti) ? string(id_opti) : "unknown"
             println("ERROR: Failed to process ID Opti: $id_opti_str. Skipping...")
+            if @isdefined(id_opti)
+                update_optimization_status(conn_postgres, id_opti, 9)
+            end
             continue
         end
     end
