@@ -2176,7 +2176,7 @@ function building2json(results_primer_piso::Dict, results_pisos_superiores::Dict
         end
     end
 
-    function create_single_element_json(element_name::String, color_hex::UInt32)
+    function create_single_element_json(element_name::String)
         all_vertices = Float64[]
         all_indices = Int[]
 
@@ -2234,9 +2234,6 @@ function building2json(results_primer_piso::Dict, results_pisos_superiores::Dict
         end
 
         geometry_uuid = string(Base.UUID(rand(UInt128)))
-        material_uuid = string(Base.UUID(rand(UInt128)))
-        mesh_uuid = string(Base.UUID(rand(UInt128)))
-        group_uuid = string(Base.UUID(rand(UInt128)))
 
         geometry = Dict{String,Any}(
             "uuid" => geometry_uuid,
@@ -2253,70 +2250,21 @@ function building2json(results_primer_piso::Dict, results_pisos_superiores::Dict
                     "type" => "Uint16Array",
                     "array" => [max(0, idx) for idx in all_indices]
                 )
+            ),
+            "metadata" => Dict{String,Any}(
+                "version" => 4.5,
+                "type" => "BufferGeometry",
+                "generator" => "LandValue.polyShape"
             )
         )
 
-        material = Dict{String,Any}(
-            "uuid" => material_uuid,
-            "type" => "MeshPhongMaterial",
-            "color" => color_hex,
-            "emissive" => 0x000000,
-            "shininess" => 100
-        )
-
-        mesh_obj = Dict{String,Any}(
-            "uuid" => mesh_uuid,
-            "type" => "Mesh",
-            "name" => element_name,
-            "geometry" => geometry_uuid,
-            "material" => material_uuid,
-            "position" => [0, 0, 0],
-            "rotation" => [0, 0, 0],
-            "scale" => [1, 1, 1]
-        )
-
-        ambient_light = Dict{String,Any}(
-            "uuid" => string(Base.UUID(rand(UInt128))),
-            "type" => "AmbientLight",
-            "name" => "AmbientLight",
-            "color" => 16777215,
-            "intensity" => 0.5
-        )
-
-        dir_light = Dict{String,Any}(
-            "uuid" => string(Base.UUID(rand(UInt128))),
-            "type" => "DirectionalLight",
-            "name" => "DirectionalLight",
-            "color" => 16777215,
-            "intensity" => 0.8,
-            "position" => [50, 50, 50]
-        )
-
-        group_obj = Dict{String,Any}(
-            "uuid" => group_uuid,
-            "type" => "Group",
-            "name" => element_name,
-            "children" => [ambient_light, dir_light, mesh_obj]
-        )
-
-        json_obj = Dict{String,Any}(
-            "metadata" => Dict{String,Any}(
-                "version" => 4.5,
-                "type" => "Object",
-                "generator" => "LandValue.polyShape"
-            ),
-            "geometries" => [geometry],
-            "materials" => [material],
-            "object" => group_obj
-        )
-
-        return JSON.json(json_obj)
+        return JSON.json(geometry)
     end
 
     return Dict{String, String}(
-        "json_deptos_opt" => create_single_element_json("deptos", 0x008080),
-        "json_terrazas_opt" => create_single_element_json("terrazas", 0x2F4F4F),
-        "json_area_comun_opt" => create_single_element_json("area_comun", 0x303030)
+        "json_deptos_opt" => create_single_element_json("deptos"),
+        "json_terrazas_opt" => create_single_element_json("terrazas"),
+        "json_area_comun_opt" => create_single_element_json("area_comun")
     )
 end
 
@@ -2386,18 +2334,14 @@ function planta2json(vec_ps_deptos::Vector{PolyShape}, vec_ps_terrazas::Vector{P
         return indices
     end
 
-    geometries = Dict{String, Any}[]
-    materials = Dict{String, Any}[]
-    objects = Dict{String, Any}[]
+    all_vertices = Float64[]
+    all_indices = Int[]
 
-    function add_polyshape_array(ps_array::Vector{PolyShape}, color_hex::UInt32, name::String)
-        for (idx, ps) in enumerate(ps_array)
+    function add_polyshape_array(ps_array::Vector{PolyShape})
+        for ps in ps_array
             if ps.NumRegions == 0
                 continue
             end
-
-            all_vertices = Float64[]
-            all_indices = Int[]
 
             for region_idx in 1:ps.NumRegions
                 V = ps.Vertices[region_idx]
@@ -2414,63 +2358,13 @@ function planta2json(vec_ps_deptos::Vector{PolyShape}, vec_ps_terrazas::Vector{P
                     push!(all_indices, region_start + tri_idx)
                 end
             end
-
-            if !isempty(all_indices)
-                geometry_uuid = string(Base.UUID(rand(UInt128)))
-                material_uuid = string(Base.UUID(rand(UInt128)))
-                mesh_uuid = string(Base.UUID(rand(UInt128)))
-
-                geometry = Dict{String,Any}(
-                    "uuid" => geometry_uuid,
-                    "type" => "BufferGeometry",
-                    "data" => Dict{String,Any}(
-                        "attributes" => Dict{String,Any}(
-                            "position" => Dict{String,Any}(
-                                "itemSize" => 3,
-                                "type" => "Float32Array",
-                                "array" => all_vertices
-                            )
-                        ),
-                        "index" => Dict{String,Any}(
-                            "type" => "Uint16Array",
-                            "array" => [max(0, i) for i in all_indices]
-                        )
-                    )
-                )
-
-                material = Dict{String,Any}(
-                    "uuid" => material_uuid,
-                    "type" => "MeshPhongMaterial",
-                    "color" => color_hex,
-                    "emissive" => 0x000000,
-                    "shininess" => 100
-                )
-
-                mesh_obj = Dict{String,Any}(
-                    "uuid" => mesh_uuid,
-                    "type" => "Mesh",
-                    "name" => "$(name)_$(idx)",
-                    "geometry" => geometry_uuid,
-                    "material" => material_uuid,
-                    "position" => [0, 0, 0],
-                    "rotation" => [0, 0, 0],
-                    "scale" => [1, 1, 1]
-                )
-
-                push!(geometries, geometry)
-                push!(materials, material)
-                push!(objects, mesh_obj)
-            end
         end
     end
 
-    function add_single_polyshape(ps::Union{PolyShape, Nothing}, color_hex::UInt32, name::String)
+    function add_single_polyshape(ps::Union{PolyShape, Nothing})
         if isnothing(ps) || ps.NumRegions == 0
             return
         end
-
-        all_vertices = Float64[]
-        all_indices = Int[]
 
         for region_idx in 1:ps.NumRegions
             V = ps.Vertices[region_idx]
@@ -2487,165 +2381,43 @@ function planta2json(vec_ps_deptos::Vector{PolyShape}, vec_ps_terrazas::Vector{P
                 push!(all_indices, region_start + tri_idx)
             end
         end
-
-        if !isempty(all_indices)
-            geometry_uuid = string(Base.UUID(rand(UInt128)))
-            material_uuid = string(Base.UUID(rand(UInt128)))
-            mesh_uuid = string(Base.UUID(rand(UInt128)))
-
-            geometry = Dict{String,Any}(
-                "uuid" => geometry_uuid,
-                "type" => "BufferGeometry",
-                "data" => Dict{String,Any}(
-                    "attributes" => Dict{String,Any}(
-                        "position" => Dict{String,Any}(
-                            "itemSize" => 3,
-                            "type" => "Float32Array",
-                            "array" => all_vertices
-                        )
-                    ),
-                    "index" => Dict{String,Any}(
-                        "type" => "Uint16Array",
-                        "array" => [max(0, i) for i in all_indices]
-                    )
-                )
-            )
-
-            material = Dict{String,Any}(
-                "uuid" => material_uuid,
-                "type" => "MeshPhongMaterial",
-                "color" => color_hex,
-                "emissive" => 0x000000,
-                "shininess" => 100
-            )
-
-            mesh_obj = Dict{String,Any}(
-                "uuid" => mesh_uuid,
-                "type" => "Mesh",
-                "name" => name,
-                "geometry" => geometry_uuid,
-                "material" => material_uuid,
-                "position" => [0, 0, 0],
-                "rotation" => [0, 0, 0],
-                "scale" => [1, 1, 1]
-            )
-
-            push!(geometries, geometry)
-            push!(materials, material)
-            push!(objects, mesh_obj)
-        end
     end
 
-    function add_borders_for_array(ps_array::Vector{PolyShape}, color_hex::UInt32, name::String)
-        for (idx, ps) in enumerate(ps_array)
-            if ps.NumRegions == 0
-                continue
-            end
+    add_polyshape_array(vec_ps_deptos)
+    add_polyshape_array(vec_ps_terrazas)
+    add_single_polyshape(ps_area_comun)
+    add_single_polyshape(ps_pasillo)
 
-            all_vertices = Float64[]
-
-            for region_idx in 1:ps.NumRegions
-                V = ps.Vertices[region_idx]
-                n_verts = size(V, 1)
-
-                for i in 1:n_verts
-                    push!(all_vertices, V[i, 2], height, V[i, 1])
-                end
-
-                for i in 1:n_verts
-                    next_i = (i % n_verts) + 1
-                    push!(all_vertices, V[next_i, 2], height, V[next_i, 1])
-                end
-            end
-
-            if !isempty(all_vertices)
-                geometry_uuid = string(Base.UUID(rand(UInt128)))
-                material_uuid = string(Base.UUID(rand(UInt128)))
-                line_uuid = string(Base.UUID(rand(UInt128)))
-
-                geometry = Dict{String,Any}(
-                    "uuid" => geometry_uuid,
-                    "type" => "BufferGeometry",
-                    "data" => Dict{String,Any}(
-                        "attributes" => Dict{String,Any}(
-                            "position" => Dict{String,Any}(
-                                "itemSize" => 3,
-                                "type" => "Float32Array",
-                                "array" => all_vertices
-                            )
-                        )
-                    )
-                )
-
-                material = Dict{String,Any}(
-                    "uuid" => material_uuid,
-                    "type" => "LineBasicMaterial",
-                    "color" => color_hex,
-                    "linewidth" => 2
-                )
-
-                line_obj = Dict{String,Any}(
-                    "uuid" => line_uuid,
-                    "type" => "LineSegments",
-                    "name" => "$(name)_border_$(idx)",
-                    "geometry" => geometry_uuid,
-                    "material" => material_uuid,
-                    "position" => [0, 0, 0],
-                    "rotation" => [0, 0, 0],
-                    "scale" => [1, 1, 1]
-                )
-
-                push!(geometries, geometry)
-                push!(materials, material)
-                push!(objects, line_obj)
-            end
-        end
+    if isempty(all_indices)
+        return ""
     end
 
-    add_polyshape_array(vec_ps_deptos, 0x008080, "depto")
-    add_polyshape_array(vec_ps_terrazas, 0x2F4F4F, "terraza")
-    add_single_polyshape(ps_area_comun, 0x303030, "area_comun")
-    add_single_polyshape(ps_pasillo, 0x303030, "pasillo")
-    add_borders_for_array(vec_ps_deptos, 0x000000, "depto")
+    geometry_uuid = string(Base.UUID(rand(UInt128)))
 
-    group_uuid = string(Base.UUID(rand(UInt128)))
-
-    ambient_light = Dict{String,Any}(
-        "uuid" => string(Base.UUID(rand(UInt128))),
-        "type" => "AmbientLight",
-        "name" => "AmbientLight",
-        "color" => 16777215,
-        "intensity" => 0.5
-    )
-
-    dir_light = Dict{String,Any}(
-        "uuid" => string(Base.UUID(rand(UInt128))),
-        "type" => "DirectionalLight",
-        "name" => "DirectionalLight",
-        "color" => 16777215,
-        "intensity" => 0.8,
-        "position" => [50, 50, 50]
-    )
-
-    group_obj = Dict{String,Any}(
-        "uuid" => group_uuid,
-        "type" => "Group",
-        "name" => "Planta",
-        "children" => vcat([ambient_light, dir_light], objects)
-    )
-
-    json_obj = Dict{String,Any}(
+    geometry = Dict{String,Any}(
+        "uuid" => geometry_uuid,
+        "type" => "BufferGeometry",
+        "data" => Dict{String,Any}(
+            "attributes" => Dict{String,Any}(
+                "position" => Dict{String,Any}(
+                    "itemSize" => 3,
+                    "type" => "Float32Array",
+                    "array" => all_vertices
+                )
+            ),
+            "index" => Dict{String,Any}(
+                "type" => "Uint16Array",
+                "array" => [max(0, i) for i in all_indices]
+            )
+        ),
         "metadata" => Dict{String,Any}(
             "version" => 4.5,
-            "type" => "Object",
+            "type" => "BufferGeometry",
             "generator" => "LandValue.polyShape"
-        ),
-        "geometries" => geometries,
-        "materials" => materials,
-        "object" => group_obj
+        )
     )
 
-    return JSON.json(json_obj)
+    return JSON.json(geometry)
 end
 
 

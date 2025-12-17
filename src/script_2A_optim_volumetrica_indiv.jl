@@ -118,10 +118,16 @@ end
 #                          DATA LOADING SECTION                              #
 ################################################################################
 
+# query_pg = """
+# SELECT * FROM public.tabla_instancias_optimizacion
+# WHERE status = 0
+# ORDER BY id_opti ASC
+# """
 query_pg = """
 SELECT * FROM public.tabla_instancias_optimizacion
-WHERE status = 0
+WHERE status = 1
 ORDER BY id_opti ASC
+LIMIT 1
 """
 df_instancias = pg_julia.query(conn_postgres, query_pg)
 
