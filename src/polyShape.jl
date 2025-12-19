@@ -2269,155 +2269,175 @@ function building2json(results_primer_piso::Dict, results_pisos_superiores::Dict
 end
 
 
-function planta2json(vec_ps_deptos::Vector{PolyShape}, vec_ps_terrazas::Vector{PolyShape}, ps_area_comun::Union{PolyShape, Nothing}, ps_pasillo::Union{PolyShape, Nothing}, height::Float64=0.0)::String
-
-    function triangulatePolygon(V::Matrix{Float64})::Vector{Int}
-        function pointInTriangle(p::Vector{Float64}, a::Vector{Float64}, b::Vector{Float64}, c::Vector{Float64})::Bool
-            d1 = sign((p[1] - b[1]) * (a[2] - b[2]) - (a[1] - b[1]) * (p[2] - b[2]))
-            d2 = sign((p[1] - c[1]) * (b[2] - c[2]) - (b[1] - c[1]) * (p[2] - c[2]))
-            d3 = sign((p[1] - a[1]) * (c[2] - a[2]) - (c[1] - a[1]) * (p[2] - a[2]))
-            has_neg = (d1 < 0) || (d2 < 0) || (d3 < 0)
-            has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0)
-            return !(has_neg && has_pos)
-        end
-
-        n = size(V, 1)
-        if n < 3
-            return Int[]
-        end
-
-        indices = Int[]
-        remaining = collect(1:n)
-
-        while length(remaining) >= 3
-            n_remaining = length(remaining)
-            ear_found = false
-
-            for i in 1:n_remaining
-                prev_idx = remaining[i == 1 ? n_remaining : i - 1]
-                curr_idx = remaining[i]
-                next_idx = remaining[i == n_remaining ? 1 : i + 1]
-
-                p1 = V[prev_idx, :]
-                p2 = V[curr_idx, :]
-                p3 = V[next_idx, :]
-
-                cross_prod = (p2[1] - p1[1]) * (p3[2] - p1[2]) - (p2[2] - p1[2]) * (p3[1] - p1[1])
-
-                if cross_prod > 0
-                    is_ear = true
-                    for j in 1:n_remaining
-                        test_idx = remaining[j]
-                        if test_idx != prev_idx && test_idx != curr_idx && test_idx != next_idx
-                            pt = V[test_idx, :]
-                            if pointInTriangle(pt, p1, p2, p3)
-                                is_ear = false
-                                break
-                            end
-                        end
-                    end
-
-                    if is_ear
-                        append!(indices, [prev_idx - 1, curr_idx - 1, next_idx - 1])
-                        deleteat!(remaining, i)
-                        ear_found = true
-                        break
-                    end
-                end
-            end
-
-            if !ear_found
-                break
-            end
-        end
-
-        return indices
+function planta2svg(vec_ps_deptos::Vector{PolyShape}, vec_ps_terrazas::Vector{PolyShape}, ps_area_comun::Union{PolyShape, Nothing}, ps_pasillo::Union{PolyShape, Nothing}, height::Float64=0.0)::String
+    all_shapes = PolyShape[]
+    append!(all_shapes, vec_ps_deptos)
+    append!(all_shapes, vec_ps_terrazas)
+    if ps_area_comun !== nothing
+        push!(all_shapes, ps_area_comun)
+    end
+    if ps_pasillo !== nothing
+        push!(all_shapes, ps_pasillo)
     end
 
-    all_vertices = Float64[]
-    all_indices = Int[]
+    if isempty(all_shapes)
+        return "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"></svg>"
+    end
 
-    function add_polyshape_array(ps_array::Vector{PolyShape})
-        for ps in ps_array
-            if ps.NumRegions == 0
+    min_x, max_x = Inf, -Inf
+    min_y, max_y = Inf, -Inf
+    for ps in all_shapes
+        for i in 1:ps.NumRegions
+            V = ps.Vertices[i]
+            min_x = min(min_x, minimum(V[:, 1]))
+            max_x = max(max_x, maximum(V[:, 1]))
+            min_y = min(min_y, minimum(V[:, 2]))
+            max_y = max(max_y, maximum(V[:, 2]))
+        end
+    end
+
+    padding = 2.0
+    base_width = max_x - min_x + 2 * padding
+    base_height = max_y - min_y + 2 * padding
+
+    target_size = 800.0
+    scale = target_size / max(base_width, base_height)
+
+    width = base_width * scale
+    height_svg = base_height * scale
+    stroke_width = max(1.0, scale * 0.1)
+
+    function poly_to_path(ps::PolyShape, offset_x::Float64, offset_y::Float64, h::Float64, s::Float64)::String
+        paths = String[]
+        for i in 1:ps.NumRegions
+            V = ps.Vertices[i]
+            n = size(V, 1)
+            if n < 3
                 continue
             end
-
-            for region_idx in 1:ps.NumRegions
-                V = ps.Vertices[region_idx]
-                n_verts = size(V, 1)
-
-                region_start = length(all_vertices) ÷ 3
-
-                for i in 1:n_verts
-                    push!(all_vertices, V[i, 2], height, V[i, 1])
-                end
-
-                triangle_indices = triangulatePolygon(V)
-                for tri_idx in triangle_indices
-                    push!(all_indices, region_start + tri_idx)
-                end
+            x1 = (V[1,1] - offset_x) * s
+            y1 = h - (V[1,2] - offset_y) * s
+            d = "M $(x1) $(y1)"
+            for j in 2:n
+                xj = (V[j,1] - offset_x) * s
+                yj = h - (V[j,2] - offset_y) * s
+                d *= " L $(xj) $(yj)"
             end
+            d *= " Z"
+            push!(paths, d)
+        end
+        return join(paths, " ")
+    end
+
+    offset_x = min_x - padding
+    offset_y = min_y - padding
+
+    svg_parts = String[]
+    push!(svg_parts, "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 $(width) $(height_svg)\" width=\"$(width)\" height=\"$(height_svg)\">")
+    push!(svg_parts, "<style>")
+    push!(svg_parts, ".depto { fill: #4A90D9; stroke: #2C5282; stroke-width: $(stroke_width); }")
+    push!(svg_parts, ".terraza { fill: #68D391; stroke: #276749; stroke-width: $(stroke_width); }")
+    push!(svg_parts, ".area-comun { fill: #F6AD55; stroke: #C05621; stroke-width: $(stroke_width); }")
+    push!(svg_parts, ".pasillo { fill: #CBD5E0; stroke: #4A5568; stroke-width: $(stroke_width); }")
+    push!(svg_parts, "</style>")
+
+    if ps_pasillo !== nothing && ps_pasillo.NumRegions > 0
+        path_d = poly_to_path(ps_pasillo, offset_x, offset_y, height_svg, scale)
+        push!(svg_parts, "<path class=\"pasillo\" d=\"$(path_d)\"/>")
+    end
+
+    if ps_area_comun !== nothing && ps_area_comun.NumRegions > 0
+        path_d = poly_to_path(ps_area_comun, offset_x, offset_y, height_svg, scale)
+        push!(svg_parts, "<path class=\"area-comun\" d=\"$(path_d)\"/>")
+    end
+
+    for ps in vec_ps_terrazas
+        if ps.NumRegions > 0
+            path_d = poly_to_path(ps, offset_x, offset_y, height_svg, scale)
+            push!(svg_parts, "<path class=\"terraza\" d=\"$(path_d)\"/>")
         end
     end
 
-    function add_single_polyshape(ps::Union{PolyShape, Nothing})
-        if isnothing(ps) || ps.NumRegions == 0
-            return
-        end
-
-        for region_idx in 1:ps.NumRegions
-            V = ps.Vertices[region_idx]
-            n_verts = size(V, 1)
-
-            region_start = length(all_vertices) ÷ 3
-
-            for i in 1:n_verts
-                push!(all_vertices, V[i, 2], height, V[i, 1])
-            end
-
-            triangle_indices = triangulatePolygon(V)
-            for tri_idx in triangle_indices
-                push!(all_indices, region_start + tri_idx)
-            end
+    for ps in vec_ps_deptos
+        if ps.NumRegions > 0
+            path_d = poly_to_path(ps, offset_x, offset_y, height_svg, scale)
+            push!(svg_parts, "<path class=\"depto\" d=\"$(path_d)\"/>")
         end
     end
 
-    add_polyshape_array(vec_ps_deptos)
-    add_polyshape_array(vec_ps_terrazas)
-    add_single_polyshape(ps_area_comun)
-    add_single_polyshape(ps_pasillo)
+    push!(svg_parts, "</svg>")
+    return join(svg_parts, "\n")
+end
 
-    if isempty(all_indices)
-        return ""
+function planta2svg(vec_ps::Vector{PolyShape})::String
+    if isempty(vec_ps)
+        return "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"></svg>"
     end
 
-    geometry_uuid = string(Base.UUID(rand(UInt128)))
+    min_x, max_x = Inf, -Inf
+    min_y, max_y = Inf, -Inf
+    for ps in vec_ps
+        for i in 1:ps.NumRegions
+            V = ps.Vertices[i]
+            min_x = min(min_x, minimum(V[:, 1]))
+            max_x = max(max_x, maximum(V[:, 1]))
+            min_y = min(min_y, minimum(V[:, 2]))
+            max_y = max(max_y, maximum(V[:, 2]))
+        end
+    end
 
-    geometry = Dict{String,Any}(
-        "uuid" => geometry_uuid,
-        "type" => "BufferGeometry",
-        "data" => Dict{String,Any}(
-            "attributes" => Dict{String,Any}(
-                "position" => Dict{String,Any}(
-                    "itemSize" => 3,
-                    "type" => "Float32Array",
-                    "array" => all_vertices
-                )
-            ),
-            "index" => Dict{String,Any}(
-                "type" => "Uint16Array",
-                "array" => [max(0, i) for i in all_indices]
-            )
-        ),
-        "metadata" => Dict{String,Any}(
-            "version" => 4.5,
-            "type" => "BufferGeometry",
-            "generator" => "LandValue.polyShape"
-        )
-    )
+    padding = 2.0
+    base_width = max_x - min_x + 2 * padding
+    base_height = max_y - min_y + 2 * padding
 
-    return JSON.json(geometry)
+    target_size = 800.0
+    scale = target_size / max(base_width, base_height)
+
+    width = base_width * scale
+    height_svg = base_height * scale
+    stroke_width = max(1.0, scale * 0.1)
+
+    function poly_to_path(ps::PolyShape, offset_x::Float64, offset_y::Float64, h::Float64, s::Float64)::String
+        paths = String[]
+        for i in 1:ps.NumRegions
+            V = ps.Vertices[i]
+            n = size(V, 1)
+            if n < 3
+                continue
+            end
+            x1 = (V[1,1] - offset_x) * s
+            y1 = h - (V[1,2] - offset_y) * s
+            d = "M $(x1) $(y1)"
+            for j in 2:n
+                xj = (V[j,1] - offset_x) * s
+                yj = h - (V[j,2] - offset_y) * s
+                d *= " L $(xj) $(yj)"
+            end
+            d *= " Z"
+            push!(paths, d)
+        end
+        return join(paths, " ")
+    end
+
+    offset_x = min_x - padding
+    offset_y = min_y - padding
+
+    colors = ["#4A90D9", "#68D391", "#F6AD55", "#FC8181", "#B794F4", "#63B3ED", "#F6E05E", "#68D391"]
+    strokes = ["#2C5282", "#276749", "#C05621", "#C53030", "#6B46C1", "#2B6CB0", "#B7791F", "#276749"]
+
+    svg_parts = String[]
+    push!(svg_parts, "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 $(width) $(height_svg)\" width=\"$(width)\" height=\"$(height_svg)\">")
+
+    for (idx, ps) in enumerate(vec_ps)
+        if ps.NumRegions > 0
+            color_idx = mod1(idx, length(colors))
+            path_d = poly_to_path(ps, offset_x, offset_y, height_svg, scale)
+            push!(svg_parts, "<path fill=\"$(colors[color_idx])\" stroke=\"$(strokes[color_idx])\" stroke-width=\"$(stroke_width)\" d=\"$(path_d)\"/>")
+        end
+    end
+
+    push!(svg_parts, "</svg>")
+    return join(svg_parts, "\n")
 end
 
 
@@ -2894,5 +2914,6 @@ export isPolyConvex,
     calculateDistance, shape2vector, transformLine, polySimplify,
     ajusteCoordenadasInversa, shape_32719to4326, shape_4326to32719, polyshape2wkt, dividePoly,
     polyHasnan, sampleEdgePoints, polyShapeLayers2json, threejs2json,
-    polyShape2json, building2json, subterraneo2json, planta2json
+    polyShape2json, building2json, subterraneo2json, planta2json,
+    planta2svg
 end

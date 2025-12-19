@@ -285,26 +285,28 @@ let flag_create_table = false, combi_aux = "", dict_geom = nothing
             dict_json["json_bruto"] = polyShape.polyShape2json(dict_geom["ps_bruto"])
             dict_json["json_calles"] = polyShape.polyShape2json(dict_geom["ps_calles"])
             dict_json["json_calles_contexto"] = polyShape.polyShape2json(dict_geom["ps_calles_contexto"])
-            dict_json["json_planta_primer_piso"] = polyShape.planta2json(results_primer_piso["vec_ps_deptos_all"], results_primer_piso["vec_ps_terrazas_all"], results_primer_piso["ps_area_comun_total"], nothing, 0.0)
-            dict_json["json_planta_pisos_superiores"] = polyShape.planta2json(results_pisos_superiores["vec_ps_deptos_all"], results_pisos_superiores["vec_ps_terrazas_all"], nothing, results_pisos_superiores["ps_pasillo"], dict_arquitectura["arq_alturaPiso"])
-
-            for (json_key, json_content) in dict_json
-                if startswith(json_key, "json_")
-                    json_file_path = "$(json_key).json"
-                    open(json_file_path, "w") do f
-                        write(f, json_content)
-                    end
-                    println("Saved JSON to: $json_file_path")
-                end
-            end
 
             delete!(dict_normativa, "norm_coeficiente_de_ocupacion_de_suelo")
             delete!(dict_normativa, "norm_superficice_util_max_depto")
             delete!(dict_normativa, "norm_coeficiente_de_constructibilidad")
             delete!(dict_normativa, "norm_superficice_min_patio_x_depto")
 
+            dict_svg = OrderedDict()
+            dict_svg["svg_planta_primer_piso"] = polyShape.planta2svg(results_primer_piso["vec_ps_deptos_all"], results_primer_piso["vec_ps_terrazas_all"], results_primer_piso["ps_area_comun_total"], nothing, 0.0)
+            dict_svg["svg_planta_pisos_superiores"] = polyShape.planta2svg(results_pisos_superiores["vec_ps_deptos_all"], results_pisos_superiores["vec_ps_terrazas_all"], nothing, results_pisos_superiores["ps_pasillo"], dict_arquitectura["arq_alturaPiso"])
+
+            for (svg_key, svg_content) in dict_svg
+                if startswith(svg_key, "svg_")
+                    svg_file_path = "$(svg_key).svg"
+                    open(svg_file_path, "w") do f
+                        write(f, svg_content)
+                    end
+                    println("Saved SVG to: $svg_file_path")
+                end
+            end
+
             dict_all = OrderedDict{String,Any}()
-            dicts = [dict_normativa, dict_proyecto, dict_arquitectura, dict_json]
+            dicts = [dict_normativa, dict_proyecto, dict_arquitectura, dict_json, dict_svg]
 
             for dict in dicts
                 for (key, value) in dict
