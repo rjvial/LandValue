@@ -245,20 +245,20 @@ let flag_create_table = false, combi_aux = "", dict_geom = nothing
 
             println("Plotting Primer Piso...")
             ps_planta = results_primer_piso["ps_planta"]
-            fig2, ax2, ax_mat2 = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
+            # fig2, ax2, ax_mat2 = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
 
-            if !isnothing(results_primer_piso["ps_area_comun_total"]) && polyShape.polyArea(results_primer_piso["ps_area_comun_total"]) > 0.0
-                polyPlot.plotPolyshape2D(results_primer_piso["ps_area_comun_total"], "#505050", 0.9, fig=fig2, ax=ax2, ax_mat=ax_mat2)
-            end
+            # if !isnothing(results_primer_piso["ps_area_comun_total"]) && polyShape.polyArea(results_primer_piso["ps_area_comun_total"]) > 0.0
+            #     polyPlot.plotPolyshape2D(results_primer_piso["ps_area_comun_total"], "#505050", 0.9, fig=fig2, ax=ax2, ax_mat=ax_mat2)
+            # end
 
-            for apt_poly in results_primer_piso["vec_ps_deptos_interior_all"]
-                polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig2, ax=ax2, ax_mat=ax_mat2)
-            end
-            for terrace in results_primer_piso["vec_ps_terrazas_all"]
-                if polyShape.polyArea(terrace) > 0.0
-                    polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig2, ax=ax2, ax_mat=ax_mat2)
-                end
-            end
+            # for apt_poly in results_primer_piso["vec_ps_deptos_interior_all"]
+            #     polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig2, ax=ax2, ax_mat=ax_mat2)
+            # end
+            # for terrace in results_primer_piso["vec_ps_terrazas_all"]
+            #     if polyShape.polyArea(terrace) > 0.0
+            #         polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig2, ax=ax2, ax_mat=ax_mat2)
+            #     end
+            # end
 
             println("Area comun primer piso: $(results_primer_piso["area_comun"]) m²")
 
@@ -266,15 +266,22 @@ let flag_create_table = false, combi_aux = "", dict_geom = nothing
             vec_ps_deptos_pp = results_primer_piso["vec_ps_deptos_interior_all"]
             vec_ps_terrazas_pp = results_primer_piso["vec_ps_terrazas_all"]
             vec_orientaciones_pp = calcula_orientaciones_apartamentos(vec_ps_deptos_pp, results_primer_piso["ps_union_deptos"], results_primer_piso["ps_area_comun_total"])
+            vec_sup_interior = dict_arquitectura["arq_vecSupInterior"]
+            vec_dormitorios = dict_arquitectura["arq_vecDormitorios"]
+            vec_banos = dict_arquitectura["arq_vecBanos"]
             for i in eachindex(vec_ps_deptos_pp)
+                area_depto = polyShape.polyArea(vec_ps_deptos_pp[i])
+                idx_tipo = argmin(abs.(vec_sup_interior .- area_depto))
                 dict_depto = OrderedDict{String,Any}(
                     "numeracion" => 100 + i,
                     "ps_depto" => vec_ps_deptos_pp[i],
                     "ps_terraza" => vec_ps_terrazas_pp[i],
-                    "area_depto" => polyShape.polyArea(vec_ps_deptos_pp[i]),
+                    "area_depto" => area_depto,
                     "area_terraza" => polyShape.polyArea(vec_ps_terrazas_pp[i]),
                     "orientacion" => vec_orientaciones_pp[i]["orientacion"],
-                    "vec_edge_total_lengths" => vec_orientaciones_pp[i]["vec_edge_total_lengths"]
+                    "vec_edge_total_lengths" => vec_orientaciones_pp[i]["vec_edge_total_lengths"],
+                    "num_dormitorios" => Int(vec_dormitorios[idx_tipo]),
+                    "num_baños" => Int(vec_banos[idx_tipo])
                 )
                 push!(vec_info_deptos_primer_piso, dict_depto)
             end
@@ -284,14 +291,18 @@ let flag_create_table = false, combi_aux = "", dict_geom = nothing
             vec_ps_terrazas = results_pisos_superiores["vec_ps_terrazas_all"]
             vec_orientaciones = results_pisos_superiores["vec_orientacion_deptos"]
             for i in eachindex(vec_ps_deptos)
+                area_depto = polyShape.polyArea(vec_ps_deptos[i])
+                idx_tipo = argmin(abs.(vec_sup_interior .- area_depto))
                 dict_depto = OrderedDict{String,Any}(
                     "numeracion" => string(200 + i) * " - " * string(dict_proyecto["proyecto_pisos_snt"]*100 + i),
                     "ps_depto" => vec_ps_deptos[i],
                     "ps_terraza" => vec_ps_terrazas[i],
-                    "area_depto" => polyShape.polyArea(vec_ps_deptos[i]),
+                    "area_depto" => area_depto,
                     "area_terraza" => polyShape.polyArea(vec_ps_terrazas[i]),
                     "orientacion" => vec_orientaciones[i]["orientacion"],
-                    "vec_edge_total_lengths" => vec_orientaciones[i]["vec_edge_total_lengths"]
+                    "vec_edge_total_lengths" => vec_orientaciones[i]["vec_edge_total_lengths"],
+                    "num_dormitorios" => Int(vec_dormitorios[idx_tipo]),
+                    "num_baños" => Int(vec_banos[idx_tipo])
                 )
                 push!(vec_info_deptos_piso_superior, dict_depto)
             end
