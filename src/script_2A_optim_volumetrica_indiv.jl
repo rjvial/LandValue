@@ -243,22 +243,22 @@ let flag_create_table = false, combi_aux = "", dict_geom = nothing
             #     end
             # end
 
-            # println("Plotting Primer Piso...")
-            # ps_planta = results_primer_piso["ps_planta"]
-            # fig2, ax2, ax_mat2 = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
+            println("Plotting Primer Piso...")
+            ps_planta = results_primer_piso["ps_planta"]
+            fig2, ax2, ax_mat2 = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
 
-            # if !isnothing(results_primer_piso["ps_area_comun_total"]) && polyShape.polyArea(results_primer_piso["ps_area_comun_total"]) > 0.0
-            #     polyPlot.plotPolyshape2D(results_primer_piso["ps_area_comun_total"], "#505050", 0.9, fig=fig2, ax=ax2, ax_mat=ax_mat2)
-            # end
+            if !isnothing(results_primer_piso["ps_area_comun_total"]) && polyShape.polyArea(results_primer_piso["ps_area_comun_total"]) > 0.0
+                polyPlot.plotPolyshape2D(results_primer_piso["ps_area_comun_total"], "#505050", 0.9, fig=fig2, ax=ax2, ax_mat=ax_mat2)
+            end
 
-            # for apt_poly in results_primer_piso["vec_ps_deptos_interior_all"]
-            #     polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig2, ax=ax2, ax_mat=ax_mat2)
-            # end
-            # for terrace in results_primer_piso["vec_ps_terrazas_all"]
-            #     if polyShape.polyArea(terrace) > 0.0
-            #         polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig2, ax=ax2, ax_mat=ax_mat2)
-            #     end
-            # end
+            for apt_poly in results_primer_piso["vec_ps_deptos_interior_all"]
+                polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig2, ax=ax2, ax_mat=ax_mat2)
+            end
+            for terrace in results_primer_piso["vec_ps_terrazas_all"]
+                if polyShape.polyArea(terrace) > 0.0
+                    polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig2, ax=ax2, ax_mat=ax_mat2)
+                end
+            end
 
             println("Area comun primer piso: $(results_primer_piso["area_comun"]) m²")
 

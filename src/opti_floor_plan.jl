@@ -864,15 +864,7 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad::Float64, num
     ps_union_ocupado = polyClipper.polyOffset(ps_union_ocupado, delta_pp)
     ps_union_ocupado = polyClipper.polyOffset(ps_union_ocupado, -delta_pp)
 
-    ps_area_comun = polyShape.polyDifference(ps_planta_primer_piso, ps_union_ocupado)
-    area_comun = polyShape.polyArea(ps_area_comun)
-
-    ps_area_comun_total_pp = ps_pasillo_pp
-    if polyShape.polyArea(ps_area_comun) > 0.0
-        ps_area_comun_total_pp = polyShape.polyUnion(ps_area_comun_total_pp, ps_area_comun)
-    end
-    ps_area_comun_total_pp = polyClipper.polyOffset(ps_area_comun_total_pp, delta_pp)
-    ps_area_comun_total_pp = polyClipper.polyOffset(ps_area_comun_total_pp, -delta_pp)
+    area_comun = polyShape.polyArea(ps_pasillo_pp)
 
     ps_planta_original = dict_edificio_deptos["ps_planta"]
 
@@ -880,12 +872,12 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad::Float64, num
         "vec_ps_deptos_interior_all" => vec_ps_deptos_interior_all_pp,
         "vec_ps_terrazas_all" => vec_ps_terrazas_all_pp,
         "vec_strips" => vec_strips_all_pp,
-        "ps_area_comun" => ps_area_comun,
+        "ps_area_comun" => ps_pasillo_pp,
         "area_comun" => round(area_comun, digits=2),
         "ps_pasillo" => ps_pasillo_pp,
         "ps_planta" => ps_planta_original,
         "ps_planta_primer_piso_computed" => ps_planta_primer_piso,
-        "ps_area_comun_total" => ps_area_comun_total_pp,
+        "ps_area_comun_total" => ps_pasillo_pp,
         "ps_union_deptos" => ps_union_deptos_pp,
         "ps_union_terrazas" => ps_union_terrazas_pp
     )
