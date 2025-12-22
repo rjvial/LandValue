@@ -173,7 +173,8 @@ const PRIMARY_KEY = "id_opti"
 const TABLE_NAME = "tabla_resultados_optimizacion"
 const PRIORITY_KEYS = ["id_opti", "id_combi", "flag_sombra", "arq_variante_normativa", "arq_tipo_edificio"]
 
-let flag_create_table = false, combi_aux = "", dict_geom = nothing
+flag_create_table = false; combi_aux = ""; dict_geom = nothing
+# let flag_create_table = false, combi_aux = "", dict_geom = nothing
 
     # Check if results table already exists
     table_check_query = """
@@ -229,19 +230,19 @@ let flag_create_table = false, combi_aux = "", dict_geom = nothing
             ps_planta = dict_proyecto["proyecto_vec_ps_opt"][1]
 
             # println("Plotting Pisos Superiores...")
-            # fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
+            fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
 
-            # if !isnothing(results_pisos_superiores["ps_pasillo"])
-            #     polyPlot.plotPolyshape2D(results_pisos_superiores["ps_pasillo"], "#505050", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
-            # end
-            # for apt_poly in results_pisos_superiores["vec_ps_deptos_all"]
-            #     polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
-            # end
-            # for terrace in results_pisos_superiores["vec_ps_terrazas_all"]
-            #     if polyShape.polyArea(terrace) > 0.0
-            #         polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig, ax=ax, ax_mat=ax_mat)
-            #     end
-            # end
+            if !isnothing(results_pisos_superiores["ps_pasillo"])
+                polyPlot.plotPolyshape2D(results_pisos_superiores["ps_pasillo"], "#505050", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
+            end
+            for apt_poly in results_pisos_superiores["vec_ps_deptos_interior_all"]
+                polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
+            end
+            for terrace in results_pisos_superiores["vec_ps_terrazas_all"]
+                if polyShape.polyArea(terrace) > 0.0
+                    polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig, ax=ax, ax_mat=ax_mat)
+                end
+            end
 
             # println("Plotting Primer Piso...")
             # ps_planta = results_primer_piso["ps_planta"]
@@ -251,7 +252,7 @@ let flag_create_table = false, combi_aux = "", dict_geom = nothing
             #     polyPlot.plotPolyshape2D(results_primer_piso["ps_area_comun_total"], "#505050", 0.9, fig=fig2, ax=ax2, ax_mat=ax_mat2)
             # end
 
-            # for apt_poly in results_primer_piso["vec_ps_deptos_all"]
+            # for apt_poly in results_primer_piso["vec_ps_deptos_interior_all"]
             #     polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig2, ax=ax2, ax_mat=ax_mat2)
             # end
             # for terrace in results_primer_piso["vec_ps_terrazas_all"]
@@ -261,6 +262,41 @@ let flag_create_table = false, combi_aux = "", dict_geom = nothing
             # end
 
             println("Area comun primer piso: $(results_primer_piso["area_comun"]) m²")
+
+            vec_info_deptos_primer_piso = Vector{OrderedDict{String,Any}}()
+            vec_ps_deptos_pp = results_primer_piso["vec_ps_deptos_interior_all"]
+            vec_ps_terrazas_pp = results_primer_piso["vec_ps_terrazas_all"]
+            vec_orientaciones_pp = calcula_orientaciones_apartamentos(vec_ps_deptos_pp, results_primer_piso["ps_union_deptos"], results_primer_piso["ps_area_comun_total"])
+            for i in eachindex(vec_ps_deptos_pp)
+                dict_depto = OrderedDict{String,Any}(
+                    "numeracion" => 100 + i,
+                    "ps_depto" => vec_ps_deptos_pp[i],
+                    "ps_terraza" => vec_ps_terrazas_pp[i],
+                    "area_depto" => polyShape.polyArea(vec_ps_deptos_pp[i]),
+                    "area_terraza" => polyShape.polyArea(vec_ps_terrazas_pp[i]),
+                    "orientacion" => vec_orientaciones_pp[i]["orientacion"],
+                    "vec_edge_total_lengths" => vec_orientaciones_pp[i]["vec_edge_total_lengths"]
+                )
+                push!(vec_info_deptos_primer_piso, dict_depto)
+            end
+
+            vec_info_deptos_piso_superior = Vector{OrderedDict{String,Any}}()
+            vec_ps_deptos = results_pisos_superiores["vec_ps_deptos_interior_all"]
+            vec_ps_terrazas = results_pisos_superiores["vec_ps_terrazas_all"]
+            vec_orientaciones = results_pisos_superiores["vec_orientacion_deptos"]
+            for i in eachindex(vec_ps_deptos)
+                dict_depto = OrderedDict{String,Any}(
+                    "numeracion" => string(200 + i) * " - " * string(dict_proyecto["proyecto_pisos_snt"]*100 + i),
+                    "ps_depto" => vec_ps_deptos[i],
+                    "ps_terraza" => vec_ps_terrazas[i],
+                    "area_depto" => polyShape.polyArea(vec_ps_deptos[i]),
+                    "area_terraza" => polyShape.polyArea(vec_ps_terrazas[i]),
+                    "orientacion" => vec_orientaciones[i]["orientacion"],
+                    "vec_edge_total_lengths" => vec_orientaciones[i]["vec_edge_total_lengths"]
+                )
+                push!(vec_info_deptos_piso_superior, dict_depto)
+            end
+
             ####################################
             ####################################
 
@@ -291,19 +327,21 @@ let flag_create_table = false, combi_aux = "", dict_geom = nothing
             delete!(dict_normativa, "norm_coeficiente_de_constructibilidad")
             delete!(dict_normativa, "norm_superficice_min_patio_x_depto")
 
-            dict_svg = OrderedDict()
-            dict_svg["svg_planta_primer_piso"] = polyShape.planta2svg(results_primer_piso["vec_ps_deptos_all"], results_primer_piso["vec_ps_terrazas_all"], results_primer_piso["ps_area_comun_total"], nothing, 0.0)
-            dict_svg["svg_planta_pisos_superiores"] = polyShape.planta2svg(results_pisos_superiores["vec_ps_deptos_all"], results_pisos_superiores["vec_ps_terrazas_all"], nothing, results_pisos_superiores["ps_pasillo"], dict_arquitectura["arq_alturaPiso"])
+            
 
-            for (svg_key, svg_content) in dict_svg
-                if startswith(svg_key, "svg_")
-                    svg_file_path = "$(svg_key).svg"
-                    open(svg_file_path, "w") do f
-                        write(f, svg_content)
-                    end
-                    println("Saved SVG to: $svg_file_path")
-                end
-            end
+            dict_svg = OrderedDict()
+            dict_svg["svg_planta_primer_piso"] = polyShape.planta2svg(results_primer_piso["vec_ps_deptos_interior_all"], results_primer_piso["vec_ps_terrazas_all"], results_primer_piso["ps_area_comun_total"], nothing, 0.0)
+            dict_svg["svg_planta_pisos_superiores"] = polyShape.planta2svg(results_pisos_superiores["vec_ps_deptos_interior_all"], results_pisos_superiores["vec_ps_terrazas_all"], nothing, results_pisos_superiores["ps_pasillo"], dict_arquitectura["arq_alturaPiso"])
+
+            # for (svg_key, svg_content) in dict_svg
+            #     if startswith(svg_key, "svg_")
+            #         svg_file_path = "$(svg_key).svg"
+            #         open(svg_file_path, "w") do f
+            #             write(f, svg_content)
+            #         end
+            #         println("Saved SVG to: $svg_file_path")
+            #     end
+            # end
 
             dict_all = OrderedDict{String,Any}()
             dicts = [dict_normativa, dict_proyecto, dict_arquitectura, dict_json, dict_svg]
@@ -340,6 +378,6 @@ let flag_create_table = false, combi_aux = "", dict_geom = nothing
         end
     end
 
-end
+# end
 
 println("All optimizations completed successfully!")

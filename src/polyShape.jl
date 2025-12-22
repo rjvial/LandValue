@@ -2181,14 +2181,14 @@ function building2json(results_primer_piso::Dict, results_pisos_superiores::Dict
         all_indices = Int[]
 
         if element_name == "deptos"
-            vec_deptos_primer = results_primer_piso["vec_ps_deptos_all"]
+            vec_deptos_primer = results_primer_piso["vec_ps_deptos_interior_all"]
             for ps_depto in vec_deptos_primer
                 if polyArea(ps_depto) > 0.0
                     addPolyShapeTo3D(ps_depto, 0.0, alturaPiso, all_vertices, all_indices)
                 end
             end
 
-            vec_deptos_sup = results_pisos_superiores["vec_ps_deptos_all"]
+            vec_deptos_sup = results_pisos_superiores["vec_ps_deptos_interior_all"]
             for piso in 1:num_pisos_superiores
                 z_low = alturaPiso * piso
                 z_high = alturaPiso * (piso + 1)

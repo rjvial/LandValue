@@ -1,0 +1,285 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 607.9784938168939 800.0"
+     width="607.9784938168939"
+     height="800.0">
+
+<style>
+.depto { fill: #4A90D9; stroke: #2C5282; stroke-width: 1.93; }
+.terraza { fill: #68D391; stroke: #276749; stroke-width: 1.93; }
+.pasillo { fill: #CBD5E0; stroke: #4A5568; stroke-width: 1.93; }
+
+.unidad-depto:hover .depto,
+.unidad-depto:hover .terraza,
+.unidad-comun:hover .pasillo {
+  filter: brightness(1.15);
+  cursor: pointer;
+}
+</style>
+
+<!-- ================= SUPERFICIE COMÚN ================= -->
+<g class="unidad-comun"
+   data-tipo="superficie-comun"
+   data-nombre="Circulación pisos superiores"
+   data-sup-comun="123.45"
+   data-unidad="m2">
+
+<title>
+Superficie común – Circulación
+Superficie: 123.45 m² (referencial)
+Uso: Pasillos / distribución
+</title>
+
+<path class="pasillo"
+d="M 291.8628662679003 456.3466936863326 L 324.5214820856046 543.4321024389478
+   L 351.6227503696134 533.2686327861354 L 318.9641345519092 446.1832240335201
+   L 355.0991589305877 432.63193116310345 L 321.22092675454604 342.29437021640706
+   L 285.0859023758675 355.8456630868239 L 255.95062270447158 278.1553606726651
+   L 228.84935442046276 288.3188303254775 L 257.98463409185865 366.00913273963636
+   L 221.8496097131801 379.560425610053 L 255.72784188922176 469.8979865567493 Z"/>
+</g>
+
+<!-- ================= DEPTO A ================= -->
+<g class="unidad-depto"
+   data-depto-tipo="A"
+   data-stack="201-601"
+   data-sup-interior="39.24"
+   data-sup-terraza="10.0"
+   data-sup-util="44.24"
+   data-dormitorios="1"
+   data-banos="1"
+   data-orientacion="Oriente"
+   data-dim-largo="8.20"
+   data-dim-ancho="4.80"
+   data-dim-unidad="m">
+
+<title>
+Depto Tipo A – Pisos 2 a 6
+Sup interior: 39.24 m²
+Sup terraza: 10.0 m²
+Sup útil: 44.24 m²
+Dimensiones: 8.20 x 4.80 m
+Dormitorios: 1
+Baños: 1
+Orientación: Oriente
+</title>
+
+<path class="depto"
+d="M 174.09879567353155 100.99235699424548 L 242.42583804369676 283.18894630705563
+   L 369.9981120415603 235.34701796148772 L 301.6710696713951 53.15042864867746 Z"/>
+
+<path class="terraza"
+d="M 301.6710696713951 53.15042864867746 L 369.9981120415603 235.34701796148772
+   L 408.81748999351845 220.78904356629732 L 340.49044762335325 38.592454253487176 Z"/>
+</g>
+
+<!-- ================= DEPTO B ================= -->
+<g class="unidad-depto"
+   data-depto-tipo="B"
+   data-stack="201-601"
+   data-sup-interior="40.28"
+   data-sup-terraza="15.0"
+   data-sup-util="47.78"
+   data-dormitorios="2"
+   data-banos="2"
+   data-orientacion="Norte"
+   data-dim-largo="8.40"
+   data-dim-ancho="5.10"
+   data-dim-unidad="m">
+
+<title>
+Depto Tipo B
+Sup interior: 40.28 m²
+Sup terraza: 15.0 m²
+Sup útil: 47.78 m²
+Dimensiones: 8.40 x 5.10 m
+Dormitorios: 2
+Baños: 2
+Orientación: Norte
+</title>
+
+<path class="depto"
+d="M 285.0859023758675 355.8456630868239 L 321.22092675454604 342.29437021640706
+   L 339.92171091572106 392.16070385898365 L 418.3347138174535 362.7543983301794
+   L 370.49864998488255 235.19776227344414 L 255.95062270447158 278.1553606726651 Z"/>
+
+<path class="terraza"
+d="M 370.42469861246104 235.18704022088116 L 418.2536282715767 362.7246527398482
+   L 456.6464196526341 348.32665608526435 L 408.81748999351845 220.78904356629732 Z"/>
+</g>
+
+<!-- ================= DEPTO C ================= -->
+<g class="unidad-depto"
+   data-depto-tipo="C"
+   data-stack="201-601"
+   data-sup-interior="42.92"
+   data-sup-terraza="15.0"
+   data-sup-util="50.42"
+   data-dormitorios="2"
+   data-banos="2"
+   data-orientacion="Norte"
+   data-dim-largo="8.60"
+   data-dim-ancho="5.20"
+   data-dim-unidad="m">
+
+<title>
+Depto Tipo C
+Sup interior: 42.92 m²
+Sup terraza: 15.0 m²
+Sup útil: 50.42 m²
+Dimensiones: 8.60 x 5.20 m
+Dormitorios: 2
+Baños: 2
+Orientación: Norte
+</title>
+
+<path class="depto"
+d="M 466.1707776500244 490.3110343869145 L 418.3347138174535 362.7543983301794
+   L 339.92171091572106 392.16070385898365 L 355.0991589305877 432.63193116310345
+   L 318.9641345519092 446.1832240335201 L 351.6227503696134 533.2686327861354 Z"/>
+
+<path class="terraza"
+d="M 418.2536282715767 362.7246527398482 L 466.0825579306923 490.2622652588153
+   L 504.4753493117497 475.8642686042315 L 456.6464196526341 348.32665608526435 Z"/>
+</g>
+
+<!-- ================= DEPTO D ================= -->
+<g class="unidad-depto"
+   data-depto-tipo="D"
+   data-stack="201-601"
+   data-sup-interior="60.16"
+   data-sup-terraza="25.0"
+   data-sup-util="72.66"
+   data-dormitorios="2"
+   data-banos="3"
+   data-orientacion="Sur"
+   data-dim-largo="9.40"
+   data-dim-ancho="6.40"
+   data-dim-unidad="m">
+
+<title>
+Depto Tipo D
+Sup interior: 60.16 m²
+Sup terraza: 25.0 m²
+Sup útil: 72.66 m²
+Dimensiones: 9.40 x 6.40 m
+Dormitorios: 2
+Baños: 3
+Orientación: Sur
+</title>
+
+<path class="depto"
+d="M 402.98280907690497 711.4371343864119 L 532.8882217182543 662.720236517264
+   L 467.9775288689584 489.6334697433937 L 338.072116227609 538.3503676125417 Z"/>
+
+<path class="terraza"
+d="M 468.0134234621372 489.5381554855439 L 532.9241137137943 662.6249153327135
+   L 569.3860395634068 648.9510284514013 L 504.4753493117497 475.8642686042315 Z"/>
+</g>
+
+<!-- ================= DEPTO E ================= -->
+<g class="unidad-depto"
+   data-depto-tipo="E"
+   data-stack="201-601"
+   data-sup-interior="68.88"
+   data-sup-terraza="30.0"
+   data-sup-util="83.88"
+   data-dormitorios="3"
+   data-banos="3"
+   data-orientacion="Sur"
+   data-dim-largo="9.80"
+   data-dim-ancho="6.80"
+   data-dim-unidad="m">
+
+<title>
+Depto Tipo E
+Sup interior: 68.88 m²
+Sup terraza: 30.0 m²
+Sup útil: 83.88 m²
+Dimensiones: 9.80 x 6.80 m
+Dormitorios: 3
+Baños: 3
+Orientación: Sur
+</title>
+
+<path class="depto"
+d="M 252.76738633674822 352.0971483538452 L 228.84935442046276 288.3188303254775
+   L 242.3999885624672 283.2370954990713 L 174.03371603121502 100.93589750863805
+   L 71.0488965519812 139.55708218932557 L 163.33320099951885 385.63659820812643 Z"/>
+
+<path class="terraza"
+d="M 38.59245425348714 151.8097052583081 L 130.8339614532101 397.7751008306015
+   L 163.34933785741427 385.58124193548485 L 71.10783065769132 139.6158463631914 Z"/>
+</g>
+
+<!-- ================= DEPTO F ================= -->
+<g class="unidad-depto"
+   data-depto-tipo="F"
+   data-stack="201-601"
+   data-sup-interior="71.20"
+   data-sup-terraza="40.0"
+   data-sup-util="91.20"
+   data-dormitorios="3"
+   data-banos="3"
+   data-orientacion="Poniente"
+   data-dim-largo="10.20"
+   data-dim-ancho="7.00"
+   data-dim-unidad="m">
+
+<title>
+Depto Tipo F
+Sup interior: 71.20 m²
+Sup terraza: 40.0 m²
+Sup útil: 91.20 m²
+Dimensiones: 10.20 x 7.00 m
+Dormitorios: 3
+Baños: 3
+Orientación: Poniente
+</title>
+
+<path class="depto"
+d="M 291.8628662679003 456.3466936863326 L 255.72784188922176 469.8979865567493
+   L 221.8496097131801 379.560425610053 L 257.98463409185865 366.00913273963636
+   L 252.76738633674822 352.0971483538452 L 157.91294734271702 387.66929213868895
+   L 226.21146340961712 569.7898150072288 L 321.0659024036483 534.217671222385 Z"/>
+
+<path class="terraza"
+d="M 131.11925046225093 398.5358345403102 L 198.87571481433437 579.2109564337029
+   L 225.97698309834328 569.0474867808904 L 158.22051874625984 388.37236488749767 Z"/>
+</g>
+
+<!-- ================= DEPTO G ================= -->
+<g class="unidad-depto"
+   data-depto-tipo="G"
+   data-stack="201-601"
+   data-sup-interior="74.99"
+   data-sup-terraza="50.0"
+   data-sup-util="99.99"
+   data-dormitorios="4"
+   data-banos="4"
+   data-orientacion="Poniente"
+   data-dim-largo="10.80"
+   data-dim-ancho="7.40"
+   data-dim-unidad="m">
+
+<title>
+Depto Tipo G
+Sup interior: 74.99 m²
+Sup terraza: 50.0 m²
+Sup útil: 99.99 m²
+Dimensiones: 10.80 x 7.40 m
+Dormitorios: 4
+Baños: 4
+Orientación: Poniente
+</title>
+
+<path class="depto"
+d="M 402.98280907690497 711.4371343864119 L 338.072116227609 538.3503676125417
+   L 324.5214820856046 543.4321024389478 L 321.0659024036483 534.217671222385
+   L 226.21146340961712 569.7898150072288 L 294.5777359408694 752.091012997662 Z"/>
+
+<path class="terraza"
+d="M 199.44629283241613 580.7324238531203 L 267.2027571844996 761.4075457465128
+   L 294.3040254685085 751.2440760937004 L 226.54756111642504 570.5689542003076 Z"/>
+</g>
+
+</svg>

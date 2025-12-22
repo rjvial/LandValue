@@ -10,7 +10,7 @@ Selecciona entre configuraciones de departamentos con anchos y alturas predefini
 - `vec_np_opt`: Vector de número de pisos por planta
 - `vec_area_t`: Vector de áreas de terraza por tipo de departamento
 """
-function opti_planta_edificio(max_constructibilidad, max_deptos, vec_ps_opt, vec_np_opt, vec_area_t)
+function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_deptos, vec_ps_opt, vec_np_opt)
 
     # Rotates floor plan to axis-aligned rectangle with width > height, returns dimensions and transformation
     function normaliza_planta_rectangular(ps_planta::PolyShape, layout)
@@ -43,10 +43,12 @@ function opti_planta_edificio(max_constructibilidad, max_deptos, vec_ps_opt, vec
         return W, H, angulo_rotacion, cr, ps_planta_normalizado
     end
 
-    function compute_depto_configs(vec_area_t_input::Vector{Float64})
-        vec_w = collect(6.0:0.5:14.0)
-        vec_h = collect(4.0:0.5:12.0)
+    function compute_depto_configs(vec_area_depto, vec_area_t, dict_arquitectura)
+        vec_w = collect(6.0:0.5:25.0)
+        vec_h = collect(4.0:0.5:15.0)
         min_h_terraza = 1.5
+        max_h_terraza = 2.0
+        flag_dfl2 = dict_arquitectura["arq_variante_normativa"] in ["vivienda_economica", "dfl_2"] 
 
         depto_configs = Vector{NamedTuple{(:w, :h, :area, :h_t, :area_t), Tuple{Float64, Float64, Float64, Float64, Float64}}}()
 
@@ -54,11 +56,14 @@ function opti_planta_edificio(max_constructibilidad, max_deptos, vec_ps_opt, vec
             for h in vec_h
                 aspect_ratio = h / w
                 area = w * h
-                if aspect_ratio >= 0.4 && aspect_ratio <= 2.5 && area >= 24.0 && area <= 140.0
-                    area_t_target = interpolate_terrace_area(area, vec_area_t_input)
-                    h_t = max(min_h_terraza, area_t_target / w)
+                if aspect_ratio >= 0.4 && aspect_ratio <= 2.5 && area >= 24.0
+                    area_t_target = interpolate_terrace_area(area, vec_area_depto, vec_area_t)
+                    h_t = clamp(area_t_target / w, min_h_terraza, max_h_terraza)
                     area_t = w * h_t
-                    push!(depto_configs, (w=w, h=h, area=area, h_t=h_t, area_t=area_t))
+                    area_util = area + 0.5 * area_t
+                    if area_util <= 140.0 * flag_dfl2 + maximum(dict_arquitectura["arq_vecSupUtil"]) * (!flag_dfl2)
+                        push!(depto_configs, (w=w, h=h, area=area, h_t=h_t, area_t=area_t))
+                    end
                 end
             end
         end
@@ -66,23 +71,17 @@ function opti_planta_edificio(max_constructibilidad, max_deptos, vec_ps_opt, vec
         return depto_configs
     end
 
-    function interpolate_terrace_area(interior_area::Float64, vec_area_t::Vector{Float64})
-        vec_area_i_ref = [30.0, 45.0, 60.0, 75.0, 90.0, 105.0, 120.0, 140.0]
-
-        if length(vec_area_t) < length(vec_area_i_ref)
-            vec_area_t = vcat(vec_area_t, fill(vec_area_t[end], length(vec_area_i_ref) - length(vec_area_t)))
-        end
-
-        if interior_area <= vec_area_i_ref[1]
+    function interpolate_terrace_area(area::Float64, vec_area_depto::Vector{Float64}, vec_area_t::Vector{Float64})
+        if area <= vec_area_depto[1]
             return vec_area_t[1]
-        elseif interior_area >= vec_area_i_ref[end]
+        elseif area >= vec_area_depto[end]
             return vec_area_t[end]
         end
 
-        for i in 1:(length(vec_area_i_ref)-1)
-            if interior_area >= vec_area_i_ref[i] && interior_area <= vec_area_i_ref[i+1]
-                t = (interior_area - vec_area_i_ref[i]) / (vec_area_i_ref[i+1] - vec_area_i_ref[i])
-                return vec_area_t[i] + t * (vec_area_t[min(i+1, length(vec_area_t))] - vec_area_t[i])
+        for i in 1:(length(vec_area_depto)-1)
+            if area >= vec_area_depto[i] && area <= vec_area_depto[i+1]
+                t = (area - vec_area_depto[i]) / (vec_area_depto[i+1] - vec_area_depto[i])
+                return vec_area_t[i] + t * (vec_area_t[i+1] - vec_area_t[i])
             end
         end
 
@@ -290,8 +289,10 @@ function opti_planta_edificio(max_constructibilidad, max_deptos, vec_ps_opt, vec
         return results, W, H, angulo_rotacion
     end
 
+    vec_area_t = dict_arquitectura["arq_vecSupTerraza"]
+    vec_area_depto = dict_arquitectura["arq_vecSupInterior"]
 
-    depto_configs = compute_depto_configs(vec_area_t)
+    depto_configs = compute_depto_configs(vec_area_depto, vec_area_t, dict_arquitectura)
 
     total_threads = Threads.nthreads()
 

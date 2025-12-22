@@ -202,9 +202,8 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # ============================================================================
     max_constructibilidad = dict_normativa["norm_max_constructibilidad"]
     max_deptos = dict_normativa["norm_max_unidades"]
-    vec_area_t = dict_arquitectura["arq_vecSupTerraza"]
 
-    dict_edificio_deptos = opti_planta_edificio(max_constructibilidad, max_deptos, vec_ps_opt, vec_np_opt, vec_area_t)
+    dict_edificio_deptos = opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_deptos, vec_ps_opt, vec_np_opt)
 
     # ============================================================================
     # 5. APARTMENT SHAPE COMPILATION
@@ -219,12 +218,12 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     results_pisos_superiores = results["pisos_superiores"]
     results_primer_piso = results["primer_piso"]
 
-    sup_interior_pisos_superiores = sum([polyShape.polyArea(ps) for ps in results_pisos_superiores["vec_ps_deptos_all"]]; init=0.0)
+    sup_interior_pisos_superiores = sum([polyShape.polyArea(ps) for ps in results_pisos_superiores["vec_ps_deptos_interior_all"]]; init=0.0)
     sup_terraza_pisos_superiores = sum([polyShape.polyArea(ps) for ps in results_pisos_superiores["vec_ps_terrazas_all"] if polyShape.polyArea(ps) > 0.0]; init=0.0)
     sup_comun_pisos_superiores = polyShape.polyArea(results_pisos_superiores["ps_area_comun_total"])
 
     if !isnothing(results_primer_piso)
-        sup_interior_primer_piso = sum([polyShape.polyArea(ps) for ps in results_primer_piso["vec_ps_deptos_all"]]; init=0.0)
+        sup_interior_primer_piso = sum([polyShape.polyArea(ps) for ps in results_primer_piso["vec_ps_deptos_interior_all"]]; init=0.0)
         sup_terraza_primer_piso = sum([polyShape.polyArea(ps) for ps in results_primer_piso["vec_ps_terrazas_all"] if polyShape.polyArea(ps) > 0.0]; init=0.0)
         sup_comun_primer_piso = polyShape.polyArea(results_primer_piso["ps_area_comun_total"])
     else
@@ -237,9 +236,9 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     sup_terraza_edificio = sup_terraza_pisos_superiores * num_pisos_superiores + sup_terraza_primer_piso
     sup_comun_edificio = sup_comun_pisos_superiores * num_pisos_superiores + sup_comun_primer_piso
 
-    num_deptos_edificio = length(results_pisos_superiores["vec_ps_deptos_all"]) * num_pisos_superiores
+    num_deptos_edificio = length(results_pisos_superiores["vec_ps_deptos_interior_all"]) * num_pisos_superiores
     if !isnothing(results_primer_piso)
-        num_deptos_edificio += length(results_primer_piso["vec_ps_deptos_all"])
+        num_deptos_edificio += length(results_primer_piso["vec_ps_deptos_interior_all"])
     end
 
     W = dict_edificio_deptos["W"]
@@ -251,8 +250,8 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # ============================================================================
     cabida_data = Dict{String, Any}()
     if dict_normativa["tipo_edificio"] == "departamento"
-        vec_areas_pisos_superiores = [polyShape.polyArea(ps) for ps in results_pisos_superiores["vec_ps_deptos_all"]]
-        vec_areas_primer_piso = !isnothing(results_primer_piso) ? [polyShape.polyArea(ps) for ps in results_primer_piso["vec_ps_deptos_all"]] : Float64[]
+        vec_areas_pisos_superiores = [polyShape.polyArea(ps) for ps in results_pisos_superiores["vec_ps_deptos_interior_all"]]
+        vec_areas_primer_piso = !isnothing(results_primer_piso) ? [polyShape.polyArea(ps) for ps in results_primer_piso["vec_ps_deptos_interior_all"]] : Float64[]
 
         all_areas = vcat(vec_areas_pisos_superiores, vec_areas_primer_piso)
         num_pisos_sup = length(vec_areas_pisos_superiores)
@@ -422,7 +421,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
         "proyecto_pisos_snt" => Int8(sum(vec_np_opt[i] for i in eachindex(vec_ps_opt))),
         "proyecto_sup_edificada_bnt" => areaEst_requerida,
         "proyecto_pisos_bnt" => Int8(sum(vec_np_subte[i] for i in eachindex(vec_ps_subte))),
-        "proyecto_vec_sup_deptos" => cabida_data["vec_sup_deptos"],
+        "proyecto_vec_sup_interior_deptos" => cabida_data["vec_sup_deptos"],
         "proyecto_vec_num_deptos" => cabida_data["vec_num_deptos"],
         "proyecto_vec_num_deptos_primerPiso" => cabida_data["vec_num_deptos_primerPiso"],
         "proyecto_vec_num_deptos_pisosSup" => cabida_data["vec_num_deptos_pisosSup"],
