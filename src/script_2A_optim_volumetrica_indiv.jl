@@ -330,18 +330,18 @@ flag_create_table = false; combi_aux = ""; dict_geom = nothing
             
 
             dict_svg = OrderedDict()
-            dict_svg["svg_planta_primer_piso"] = polyShape.planta2svg(results_primer_piso["vec_ps_deptos_interior_all"], results_primer_piso["vec_ps_terrazas_all"], results_primer_piso["ps_area_comun_total"], nothing, 0.0)
-            dict_svg["svg_planta_pisos_superiores"] = polyShape.planta2svg(results_pisos_superiores["vec_ps_deptos_interior_all"], results_pisos_superiores["vec_ps_terrazas_all"], nothing, results_pisos_superiores["ps_pasillo"], dict_arquitectura["arq_alturaPiso"])
+            dict_svg["svg_planta_primer_piso"] = polyShape.planta2svg(vec_info_deptos_primer_piso, results_primer_piso["ps_area_comun_total"], nothing, nombre_area_comun="Circulación primer piso")
+            dict_svg["svg_planta_pisos_superiores"] = polyShape.planta2svg(vec_info_deptos_piso_superior, nothing, results_pisos_superiores["ps_pasillo"], nombre_area_comun="Circulación pisos superiores")
 
-            # for (svg_key, svg_content) in dict_svg
-            #     if startswith(svg_key, "svg_")
-            #         svg_file_path = "$(svg_key).svg"
-            #         open(svg_file_path, "w") do f
-            #             write(f, svg_content)
-            #         end
-            #         println("Saved SVG to: $svg_file_path")
-            #     end
-            # end
+            for (svg_key, svg_content) in dict_svg
+                if startswith(svg_key, "svg_")
+                    svg_file_path = "$(svg_key).svg"
+                    open(svg_file_path, "w") do f
+                        write(f, svg_content)
+                    end
+                    println("Saved SVG to: $svg_file_path")
+                end
+            end
 
             dict_all = OrderedDict{String,Any}()
             dicts = [dict_normativa, dict_proyecto, dict_arquitectura, dict_json, dict_svg]

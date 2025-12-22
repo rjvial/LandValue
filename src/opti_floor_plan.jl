@@ -893,6 +893,25 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad::Float64, num
     return results_pisos_superiores, results_primer_piso
 end
 
+function rota_polyshape_safe(ps, angulo_rotacion, cr)
+    if isa(ps, PolyShape) && polyShape.polyArea(ps) > 0.0
+        return polyShape.polyRotate(ps, -angulo_rotacion, cr)
+    end
+    return ps
+end
+
+function procesa_resultados_piso!(results, angulo_rotacion, cr, max_ratio_terraza::Float64)
+    vec_deptos = results["vec_ps_deptos_interior_all"]
+    vec_terrazas = ajusta_terrazas_max_ratio(vec_deptos, results["vec_ps_terrazas_all"], max_ratio_terraza)
+
+    results["vec_ps_deptos_interior_all"] = rota_polyshapes(vec_deptos, angulo_rotacion, cr)
+    results["vec_ps_terrazas_all"] = rota_polyshapes(vec_terrazas, angulo_rotacion, cr)
+    results["ps_pasillo"] = polyShape.polyRotate(results["ps_pasillo"], -angulo_rotacion, cr)
+    results["ps_union_deptos"] = rota_polyshape_safe(results["ps_union_deptos"], angulo_rotacion, cr)
+    results["ps_union_terrazas"] = rota_polyshape_safe(results["ps_union_terrazas"], angulo_rotacion, cr)
+    results["ps_area_comun_total"] = polyShape.polyRotate(results["ps_area_comun_total"], -angulo_rotacion, cr)
+end
+
 function opti_floor_plan(dict_edificio_deptos, max_constructibilidad::Float64, num_pisos_superiores::Int;
                         profundidad_pasillo::Float64 = 1.5,
                         min_ancho_pasillo::Float64 = 0.0)
@@ -909,59 +928,20 @@ function opti_floor_plan(dict_edificio_deptos, max_constructibilidad::Float64, n
     angulo_rotacion = dict_edificio_deptos["angulo_rotacion"]
     cr = dict_edificio_deptos["cr"]
 
-    ps_planta = results_pisos_superiores["ps_planta"]
+    procesa_resultados_piso!(results_pisos_superiores, angulo_rotacion, cr, 0.25)
 
-    vec_ps_deptos_interior_all = results_pisos_superiores["vec_ps_deptos_interior_all"]
-    vec_ps_terrazas_all = results_pisos_superiores["vec_ps_terrazas_all"]
-    vec_ps_terrazas_all = ajusta_terrazas_max_ratio(vec_ps_deptos_interior_all, vec_ps_terrazas_all, 0.25)
-    ps_pasillo = results_pisos_superiores["ps_pasillo"]
-    ps_union_deptos = results_pisos_superiores["ps_union_deptos"]
-    ps_union_terrazas = results_pisos_superiores["ps_union_terrazas"]
-    ps_area_comun_total = results_pisos_superiores["ps_area_comun_total"]
+    vec_deptos_rotated = results_pisos_superiores["vec_ps_deptos_interior_all"]
+    ps_union_deptos_rotated = results_pisos_superiores["ps_union_deptos"]
+    ps_area_comun_rotated = results_pisos_superiores["ps_area_comun_total"]
 
-    vec_ps_deptos_interior_all_rotated = rota_polyshapes(vec_ps_deptos_interior_all, angulo_rotacion, cr)
-    vec_ps_terrazas_all_rotated = rota_polyshapes(vec_ps_terrazas_all, angulo_rotacion, cr)
-    ps_pasillo_rotated = polyShape.polyRotate(ps_pasillo, -angulo_rotacion, cr)
-    ps_union_deptos_rotated = polyShape.polyArea(ps_union_deptos) > 0.0 ? polyShape.polyRotate(ps_union_deptos, -angulo_rotacion, cr) : ps_union_deptos
-    ps_union_terrazas_rotated = isa(ps_union_terrazas, PolyShape) && polyShape.polyArea(ps_union_terrazas) > 0.0 ? polyShape.polyRotate(ps_union_terrazas, -angulo_rotacion, cr) : ps_union_terrazas
-    ps_area_comun_total_rotated = polyShape.polyRotate(ps_area_comun_total, -angulo_rotacion, cr)
-
-    results_pisos_superiores["vec_ps_deptos_interior_all"] = vec_ps_deptos_interior_all_rotated
-    results_pisos_superiores["vec_ps_terrazas_all"] = vec_ps_terrazas_all_rotated
-    results_pisos_superiores["ps_pasillo"] = ps_pasillo_rotated
-    results_pisos_superiores["ps_union_deptos"] = ps_union_deptos_rotated
-    results_pisos_superiores["ps_union_terrazas"] = ps_union_terrazas_rotated
-    results_pisos_superiores["ps_area_comun_total"] = ps_area_comun_total_rotated
-
-    if !isempty(vec_ps_deptos_interior_all_rotated) && polyShape.polyArea(ps_union_deptos_rotated) > 0.0
-        vec_apartamentos_orientaciones = calcula_orientaciones_apartamentos(vec_ps_deptos_interior_all_rotated, ps_union_deptos_rotated, ps_area_comun_total_rotated)
-        results_pisos_superiores["vec_orientacion_deptos"] = vec_apartamentos_orientaciones
+    if !isempty(vec_deptos_rotated) && polyShape.polyArea(ps_union_deptos_rotated) > 0.0
+        results_pisos_superiores["vec_orientacion_deptos"] = calcula_orientaciones_apartamentos(vec_deptos_rotated, ps_union_deptos_rotated, ps_area_comun_rotated)
     else
         results_pisos_superiores["vec_orientacion_deptos"] = Vector{Dict}()
     end
 
     if !isnothing(results_primer_piso)
-        vec_ps_deptos_pp = results_primer_piso["vec_ps_deptos_interior_all"]
-        vec_ps_terrazas_pp = results_primer_piso["vec_ps_terrazas_all"]
-        vec_ps_terrazas_pp = ajusta_terrazas_max_ratio(vec_ps_deptos_pp, vec_ps_terrazas_pp, 0.25)
-        ps_pasillo_pp = results_primer_piso["ps_pasillo"]
-        ps_area_comun_total_pp = results_primer_piso["ps_area_comun_total"]
-        ps_union_deptos_pp = results_primer_piso["ps_union_deptos"]
-        ps_union_terrazas_pp = results_primer_piso["ps_union_terrazas"]
-
-        vec_ps_deptos_pp_rotated = rota_polyshapes(vec_ps_deptos_pp, angulo_rotacion, cr)
-        vec_ps_terrazas_pp_rotated = rota_polyshapes(vec_ps_terrazas_pp, angulo_rotacion, cr)
-        ps_pasillo_pp_rotated = polyShape.polyRotate(ps_pasillo_pp, -angulo_rotacion, cr)
-        ps_area_comun_total_pp_rotated = polyShape.polyRotate(ps_area_comun_total_pp, -angulo_rotacion, cr)
-        ps_union_deptos_pp_rotated = polyShape.polyArea(ps_union_deptos_pp) > 0.0 ? polyShape.polyRotate(ps_union_deptos_pp, -angulo_rotacion, cr) : ps_union_deptos_pp
-        ps_union_terrazas_pp_rotated = isa(ps_union_terrazas_pp, PolyShape) && polyShape.polyArea(ps_union_terrazas_pp) > 0.0 ? polyShape.polyRotate(ps_union_terrazas_pp, -angulo_rotacion, cr) : ps_union_terrazas_pp
-
-        results_primer_piso["vec_ps_deptos_interior_all"] = vec_ps_deptos_pp_rotated
-        results_primer_piso["vec_ps_terrazas_all"] = vec_ps_terrazas_pp_rotated
-        results_primer_piso["ps_pasillo"] = ps_pasillo_pp_rotated
-        results_primer_piso["ps_area_comun_total"] = ps_area_comun_total_pp_rotated
-        results_primer_piso["ps_union_deptos"] = ps_union_deptos_pp_rotated
-        results_primer_piso["ps_union_terrazas"] = ps_union_terrazas_pp_rotated
+        procesa_resultados_piso!(results_primer_piso, angulo_rotacion, cr, 0.25)
     end
 
     return Dict(

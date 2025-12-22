@@ -2269,10 +2269,12 @@ function building2json(results_primer_piso::Dict, results_pisos_superiores::Dict
 end
 
 
-function planta2svg(vec_ps_deptos::Vector{PolyShape}, vec_ps_terrazas::Vector{PolyShape}, ps_area_comun::Union{PolyShape, Nothing}, ps_pasillo::Union{PolyShape, Nothing}, height::Float64=0.0)::String
+function planta2svg(vec_info_deptos::Vector, ps_area_comun::Union{PolyShape, Nothing}, ps_pasillo::Union{PolyShape, Nothing}; nombre_area_comun::String="Circulación")::String
     all_shapes = PolyShape[]
-    append!(all_shapes, vec_ps_deptos)
-    append!(all_shapes, vec_ps_terrazas)
+    for info in vec_info_deptos
+        push!(all_shapes, info["ps_depto"])
+        push!(all_shapes, info["ps_terraza"])
+    end
     if ps_area_comun !== nothing
         push!(all_shapes, ps_area_comun)
     end
@@ -2333,36 +2335,59 @@ function planta2svg(vec_ps_deptos::Vector{PolyShape}, vec_ps_terrazas::Vector{Po
     offset_y = min_y - padding
 
     svg_parts = String[]
-    push!(svg_parts, "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 $(width) $(height_svg)\" width=\"$(width)\" height=\"$(height_svg)\">")
+    push!(svg_parts, """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 $(width) $(height_svg)" width="$(width)" height="$(height_svg)">""")
     push!(svg_parts, "<style>")
     push!(svg_parts, ".depto { fill: #4A90D9; stroke: #2C5282; stroke-width: $(stroke_width); }")
     push!(svg_parts, ".terraza { fill: #68D391; stroke: #276749; stroke-width: $(stroke_width); }")
     push!(svg_parts, ".area-comun { fill: #F6AD55; stroke: #C05621; stroke-width: $(stroke_width); }")
     push!(svg_parts, ".pasillo { fill: #CBD5E0; stroke: #4A5568; stroke-width: $(stroke_width); }")
+    push!(svg_parts, ".unidad-depto:hover .depto, .unidad-depto:hover .terraza { filter: brightness(1.15); cursor: pointer; }")
+    push!(svg_parts, ".unidad-comun:hover .pasillo, .unidad-comun:hover .area-comun { filter: brightness(1.15); cursor: pointer; }")
     push!(svg_parts, "</style>")
 
     if ps_pasillo !== nothing && ps_pasillo.NumRegions > 0
+        area_pasillo = polyArea(ps_pasillo)
         path_d = poly_to_path(ps_pasillo, offset_x, offset_y, height_svg, scale)
-        push!(svg_parts, "<path class=\"pasillo\" d=\"$(path_d)\"/>")
+        push!(svg_parts, """<g class="unidad-comun" data-tipo="superficie-comun" data-nombre="$(nombre_area_comun)" data-sup-comun="$(round(area_pasillo, digits=2))">""")
+        push!(svg_parts, """<title>Superficie común – $(nombre_area_comun)\nSuperficie: $(round(area_pasillo, digits=2)) m²</title>""")
+        push!(svg_parts, """<path class="pasillo" d="$(path_d)"/>""")
+        push!(svg_parts, "</g>")
     end
 
     if ps_area_comun !== nothing && ps_area_comun.NumRegions > 0
+        area_comun = polyArea(ps_area_comun)
         path_d = poly_to_path(ps_area_comun, offset_x, offset_y, height_svg, scale)
-        push!(svg_parts, "<path class=\"area-comun\" d=\"$(path_d)\"/>")
+        push!(svg_parts, """<g class="unidad-comun" data-tipo="area-comun" data-sup-comun="$(round(area_comun, digits=2))">""")
+        push!(svg_parts, """<title>Área común\nSuperficie: $(round(area_comun, digits=2)) m²</title>""")
+        push!(svg_parts, """<path class="area-comun" d="$(path_d)"/>""")
+        push!(svg_parts, "</g>")
     end
 
-    for ps in vec_ps_terrazas
-        if ps.NumRegions > 0
-            path_d = poly_to_path(ps, offset_x, offset_y, height_svg, scale)
-            push!(svg_parts, "<path class=\"terraza\" d=\"$(path_d)\"/>")
-        end
-    end
+    for (idx, info) in enumerate(vec_info_deptos)
+        ps_depto = info["ps_depto"]
+        ps_terraza = info["ps_terraza"]
+        numeracion = get(info, "numeracion", idx)
+        area_depto = round(get(info, "area_depto", polyArea(ps_depto)), digits=2)
+        area_terraza = round(get(info, "area_terraza", polyArea(ps_terraza)), digits=2)
+        area_util = round(area_depto + 0.5 * area_terraza, digits=2)
+        orientacion = get(info, "orientacion", "")
 
-    for ps in vec_ps_deptos
-        if ps.NumRegions > 0
-            path_d = poly_to_path(ps, offset_x, offset_y, height_svg, scale)
-            push!(svg_parts, "<path class=\"depto\" d=\"$(path_d)\"/>")
+        letra_tipo = Char('A' + idx - 1)
+
+        push!(svg_parts, """<g class="unidad-depto" data-depto-tipo="$(letra_tipo)" data-stack="$(numeracion)" data-sup-interior="$(area_depto)" data-sup-terraza="$(area_terraza)" data-sup-util="$(area_util)" data-orientacion="$(orientacion)">""")
+        push!(svg_parts, """<title>Depto Tipo $(letra_tipo) – $(numeracion)\nSup interior: $(area_depto) m²\nSup terraza: $(area_terraza) m²\nSup útil: $(area_util) m²\nOrientación: $(orientacion)</title>""")
+
+        if ps_depto.NumRegions > 0
+            path_d = poly_to_path(ps_depto, offset_x, offset_y, height_svg, scale)
+            push!(svg_parts, """<path class="depto" d="$(path_d)"/>""")
         end
+
+        if ps_terraza.NumRegions > 0
+            path_d = poly_to_path(ps_terraza, offset_x, offset_y, height_svg, scale)
+            push!(svg_parts, """<path class="terraza" d="$(path_d)"/>""")
+        end
+
+        push!(svg_parts, "</g>")
     end
 
     push!(svg_parts, "</svg>")
