@@ -2409,11 +2409,11 @@ function planta2svg(vec_info_deptos::Vector, ps_area_comun::Union{PolyShape, Not
 
         letra_tipo = Char('A' + idx - 1)
 
-        json_depto = vertices_to_json(ps_depto)
-        json_terraza = vertices_to_json(ps_terraza)
-        json_edges = edge_lengths_to_json(vec_edge_total_lengths)
+        json_depto = replace(vertices_to_json(ps_depto), "\"" => "&quot;")
+        json_terraza = replace(vertices_to_json(ps_terraza), "\"" => "&quot;")
+        json_edges = replace(edge_lengths_to_json(vec_edge_total_lengths), "\"" => "&quot;")
 
-        push!(svg_parts, """<g class="unidad-depto" data-depto-tipo="$(letra_tipo)" data-stack="$(numeracion)" data-sup-interior="$(area_depto)" data-sup-terraza="$(area_terraza)" data-sup-util="$(area_util)" data-orientacion="$(orientacion)" data-vertices-depto='$(json_depto)' data-vertices-terraza='$(json_terraza)' data-edge-lengths='$(json_edges)'>""")
+        push!(svg_parts, """<g class="unidad-depto" data-depto-tipo="$(letra_tipo)" data-stack="$(numeracion)" data-sup-interior="$(area_depto)" data-sup-terraza="$(area_terraza)" data-sup-util="$(area_util)" data-orientacion="$(orientacion)" data-vertices-depto="$(json_depto)" data-vertices-terraza="$(json_terraza)" data-edge-lengths="$(json_edges)">""")
         push!(svg_parts, """<title>Depto Tipo $(letra_tipo) – $(numeracion)\nSup interior: $(area_depto) m²\nSup terraza: $(area_terraza) m²\nSup útil: $(area_util) m²\nOrientación: $(orientacion)</title>""")
 
         if ps_depto.NumRegions > 0
