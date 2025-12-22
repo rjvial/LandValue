@@ -173,8 +173,8 @@ const PRIMARY_KEY = "id_opti"
 const TABLE_NAME = "tabla_resultados_optimizacion"
 const PRIORITY_KEYS = ["id_opti", "id_combi", "flag_sombra", "arq_variante_normativa", "arq_tipo_edificio"]
 
-flag_create_table = false; combi_aux = ""; dict_geom = nothing
-# let flag_create_table = false, combi_aux = "", dict_geom = nothing
+let flag_create_table = false, combi_aux = "", dict_geom = nothing
+# flag_create_table = false; combi_aux = ""; dict_geom = nothing
 
     # Check if results table already exists
     table_check_query = """
@@ -375,6 +375,6 @@ flag_create_table = false; combi_aux = ""; dict_geom = nothing
         end
     end
 
-# end
+end
 
 println("All optimizations completed successfully!")
