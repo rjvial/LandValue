@@ -118,17 +118,17 @@ end
 #                          DATA LOADING SECTION                              #
 ################################################################################
 
-# query_pg = """
-# SELECT * FROM public.tabla_instancias_optimizacion
-# WHERE status = 0
-# ORDER BY id_opti ASC
-# """
 query_pg = """
 SELECT * FROM public.tabla_instancias_optimizacion
-WHERE status = 1
+WHERE status = 0
 ORDER BY id_opti ASC
-LIMIT 1
 """
+# query_pg = """
+# SELECT * FROM public.tabla_instancias_optimizacion
+# WHERE status = 1
+# ORDER BY id_opti ASC
+# LIMIT 1
+# """
 df_instancias = pg_julia.query(conn_postgres, query_pg)
 
 query_combis = """
@@ -209,7 +209,6 @@ flag_create_table = false; combi_aux = ""; dict_geom = nothing
                 end
 
                 dict_geom = obtiene_geometrias_combi(df_combined_row)
-
                 combi_aux = id_combi
             end
 
@@ -230,19 +229,19 @@ flag_create_table = false; combi_aux = ""; dict_geom = nothing
             ps_planta = dict_proyecto["proyecto_vec_ps_opt"][1]
 
             # println("Plotting Pisos Superiores...")
-            fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
+            # fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
 
-            if !isnothing(results_pisos_superiores["ps_pasillo"])
-                polyPlot.plotPolyshape2D(results_pisos_superiores["ps_pasillo"], "#505050", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
-            end
-            for apt_poly in results_pisos_superiores["vec_ps_deptos_interior_all"]
-                polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
-            end
-            for terrace in results_pisos_superiores["vec_ps_terrazas_all"]
-                if polyShape.polyArea(terrace) > 0.0
-                    polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig, ax=ax, ax_mat=ax_mat)
-                end
-            end
+            # if !isnothing(results_pisos_superiores["ps_pasillo"])
+            #     polyPlot.plotPolyshape2D(results_pisos_superiores["ps_pasillo"], "#505050", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
+            # end
+            # for apt_poly in results_pisos_superiores["vec_ps_deptos_interior_all"]
+            #     polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
+            # end
+            # for terrace in results_pisos_superiores["vec_ps_terrazas_all"]
+            #     if polyShape.polyArea(terrace) > 0.0
+            #         polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig, ax=ax, ax_mat=ax_mat)
+            #     end
+            # end
 
             # println("Plotting Primer Piso...")
             # ps_planta = results_primer_piso["ps_planta"]
@@ -327,21 +326,19 @@ flag_create_table = false; combi_aux = ""; dict_geom = nothing
             delete!(dict_normativa, "norm_coeficiente_de_constructibilidad")
             delete!(dict_normativa, "norm_superficice_min_patio_x_depto")
 
-            
-
             dict_svg = OrderedDict()
             dict_svg["svg_planta_primer_piso"] = polyShape.planta2svg(vec_info_deptos_primer_piso, results_primer_piso["ps_area_comun_total"], nothing, nombre_area_comun="Circulación primer piso")
             dict_svg["svg_planta_pisos_superiores"] = polyShape.planta2svg(vec_info_deptos_piso_superior, nothing, results_pisos_superiores["ps_pasillo"], nombre_area_comun="Circulación pisos superiores")
 
-            for (svg_key, svg_content) in dict_svg
-                if startswith(svg_key, "svg_")
-                    svg_file_path = "$(svg_key).svg"
-                    open(svg_file_path, "w") do f
-                        write(f, svg_content)
-                    end
-                    println("Saved SVG to: $svg_file_path")
-                end
-            end
+            # for (svg_key, svg_content) in dict_svg
+            #     if startswith(svg_key, "svg_")
+            #         svg_file_path = "$(svg_key).svg"
+            #         open(svg_file_path, "w") do f
+            #             write(f, svg_content)
+            #         end
+            #         println("Saved SVG to: $svg_file_path")
+            #     end
+            # end
 
             dict_all = OrderedDict{String,Any}()
             dicts = [dict_normativa, dict_proyecto, dict_arquitectura, dict_json, dict_svg]

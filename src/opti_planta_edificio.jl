@@ -45,7 +45,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
     function compute_depto_configs(vec_area_depto, vec_area_t, dict_arquitectura)
         vec_w = collect(6.0:0.5:25.0)
-        vec_h = collect(4.0:0.5:15.0)
+        vec_h = collect(5.0:0.5:14.0)
         min_h_terraza = 1.5
         max_h_terraza = 2.0
         flag_dfl2 = dict_arquitectura["arq_variante_normativa"] in ["vivienda_economica", "dfl_2"] 
