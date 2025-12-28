@@ -11,13 +11,12 @@ using LandValue, DotEnv, LinearAlgebra, OrderedCollections, JSON, DataFrames
 my_env = DotEnv.config("secrets.env")
 conn_aws = aws_julia.connection(my_env["AWS_ACCESS_KEY"], my_env["AWS_SECRET_KEY"], my_env["AWS_REGION"])
 
-neo4j_host = "bolt://localhost:7687"
-# neo4j_host = "bolt://localhost:7688"
-neo4j_user = "neo4j"
-neo4j_password = "x67y1332"
+neo4j_host = my_env["NEO4J_URI"]
+neo4j_user = my_env["NEO4J_USER"]
+neo4j_password = my_env["NEO4J_PASSWORD"]
 key_pair = "neo4j-key-pair.pem"
 ec2_user = "ec2-user"
-public_dns = aws_julia.find_instance_by_name("Neo4j-EC2", conn_aws)["dnsName"]
+public_dns = aws_julia.find_instance_by_name("Neo4j-EC2-V2", conn_aws)["dnsName"]
 folder = "/usr/bin/cypher-shell"
 conn_neo4j = neo4j_julia.connection(neo4j_host, neo4j_user, neo4j_password, folder, key_pair, ec2_user, public_dns)
 

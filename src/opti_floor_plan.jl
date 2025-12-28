@@ -1,5 +1,3 @@
-get_tipo(t::Tuple{Float64, Int}) = t[2]
-get_tipo(t::Tuple{Float64, Int, Int}) = t[2]
 
 function reordena_deptos_grandes_en_extremos(mat_deptos::Matrix{Float64}, vec_tipos::Vector{String},
                                               vec_terrazas_areas::Vector{Float64}, vec_en_primer_piso::Vector{Bool})
