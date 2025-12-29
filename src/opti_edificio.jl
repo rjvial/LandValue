@@ -1,6 +1,7 @@
 # Constants for better maintainability
-const INTERIOR_FACTOR = 0.95
-const TERRACE_FACTOR = 0.10
+const UTIL_FACTOR = 1.0
+const TERRACE_FACTOR = 0.20
+const INTERIOR_FACTOR = UTIL_FACTOR - TERRACE_FACTOR / 2
 const COMMON_AREAS_FACTOR = 0.20
 const DENSITY_DIVISOR = 4
 const AREA_CONVERSION = 10000
@@ -165,7 +166,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     max_ocupacion_suelo = dict_normativa["norm_max_ocupacion_suelo"]
     
     # Optimiza el volumen del edificio en base a: distanciamiento, antejardín, altura_max, rasante, max_losa_snt,
-    # volumen teórico, ocupación de suelo, crujía (max_constructibilidad se consider a través de max_losa_snt)
+    # volumen teórico, ocupación de suelo, crujía (max_constructibilidad se considera a través de max_losa_snt)
     
     result_vol = opti_edificio_vol(dict_geom, dict_arquitectura, dict_normativa_raw, vec_pisos, max_ocupacion_suelo, max_losa_snt)
 

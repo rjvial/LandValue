@@ -600,8 +600,9 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad::Float64, num
     # MAIN EXECUTION LOGIC
     # ══════════════════════════════════════════════════════════════════════════════════
 
+    # sup_interior_bruta = sup_interior + area_comun (prorrateo)
     df_deptos_resumen = combine(
-        groupby(dict_edificio_deptos["df_deptos"], [:strip, :tipo, :sup_interior, :sup_terraza, :ancho_interior, :profundidad_interior, :num_unidades_por_piso_superior, :num_unidades_primer_piso]),
+        groupby(dict_edificio_deptos["df_deptos"], [:strip, :tipo, :sup_interior_bruta, :sup_terraza, :ancho_interior, :profundidad_interior, :num_unidades_por_piso_superior, :num_unidades_primer_piso]),
         :num_unidades_edificio => sum => :num_unidades_edificio)
 
     # ──────────────────────────────────────────────────────────────────────────────────
@@ -650,7 +651,7 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad::Float64, num
         for i in 1:n_repeat_superior
             en_primer_piso = i <= n_repeat_primer
             if row.strip == 1
-                mat_deptos_strip1 = vcat(mat_deptos_strip1, [row.sup_interior row.ancho_interior row.profundidad_interior])
+                mat_deptos_strip1 = vcat(mat_deptos_strip1, [row.sup_interior_bruta row.ancho_interior row.profundidad_interior])
                 push!(vec_tipos_strip1, string(row.tipo))
                 push!(vec_terrazas_areas_strip1, row.sup_terraza)
                 push!(vec_en_primer_piso_strip1, en_primer_piso)
@@ -658,7 +659,7 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad::Float64, num
                     push!(vec_terrazas_areas_pp_strip1, row.sup_terraza)
                 end
             else
-                mat_deptos_strip2 = vcat(mat_deptos_strip2, [row.sup_interior row.ancho_interior row.profundidad_interior])
+                mat_deptos_strip2 = vcat(mat_deptos_strip2, [row.sup_interior_bruta row.ancho_interior row.profundidad_interior])
                 push!(vec_tipos_strip2, string(row.tipo))
                 push!(vec_terrazas_areas_strip2, row.sup_terraza)
                 push!(vec_en_primer_piso_strip2, en_primer_piso)

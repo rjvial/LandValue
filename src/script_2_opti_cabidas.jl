@@ -95,7 +95,6 @@ end
 function createArchitectureDict(variante_norm)
     return OrderedDict(
         "arq_alturaPiso" => 2.55,
-        "arq_K" => 1,
         "arq_ancho_crujia_min" => 8,
         "arq_ancho_crujia_max" => 18,
         "arq_tipo_edificio" => "departamento",
@@ -358,6 +357,7 @@ let flag_create_table = false, combi_aux = "", dict_geom = nothing
                     dict_all[key] = processValue(value, dict_geom)
                 end
             end
+            # fig, ax, ax_mat = plotBaseEdificio3Dnew(fpe, dict_arquitectura["arq_alturaPiso"], dict_geom["ps_combi"], dict_all, results_primer_piso, results_pisos_superiores, num_pisos_superiores)
 
             vecColumnNames, vecColumnTypes = dict2tablevec(dict_all, PRIMARY_KEY)
             if flag_create_table
@@ -370,8 +370,6 @@ let flag_create_table = false, combi_aux = "", dict_geom = nothing
             end
             pg_julia.insertRow!(conn_postgres, TABLE_NAME, vecColumnNames, vecColumnValue, Symbol(PRIMARY_KEY))
             update_optimization_status(conn_postgres, id_opti, 1)
-
-            # fig, ax, ax_mat = plotBaseEdificio3Dnew(fpe, dict_arquitectura["arq_alturaPiso"], dict_geom["ps_combi"], dict_all, results_primer_piso, results_pisos_superiores, num_pisos_superiores)
 
             println("Completed optimization for ID Opti: $(id_opti)\n")
 
