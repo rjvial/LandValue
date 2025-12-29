@@ -6,11 +6,11 @@ Selecciona entre configuraciones de departamentos con anchos y alturas predefini
 # Argumentos
 - `max_constructibilidad`: Constructibilidad máxima permitida (m²)
 - `max_deptos::Int`: Número máximo de departamentos totales
-- `vec_ps_opt`: Vector de PolyShape con plantas optimizadas
-- `vec_np_opt`: Vector de número de pisos por planta
+- `ps_opt`: PolyShape con planta optimizada
+- `np_opt`: Número de pisos
 - `vec_area_t`: Vector de áreas de terraza por tipo de departamento
 """
-function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_deptos, vec_ps_opt, vec_np_opt)
+function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_deptos, ps_opt, np_opt)
 
     # Rotates floor plan to axis-aligned rectangle with width > height, returns dimensions and transformation
     function normaliza_planta_rectangular(ps_planta::PolyShape, layout)
@@ -109,13 +109,12 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
     end
 
     function opti_planta_edificio_layout(depto_configs, max_constructibilidad, max_deptos,
-                                vec_ps_opt, vec_np_opt, layout, num_threads_highs)
+                                ps_opt, np_opt, layout, num_threads_highs)
 
-        ps_planta = vec_ps_opt[1]
-        W, H, angulo_rotacion, cr, ps_planta_normalizado = normaliza_planta_rectangular(ps_planta, layout)
+        W, H, angulo_rotacion, cr, ps_planta_normalizado = normaliza_planta_rectangular(ps_opt, layout)
 
         min_deptos = 4
-        num_pisos = vec_np_opt[1]
+        num_pisos = np_opt
         num_strips = 2
 
         I = 1:length(depto_configs)
@@ -299,10 +298,10 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
     println("Running layouts SEQUENTIALLY ($(total_threads) threads for HiGHS solver)")
 
     results_1, W_1, H_1, angulo_1 = opti_planta_edificio_layout(depto_configs, max_constructibilidad, max_deptos,
-                                vec_ps_opt, vec_np_opt, 1, total_threads)
+                                ps_opt, np_opt, 1, total_threads)
 
     results_2, W_2, H_2, angulo_2 = opti_planta_edificio_layout(depto_configs, max_constructibilidad, max_deptos,
-                                vec_ps_opt, vec_np_opt, 2, total_threads)
+                                ps_opt, np_opt, 2, total_threads)
 
     area_util_1 = results_1["sup_interior_edificio"] + results_1["sup_terraza_edificio"] * 0.5
     area_util_2 = results_2["sup_interior_edificio"] + results_2["sup_terraza_edificio"] * 0.5
@@ -331,7 +330,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
     results["W"] = W
     results["H"] = H
-    results["ps_planta"] = vec_ps_opt[1]
+    results["ps_planta"] = ps_opt
     results["flag_dfl2"] = false
     results["flag_vivienda_economica"] = false
 

@@ -169,8 +169,8 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     
     result_vol = opti_edificio_vol(dict_geom, dict_arquitectura, dict_normativa_raw, vec_pisos, max_ocupacion_suelo, max_losa_snt)
 
-    vec_ps_opt = result_vol["vec_ps_opt"]
-    vec_np_opt = result_vol["vec_np_opt"]
+    ps_opt = result_vol["ps_opt"]
+    np_opt = result_vol["np_opt"]
     max_sol = result_vol["max_sol"]
     vec_psVolteor = result_vol["vec_psVolteor"]
     vec_altVolteor = result_vol["vec_altVolteor"]
@@ -186,7 +186,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # distaciamiento y antejardín
     dict_normativa["norm_antejardin"] = dict_normativa_raw["norm_antejardin"]
 
-    n_pisos_opt = sum(vec_np_opt)
+    n_pisos_opt = np_opt
     distanciamiento = dict_normativa_raw["norm_distanciamiento"][1]
     expr_str = expression_converter.parse_python_expression(dict_normativa_raw["norm_distanciamiento"][3])
     expr_str = replace(expr_str, "flag_sombra" => false)
@@ -203,12 +203,12 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     max_constructibilidad = dict_normativa["norm_max_constructibilidad"]
     max_deptos = dict_normativa["norm_max_unidades"]
 
-    dict_edificio_deptos = opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_deptos, vec_ps_opt, vec_np_opt)
+    dict_edificio_deptos = opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_deptos, ps_opt, np_opt)
 
     # ============================================================================
     # 5. APARTMENT SHAPE COMPILATION
     # ============================================================================
-    num_pisos = vec_np_opt[1]
+    num_pisos = Int(np_opt)
     num_pisos_superiores = num_pisos - 1
 
     results = opti_floor_plan(dict_edificio_deptos, max_constructibilidad, num_pisos_superiores,
@@ -291,10 +291,8 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     else
         # Safely calculate area, handling empty polygons
         area_edif = 0.0
-        for i in eachindex(vec_ps_opt)
-            if !isempty(vec_ps_opt[i].Vertices)
-                area_edif += polyShape.polyArea(vec_ps_opt[i]) * vec_np_opt[i]
-            end
+        if !isempty(ps_opt.Vertices)
+            area_edif = polyShape.polyArea(ps_opt) * np_opt
         end
         cabida_data["vec_sup_deptos"] = 0
         cabida_data["vec_num_deptos"] = 0
@@ -418,7 +416,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # ============================================================================
     dict_proyecto = OrderedDict(
         "proyecto_sup_edificada_snt" => max_sol,
-        "proyecto_pisos_snt" => Int8(sum(vec_np_opt[i] for i in eachindex(vec_ps_opt))),
+        "proyecto_pisos_snt" => Int8(np_opt),
         "proyecto_sup_edificada_bnt" => areaEst_requerida,
         "proyecto_pisos_bnt" => Int8(sum(vec_np_subte[i] for i in eachindex(vec_ps_subte))),
         "proyecto_vec_sup_interior_deptos" => cabida_data["vec_sup_deptos"],
@@ -450,8 +448,8 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
         "proyecto_descuento_dfl2" => 0.0,
         "proyecto_supNoUtilizada" => sup_no_utilizada_edificio,
         "proyecto_numDeptos" => Int(round(num_deptos_edificio)),
-        "proyecto_vec_ps_opt" => vec_ps_opt,
-        "proyecto_vec_np_opt" => vec_np_opt,
+        "proyecto_ps_opt" => ps_opt,
+        "proyecto_np_opt" => np_opt,
         "proyecto_vec_ps_subte" => vec_ps_subte,
         "proyecto_vec_np_subte" => vec_np_subte,
         "proyecto_vec_psVolteor" => vec_psVolteor,
@@ -466,7 +464,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
         "proyecto_ps_sombraVolTeorico_s" => ps_sombraVolTeorico_s,
         "proyecto_num_unidades" => sum(cabida_data["vec_num_deptos"]),
         "proyecto_constructibilidad" => sup_interior_edificio + 0.5 * sup_terraza_edificio,
-        "proyecto_ocupacion_suelo" => isempty(vec_ps_opt) || isempty(vec_ps_opt[1].Vertices) ? 0.0 : polyShape.polyArea(vec_ps_opt[1])
+        "proyecto_ocupacion_suelo" => isempty(ps_opt.Vertices) ? 0.0 : polyShape.polyArea(ps_opt)
         )
 
     return dict_proyecto, dict_normativa, results_pisos_superiores, results_primer_piso

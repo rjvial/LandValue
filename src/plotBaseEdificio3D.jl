@@ -40,8 +40,8 @@ end
 ################################################################################
 
 # WITH SHADOW CALCULATION
-function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, 
-                            vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, tipo_edificio, ps_publico, ps_calles)
+function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra,
+                            ps_opt, np_opt, vec_ps_subte, vec_np_subte, tipo_edificio, ps_publico, ps_calles)
     fig = nothing; ax = nothing; ax_mat = nothing
 
     # Plot predio
@@ -52,7 +52,7 @@ function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVo
     # Plot building floors
     if fpe.edif
         color = (tipo_edificio == "departamento") ? "teal" : "darkgray"
-        fig, ax, ax_mat = plot_building_floors(vec_ps_opt, vec_np_opt, alturaPiso, color, 1.0, fig, ax, ax_mat)
+        fig, ax, ax_mat = plot_building_floors([ps_opt], [np_opt], alturaPiso, color, 1.0, fig, ax, ax_mat)
         fig, ax, ax_mat = plot_building_floors(vec_ps_subte, vec_np_subte, alturaPiso, "black", 0.2, fig, ax, ax_mat, true)
     end
 
@@ -63,7 +63,8 @@ function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVo
     end
 
     # Plot actual building shadows
-    ps_p, ps_o, ps_s = generaSombraEdificio(vec_ps_opt, cumsum(vec_np_opt).*alturaPiso, ps_publico, ps_calles)
+    altura_edificio = np_opt * alturaPiso
+    ps_p, ps_o, ps_s = generaSombraEdificio([ps_opt], [altura_edificio], ps_publico, ps_calles)
     for ps_sombra in [ps_p, ps_o, ps_s]
         fig, ax, ax_mat = polyPlot.plotPolyshape2Din3D(ps_sombra, 0, "red", 0.25, fig=fig, ax=ax, ax_mat=ax_mat)
     end
@@ -80,9 +81,9 @@ function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVo
 end
 
 # WITH PRE-CALCULATED SHADOWS
-function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra, 
-                            vec_ps_opt, vec_np_opt, vec_ps_subte, vec_np_subte, tipo_edificio, 
-                            ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s, 
+function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVolteor, vec_psVolConSombra, vec_altVolConSombra,
+                            ps_opt, np_opt, vec_ps_subte, vec_np_subte, tipo_edificio,
+                            ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s,
                             ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s)
     fig = nothing; ax = nothing; ax_mat = nothing
 
@@ -94,7 +95,7 @@ function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, vec_psVolteor, vec_altVo
     # Plot building floors
     if fpe.edif
         color = (tipo_edificio == "departamento") ? "teal" : "darkgray"
-        fig, ax, ax_mat = plot_building_floors(vec_ps_opt, vec_np_opt, alturaPiso, color, 1.0, fig, ax, ax_mat)
+        fig, ax, ax_mat = plot_building_floors([ps_opt], [np_opt], alturaPiso, color, 1.0, fig, ax, ax_mat)
         fig, ax, ax_mat = plot_building_floors(vec_ps_subte, vec_np_subte, alturaPiso, "black", 0.2, fig, ax, ax_mat, true)
     end
 
@@ -127,12 +128,12 @@ function plotBaseEdificio3D(fpe, alturaPiso, ps_predio, dict_resultado)
     ps_sombraEdif_p = get(dict_resultado, "proyecto_ps_sombraEdif_p", nothing)
     ps_sombraEdif_o = get(dict_resultado, "proyecto_ps_sombraEdif_o", nothing)
     ps_sombraEdif_s = get(dict_resultado, "proyecto_ps_sombraEdif_s", nothing)
-    
+
     return plotBaseEdificio3D(
         fpe, alturaPiso, ps_predio,
         dict_resultado["proyecto_vec_psVolteor"], dict_resultado["proyecto_vec_altVolteor"],
         dict_resultado["proyecto_vec_psVolConSombra"], dict_resultado["proyecto_vec_altVolConSombra"],
-        dict_resultado["proyecto_vec_ps_opt"], dict_resultado["proyecto_vec_np_opt"],
+        dict_resultado["proyecto_ps_opt"], dict_resultado["proyecto_np_opt"],
         dict_resultado["proyecto_vec_ps_subte"], dict_resultado["proyecto_vec_np_subte"],
         dict_resultado["tipo_edificio"],
         ps_sombraVolTeorico_p, ps_sombraVolTeorico_o, ps_sombraVolTeorico_s,

@@ -160,10 +160,10 @@ function quad_opti_sol_ini(vec_psVolteor, floors)
     return best_solution
 end
 
-function quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_ocupacion_suelo, max_losa_snt, K)
+function quad_opti_vol(vec_psVolteor, vec_altVolteor, n_pisos, alturaPiso, max_ocupacion_suelo, max_losa_snt)
 
     # Get initial solution
-    x1_ini, y1_ini, c_ini, s_ini, w_ini, h_ini, ps0 = quad_opti_sol_ini(vec_psVolteor, floors)
+    x1_ini, y1_ini, c_ini, s_ini, w_ini, h_ini, ps0 = quad_opti_sol_ini(vec_psVolteor, n_pisos)
 
     # Calculate initial dimensions
     width, height = if isempty(ps0.Vertices)
@@ -176,9 +176,11 @@ function quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_oc
     end
 
     # Initialize result
-    ps_opt = [PolyShape([], 1) for _ in 1:K]
-    np_opt = zeros(Int, K)
+    ps_opt = PolyShape([], 1)
+    np_opt = 0
     objective_val = 0.0
+
+    altura_corte = n_pisos * alturaPiso
 
     # Try optimization with two different strategies
     for attempt in 1:2
@@ -193,75 +195,41 @@ function quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_oc
             @variable(model, s)
             @constraint(model, c^2 + s^2 == 1)
 
-            # Stack dimensions with different bounds per attempt
+            # Dimensions with different bounds per attempt
             if attempt == 1 && width > 0 && height > 0
                 if width > height
-                    @variables(model, begin
-                        w[stack = 1:K] >= width * 0.25
-                        h[stack = 1:K] >= 2.0
-                    end)
+                    @variable(model, w >= width * 0.25)
+                    @variable(model, h >= 2.0)
                 else
-                    @variables(model, begin
-                        w[stack = 1:K] >= 2.0
-                        h[stack = 1:K] >= height * 0.25
-                    end)
+                    @variable(model, w >= 2.0)
+                    @variable(model, h >= height * 0.25)
                 end
             else
-                @variables(model, begin
-                    w[stack = 1:K] >= 0.1
-                    h[stack = 1:K] >= 0.1
-                end)
-            end
-
-            # Stack offsets
-            if K > 1
-                @variables(model, begin
-                    dx[stack = 2:K] >= 0
-                    dy[stack = 2:K] >= 0
-                end)
+                @variable(model, w >= 0.1)
+                @variable(model, h >= 0.1)
             end
 
             # Ground occupation constraint
-            @constraint(model, w[1] * h[1] <= max_ocupacion_suelo)
+            @constraint(model, w * h <= max_ocupacion_suelo)
 
-            # Nesting constraints
-            if K > 1
-                for stack in 2:K
-                    @constraint(model, dx[stack] + w[stack] <= w[stack - 1])
-                    @constraint(model, dy[stack] + h[stack] <= h[stack - 1])
-                end
-            end
+            # Volume constraints
+            psC = generaPoligonoCorte(altura_corte, vec_psVolteor, vec_altVolteor)
+            psC = polyGdal.shapeHull(psC)
+            A, b = polyShape.poly2Constraints(psC)
 
-            # Volume constraints for each stack
-            num_pisos_acum = 0
-            for stack in 1:K
-                n_f = floors[stack]
-                num_pisos_acum += n_f
-                altura_corte_stack = num_pisos_acum * alturaPiso
-
-                # Generate cutting polygon
-                psC = generaPoligonoCorte(altura_corte_stack, vec_psVolteor, vec_altVolteor)
-                psC = polyGdal.shapeHull(psC)
-                A, b = polyShape.poly2Constraints(psC)
-
-                # Stack corner offsets
-                ox = stack > 1 ? dx[stack] : 0
-                oy = stack > 1 ? dy[stack] : 0
-
-                # Apply constraints to all corners
-                corners = [[ox, oy], [ox + w[stack], oy], [ox + w[stack], oy + h[stack]], [ox, oy + h[stack]]]
-                for corner in corners, row in axes(A, 1)
-                    xg = x1 + c * corner[1] - s * corner[2]
-                    yg = y1 + s * corner[1] + c * corner[2]
-                    @constraint(model, A[row, 1] * xg + A[row, 2] * yg <= b[row])
-                end
+            # Apply constraints to all corners
+            corners = [[0, 0], [w, 0], [w, h], [0, h]]
+            for corner in corners, row in axes(A, 1)
+                xg = x1 + c * corner[1] - s * corner[2]
+                yg = y1 + s * corner[1] + c * corner[2]
+                @constraint(model, A[row, 1] * xg + A[row, 2] * yg <= b[row])
             end
 
             # Constructibility constraint
-            @constraint(model, sum(w[stack] * h[stack] * floors[stack] for stack in 1:K) <= max_losa_snt)
+            @constraint(model, w * h * n_pisos <= max_losa_snt)
 
             # Objective: maximize total floor area
-            @objective(model, Max, sum(w[stack] * h[stack] * floors[stack] for stack in 1:K))
+            @objective(model, Max, w * h * n_pisos)
 
             # Solve
             optimize!(model)
@@ -271,37 +239,30 @@ function quad_opti_vol(vec_psVolteor, vec_altVolteor, floors, alturaPiso, max_oc
                 # Extract solution
                 x1_val, y1_val = value(x1), value(y1)
                 c_val, s_val = value(c), value(s)
-                w_vals = value.(w)
-                h_vals = value.(h)
-                dx_vals = K > 1 ? value.(dx) : nothing
-                dy_vals = K > 1 ? value.(dy) : nothing
+                w_val = value(w)
+                h_val = value(h)
 
-                for stack in 1:K
-                    ox = stack > 1 ? dx_vals[stack] : 0.0
-                    oy = stack > 1 ? dy_vals[stack] : 0.0
-
-                    coords = Float64[]
-                    for (px, py) in [(ox, oy), (ox + w_vals[stack], oy), (ox + w_vals[stack], oy + h_vals[stack]), (ox, oy + h_vals[stack])]
-                        gx = x1_val + c_val * px - s_val * py
-                        gy = y1_val + s_val * px + c_val * py
-                        append!(coords, [gx, gy])
-                    end
-
-                    mat = reshape(coords, 2, 4)'
-                    ps_opt[stack] = PolyShape([mat], 1)
-                    np_opt[stack] = floors[stack]
+                coords = Float64[]
+                for (px, py) in [(0, 0), (w_val, 0), (w_val, h_val), (0, h_val)]
+                    gx = x1_val + c_val * px - s_val * py
+                    gy = y1_val + s_val * px + c_val * py
+                    append!(coords, [gx, gy])
                 end
+
+                mat = reshape(coords, 2, 4)'
+                ps_opt = PolyShape([mat], 1)
+                np_opt = n_pisos
 
                 objective_val = objective_value(model)
                 break
 
             elseif attempt == 2
-                @warn "Optimization failed after 2 attempts for floors $floors"
+                @warn "Optimization failed after 2 attempts for n_pisos $n_pisos"
                 objective_val = 0.0
             end
 
         catch e
-            @warn "Error in optimization attempt $attempt for floors $floors: $e"
+            @warn "Error in optimization attempt $attempt for n_pisos $n_pisos: $e"
             if attempt == 2
                 objective_val = 0.0
             end
@@ -366,39 +327,39 @@ end
 # ============================================================================
 # SHADOW-CONSTRAINED OPTIMIZATION ENGINE
 # ============================================================================
-function optimize_with_shadow_constraints(vec_psVolConSombra, vec_altVolConSombra, shadow_data, floors,
+function optimize_with_shadow_constraints(vec_psVolConSombra, vec_altVolConSombra, shadow_data, n_pisos,
                                         dict_arquitectura, dict_geom, max_ocupacion_suelo, max_losa_snt, ps_areaEdif)
     # Performs iterative optimization considering shadow constraints.
-    
+
     # Initialize deltas
     delta_p = shadow_data["flag_p"] ? -1.0 : 1000.0
-    delta_o = shadow_data["flag_o"] ? -1.0 : 1000.0  
+    delta_o = shadow_data["flag_o"] ? -1.0 : 1000.0
     delta_s = shadow_data["flag_s"] ? -1.0 : 1000.0
-    
+
     # Work with copies to avoid modifying originals - performance optimization
     vec_psVolConSombra_work = copy(vec_psVolConSombra)  # Shallow copy first
     ps_areaEdif_work = deepcopy(ps_areaEdif)  # Only deep copy when needed
-    
+
     best_result = Dict{String, Any}(
         "objective_val" => 0.0,
-        "ps_stack" => [PolyShape([], 1) for _ in 1:dict_arquitectura["arq_K"]],
-        "np_stack" => zeros(Int, dict_arquitectura["arq_K"])
+        "ps_opt" => PolyShape([], 1),
+        "np_opt" => 0
     )
-    
+
     iter = 0
     while iter < MAX_ITER && min(delta_p, delta_o, delta_s) < 0
         iter += 1
-        
-        # Optimize volumes for K stacks
-        ps_stack, np_stack, objective_val = quad_opti_vol(
-            vec_psVolConSombra_work, vec_altVolConSombra, floors, dict_arquitectura["arq_alturaPiso"],
-            max_ocupacion_suelo, max_losa_snt, dict_arquitectura["arq_K"]
+
+        # Optimize volume
+        ps_opt, np_opt, objective_val = quad_opti_vol(
+            vec_psVolConSombra_work, vec_altVolConSombra, n_pisos, dict_arquitectura["arq_alturaPiso"],
+            max_ocupacion_suelo, max_losa_snt
         )
-        
+
         # Calculate actual shadows
-        vec_alt_acum = cumsum(np_stack) .* dict_arquitectura["arq_alturaPiso"]
-        ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s = 
-            generaSombraEdificio(ps_stack, vec_alt_acum, dict_geom["ps_publico"], dict_geom["ps_calles_contexto"])
+        altura_edificio = np_opt * dict_arquitectura["arq_alturaPiso"]
+        ps_sombraEdif_p, ps_sombraEdif_o, ps_sombraEdif_s =
+            generaSombraEdificio([ps_opt], [altura_edificio], dict_geom["ps_publico"], dict_geom["ps_calles_contexto"])
         
         # Calculate shadow violations more efficiently
         area_act_p = polyShape.polyArea(ps_sombraEdif_p)
@@ -436,16 +397,16 @@ function optimize_with_shadow_constraints(vec_psVolConSombra, vec_altVolConSombr
             end
             
         elseif objective_val > best_result["objective_val"]
-            # Update best solution - avoid unnecessary deep copies
+            # Update best solution
             best_result["objective_val"] = objective_val
-            best_result["ps_stack"] = ps_stack  # Already a copy from quad_opti_vol
-            best_result["np_stack"] = np_stack  # Already a copy from quad_opti_vol
+            best_result["ps_opt"] = ps_opt
+            best_result["np_opt"] = np_opt
             best_result["ps_sombraEdif_p"] = ps_sombraEdif_p
             best_result["ps_sombraEdif_o"] = ps_sombraEdif_o
             best_result["ps_sombraEdif_s"] = ps_sombraEdif_s
         end
     end
-    
+
     return best_result
 end
 
@@ -464,56 +425,6 @@ function calculate_shadow_volumes(ps_predio, ps_areaEdif, altura_max, rasante_so
     return vec_altVolConSombra, vec_psVolConSombra
 end
 
-# ============================================================================
-# FLOOR COMBINATION GENERATION
-# ============================================================================
-function generate_floor_combinations(min_pisos, max_pisos, K)
-    # Generates valid floor combinations for optimization.
-
-    function generate_stack_vector(pisos_tot, num_stacks)
-        if num_stacks <= 0 || pisos_tot < 0
-            return Vector{Vector}()
-        end
-
-        results = Vector{Vector}()
-
-        function backtrack(current_vec::Vector, remaining_sum, remaining_positions)
-            # Base case: filled all positions
-            if remaining_positions == 0
-                if remaining_sum == 0
-                    push!(results, copy(current_vec))
-                end
-                return
-            end
-
-            # Determine the maximum we can place here:
-            max_val = remaining_sum
-            if !isempty(current_vec)
-                max_val = min(max_val, current_vec[end])
-            end
-
-            # Try all values from 0 up to that max
-            for val in 0:max_val
-                push!(current_vec, val)
-                backtrack(current_vec, remaining_sum - val, remaining_positions - 1)
-                pop!(current_vec)
-            end
-        end
-
-        backtrack(Int[], pisos_tot, num_stacks)
-        return results
-    end
-
-    vec_stacks_ = Vector{Vector{Int}}()
-    
-    for pisos in min_pisos:max_pisos
-        vec_stacks_p = generate_stack_vector(pisos, K)
-        append!(vec_stacks_, vec_stacks_p)
-    end
-    
-    # Pre-filter to reduce iterations
-    return filter(v -> v[1] >= max_pisos - 2, vec_stacks_)
-end
 
 # ============================================================================
 # MAIN VOLUME OPTIMIZATION FUNCTION
@@ -526,12 +437,11 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
     ps_predio = dict_geom["ps_combi"]
     ps_bruto = dict_geom["ps_bruto"]
     alturaPiso = dict_arquitectura["arq_alturaPiso"]
-    K = dict_arquitectura["arq_K"]
     flag_sombra = dict_arquitectura["arq_flag_sombra"]
     alturaMax = dict_requerimientos["norm_altura_max"]
     rasante = tan(dict_requerimientos["norm_rasante"] * π / 180)
     rasante_sombra = dict_requerimientos["norm_rasante_sombra"]
-    
+
     min_pisos = minimum(vec_pisos)
     max_pisos = maximum(vec_pisos)
 
@@ -539,8 +449,8 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
     # 2. SOLUTION TRACKING INITIALIZATION
     # ============================================================================
     best_result = Dict{String, Any}(
-        "ps_stack" => [PolyShape([], 1) for _ in 1:K],
-        "np_stack" => zeros(Int, K),
+        "ps_opt" => PolyShape([], 1),
+        "np_opt" => 0,
         "max_sol" => 0.0,
         "vec_altVolteor" => Float64[],
         "vec_psVolteor" => PolyShape[],
@@ -552,62 +462,56 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
     )
 
     # ============================================================================
-    # 3. FLOOR COMBINATION GENERATION
-    # ============================================================================
-    vec_stacks = generate_floor_combinations(min_pisos, max_pisos, K)
-    
-    # ============================================================================
-    # 4. PERFORMANCE OPTIMIZATION CACHING
+    # 3. PERFORMANCE OPTIMIZATION CACHING
     # ============================================================================
     altura_ant = -1
     ps_areaEdif = PolyShape([], 0)
     vec_altVolteor, vec_psVolteor = (Float64[], PolyShape[])
     vec_altVolConSombra, vec_psVolConSombra = (Float64[], PolyShape[])
-    
+
     # ============================================================================
-    # 5. MAIN OPTIMIZATION LOOP
+    # 4. MAIN OPTIMIZATION LOOP
     # ============================================================================
-    for (iter_floors, floors) in enumerate(vec_stacks)
-        n_pisos = sum(floors)
+    for n_pisos in min_pisos:max_pisos
         altura = n_pisos * alturaPiso
-        
+
         # Only recalculate when height changes (performance optimization)
         if altura != altura_ant
             altura_ant = altura
-            
+
             # Calculate buildable area
             ps_areaEdif = calculate_buildable_area(dict_geom, dict_requerimientos, dict_arquitectura, altura, n_pisos)
-                
+
             # Early termination if area too small
             if polyShape.polyArea(ps_areaEdif) < MIN_AREA_THRESHOLD
                 continue
             end
-            
+
             # Calculate theoretical volumes with performance optimization
             vec_altVolteor, vec_psVolteor = calculate_theoretical_volumes(ps_bruto, ps_areaEdif, alturaMax, rasante)
-            
+
             if flag_sombra
                 # Calculate shadow volumes and cache them
                 vec_altVolConSombra, vec_psVolConSombra = calculate_shadow_volumes(ps_predio, ps_areaEdif, alturaMax, rasante_sombra)
             end
 
         end
-        
-        
+
+
         if flag_sombra
             shadow_data = setup_shadow_constraints(vec_psVolteor, vec_altVolteor, dict_geom, ps_areaEdif)
-            
+
             # Only proceed if any shadow constraints are active
             if shadow_data["flag_p"] || shadow_data["flag_o"] || shadow_data["flag_s"]
                 shadow_result = optimize_with_shadow_constraints(
-                    vec_psVolConSombra, vec_altVolConSombra, shadow_data, floors,
+                    vec_psVolConSombra, vec_altVolConSombra, shadow_data, n_pisos,
                     dict_arquitectura, dict_geom, max_ocupacion_suelo, max_losa_snt, ps_areaEdif
                 )
-                
+
                 if shadow_result["objective_val"] > best_result["max_sol"]
                     best_result["max_sol"] = shadow_result["objective_val"]
-                    best_result["ps_stack"] = shadow_result["ps_stack"]
-                    best_result["np_stack"] = shadow_result["np_stack"]
+                    best_result["ps_opt"] = shadow_result["ps_opt"]
+                    best_result["np_opt"] = shadow_result["np_opt"]
                     best_result["vec_altVolteor"] = vec_altVolteor
                     best_result["vec_psVolteor"] = vec_psVolteor
                     best_result["vec_altVolConSombra"] = vec_altVolConSombra
@@ -622,27 +526,27 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
             end
         else
             # No shadow constraints - direct optimization
-            ps_stack, np_stack, objective_val = quad_opti_vol(
-                vec_psVolteor, vec_altVolteor, floors, alturaPiso,
-                max_ocupacion_suelo, max_losa_snt, K
+            ps_opt, np_opt, objective_val = quad_opti_vol(
+                vec_psVolteor, vec_altVolteor, n_pisos, alturaPiso,
+                max_ocupacion_suelo, max_losa_snt
             )
-            
+
             if objective_val > best_result["max_sol"]
                 best_result["max_sol"] = objective_val
-                best_result["ps_stack"] = ps_stack
-                best_result["np_stack"] = np_stack
+                best_result["ps_opt"] = ps_opt
+                best_result["np_opt"] = np_opt
                 best_result["vec_altVolteor"] = vec_altVolteor
                 best_result["vec_psVolteor"] = vec_psVolteor
-                
+
                 # Calculate shadow volumes for output consistency using helper function
                 vec_altVolConSombra, vec_psVolConSombra = calculate_shadow_volumes(ps_predio, ps_areaEdif, alturaMax, rasante_sombra)
-                
+
                 best_result["vec_altVolConSombra"] = vec_altVolConSombra
                 best_result["vec_psVolConSombra"] = vec_psVolConSombra
-                
+
             end
         end
-        
+
         # Early termination if near optimal
         if best_result["max_sol"] >= 0.99 * max_losa_snt
             break
@@ -650,11 +554,11 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
     end
 
     # ============================================================================
-    # 6. RESULTS COMPILATION AND RETURN
+    # 5. RESULTS COMPILATION AND RETURN
     # ============================================================================
     return Dict{String, Any}(
-        "vec_ps_opt" => best_result["ps_stack"],
-        "vec_np_opt" => best_result["np_stack"],
+        "ps_opt" => best_result["ps_opt"],
+        "np_opt" => best_result["np_opt"],
         "max_sol" => best_result["max_sol"],
         "vec_psVolteor" => best_result["vec_psVolteor"],
         "vec_altVolteor" => best_result["vec_altVolteor"],

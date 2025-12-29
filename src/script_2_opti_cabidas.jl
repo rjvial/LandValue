@@ -225,7 +225,7 @@ let flag_create_table = false, combi_aux = "", dict_geom = nothing
 
             dict_proyecto, dict_normativa, results_pisos_superiores, results_primer_piso = opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti, id_combi)
 
-            ps_planta = dict_proyecto["proyecto_vec_ps_opt"][1]
+            ps_planta = dict_proyecto["proyecto_ps_opt"]
 
             # println("Plotting Pisos Superiores...")
             # fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
