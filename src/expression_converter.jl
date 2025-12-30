@@ -398,7 +398,8 @@ function parse_python_expression(py_expr::String)
     expr = replace(expr, r"\bNone\b"  => "nothing")
     expr = replace(expr, r"\bTrue\b"  => "true")
     expr = replace(expr, r"\bFalse\b" => "false")
-    
+    expr = replace(expr, r"'([^']*)'" => s"\"\1\"")
+
     # Add the syntax fix as the final step
     expr = fix_julia_syntax(expr)
     

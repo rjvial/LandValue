@@ -350,7 +350,8 @@ function calcula_geometria_pasillo(vec_coord_fin1::Vector{Float64}, vec_coord_fi
                     vec_coord_ini1::Vector{Float64}, vec_coord_ini2::Vector{Float64}, coord_base::Float64,
                     profundidad_pasillo::Float64, is_vertical::Bool, W::Float64, H::Float64, coord_min::Float64,
                     min_ancho_pasillo::Float64, vec_tipo_deptos1::Vector{Int},
-                    vec_tipo_deptos2::Vector{Int})
+                    vec_tipo_deptos2::Vector{Int},
+                    num_escaleras, ancho_escaleras)
 
     num_deptos_franja1 = count(t -> t != -1, vec_tipo_deptos1)
     num_deptos_franja2 = count(t -> t != -1, vec_tipo_deptos2)
@@ -408,16 +409,35 @@ function calcula_geometria_pasillo(vec_coord_fin1::Vector{Float64}, vec_coord_fi
         y_centroide = coord_base
     end
 
-    profundidad_nucleo = 2.0 + .75
-    ancho_nucleo_box = 5.0
+    if ancho_escaleras == 1.1
+        profundidad_nucleo_1 = 2.8 + .75
+        profundidad_nucleo_2 = 2.5 + .75
+        ancho_nucleo_box = 5.58
+    elseif ancho_escaleras == 1.2
+        profundidad_nucleo_1 = 3.0 + .75
+        profundidad_nucleo_2 = 2.5 + .75
+        ancho_nucleo_box = 5.78
+    elseif ancho_escaleras == 1.3
+        profundidad_nucleo_1 = 3.2 + .75
+        profundidad_nucleo_2 = 2.5 + .75
+        ancho_nucleo_box = 5.98
+    elseif ancho_escaleras == 1.4
+        profundidad_nucleo_1 = 3.4 + .75
+        profundidad_nucleo_2 = 2.5 + .75
+        ancho_nucleo_box = 6.18
+    elseif ancho_escaleras == 1.5
+        profundidad_nucleo_1 = 3.6 + .75
+        profundidad_nucleo_2 = 2.5 + .75
+        ancho_nucleo_box = 6.38
+    end
 
     if !isempty(vec_coord_ini1) && !isempty(vec_coord_fin1)
         coord_centro_strip1 = (vec_coord_ini1[1] + vec_coord_fin1[end]) / 2
 
         if is_vertical
-            ps_nucleo1 = polyShape.polyBox(coord_base, coord_centro_strip1 - ancho_nucleo_box / 2, profundidad_nucleo, ancho_nucleo_box, 0.0)
+            ps_nucleo1 = polyShape.polyBox(coord_base, coord_centro_strip1 - ancho_nucleo_box / 2, profundidad_nucleo_1, ancho_nucleo_box, 0.0)
         else
-            ps_nucleo1 = polyShape.polyBox(coord_centro_strip1 - ancho_nucleo_box / 2, coord_base, ancho_nucleo_box, profundidad_nucleo, 0.0)
+            ps_nucleo1 = polyShape.polyBox(coord_centro_strip1 - ancho_nucleo_box / 2, coord_base, ancho_nucleo_box, profundidad_nucleo_1, 0.0)
         end
         ps_pasillo = polyShape.polyUnion(ps_pasillo, ps_nucleo1)
     end
@@ -426,9 +446,9 @@ function calcula_geometria_pasillo(vec_coord_fin1::Vector{Float64}, vec_coord_fi
         coord_centro_strip2 = (vec_coord_ini2[1] + vec_coord_fin2[end]) / 2
 
         if is_vertical
-            ps_nucleo2 = polyShape.polyBox(coord_base - profundidad_nucleo, coord_centro_strip2 - ancho_nucleo_box / 2, profundidad_nucleo, ancho_nucleo_box, 0.0)
+            ps_nucleo2 = polyShape.polyBox(coord_base - profundidad_nucleo_2, coord_centro_strip2 - ancho_nucleo_box / 2, profundidad_nucleo_2, ancho_nucleo_box, 0.0)
         else
-            ps_nucleo2 = polyShape.polyBox(coord_centro_strip2 - ancho_nucleo_box / 2, coord_base - profundidad_nucleo, ancho_nucleo_box, profundidad_nucleo, 0.0)
+            ps_nucleo2 = polyShape.polyBox(coord_centro_strip2 - ancho_nucleo_box / 2, coord_base - profundidad_nucleo_2, ancho_nucleo_box, profundidad_nucleo_2, 0.0)
         end
         ps_pasillo = polyShape.polyUnion(ps_pasillo, ps_nucleo2)
     end
@@ -583,7 +603,8 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad::Float64, num
                         profundidad_pasillo::Float64 = 1.5,
                         min_ancho_pasillo::Float64 = 0.0,
                         flag_dfl2::Bool = false,
-                        flag_vivienda_economica::Bool = false)
+                        flag_vivienda_economica::Bool = false,
+                        num_escaleras=1.0, ancho_escaleras=1.1)
 
     best_layout = dict_edificio_deptos["best_layout"]
     is_vertical = (best_layout == 2)
@@ -717,8 +738,9 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad::Float64, num
                                             coord_base, profundidad_pasillo, is_vertical,
                                             W, H,
                                             coord_min, min_ancho_pasillo,
-                                            vec_tipo_deptos1, vec_tipo_deptos2)
-
+                                            vec_tipo_deptos1, vec_tipo_deptos2,
+                                            num_escaleras, ancho_escaleras)
+                                            
     vec_profundidad_terraza_strip1 = Float64[]
     vec_profundidad_terraza_strip2 = Float64[]
     vec_ancho_terraza_strip1 = Float64[]
@@ -924,7 +946,8 @@ end
 
 function opti_floor_plan(dict_edificio_deptos, max_constructibilidad::Float64, num_pisos_superiores::Int;
                         profundidad_pasillo::Float64 = 1.5,
-                        min_ancho_pasillo::Float64 = 0.0)
+                        min_ancho_pasillo::Float64 = 0.0,
+                        num_escaleras=1.0, ancho_escaleras=1.1)
 
     flag_dfl2 = get(dict_edificio_deptos, "flag_dfl2", false)
     flag_vivienda_economica = get(dict_edificio_deptos, "flag_vivienda_economica", false)

@@ -15,21 +15,31 @@ const COEF_OCUPACION_EST = 1.0
 const LARGE_NUMBER = 999999.0
 
 
-function python_expression_eval_with_varmap(expr_dict, variable_map::Dict{String, <:Any})
-    # Evaluates Python expressions with variable substitution and proper error handling.
-
+function python_expression_eval_with_varmap(expr_input, variable_map::Dict{String, <:Any})
     try
-        expr_str = expression_converter.parse_python_expression(expr_dict[3])
-        
-        # Apply variable substitutions
+        if isa(expr_input, String)
+            if occursin(r"^\s*\{", expr_input)
+                m = match(r"\"formula\"\s*:\s*\"(.+?)\"(?=\s*,|\s*\})", expr_input)
+                if isnothing(m)
+                    throw(ArgumentError("No 'formula' field found in JSON"))
+                end
+                formula_str = String(m.captures[1])
+            else
+                formula_str = String(strip(expr_input))
+            end
+            expr_str = expression_converter.parse_python_expression(formula_str)
+        else
+            expr_str = expression_converter.parse_python_expression(expr_input[3])
+        end
+
         for (var_name, var_value) in variable_map
             expr_str = replace(expr_str, var_name => string(var_value))
         end
-        
+
         return eval(Meta.parse(expr_str))
     catch e
         @warn "Expression evaluation failed: $e"
-        throw(ArgumentError("Invalid expression in requirements: $(expr_dict[3])"))
+        throw(ArgumentError("Invalid expression in requirements: $expr_input"))
     end
 end
 
@@ -209,12 +219,46 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # ============================================================================
     # 5. APARTMENT SHAPE COMPILATION
     # ============================================================================
+
+    num_personas_edificio_raw = """
+        {
+        "articulo_id": "oguc_t4_c2_a4",
+        "requerimiento_cond_id": "oguc_t4_c2_a4_tab1",
+        "nombre_requerimiento": "carga_ocupacion",
+        "parametro_formula": "[cabida_sup_deptos, cabida_num_deptos]", 
+        "formula": "ceil(sum(n * (s / if(s <= 60, 15, if(s <= 140, 20, 30))) for s, n in zip(cabida_sup_deptos, cabida_num_deptos)))", 
+        "unidad": "personas" 
+        }
+    """
+    variable_map = Dict(
+        "cabida_sup_deptos" => dict_edificio_deptos["df_deptos"][:,"num_unidades_primer_piso"] .+ np_opt .* dict_edificio_deptos["df_deptos"][:,"num_unidades_por_piso_superior"],
+        "cabida_num_deptos" => dict_edificio_deptos["df_deptos"][:,"sup_interior_bruta"])
+    num_personas_edificio = python_expression_eval_with_varmap(num_personas_edificio_raw, variable_map)
+
+    ancho_escalera_raw = """
+        {
+        "articulo_id":           "oguc_t4_c2_a10",
+        "requerimiento_cond_id": "oguc_t4_c2_a10_tab1",
+        "nombre_requerimiento":  "escaleras_via_evacuacion",
+        "parametro_formula":     "[personas]",
+        "formula": "if(personas<=50,'num_escaleras=1;ancho_escaleras=1.10', if(personas<=100,'num_escaleras=1;ancho_escaleras=1.20', if(personas<=150,'num_escaleras=1;ancho_escaleras=1.30', if(personas<=200,'num_escaleras=1;ancho_escaleras=1.40', if(personas<=250,'num_escaleras=1;ancho_escaleras=1.50', if(personas<=300,'num_escaleras=2;ancho_escaleras=1.20', if(personas<=400,'num_escaleras=2;ancho_escaleras=1.30', if(personas<=500,'num_escaleras=2;ancho_escaleras=1.40', if(personas<=700,'num_escaleras=2;ancho_escaleras=1.50', if(personas<=1000,'num_escaleras=2;ancho_escaleras=1.60', 'estudio_evacuacion_requerido'))))))))))",
+        "unidad": "m"
+        }
+    """
+    variable_map = Dict(
+            "personas" => num_personas_edificio)
+    escalera_str = python_expression_eval_with_varmap(ancho_escalera_raw, variable_map)
+    escalera_parts = Dict(strip(split(p, "=")[1]) => parse(Float64, split(p, "=")[2]) for p in split(escalera_str, ";"))
+    num_escaleras = escalera_parts["num_escaleras"]
+    ancho_escaleras = escalera_parts["ancho_escaleras"]
+
     num_pisos = Int(np_opt)
     num_pisos_superiores = num_pisos - 1
 
     results = opti_floor_plan(dict_edificio_deptos, max_constructibilidad, num_pisos_superiores,
                 profundidad_pasillo=profundidad_pasillo,
-                min_ancho_pasillo=min_ancho_pasillo)
+                min_ancho_pasillo=min_ancho_pasillo,
+                num_escaleras=num_escaleras, ancho_escaleras=ancho_escaleras)
 
     results_pisos_superiores = results["pisos_superiores"]
     results_primer_piso = results["primer_piso"]
