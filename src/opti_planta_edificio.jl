@@ -1,16 +1,120 @@
-"""
-Optimiza la asignación de departamentos en strips para maximizar área útil.
+function evalua_strip_paralelo_calle(ps_calles, angulo_rotacion, cr, best_layout, ps_planta_normalizado)
+    ps_calle_paralela_empty = PolyShape(Vector{Matrix{Float64}}(), 0)
 
-Selecciona entre configuraciones de departamentos con anchos y alturas predefinidos.
+    if isnothing(ps_calles) || isempty(ps_calles.Vertices)
+        return false, false, ps_calle_paralela_empty
+    end
 
-# Argumentos
-- `max_constructibilidad`: Constructibilidad máxima permitida (m²)
-- `max_deptos::Int`: Número máximo de departamentos totales
-- `ps_opt`: PolyShape con planta optimizada
-- `np_opt`: Número de pisos
-- `vec_area_t`: Vector de áreas de terraza por tipo de departamento
-"""
-function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_deptos, ps_opt, np_opt)
+    vec_edges_calle, _ = polyShape.shape2vector(ps_calles)
+
+    if isempty(vec_edges_calle)
+        return false, false, ps_calle_paralela_empty
+    end
+
+    V_planta_norm = ps_planta_normalizado.Vertices[1]
+    centro_x_norm = (maximum(V_planta_norm[:, 1]) + minimum(V_planta_norm[:, 1])) / 2
+    centro_y_norm = (maximum(V_planta_norm[:, 2]) + minimum(V_planta_norm[:, 2])) / 2
+
+    centro_original = polyShape.polyRotate(
+        PolyShape([Float64[centro_x_norm centro_y_norm; centro_x_norm centro_y_norm]], 1),
+        -angulo_rotacion,
+        cr
+    ).Vertices[1][1, :]
+
+    tolerancia_angulo = deg2rad(20.0)
+
+    if best_layout == 1
+        angulo_strip_ref_norm = pi/2
+    else
+        angulo_strip_ref_norm = 0.0
+    end
+    angulo_strip_ref = angulo_strip_ref_norm - angulo_rotacion
+
+    function angulo_paralelo(ang1, ang2, tol)
+        diff = abs(ang1 - ang2)
+        diff = min(diff, 2*pi - diff)
+        diff_180 = abs(diff - pi)
+        return diff < tol || diff_180 < tol
+    end
+
+    function centroide_edge(edge)
+        V = edge.Vertices[1]
+        cx = sum(V[:, 1]) / size(V, 1)
+        cy = sum(V[:, 2]) / size(V, 1)
+        return cx, cy
+    end
+
+    function signed_distance_to_strip(cx, cy, centro, angulo_normal)
+        dx = cx - centro[1]
+        dy = cy - centro[2]
+        return dx * cos(angulo_normal) + dy * sin(angulo_normal)
+    end
+
+    if best_layout == 1
+        angulo_normal_strip1 = pi/2 - angulo_rotacion
+        angulo_normal_strip2 = -pi/2 - angulo_rotacion
+    else
+        angulo_normal_strip1 = 0.0 - angulo_rotacion
+        angulo_normal_strip2 = pi - angulo_rotacion
+    end
+
+    dist_min_strip1 = Inf
+    dist_min_strip2 = Inf
+    found_parallel_strip1 = false
+    found_parallel_strip2 = false
+
+    for edge in vec_edges_calle
+        angulo = polyShape.lineAngle(edge)
+        largo = polyShape.lineLength(edge)
+
+        if largo <= 2.0
+            continue
+        end
+
+        if !angulo_paralelo(angulo, angulo_strip_ref, tolerancia_angulo)
+            continue
+        end
+
+        cx, cy = centroide_edge(edge)
+
+        dist_to_strip1 = signed_distance_to_strip(cx, cy, centro_original, angulo_normal_strip1)
+        dist_to_strip2 = signed_distance_to_strip(cx, cy, centro_original, angulo_normal_strip2)
+
+        if dist_to_strip1 > 0 && dist_to_strip1 < dist_min_strip1
+            dist_min_strip1 = dist_to_strip1
+            found_parallel_strip1 = true
+        end
+        if dist_to_strip2 > 0 && dist_to_strip2 < dist_min_strip2
+            dist_min_strip2 = dist_to_strip2
+            found_parallel_strip2 = true
+        end
+    end
+
+    strip1_paralelo = false
+    strip2_paralelo = false
+    ps_calle_paralela_strip1 = ps_calle_paralela_empty
+    ps_calle_paralela_strip2 = ps_calle_paralela_empty
+
+    if found_parallel_strip1 && !found_parallel_strip2
+        strip1_paralelo = true
+        ps_calle_paralela_strip1 = ps_calles
+    elseif found_parallel_strip2 && !found_parallel_strip1
+        strip2_paralelo = true
+        ps_calle_paralela_strip2 = ps_calles
+    elseif found_parallel_strip1 && found_parallel_strip2
+        if dist_min_strip1 <= dist_min_strip2
+            strip1_paralelo = true
+            ps_calle_paralela_strip1 = ps_calles
+        else
+            strip2_paralelo = true
+            ps_calle_paralela_strip2 = ps_calles
+        end
+    end
+
+    return strip1_paralelo, strip2_paralelo, ps_calle_paralela_strip1, ps_calle_paralela_strip2
+end
+
+function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_deptos, ps_opt, np_opt, ps_calles=nothing)
 
     # Rotates floor plan to axis-aligned rectangle with width > height, returns dimensions and transformation
     function normaliza_planta_rectangular(ps_planta::PolyShape, layout)
@@ -334,6 +438,18 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
     results["ps_planta"] = ps_opt
     results["flag_dfl2"] = false
     results["flag_vivienda_economica"] = false
+
+    strip1_paralelo, strip2_paralelo, ps_calle_paralela_strip1, ps_calle_paralela_strip2 = evalua_strip_paralelo_calle(
+        ps_calles,
+        results["angulo_rotacion"],
+        results["cr"],
+        best_layout,
+        results["ps_planta_normalizado"]
+    )
+    results["strip_1_paralelo_calle"] = strip1_paralelo
+    results["strip_2_paralelo_calle"] = strip2_paralelo
+    results["ps_calle_paralela_strip_1"] = ps_calle_paralela_strip1
+    results["ps_calle_paralela_strip_2"] = ps_calle_paralela_strip2
 
     println("="^60)
 

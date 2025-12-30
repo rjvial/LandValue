@@ -589,6 +589,25 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad::Float64, num
     is_vertical = (best_layout == 2)
 
     ps_planta_normalizado = dict_edificio_deptos["ps_planta_normalizado"]
+    
+    H_s_strip1 = dict_edificio_deptos["strip_1_H_s"]
+    H_s_strip2 = dict_edificio_deptos["strip_2_H_s"]
+
+    strip1_paralelo = get(dict_edificio_deptos, "strip_1_paralelo_calle", false)
+    strip2_paralelo = get(dict_edificio_deptos, "strip_2_paralelo_calle", false)
+
+    if strip1_paralelo || strip2_paralelo
+        V = ps_planta_normalizado.Vertices[1]
+        x_min, x_max = extrema(V[:, 1])
+        y_min, y_max = extrema(V[:, 2])
+        ext1 = strip1_paralelo ? 1.5 : 0.0
+        ext2 = strip2_paralelo ? 1.5 : 0.0
+        if is_vertical
+            ps_planta_normalizado = polyShape.polyBox(x_min - ext2, y_min, x_max - x_min + ext1 + ext2, y_max - y_min)
+        else
+            ps_planta_normalizado = polyShape.polyBox(x_min, y_min - ext2, x_max - x_min, y_max - y_min + ext1 + ext2)
+        end
+    end
 
     V_planta_normalizado = ps_planta_normalizado.Vertices[1]
     vec_x_planta = V_planta_normalizado[:, 1]
@@ -611,8 +630,8 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad::Float64, num
     coord_min_x = minimum(vec_x_planta)
     coord_min_y = minimum(vec_y_planta)
 
-    H_s_strip1 = dict_edificio_deptos["strip_1_H_s"]
-    H_s_strip2 = dict_edificio_deptos["strip_2_H_s"]
+    H_s_strip1 = dict_edificio_deptos["strip_1_H_s"] + (strip1_paralelo ? 1.5 : 0.0)
+    H_s_strip2 = dict_edificio_deptos["strip_2_H_s"] + (strip2_paralelo ? 1.5 : 0.0)
 
     if is_vertical
         coord_base = coord_min_x + H_s_strip2

@@ -204,7 +204,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     max_constructibilidad = dict_normativa["norm_max_constructibilidad"]
     max_deptos = dict_normativa["norm_max_unidades"]
 
-    dict_edificio_deptos = opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_deptos, ps_opt, np_opt)
+    dict_edificio_deptos = opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_deptos, ps_opt, np_opt, dict_geom["ps_calles"])
 
     # ============================================================================
     # 5. APARTMENT SHAPE COMPILATION

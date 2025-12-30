@@ -196,19 +196,19 @@ let flag_create_table = false, combi_aux = "", dict_geom = nothing
             vec_predios = parse.(Int, split(strip(df_combis_row[1, "list_predios"], ['(', ')']), ';'))
 
             # Process geometry once per combi
-            if id_combi != combi_aux
+            # if id_combi != combi_aux
                 println("\nProcessing Combi ID: $id_combi\n")
                 df_combined_row = filter(r -> r.id_combi == id_combi, df_combined)
 
-                if nrow(df_combined_row) == 0
-                    println("WARNING: No geometry data for id_combi = $id_combi. Skipping...")
-                    update_optimization_status(conn_postgres, id_opti, 9)
-                    continue
-                end
+                # if nrow(df_combined_row) == 0
+                #     println("WARNING: No geometry data for id_combi = $id_combi. Skipping...")
+                #     update_optimization_status(conn_postgres, id_opti, 9)
+                #     continue
+                # end
 
                 dict_geom = obtiene_geometrias_combi(df_combined_row)
                 combi_aux = id_combi
-            end
+            # end
 
             println("Processing ID Opti: $(id_opti)")
 
@@ -226,20 +226,20 @@ let flag_create_table = false, combi_aux = "", dict_geom = nothing
 
             ps_planta = dict_proyecto["proyecto_ps_opt"]
 
-            # println("Plotting Pisos Superiores...")
-            # fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
+            println("Plotting Pisos Superiores...")
+            fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
 
-            # if !isnothing(results_pisos_superiores["ps_pasillo"])
-            #     polyPlot.plotPolyshape2D(results_pisos_superiores["ps_pasillo"], "#505050", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
-            # end
-            # for apt_poly in results_pisos_superiores["vec_ps_deptos_interior_all"]
-            #     polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
-            # end
-            # for terrace in results_pisos_superiores["vec_ps_terrazas_all"]
-            #     if polyShape.polyArea(terrace) > 0.0
-            #         polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig, ax=ax, ax_mat=ax_mat)
-            #     end
-            # end
+            if !isnothing(results_pisos_superiores["ps_pasillo"])
+                polyPlot.plotPolyshape2D(results_pisos_superiores["ps_pasillo"], "#505050", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
+            end
+            for apt_poly in results_pisos_superiores["vec_ps_deptos_interior_all"]
+                polyPlot.plotPolyshape2D(apt_poly, "red", 0.3, fig=fig, ax=ax, ax_mat=ax_mat)
+            end
+            for terrace in results_pisos_superiores["vec_ps_terrazas_all"]
+                if polyShape.polyArea(terrace) > 0.0
+                    polyPlot.plotPolyshape2D(terrace, "blue", 0.4, fig=fig, ax=ax, ax_mat=ax_mat)
+                end
+            end
 
             println("Plotting Primer Piso...")
             ps_planta = results_primer_piso["ps_planta"]
