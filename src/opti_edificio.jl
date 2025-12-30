@@ -2,7 +2,9 @@
 const UTIL_FACTOR = 1.0
 const TERRACE_FACTOR = 0.20
 const INTERIOR_FACTOR = UTIL_FACTOR - TERRACE_FACTOR / 2
-const COMMON_AREAS_FACTOR = 0.20
+const STAIRCASE_AREA = 0.08
+const ELEVATOR_AREA = 0.05
+const COMMON_AREAS_FACTOR = 0.13
 const DENSITY_DIVISOR = 4
 const AREA_CONVERSION = 10000
 const DEFAULT_FLOOR_BUFFER = 2
@@ -131,9 +133,9 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     is_apartment_special = (dict_normativa["tipo_edificio"] == "departamento" &&
                            (dict_normativa["flag_dfl2"] || dict_normativa["flag_economica"]))
     if is_apartment_special
-        max_losa_snt = base_constructibilidad * (INTERIOR_FACTOR + TERRACE_FACTOR + COMMON_AREAS_FACTOR)
+        max_losa_snt = base_constructibilidad * (INTERIOR_FACTOR + TERRACE_FACTOR + COMMON_AREAS_FACTOR + STAIRCASE_AREA + ELEVATOR_AREA)
     else
-        max_losa_snt = base_constructibilidad * (INTERIOR_FACTOR + TERRACE_FACTOR)
+        max_losa_snt = base_constructibilidad * (INTERIOR_FACTOR + TERRACE_FACTOR + STAIRCASE_AREA + ELEVATOR_AREA)
     end
 
 

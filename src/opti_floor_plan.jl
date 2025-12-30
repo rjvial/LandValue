@@ -956,12 +956,13 @@ function opti_floor_plan(dict_edificio_deptos, max_constructibilidad::Float64, n
                 profundidad_pasillo=profundidad_pasillo,
                 min_ancho_pasillo=min_ancho_pasillo,
                 flag_dfl2=flag_dfl2,
-                flag_vivienda_economica=flag_vivienda_economica)
+                flag_vivienda_economica=flag_vivienda_economica,
+                num_escaleras=num_escaleras, ancho_escaleras=ancho_escaleras)
 
     angulo_rotacion = dict_edificio_deptos["angulo_rotacion"]
     cr = dict_edificio_deptos["cr"]
-
-    procesa_resultados_piso!(results_pisos_superiores, angulo_rotacion, cr, 0.25)
+    max_ratio_terraza = 0.25
+    procesa_resultados_piso!(results_pisos_superiores, angulo_rotacion, cr, max_ratio_terraza)
 
     vec_deptos_rotated = results_pisos_superiores["vec_ps_deptos_interior_all"]
     ps_union_deptos_rotated = results_pisos_superiores["ps_union_deptos"]
