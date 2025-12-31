@@ -267,12 +267,12 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
 
     sup_interior_pisos_superiores = sum([polyShape.polyArea(ps) for ps in results_pisos_superiores["vec_ps_deptos_interior_all"]]; init=0.0)
     sup_terraza_pisos_superiores = sum([polyShape.polyArea(ps) for ps in results_pisos_superiores["vec_ps_terrazas_all"] if polyShape.polyArea(ps) > 0.0]; init=0.0)
-    sup_comun_pisos_superiores = polyShape.polyArea(results_pisos_superiores["ps_area_comun_total"])
+    sup_comun_pisos_superiores = polyShape.polyArea(results_pisos_superiores["ps_pasillo"])
 
     if !isnothing(results_primer_piso)
         sup_interior_primer_piso = sum([polyShape.polyArea(ps) for ps in results_primer_piso["vec_ps_deptos_interior_all"]]; init=0.0)
         sup_terraza_primer_piso = sum([polyShape.polyArea(ps) for ps in results_primer_piso["vec_ps_terrazas_all"] if polyShape.polyArea(ps) > 0.0]; init=0.0)
-        sup_comun_primer_piso = polyShape.polyArea(results_primer_piso["ps_area_comun_total"])
+        sup_comun_primer_piso = polyShape.polyArea(results_primer_piso["ps_pasillo"])
     else
         sup_interior_primer_piso = 0.0
         sup_terraza_primer_piso = 0.0

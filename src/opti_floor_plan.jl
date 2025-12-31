@@ -506,11 +506,11 @@ end
 
 # Calcula orientación cardinal de cada departamento
 function calcula_orientaciones_apartamentos(vec_ps_deptos_interior_all::Vector{PolyShape},
-                                           ps_union_deptos::PolyShape,
-                                           ps_area_comun_total::PolyShape)
+                                           ps_pasillo::PolyShape)
 
     # Crear envolvente reducida para detectar bordes exteriores
-    ps_union_all = polyShape.polyUnion(ps_union_deptos, ps_area_comun_total)
+    ps_union_deptos = reduce((acc, ps) -> polyShape.polyUnion(acc, ps), vec_ps_deptos_interior_all)
+    ps_union_all = polyShape.polyUnion(ps_union_deptos, ps_pasillo)
     ps_shrinked = polyClipper.polyOffset(ps_union_all, -0.1)
 
     vec_apartamentos_orientaciones = Vector{Dict}(undef, length(vec_ps_deptos_interior_all))
@@ -861,7 +861,6 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad::Float64, num
 
     results["ps_planta"] = ps_planta
 
-
     # Área común total
     delta = 0.02
     ps_area_comun_total = polyClipper.polyOffset(ps_pasillo_normalizado, delta)
@@ -908,39 +907,7 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad::Float64, num
     valid_espacios_vacios = [ps for ps in vec_ps_espacios_vacios if polyShape.polyArea(ps) > 0.0]
     ps_pasillo_pp = isempty(valid_espacios_vacios) ? ps_pasillo_superior : reduce((acc, ps) -> polyShape.polyUnion(acc, ps), valid_espacios_vacios, init=ps_pasillo_superior)
 
-    # Crear uniones para primer piso
-    delta_pp = 0.02
-    buffer_size_pp = 0.2
-
-    ps_union_deptos_pp = PolyShape[]
-    if !isempty(vec_ps_deptos_interior_all_pp)
-        buffered_apts = [polyClipper.polyOffset(ps, buffer_size_pp) for ps in vec_ps_deptos_interior_all_pp]
-        ps_union_deptos_pp = reduce((acc, ps) -> polyShape.polyUnion(acc, ps), buffered_apts)
-        ps_union_deptos_pp = polyClipper.polyOffset(ps_union_deptos_pp, delta_pp)
-        ps_union_deptos_pp = polyClipper.polyOffset(ps_union_deptos_pp, -buffer_size_pp - delta_pp)
-    end
-
-    ps_union_terrazas_pp = PolyShape[]
-    valid_terrazas_pp = [ps for ps in vec_ps_terrazas_all_pp if polyShape.polyArea(ps) > 0.0]
-    if !isempty(valid_terrazas_pp)
-        buffered_terrazas = [polyClipper.polyOffset(ps, buffer_size_pp) for ps in valid_terrazas_pp]
-        ps_union_terrazas_pp = reduce((acc, ps) -> polyShape.polyUnion(acc, ps), buffered_terrazas)
-        ps_union_terrazas_pp = polyClipper.polyOffset(ps_union_terrazas_pp, delta_pp)
-        ps_union_terrazas_pp = polyClipper.polyOffset(ps_union_terrazas_pp, -buffer_size_pp - delta_pp)
-    end
-
-    # Calcular planta total del primer piso
-    ps_planta_primer_piso = reduce((acc, ps) -> polyShape.polyUnion(acc, ps), vec_ps_deptos_interior_all_pp, init=ps_pasillo_pp)
-    ps_planta_primer_piso = polyClipper.polyOffset(ps_planta_primer_piso, delta_pp)
-    ps_planta_primer_piso = polyClipper.polyOffset(ps_planta_primer_piso, -delta_pp)
-
-    # Unión de todo el espacio ocupado
-    all_ocupado = vcat([ps_pasillo_pp], vec_ps_deptos_interior_all_pp, valid_terrazas_pp)
-    ps_union_ocupado = reduce((acc, ps) -> polyShape.polyUnion(acc, ps), all_ocupado)
-    ps_union_ocupado = polyClipper.polyOffset(ps_union_ocupado, delta_pp)
-    ps_union_ocupado = polyClipper.polyOffset(ps_union_ocupado, -delta_pp)
-
-    area_comun_pp = polyShape.polyArea(ps_pasillo_pp)
+    area_pasillo_pp = polyShape.polyArea(ps_pasillo_pp)
     ps_planta_original = dict_edificio_deptos["ps_planta"]
 
     # Empaquetar resultados del primer piso
@@ -948,20 +915,15 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad::Float64, num
         "vec_ps_deptos_interior_all" => vec_ps_deptos_interior_all_pp,
         "vec_ps_terrazas_all" => vec_ps_terrazas_all_pp,
         "vec_strips" => vec_strips_all_pp,
-        "ps_area_comun" => ps_pasillo_pp,
-        "area_comun" => round(area_comun_pp, digits=2),
+        "area_pasillo" => round(area_pasillo_pp, digits=2),
         "area_escalera" => round(area_escalera, digits=2),
         "area_ascensor" => round(area_ascensor, digits=2),
         "ps_nucleo" => ps_nucleo,
         "ps_escalera" => ps_escalera,
         "ps_ascensor" => ps_ascensor,
         "ps_pasillo" => ps_pasillo_pp,
-        "ps_planta" => ps_planta_original,
-        "ps_planta_primer_piso_computed" => ps_planta_primer_piso,
-        "ps_area_comun_total" => ps_pasillo_pp,
-        "ps_union_deptos" => ps_union_deptos_pp,
-        "ps_union_terrazas" => ps_union_terrazas_pp
-    )
+        "ps_planta" => ps_planta_original
+        )
 
     return results_pisos_superiores, results_primer_piso
 end
@@ -986,7 +948,6 @@ function procesa_resultados_piso!(results, angulo_rotacion, cr, max_ratio_terraz
 
     # Rotar áreas comunes y núcleo
     results["ps_pasillo"] = polyShape.polyRotate(results["ps_pasillo"], -angulo_rotacion, cr)
-    results["ps_area_comun_total"] = polyShape.polyRotate(results["ps_area_comun_total"], -angulo_rotacion, cr)
     results["ps_nucleo"] = polyShape.polyRotate(results["ps_nucleo"], -angulo_rotacion, cr)
     results["ps_escalera"] = polyShape.polyRotate(results["ps_escalera"], -angulo_rotacion, cr)
     results["ps_ascensor"] = polyShape.polyRotate(results["ps_ascensor"], -angulo_rotacion, cr)
@@ -1018,11 +979,10 @@ function opti_floor_plan(dict_edificio_deptos, max_constructibilidad::Float64, n
 
     # Calcular orientaciones de departamentos
     vec_deptos_rotated = results_pisos_superiores["vec_ps_deptos_interior_all"]
-    ps_area_comun_rotated = results_pisos_superiores["ps_area_comun_total"]
+    ps_pasillo_rotated = results_pisos_superiores["ps_pasillo"]
 
     if !isempty(vec_deptos_rotated)
-        ps_union_deptos_rotated = reduce((acc, ps) -> polyShape.polyUnion(acc, ps), vec_deptos_rotated)
-        results_pisos_superiores["vec_orientacion_deptos"] = calcula_orientaciones_apartamentos(vec_deptos_rotated, ps_union_deptos_rotated, ps_area_comun_rotated)
+        results_pisos_superiores["vec_orientacion_deptos"] = calcula_orientaciones_apartamentos(vec_deptos_rotated, ps_pasillo_rotated)
     else
         results_pisos_superiores["vec_orientacion_deptos"] = Vector{Dict}()
     end

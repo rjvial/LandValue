@@ -267,12 +267,12 @@ flag_create_table = false; combi_aux = ""; dict_geom = nothing
                 polyPlot.plotPolyshape2D(results_primer_piso["ps_escalera"], "green", 0.99, fig=fig, ax=ax, ax_mat=ax_mat)
             end
 
-            println("Area comun primer piso: $(results_primer_piso["area_comun"]) m²")
+            println("Area  primer piso")
 
             vec_info_deptos_primer_piso = Vector{OrderedDict{String,Any}}()
             vec_ps_deptos_pp = results_primer_piso["vec_ps_deptos_interior_all"]
             vec_ps_terrazas_pp = results_primer_piso["vec_ps_terrazas_all"]
-            vec_orientaciones_pp = calcula_orientaciones_apartamentos(vec_ps_deptos_pp, results_primer_piso["ps_union_deptos"], results_primer_piso["ps_area_comun_total"])
+            vec_orientaciones_pp = calcula_orientaciones_apartamentos(vec_ps_deptos_pp, results_primer_piso["ps_pasillo"])
             vec_sup_interior = dict_arquitectura["arq_vecSupInterior"]
             vec_dormitorios = dict_arquitectura["arq_vecDormitorios"]
             vec_banos = dict_arquitectura["arq_vecBanos"]
@@ -345,7 +345,7 @@ flag_create_table = false; combi_aux = ""; dict_geom = nothing
             delete!(dict_normativa, "norm_superficice_min_patio_x_depto")
 
             dict_svg = OrderedDict()
-            dict_svg["svg_planta_primer_piso"] = polyShape.planta2svg(vec_info_deptos_primer_piso, results_primer_piso["ps_area_comun_total"], nothing, nombre_area_comun="Circulación primer piso")
+            dict_svg["svg_planta_primer_piso"] = polyShape.planta2svg(vec_info_deptos_primer_piso, results_primer_piso["ps_pasillo"], nothing, nombre_area_comun="Circulación primer piso")
             dict_svg["svg_planta_pisos_superiores"] = polyShape.planta2svg(vec_info_deptos_piso_superior, nothing, results_pisos_superiores["ps_pasillo"], nombre_area_comun="Circulación pisos superiores")
 
             # for (svg_key, svg_content) in dict_svg

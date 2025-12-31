@@ -693,12 +693,18 @@ end
 
 
 function polyRotate(ps::PolyShape, angulo::Real, cr)::PolyShape
+    if isempty(ps.Vertices) || ps.NumRegions == 0
+        return ps
+    end
     R = [cos(angulo) -sin(angulo); sin(angulo) cos(angulo)]
-    V = ps.Vertices[1]
-    numVertices = size(V, 1)
-    V_aux = [vec(R * (V[i, 1:2] - cr) + cr) for i in 1:numVertices]
-    V_rot = mapreduce(permutedims, vcat, V_aux)
-    ps_rot = PolyShape([V_rot], 1)
+    V_rot_all = Vector{Array{Float64,2}}(undef, ps.NumRegions)
+    for r in 1:ps.NumRegions
+        V = ps.Vertices[r]
+        numVertices = size(V, 1)
+        V_aux = [vec(R * (V[i, 1:2] - cr) + cr) for i in 1:numVertices]
+        V_rot_all[r] = mapreduce(permutedims, vcat, V_aux)
+    end
+    ps_rot = PolyShape(V_rot_all, ps.NumRegions)
     return ps_rot
 end
 
@@ -2218,8 +2224,8 @@ function building2json(results_primer_piso::Dict, results_pisos_superiores::Dict
             end
 
         elseif element_name == "area_comun"
-            ps_area_comun_primer = results_primer_piso["ps_area_comun_total"]
-            addPolyShapeTo3D(ps_area_comun_primer, 0.0, alturaPiso, all_vertices, all_indices)
+            ps_pasillo_primer = results_primer_piso["ps_pasillo"]
+            addPolyShapeTo3D(ps_pasillo_primer, 0.0, alturaPiso, all_vertices, all_indices)
 
             ps_pasillo = results_pisos_superiores["ps_pasillo"]
             for piso in 1:num_pisos_superiores
