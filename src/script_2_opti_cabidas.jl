@@ -171,8 +171,8 @@ const PRIMARY_KEY = "id_opti"
 const TABLE_NAME = "tabla_resultados_optimizacion"
 const PRIORITY_KEYS = ["id_opti", "id_combi", "flag_sombra", "arq_variante_normativa", "arq_tipo_edificio"]
 
-let flag_create_table = false, combi_aux = "", dict_geom = nothing
-# flag_create_table = false; combi_aux = ""; dict_geom = nothing
+# let flag_create_table = false, combi_aux = "", dict_geom = nothing
+flag_create_table = false; combi_aux = ""; dict_geom = nothing
 
     # Check if results table already exists
     table_check_query = """
@@ -196,19 +196,19 @@ let flag_create_table = false, combi_aux = "", dict_geom = nothing
             vec_predios = parse.(Int, split(strip(df_combis_row[1, "list_predios"], ['(', ')']), ';'))
 
             # Process geometry once per combi
-            if id_combi != combi_aux
+            # if id_combi != combi_aux
                 println("\nProcessing Combi ID: $id_combi\n")
                 df_combined_row = filter(r -> r.id_combi == id_combi, df_combined)
 
-                if nrow(df_combined_row) == 0
-                    println("WARNING: No geometry data for id_combi = $id_combi. Skipping...")
-                    update_optimization_status(conn_postgres, id_opti, 9)
-                    continue
-                end
+                # if nrow(df_combined_row) == 0
+                #     println("WARNING: No geometry data for id_combi = $id_combi. Skipping...")
+                #     update_optimization_status(conn_postgres, id_opti, 9)
+                #     continue
+                # end
 
                 dict_geom = obtiene_geometrias_combi(df_combined_row)
                 combi_aux = id_combi
-            end
+            # end
 
             println("Processing ID Opti: $(id_opti)")
 
@@ -366,7 +366,7 @@ let flag_create_table = false, combi_aux = "", dict_geom = nothing
                     dict_all[key] = processValue(value, dict_geom)
                 end
             end
-            # fig, ax, ax_mat = plotBaseEdificio3Dnew(fpe, dict_arquitectura["arq_alturaPiso"], dict_geom["ps_combi"], dict_all, results_primer_piso, results_pisos_superiores, num_pisos_superiores)
+            fig, ax, ax_mat = plotBaseEdificio3Dnew(fpe, dict_arquitectura["arq_alturaPiso"], dict_geom["ps_combi"], dict_all, results_primer_piso, results_pisos_superiores, num_pisos_superiores)
 
             vecColumnNames, vecColumnTypes = dict2tablevec(dict_all, PRIMARY_KEY)
             if flag_create_table
@@ -392,6 +392,6 @@ let flag_create_table = false, combi_aux = "", dict_geom = nothing
         end
     end
 
-end
+# end
 
 println("All optimizations completed successfully!")

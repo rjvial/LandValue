@@ -264,9 +264,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             area_interior_total, area_interior_bruta_total * OPTI_CONFIG["interior_factor"] / (OPTI_CONFIG["interior_factor"] + flag_especial * OPTI_CONFIG["common_areas_factor"])
             area_util_total, area_interior_total + 0.5 * area_terraza_total
             deptos_total, total_num_deptos_primer_piso + total_num_deptos_por_piso * (num_pisos - 1)
-            area_no_utilizada_pisos_superiores, W * H - area_interior_bruta_por_piso - area_terraza_por_piso
-            area_no_utilizada_primer_piso, area_interior_bruta_por_piso - area_interior_bruta_primer_piso
-            area_no_utilizada_total, area_no_utilizada_primer_piso + area_no_utilizada_pisos_superiores * (num_pisos - 1)
         end)
 
         @constraints(model, begin
@@ -371,9 +368,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             results["sup_terraza_primer_piso"] = sup_terr_primer
             results["sup_terraza_pisos_superiores"] = sup_terr_superior
             results["sup_terraza_edificio"] = sup_terr_primer + sup_terr_superior * (num_pisos - 1)
-            results["sup_comun_primer_piso"] = value(area_no_utilizada_primer_piso)
-            results["sup_comun_pisos_superiores"] = value(area_no_utilizada_pisos_superiores)
-            results["sup_comun_edificio"] = value(area_no_utilizada_total)
             results["df_deptos"] = DataFrame(df_deptos_data)
 
         else
@@ -384,9 +378,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             results["sup_interior_bruta_pisos_superiores"] = 0.0
             results["sup_terraza_primer_piso"] = 0.0
             results["sup_terraza_pisos_superiores"] = 0.0
-            results["sup_comun_primer_piso"] = 0.0
-            results["sup_comun_pisos_superiores"] = 0.0
-            results["sup_comun_edificio"] = 0.0
             results["df_deptos"] = DataFrame()
             println("\n⚠️  WARNING: No feasible solution found!")
         end

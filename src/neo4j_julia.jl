@@ -17,7 +17,7 @@ function connection(neo4j_host, neo4j_user, neo4j_password, folder, key_pair, ec
     return conn
 end
 
-function cypher_to_dataframe(query::AbstractString, conn::Dict{String,String})
+function cypher_to_dataframe(query::AbstractString, conn::Dict)
     neo4j_host = conn["neo4j_host"]
     neo4j_user = conn["neo4j_user"]
     neo4j_password = conn["neo4j_password"]
@@ -48,7 +48,7 @@ function cypher_to_dataframe(query::AbstractString, conn::Dict{String,String})
     end
 end
 
-function close_db(conn::Dict{String,String})
+function close_db(conn::Dict)
     return nothing
 end
 
