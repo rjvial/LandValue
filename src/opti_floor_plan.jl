@@ -81,7 +81,8 @@ end
 function extiende_deptos_con_interseccion_pasillo(vec_profundidad_terraza_strip1, vec_profundidad_terraza_strip2,
             vec_coord_ini1::Vector{Float64}, vec_coord_fin1::Vector{Float64},
             vec_coord_ini2::Vector{Float64}, vec_coord_fin2::Vector{Float64},
-            coord_base::Float64, ps_pasillo::PolyShape, franja1::Symbol, franja2::Symbol, is_vertical::Bool,
+            coord_base::Float64, ps_pasillo::PolyShape, ps_escalera::PolyShape, ps_ascensor::PolyShape,
+            franja1::Symbol, franja2::Symbol, is_vertical::Bool,
             H_s_strip1, H_s_strip2,
             vec_terrazas_areas_strip1, vec_terrazas_areas_strip2,
             vec_terrazas_areas_pp_strip1, vec_terrazas_areas_pp_strip2,
@@ -105,6 +106,8 @@ function extiende_deptos_con_interseccion_pasillo(vec_profundidad_terraza_strip1
     for i in eachindex(vec_coord_ini1)
         extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini1[i], vec_dimension1_strip1[i], vec_dimension2_strip1[i], franja1, is_vertical)
         extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
+        extended_poly_final = polyShape.polyDifference(extended_poly_final, ps_escalera)
+        extended_poly_final = polyShape.polyDifference(extended_poly_final, ps_ascensor)
         if i in 2:(n1-1)
             area_intersection = polyShape.polyArea(polyShape.polyIntersection(extended_local_poly, ps_pasillo))
             delta_dimension1 = area_intersection / vec_dimension2_strip1[i]
@@ -113,6 +116,8 @@ function extiende_deptos_con_interseccion_pasillo(vec_profundidad_terraza_strip1
             end
             extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini1[i], vec_dimension1_strip1[i], vec_dimension2_strip1[i], franja1, is_vertical)
             extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
+            extended_poly_final = polyShape.polyDifference(extended_poly_final, ps_escalera)
+            extended_poly_final = polyShape.polyDifference(extended_poly_final, ps_ascensor)
         end
         push!(ps_deptos_extendidos_strip1, extended_poly_final)
     end
@@ -120,6 +125,8 @@ function extiende_deptos_con_interseccion_pasillo(vec_profundidad_terraza_strip1
     for i in eachindex(vec_coord_ini2)
         extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini2[i], vec_dimension1_strip2[i], vec_dimension2_strip2[i], franja2, is_vertical)
         extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
+        extended_poly_final = polyShape.polyDifference(extended_poly_final, ps_escalera)
+        extended_poly_final = polyShape.polyDifference(extended_poly_final, ps_ascensor)
         if i in 2:(n2-1)
             area_intersection = polyShape.polyArea(polyShape.polyIntersection(extended_local_poly, ps_pasillo))
             delta_dimension1 = area_intersection / vec_dimension2_strip2[i]
@@ -128,6 +135,8 @@ function extiende_deptos_con_interseccion_pasillo(vec_profundidad_terraza_strip1
             end
             extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini2[i], vec_dimension1_strip2[i], vec_dimension2_strip2[i], franja2, is_vertical)
             extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
+            extended_poly_final = polyShape.polyDifference(extended_poly_final, ps_escalera)
+            extended_poly_final = polyShape.polyDifference(extended_poly_final, ps_ascensor)
         end
         push!(ps_deptos_extendidos_strip2, extended_poly_final)
     end
@@ -188,12 +197,16 @@ function extiende_deptos_con_interseccion_pasillo(vec_profundidad_terraza_strip1
         for i in eachindex(vec_coord_ini1)
             extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini1[i], vec_dimension1_strip1[i], vec_dimension2_strip1[i], franja1, is_vertical)
             extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
+            extended_poly_final = polyShape.polyDifference(extended_poly_final, ps_escalera)
+            extended_poly_final = polyShape.polyDifference(extended_poly_final, ps_ascensor)
             push!(ps_deptos_extendidos_strip1, extended_poly_final)
         end
 
         for i in eachindex(vec_coord_ini2)
             extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini2[i], vec_dimension1_strip2[i], vec_dimension2_strip2[i], franja2, is_vertical)
             extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
+            extended_poly_final = polyShape.polyDifference(extended_poly_final, ps_escalera)
+            extended_poly_final = polyShape.polyDifference(extended_poly_final, ps_ascensor)
             push!(ps_deptos_extendidos_strip2, extended_poly_final)
         end
 
@@ -410,50 +423,74 @@ function calcula_geometria_pasillo(vec_coord_fin1::Vector{Float64}, vec_coord_fi
     end
 
     if ancho_escaleras == 1.1
-        profundidad_nucleo_1 = 2.8 + .75
-        profundidad_nucleo_2 = 2.5 + .75
+        profundidad_escalera = 2.8 
+        profundidad_ascensor = 2.5 
         ancho_nucleo_box = 5.58
     elseif ancho_escaleras == 1.2
-        profundidad_nucleo_1 = 3.0 + .75
-        profundidad_nucleo_2 = 2.5 + .75
+        profundidad_escalera = 3.0 
+        profundidad_ascensor = 2.5 
         ancho_nucleo_box = 5.78
     elseif ancho_escaleras == 1.3
-        profundidad_nucleo_1 = 3.2 + .75
-        profundidad_nucleo_2 = 2.5 + .75
+        profundidad_escalera = 3.2 
+        profundidad_ascensor = 2.5 
         ancho_nucleo_box = 5.98
     elseif ancho_escaleras == 1.4
-        profundidad_nucleo_1 = 3.4 + .75
-        profundidad_nucleo_2 = 2.5 + .75
+        profundidad_escalera = 3.4 
+        profundidad_ascensor = 2.5 
         ancho_nucleo_box = 6.18
     elseif ancho_escaleras == 1.5
-        profundidad_nucleo_1 = 3.6 + .75
-        profundidad_nucleo_2 = 2.5 + .75
+        profundidad_escalera = 3.6 
+        profundidad_ascensor = 2.5 
         ancho_nucleo_box = 6.38
     end
+    profundidad_nucleo = profundidad_escalera + profundidad_ascensor + 1.5
+
+    ancho_escalera = ancho_nucleo_box
+    ancho_ascensor = ancho_nucleo_box
+
+    area_escalera = 0.0
+    area_ascensor = 0.0
+    area_nucleo = 0.0
+    ps_escalera = polyShape.polyBox(0.0, 0.0, 0.0, 0.0, 0.0)
+    ps_ascensor = polyShape.polyBox(0.0, 0.0, 0.0, 0.0, 0.0)
+    ps_nucleo = polyShape.polyBox(0.0, 0.0, 0.0, 0.0, 0.0)
+
 
     if !isempty(vec_coord_ini1) && !isempty(vec_coord_fin1)
         coord_centro_strip1 = (vec_coord_ini1[1] + vec_coord_fin1[end]) / 2
 
         if is_vertical
-            ps_nucleo1 = polyShape.polyBox(coord_base, coord_centro_strip1 - ancho_nucleo_box / 2, profundidad_nucleo_1, ancho_nucleo_box, 0.0)
+            ps_escalera = polyShape.polyBox(coord_base + 0.75, coord_centro_strip1 - ancho_nucleo_box / 2, profundidad_escalera, ancho_escalera, 0.0)
         else
-            ps_nucleo1 = polyShape.polyBox(coord_centro_strip1 - ancho_nucleo_box / 2, coord_base, ancho_nucleo_box, profundidad_nucleo_1, 0.0)
+            ps_escalera = polyShape.polyBox(coord_centro_strip1 - ancho_nucleo_box / 2, coord_base + 0.75, ancho_escalera, profundidad_escalera, 0.0)
         end
-        ps_pasillo = polyShape.polyUnion(ps_pasillo, ps_nucleo1)
+        area_escalera = polyShape.polyArea(ps_escalera)
     end
 
     if !isempty(vec_coord_ini2) && !isempty(vec_coord_fin2)
         coord_centro_strip2 = (vec_coord_ini2[1] + vec_coord_fin2[end]) / 2
 
         if is_vertical
-            ps_nucleo2 = polyShape.polyBox(coord_base - profundidad_nucleo_2, coord_centro_strip2 - ancho_nucleo_box / 2, profundidad_nucleo_2, ancho_nucleo_box, 0.0)
+            ps_ascensor = polyShape.polyBox(coord_base - 0.75 - profundidad_ascensor, coord_centro_strip2 - ancho_nucleo_box / 2, profundidad_ascensor, ancho_ascensor, 0.0)
         else
-            ps_nucleo2 = polyShape.polyBox(coord_centro_strip2 - ancho_nucleo_box / 2, coord_base - profundidad_nucleo_2, ancho_nucleo_box, profundidad_nucleo_2, 0.0)
+            ps_ascensor = polyShape.polyBox(coord_centro_strip2 - ancho_nucleo_box / 2, coord_base - 0.75 - profundidad_ascensor, ancho_ascensor, profundidad_ascensor, 0.0)
         end
-        ps_pasillo = polyShape.polyUnion(ps_pasillo, ps_nucleo2)
+        area_ascensor = polyShape.polyArea(ps_ascensor)
     end
 
-    return ancho_pasillo, ps_pasillo
+    coord_centro_strip2 = (vec_coord_ini2[1] + vec_coord_fin2[end]) / 2
+    if is_vertical
+        ps_nucleo = polyShape.polyBox(coord_base - 0.75 - profundidad_ascensor, coord_centro_strip2 - ancho_nucleo_box / 2, profundidad_nucleo, ancho_nucleo_box, 0.0)
+    else
+        ps_nucleo = polyShape.polyBox(coord_centro_strip2 - ancho_nucleo_box / 2, coord_base - 0.75 - profundidad_ascensor, ancho_nucleo_box, profundidad_nucleo, 0.0)
+    end
+
+    ps_dif = polyShape.polyDifference(ps_nucleo, ps_escalera)
+    ps_dif = polyShape.polyDifference(ps_dif, ps_ascensor)
+
+    ps_pasillo = polyShape.polyUnion(ps_pasillo, ps_dif)
+
+    return ancho_pasillo, ps_pasillo, area_escalera, area_ascensor, ps_nucleo, ps_escalera, ps_ascensor
 end
 
 function calcula_orientaciones_apartamentos(vec_ps_deptos_interior_all::Vector{PolyShape},
@@ -562,7 +599,14 @@ function empaqueta_resultados(dimension1::Float64, dimension2::Float64,
                     W::Float64, H::Float64, profundidad_pasillo::Float64, ancho_pasillo::Float64, ps_pasillo::PolyShape,
                     vec_ps_deptos_franja_1::Vector{PolyShape}, vec_ps_deptos_franja_2::Vector{PolyShape},
                     vec_terrazas1::Vector{PolyShape}, vec_terrazas2::Vector{PolyShape},
-                    ps_planta::PolyShape, vec_tipo_strings1::Vector{String}=String[], vec_tipo_strings2::Vector{String}=String[])
+                    ps_planta::PolyShape, vec_tipo_strings1::Vector{String}=String[], vec_tipo_strings2::Vector{String}=String[];
+                    area_escalera::Float64=0.0, area_ascensor::Float64=0.0,
+                    ps_nucleo::PolyShape=polyShape.polyBox(0.0, 0.0, 0.0, 0.0, 0.0),
+                    ps_escalera::PolyShape=polyShape.polyBox(0.0, 0.0, 0.0, 0.0, 0.0),
+                    ps_ascensor::PolyShape=polyShape.polyBox(0.0, 0.0, 0.0, 0.0, 0.0))
+
+    area_pasillo = polyShape.polyArea(ps_pasillo)
+
     result = Dict(
         "feasible" => true,
         "status" => "LOCALLY_SOLVED",
@@ -572,7 +616,13 @@ function empaqueta_resultados(dimension1::Float64, dimension2::Float64,
         "profundidad_total" => H,
         "profundidad_pasillo" => profundidad_pasillo,
         "ancho_pasillo" => ancho_pasillo,
-        "ps_pasillo" => ps_pasillo
+        "area_escalera" => round(area_escalera, digits=2),
+        "area_ascensor" => round(area_ascensor, digits=2),
+        "area_pasillo" => round(area_pasillo, digits=2),
+        "ps_pasillo" => ps_pasillo,
+        "ps_nucleo" => ps_nucleo,
+        "ps_escalera" => ps_escalera,
+        "ps_ascensor" => ps_ascensor
     )
 
     result["vec_ps_deptos_interior_all"] = vcat(vec_ps_deptos_franja_1, vec_ps_deptos_franja_2)
@@ -733,7 +783,7 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad::Float64, num
             _, vec_tipo_strings2 = genera_deptos_franja(mat_deptos, coord_min_planta,
                                             is_vertical, coord_base, franja, vec_tipos)
 
-    ancho_pasillo, ps_pasillo_normalizado = calcula_geometria_pasillo(
+    ancho_pasillo, ps_pasillo_normalizado, area_escalera, area_ascensor, ps_nucleo, ps_escalera, ps_ascensor = calcula_geometria_pasillo(
                                             vec_coord_fin1, vec_coord_fin2, vec_coord_ini1, vec_coord_ini2,
                                             coord_base, profundidad_pasillo, is_vertical,
                                             W, H,
@@ -779,7 +829,7 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad::Float64, num
                                                                                     vec_profundidad_terraza_strip1, vec_profundidad_terraza_strip2,
                                                                                     vec_coord_ini1, vec_coord_fin1,
                                                                                     vec_coord_ini2, vec_coord_fin2,
-                                                                                    coord_base, ps_pasillo_normalizado,
+                                                                                    coord_base, ps_pasillo_normalizado, ps_escalera, ps_ascensor,
                                                                                     franja1, franja2, is_vertical,
                                                                                     H_s_strip1, H_s_strip2,
                                                                                     vec_terrazas_areas_strip1, vec_terrazas_areas_strip2,
@@ -808,7 +858,8 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad::Float64, num
 
     results = empaqueta_resultados(dimension_depto1, dimension_depto2, W, H, profundidad_pasillo, ancho_pasillo, ps_pasillo_normalizado,
                                     vec_ps_deptos_franja_1_normalizado, vec_ps_deptos_franja_2_normalizado,
-                                    vec_terrazas_strip1, vec_terrazas_strip2, ps_planta_normalizado, vec_tipo_strings1, vec_tipo_strings2)
+                                    vec_terrazas_strip1, vec_terrazas_strip2, ps_planta_normalizado, vec_tipo_strings1, vec_tipo_strings2,
+                                    area_escalera=area_escalera, area_ascensor=area_ascensor, ps_nucleo=ps_nucleo, ps_escalera=ps_escalera, ps_ascensor=ps_ascensor)
 
     results["ps_planta"] = ps_planta
 
@@ -904,7 +955,7 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad::Float64, num
     ps_union_ocupado = polyClipper.polyOffset(ps_union_ocupado, delta_pp)
     ps_union_ocupado = polyClipper.polyOffset(ps_union_ocupado, -delta_pp)
 
-    area_comun = polyShape.polyArea(ps_pasillo_pp)
+    area_comun_pp = polyShape.polyArea(ps_pasillo_pp)
 
     ps_planta_original = dict_edificio_deptos["ps_planta"]
 
@@ -913,7 +964,12 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad::Float64, num
         "vec_ps_terrazas_all" => vec_ps_terrazas_all_pp,
         "vec_strips" => vec_strips_all_pp,
         "ps_area_comun" => ps_pasillo_pp,
-        "area_comun" => round(area_comun, digits=2),
+        "area_comun" => round(area_comun_pp, digits=2),
+        "area_escalera" => round(area_escalera, digits=2),
+        "area_ascensor" => round(area_ascensor, digits=2),
+        "ps_nucleo" => ps_nucleo,
+        "ps_escalera" => ps_escalera,
+        "ps_ascensor" => ps_ascensor,
         "ps_pasillo" => ps_pasillo_pp,
         "ps_planta" => ps_planta_original,
         "ps_planta_primer_piso_computed" => ps_planta_primer_piso,
@@ -942,6 +998,9 @@ function procesa_resultados_piso!(results, angulo_rotacion, cr, max_ratio_terraz
     results["ps_union_deptos"] = rota_polyshape_safe(results["ps_union_deptos"], angulo_rotacion, cr)
     results["ps_union_terrazas"] = rota_polyshape_safe(results["ps_union_terrazas"], angulo_rotacion, cr)
     results["ps_area_comun_total"] = polyShape.polyRotate(results["ps_area_comun_total"], -angulo_rotacion, cr)
+    results["ps_nucleo"] = polyShape.polyRotate(results["ps_nucleo"], -angulo_rotacion, cr)
+    results["ps_escalera"] = polyShape.polyRotate(results["ps_escalera"], -angulo_rotacion, cr)
+    results["ps_ascensor"] = polyShape.polyRotate(results["ps_ascensor"], -angulo_rotacion, cr)
 end
 
 function opti_floor_plan(dict_edificio_deptos, max_constructibilidad::Float64, num_pisos_superiores::Int;

@@ -89,6 +89,8 @@ function plotBaseEdificio3Dnew(fpe, alturaPiso, ps_predio, dict_resultado, resul
 
     if fpe.edif
         ps_pasillo = results_pisos_superiores["ps_pasillo"]
+        ps_escalera = results_pisos_superiores["ps_escalera"]
+        ps_ascensor = results_pisos_superiores["ps_ascensor"]
         ps_area_comun_total_primer_piso = results_primer_piso["ps_area_comun_total"]
 
         vec_deptos_primer = results_primer_piso["vec_ps_deptos_interior_all"]
@@ -107,6 +109,8 @@ function plotBaseEdificio3Dnew(fpe, alturaPiso, ps_predio, dict_resultado, resul
             fig, ax, ax_mat = plot_apartments_floor_new(vec_deptos_sup, z_low, z_high, "teal", 1.0, fig, ax, ax_mat)
             fig, ax, ax_mat = plot_apartments_floor_new(vec_terrazas_sup, z_low, z_low + 1.0, "#2F4F4F", 1.0, fig, ax, ax_mat)
             fig, ax, ax_mat = plot_common_area_new(ps_pasillo, z_low, z_high, "#303030", 0.6, fig, ax, ax_mat)
+            fig, ax, ax_mat = plot_common_area_new(ps_escalera, z_low, z_high, "red", 0.9, fig, ax, ax_mat)
+            fig, ax, ax_mat = plot_common_area_new(ps_ascensor, z_low, z_high, "blue", 0.9, fig, ax, ax_mat)
         end
 
         vec_ps_subte = dict_resultado["proyecto_vec_ps_subte"]

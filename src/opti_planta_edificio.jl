@@ -147,12 +147,11 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         return W, H, angulo_rotacion, cr, ps_planta_normalizado
     end
 
-    function compute_depto_configs(vec_area_depto, vec_area_t, dict_arquitectura)
+    function compute_depto_configs(vec_area_depto, vec_area_t, dict_arquitectura, flag_especial=false)
         vec_w = collect(6.0:0.5:25.0) #width interior deptos
         vec_h = collect(5.0:0.5:14.0) #height interior deptos
         min_h_terraza = 1.5
         max_h_terraza = 2.0
-        flag_dfl2 = dict_arquitectura["arq_variante_normativa"] in ["vivienda_economica", "dfl_2"] 
 
         depto_configs = Vector{NamedTuple{(:w, :h, :area, :h_t, :area_t), Tuple{Float64, Float64, Float64, Float64, Float64}}}()
 
@@ -165,7 +164,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                     h_t = clamp(area_t_target / w, min_h_terraza, max_h_terraza)
                     area_t = w * h_t
                     area_util = area + 0.5 * area_t
-                    if area_util <= 140.0 * flag_dfl2 + maximum(dict_arquitectura["arq_vecSupUtil"]) * (!flag_dfl2)
+                    if area_util <= 140.0 * flag_especial + maximum(dict_arquitectura["arq_vecSupUtil"]) * (!flag_especial)
                         push!(depto_configs, (w=w, h=h, area=area, h_t=h_t, area_t=area_t))
                     end
                 end
@@ -213,7 +212,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
     end
 
     function opti_planta_edificio_layout(depto_configs, max_constructibilidad, max_deptos,
-                                ps_opt, np_opt, layout, num_threads_highs)
+                                ps_opt, np_opt, layout, num_threads_highs, flag_especial)
 
         W, H, angulo_rotacion, cr, ps_planta_normalizado = normaliza_planta_rectangular(ps_opt, layout)
 
@@ -262,7 +261,8 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             area_terraza_primer_piso, sum(n_primer[i,s] * depto_configs[i].area_t for i in I_feasible, s in S)
             area_interior_bruta_total, area_interior_bruta_primer_piso + area_interior_bruta_por_piso * (num_pisos - 1)
             area_terraza_total, area_terraza_primer_piso + area_terraza_por_piso * (num_pisos - 1)
-            area_util_total, area_interior_bruta_total + 0.5 * area_terraza_total
+            area_interior_total, area_interior_bruta_total * OPTI_CONFIG["interior_factor"] / (OPTI_CONFIG["interior_factor"] + flag_especial * OPTI_CONFIG["common_areas_factor"])
+            area_util_total, area_interior_total + 0.5 * area_terraza_total
             deptos_total, total_num_deptos_primer_piso + total_num_deptos_por_piso * (num_pisos - 1)
             area_no_utilizada_pisos_superiores, W * H - area_interior_bruta_por_piso - area_terraza_por_piso
             area_no_utilizada_primer_piso, area_interior_bruta_por_piso - area_interior_bruta_primer_piso
@@ -396,17 +396,15 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
     vec_area_t = dict_arquitectura["arq_vecSupTerraza"]
     vec_area_depto = dict_arquitectura["arq_vecSupInterior"]
 
-    depto_configs = compute_depto_configs(vec_area_depto, vec_area_t, dict_arquitectura)
+    flag_especial = dict_arquitectura["arq_variante_normativa"] in ["vivienda_economica", "dfl_2"]
+    depto_configs = compute_depto_configs(vec_area_depto, vec_area_t, dict_arquitectura, flag_especial)
 
     total_threads = Threads.nthreads()
-
     println("Running layouts SEQUENTIALLY ($(total_threads) threads for HiGHS solver)")
-
     results_1, W_1, H_1, angulo_1 = opti_planta_edificio_layout(depto_configs, max_constructibilidad, max_deptos,
-                                ps_opt, np_opt, 1, total_threads)
-
+                                ps_opt, np_opt, 1, total_threads, flag_especial)
     results_2, W_2, H_2, angulo_2 = opti_planta_edificio_layout(depto_configs, max_constructibilidad, max_deptos,
-                                ps_opt, np_opt, 2, total_threads)
+                                ps_opt, np_opt, 2, total_threads, flag_especial)
 
     area_util_1 = results_1["sup_interior_bruta_edificio"] + results_1["sup_terraza_edificio"] * 0.5
     area_util_2 = results_2["sup_interior_bruta_edificio"] + results_2["sup_terraza_edificio"] * 0.5

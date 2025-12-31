@@ -1,20 +1,21 @@
-# Constants for better maintainability
-const UTIL_FACTOR = 1.0
-const TERRACE_FACTOR = 0.20
-const INTERIOR_FACTOR = UTIL_FACTOR - TERRACE_FACTOR / 2
-const STAIRCASE_AREA = 0.08
-const ELEVATOR_AREA = 0.05
-const COMMON_AREAS_FACTOR = 0.13
-const DENSITY_DIVISOR = 4
-const AREA_CONVERSION = 10000
-const DEFAULT_FLOOR_BUFFER = 2
-const MIN_FLOORS = 3
-const OFFICE_AREA_PER_UNIT = 100
-const BODEGA_RATIO = 0.2
-const DEFAULT_OCCUPATION_LOAD = 100
-const DEFAULT_METRO_DISTANCE = 3000
-const COEF_OCUPACION_EST = 1.0
-const LARGE_NUMBER = 999999.0
+const OPTI_CONFIG = OrderedDict(
+    "util_factor" => 1.0,
+    "terrace_factor" => 0.20,
+    "interior_factor" => 1.0 - 0.20 / 2,
+    "staircase_area" => 0.08,
+    "elevator_area" => 0.05,
+    "common_areas_factor" => 0.13,
+    "density_divisor" => 4,
+    "area_conversion" => 10000,
+    "default_floor_buffer" => 2,
+    "min_floors" => 3,
+    "office_area_per_unit" => 100,
+    "bodega_ratio" => 0.2,
+    "default_occupation_load" => 100,
+    "default_metro_distance" => 3000,
+    "coef_ocupacion_est" => 1.0,
+    "large_number" => 999999.0
+)
 
 
 function python_expression_eval_with_varmap(expr_input, variable_map::Dict{String, <:Any})
@@ -133,11 +134,10 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     is_apartment_special = (dict_normativa["tipo_edificio"] == "departamento" &&
                            (dict_normativa["flag_dfl2"] || dict_normativa["flag_economica"]))
     if is_apartment_special
-        max_losa_snt = base_constructibilidad * (INTERIOR_FACTOR + TERRACE_FACTOR + COMMON_AREAS_FACTOR + STAIRCASE_AREA + ELEVATOR_AREA)
+        max_losa_snt = base_constructibilidad * (OPTI_CONFIG["interior_factor"] + OPTI_CONFIG["terrace_factor"] + OPTI_CONFIG["common_areas_factor"] + OPTI_CONFIG["staircase_area"] + OPTI_CONFIG["elevator_area"])
     else
-        max_losa_snt = base_constructibilidad * (INTERIOR_FACTOR + TERRACE_FACTOR + STAIRCASE_AREA + ELEVATOR_AREA)
+        max_losa_snt = base_constructibilidad * (OPTI_CONFIG["interior_factor"] + OPTI_CONFIG["terrace_factor"] + OPTI_CONFIG["staircase_area"] + OPTI_CONFIG["elevator_area"])
     end
-
 
     # ============================================================================
     # 2. DENSITY AND OCCUPATION CALCULATIONS
@@ -148,7 +148,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     superficie_densidad = flagDensidadBruta ? dict_geom["sup_terreno_bruto"] : dict_geom["sup_terreno_sii"]
     max_densidad = flagDensidadBruta ? dict_normativa_raw["norm_densidad_maxima_bruta"] : dict_normativa_raw["norm_densidad_maxima_neta"]
     
-    dict_normativa["norm_max_unidades"] = floor(max_densidad / DENSITY_DIVISOR * superficie_densidad / AREA_CONVERSION)
+    dict_normativa["norm_max_unidades"] = floor(max_densidad / OPTI_CONFIG["density_divisor"] * superficie_densidad / OPTI_CONFIG["area_conversion"])
 
     # Ground occupation
     sup_patio_vivienda_economica = dict_normativa["flag_economica"] ? dict_normativa_raw["norm_superficice_min_patio_x_depto"] : 0    
@@ -172,7 +172,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # ============================================================================
     # Floor configuration
     maxPisos = get(dict_normativa_raw, "norm_n_pisos", 9999)
-    default_min_pisos = max(MIN_FLOORS, maxPisos - DEFAULT_FLOOR_BUFFER)
+    default_min_pisos = max(OPTI_CONFIG["min_floors"], maxPisos - OPTI_CONFIG["default_floor_buffer"])
     vec_pisos = collect(default_min_pisos:maxPisos)
 
     max_ocupacion_suelo = dict_normativa["norm_max_ocupacion_suelo"]
@@ -347,8 +347,8 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
         cabida_data["vec_num_deptos_pisosSup"] = 0
         cabida_data["vec_sup_comercio"] = 0
         cabida_data["vec_num_comercio"] = 0
-        cabida_data["vec_sup_oficinas"] = OFFICE_AREA_PER_UNIT
-        cabida_data["vec_num_oficinas"] = Int(ceil(area_edif / OFFICE_AREA_PER_UNIT))
+        cabida_data["vec_sup_oficinas"] = OPTI_CONFIG["office_area_per_unit"]
+        cabida_data["vec_num_oficinas"] = Int(ceil(area_edif / OPTI_CONFIG["office_area_per_unit"]))
     end
 
     # ============================================================================
@@ -389,7 +389,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     bike_vars = Dict(
         "estacionamientos_autos" => dict_normativa["norm_estacionamientos_vendibles"],
         "estacionamientos_visitas" => dict_normativa["norm_estacionamientos_visitas"],
-        "carga_ocupacion" => DEFAULT_OCCUPATION_LOAD
+        "carga_ocupacion" => OPTI_CONFIG["default_occupation_load"]
     )
     dict_normativa["norm_estacionamientos_bicicletas"] = Int(python_expression_eval_with_varmap(dict_normativa_raw["norm_estacionamientos_bicicletas"], bike_vars))
     
@@ -398,7 +398,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
         "estacionamientos_autos_vivienda" => dict_normativa["norm_estacionamientos_autos_vivienda"],
         "estacionamientos_autos_comercio" => dict_normativa["norm_estacionamientos_autos_comercio"],
         "estacionamientos_autos_oficina" => dict_normativa["norm_estacionamientos_autos_oficina"],
-        "distancia_al_metro" => DEFAULT_METRO_DISTANCE
+        "distancia_al_metro" => OPTI_CONFIG["default_metro_distance"]
     )
     dict_normativa["norm_descuento_estacionamientos_x_metro"] = Int(python_expression_eval_with_varmap(dict_normativa_raw["norm_descuento_estacionamientos_x_metro"], metro_vars))
 
@@ -430,7 +430,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     if dict_normativa["tipo_edificio"] == "departamento"
         numBodegas = sum(cabida_data["vec_num_deptos"])
     else
-        numBodegas = ceil(BODEGA_RATIO * (dict_normativa["norm_estacionamientos_vendibles"]))
+        numBodegas = ceil(OPTI_CONFIG["bodega_ratio"] * (dict_normativa["norm_estacionamientos_vendibles"]))
     end
     
     # Calculate underground area requirements
@@ -456,7 +456,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # ============================================================================
     # 9. UNDERGROUND VOLUME OPTIMIZATION
     # ============================================================================
-    vec_ps_subte, vec_np_subte = opti_vol_estacionamiento(dict_geom["ps_combi"], ps_areaEst, COEF_OCUPACION_EST, areaEst_requerida)
+    vec_ps_subte, vec_np_subte = opti_vol_estacionamiento(dict_geom["ps_combi"], ps_areaEst, OPTI_CONFIG["coef_ocupacion_est"], areaEst_requerida)
 
     # ============================================================================
     # 10. RESULTS COMPILATION
