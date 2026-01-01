@@ -387,7 +387,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
     vec_area_t = dict_arquitectura["arq_vecSupTerraza"]
     vec_area_depto = dict_arquitectura["arq_vecSupInterior"]
 
-    flag_especial = dict_arquitectura["arq_variante_normativa"] in ["vivienda_economica", "dfl_2"]
+    flag_especial = dict_arquitectura["arq_variante_normativa"] in ["vivienda_economica", "dfl2"]
     depto_configs = compute_depto_configs(vec_area_depto, vec_area_t, dict_arquitectura, flag_especial)
 
     total_threads = Threads.nthreads()

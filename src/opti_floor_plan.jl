@@ -68,6 +68,91 @@ function genera_deptos_franja(mat_deptos::Matrix{Float64}, coord_min_planta::Flo
     return vec_coord_ini, vec_coord_fin, vec_dimension1_deptos, vec_dimension2_deptos, vec_tipo_deptos, vec_ps_deptos_normalizado, vec_tipo_strings
 end
 
+# Extiende un departamento individual y resta geometrías del pasillo, escalera y ascensor
+function extiende_depto_individual(coord_base::Float64, coord_ini::Float64, dimension1::Float64,
+            dimension2::Float64, franja::Symbol, is_vertical::Bool,
+            ps_pasillo::PolyShape, ps_escalera::PolyShape, ps_ascensor::PolyShape)
+
+    extended_poly = polyBoxAligned(coord_base, coord_ini, dimension1, dimension2, franja, is_vertical)
+    extended_poly = polyShape.polyDifference(extended_poly, ps_pasillo)
+    extended_poly = polyShape.polyDifference(extended_poly, ps_escalera)
+    extended_poly = polyShape.polyDifference(extended_poly, ps_ascensor)
+    return extended_poly
+end
+
+# Procesa extensión de todos los departamentos de una franja
+function procesa_strip_extension(vec_coord_ini::Vector{Float64}, vec_dimension1::Vector{Float64},
+            vec_dimension2::Vector{Float64}, coord_base::Float64, franja::Symbol, is_vertical::Bool,
+            ps_pasillo::PolyShape, ps_escalera::PolyShape, ps_ascensor::PolyShape,
+            max_profundidad_interior::Float64)
+
+    n = length(vec_coord_ini)
+    ps_deptos_extendidos = PolyShape[]
+    vec_dimension1_ajustada = copy(vec_dimension1)
+
+    for i in eachindex(vec_coord_ini)
+        extended_poly = extiende_depto_individual(coord_base, vec_coord_ini[i], vec_dimension1_ajustada[i],
+                            vec_dimension2[i], franja, is_vertical, ps_pasillo, ps_escalera, ps_ascensor)
+
+        if i in 2:(n-1)
+            area_depto = polyShape.polyArea(extended_poly)
+            profundidad_promedio = area_depto / vec_dimension2[i]
+            diferencia = profundidad_promedio - max_profundidad_interior
+            if abs(diferencia) > 0.01
+                vec_dimension1_ajustada[i] = vec_dimension1_ajustada[i] - diferencia
+                extended_poly = extiende_depto_individual(coord_base, vec_coord_ini[i], vec_dimension1_ajustada[i],
+                                    vec_dimension2[i], franja, is_vertical, ps_pasillo, ps_escalera, ps_ascensor)
+            end
+        end
+        push!(ps_deptos_extendidos, extended_poly)
+    end
+
+    return ps_deptos_extendidos, vec_dimension1_ajustada
+end
+
+# Regenera geometrías de departamentos sin ajuste de profundidad
+function regenera_strip_geometrias(vec_coord_ini::Vector{Float64}, vec_dimension1::Vector{Float64},
+            vec_dimension2::Vector{Float64}, coord_base::Float64, franja::Symbol, is_vertical::Bool,
+            ps_pasillo::PolyShape, ps_escalera::PolyShape, ps_ascensor::PolyShape)
+
+    ps_deptos = PolyShape[]
+    for i in eachindex(vec_coord_ini)
+        extended_poly = extiende_depto_individual(coord_base, vec_coord_ini[i], vec_dimension1[i],
+                            vec_dimension2[i], franja, is_vertical, ps_pasillo, ps_escalera, ps_ascensor)
+        push!(ps_deptos, extended_poly)
+    end
+    return ps_deptos
+end
+
+# Verifica si algún departamento excede límite de área útil
+function verifica_limite_area_util(ps_deptos::Vector{PolyShape}, vec_terrazas_areas::Vector{Float64}, limite::Float64)
+    for i in eachindex(ps_deptos)
+        util_area = polyShape.polyArea(ps_deptos[i]) + 0.5 * vec_terrazas_areas[i]
+        if util_area > limite
+            return true
+        end
+    end
+    return false
+end
+
+# Ajusta dimensiones para cumplir límite de área útil (maximizando área hasta el límite)
+function ajusta_dimensiones_limite_area(vec_coord_ini::Vector{Float64}, ps_deptos::Vector{PolyShape},
+            vec_dimension1::Vector{Float64}, vec_dimension2::Vector{Float64},
+            vec_terrazas_areas::Vector{Float64}, limite::Float64)
+
+    vec_dimension1_ajustada = copy(vec_dimension1)
+    for i in eachindex(vec_coord_ini)
+        interior_area = polyShape.polyArea(ps_deptos[i])
+        util_area = interior_area + 0.5 * vec_terrazas_areas[i]
+        if util_area > limite
+            exceso_util = util_area - limite
+            delta_dimension1 = exceso_util / vec_dimension2[i]
+            vec_dimension1_ajustada[i] = vec_dimension1[i] - delta_dimension1
+        end
+    end
+    return vec_dimension1_ajustada
+end
+
 # Extiende departamentos hacia el pasillo y resta geometría del corredor
 function extiende_deptos_con_interseccion_pasillo(vec_profundidad_terraza_strip1, vec_profundidad_terraza_strip2,
             vec_coord_ini1::Vector{Float64}, vec_coord_fin1::Vector{Float64},
@@ -89,62 +174,22 @@ function extiende_deptos_con_interseccion_pasillo(vec_profundidad_terraza_strip1
     vec_dimension1_strip1 = [H_s_strip1 - vec_profundidad_terraza_strip1[i] for i in eachindex(vec_coord_ini1)]
     vec_dimension1_strip2 = [H_s_strip2 - vec_profundidad_terraza_strip2[i] for i in eachindex(vec_coord_ini2)]
 
-    # Extender departamentos y limitar profundidad promedio individual
     max_profundidad_interior = 7.0
-    n1 = length(vec_dimension1_strip1)
-    n2 = length(vec_dimension1_strip2)
-    ps_deptos_extendidos_strip1 = PolyShape[]
-    ps_deptos_extendidos_strip2 = PolyShape[]
 
-    # Extender departamentos strip 1 y ajustar profundidad promedio
-    for i in eachindex(vec_coord_ini1)
-        extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini1[i], vec_dimension1_strip1[i], vec_dimension2_strip1[i], franja1, is_vertical)
-        extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
-        extended_poly_final = polyShape.polyDifference(extended_poly_final, ps_escalera)
-        extended_poly_final = polyShape.polyDifference(extended_poly_final, ps_ascensor)
-        if i in 2:(n1-1)
-            area_depto = polyShape.polyArea(extended_poly_final)
-            profundidad_promedio = area_depto / vec_dimension2_strip1[i]
-            diferencia = profundidad_promedio - max_profundidad_interior
-            if abs(diferencia) > 0.01
-                vec_dimension1_strip1[i] = vec_dimension1_strip1[i] - diferencia
-                extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini1[i], vec_dimension1_strip1[i], vec_dimension2_strip1[i], franja1, is_vertical)
-                extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
-                extended_poly_final = polyShape.polyDifference(extended_poly_final, ps_escalera)
-                extended_poly_final = polyShape.polyDifference(extended_poly_final, ps_ascensor)
-            end
-        end
-        push!(ps_deptos_extendidos_strip1, extended_poly_final)
-    end
+    ps_deptos_extendidos_strip1, vec_dimension1_strip1 = procesa_strip_extension(
+        vec_coord_ini1, vec_dimension1_strip1, vec_dimension2_strip1, coord_base, franja1, is_vertical,
+        ps_pasillo, ps_escalera, ps_ascensor, max_profundidad_interior)
 
-    # Extender departamentos strip 2 y ajustar profundidad promedio
-    for i in eachindex(vec_coord_ini2)
-        extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini2[i], vec_dimension1_strip2[i], vec_dimension2_strip2[i], franja2, is_vertical)
-        extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
-        extended_poly_final = polyShape.polyDifference(extended_poly_final, ps_escalera)
-        extended_poly_final = polyShape.polyDifference(extended_poly_final, ps_ascensor)
-        if i in 2:(n2-1)
-            area_depto = polyShape.polyArea(extended_poly_final)
-            profundidad_promedio = area_depto / vec_dimension2_strip2[i]
-            diferencia = profundidad_promedio - max_profundidad_interior
-            if abs(diferencia) > 0.01
-                vec_dimension1_strip2[i] = vec_dimension1_strip2[i] - diferencia
-                extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini2[i], vec_dimension1_strip2[i], vec_dimension2_strip2[i], franja2, is_vertical)
-                extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
-                extended_poly_final = polyShape.polyDifference(extended_poly_final, ps_escalera)
-                extended_poly_final = polyShape.polyDifference(extended_poly_final, ps_ascensor)
-            end
-        end
-        push!(ps_deptos_extendidos_strip2, extended_poly_final)
-    end
+    ps_deptos_extendidos_strip2, vec_dimension1_strip2 = procesa_strip_extension(
+        vec_coord_ini2, vec_dimension1_strip2, vec_dimension2_strip2, coord_base, franja2, is_vertical,
+        ps_pasillo, ps_escalera, ps_ascensor, max_profundidad_interior)
 
     # Iteración para ajustar constructibilidad
-    cond = true
-    cont = 0
-    while cond
-        cont += 1
+    limite_area_dfl2 = 140.0
+    flag_especial = flag_dfl2 || flag_vivienda_economica
+    println("flag_especial (DFL2/vivienda económica): $flag_especial")
 
-        # Calcular áreas y constructibilidad
+    for iter in 1:10
         interior_area_piso_superior = sum(polyShape.polyArea.(ps_deptos_extendidos_strip1)) + sum(polyShape.polyArea.(ps_deptos_extendidos_strip2))
         terrace_area_piso_superior = sum(vec_terrazas_areas_strip1) + sum(vec_terrazas_areas_strip2)
 
@@ -155,65 +200,55 @@ function extiende_deptos_con_interseccion_pasillo(vec_profundidad_terraza_strip1
         constructibilidad_piso_superior = interior_area_piso_superior + 0.5 * terrace_area_piso_superior
         constructibilidad_primer_piso = interior_area_primer_piso + 0.5 * terrace_area_primer_piso
         constructibilidad_edificio_max = num_pisos_superiores * constructibilidad_piso_superior + constructibilidad_primer_piso
-
         total_interior_area_edificio_max = num_pisos_superiores * interior_area_piso_superior + interior_area_primer_piso
 
-        println("max_constructibilidad: $(round(max_constructibilidad, digits=2))")
-        println("constructibilidad_piso_superior: $(round(constructibilidad_piso_superior, digits=2))")
-        println("constructibilidad_primer_piso: $(round(constructibilidad_primer_piso, digits=2))")
-        println("constructibilidad_edificio_max: $(round(constructibilidad_edificio_max, digits=2)) ($(num_pisos_superiores) pisos sup + 1 primer piso)")
+        println("Iteración $iter - max_constructibilidad: $(round(max_constructibilidad, digits=2))")
+        println("  constructibilidad_piso_superior: $(round(constructibilidad_piso_superior, digits=2))")
+        println("  constructibilidad_primer_piso: $(round(constructibilidad_primer_piso, digits=2))")
+        println("  constructibilidad_edificio_max: $(round(constructibilidad_edificio_max, digits=2)) ($(num_pisos_superiores) pisos sup + 1 primer piso)")
+        println("  areas interiores strip1: $(round.(polyShape.polyArea.(ps_deptos_extendidos_strip1), digits=2))")
+        println("  areas interiores strip2: $(round.(polyShape.polyArea.(ps_deptos_extendidos_strip2), digits=2))")
 
-        # Reducir dimensiones si excede constructibilidad máxima
-        if (constructibilidad_edificio_max - max_constructibilidad) > 10
+        excede_constructibilidad = (constructibilidad_edificio_max - max_constructibilidad) > 10
+
+        if excede_constructibilidad
             excess = constructibilidad_edificio_max - max_constructibilidad
             reduction_factor = excess / total_interior_area_edificio_max
             vec_dimension1_strip1 = vec_dimension1_strip1 .* (1.0 - reduction_factor)
             vec_dimension1_strip2 = vec_dimension1_strip2 .* (1.0 - reduction_factor)
-            ps_deptos_extendidos_strip1 = PolyShape[]
-            ps_deptos_extendidos_strip2 = PolyShape[]
-        else
-            cond = false
         end
 
-        # Aplicar límite 140m² para DFL2/vivienda económica
-        if flag_dfl2 || flag_vivienda_economica
-            for i in eachindex(vec_coord_ini1)
-                util_area_i = polyShape.polyArea(ps_deptos_extendidos_strip1[i]) + 0.5 * vec_terrazas_areas_strip1[i]
-                if util_area_i > 140
-                    vec_dimension1_strip1[i] = vec_dimension1_strip1[i] * 140 / util_area_i 
-                end
-            end
-
-            for i in eachindex(vec_coord_ini2)
-                util_area_i = polyShape.polyArea(ps_deptos_extendidos_strip2[i]) + 0.5 * vec_terrazas_areas_strip2[i]
-                if util_area_i > 140
-                    vec_dimension1_strip2[i] = vec_dimension1_strip2[i] * 140 / util_area_i 
-                end
-            end
+        if flag_especial
+            vec_dimension1_strip1 = ajusta_dimensiones_limite_area(vec_coord_ini1, ps_deptos_extendidos_strip1,
+                                        vec_dimension1_strip1, vec_dimension2_strip1,
+                                        vec_terrazas_areas_strip1, limite_area_dfl2)
+            vec_dimension1_strip2 = ajusta_dimensiones_limite_area(vec_coord_ini2, ps_deptos_extendidos_strip2,
+                                        vec_dimension1_strip2, vec_dimension2_strip2,
+                                        vec_terrazas_areas_strip2, limite_area_dfl2)
         end
 
-        # Regenerar geometrías con dimensiones ajustadas
-        ps_deptos_extendidos_strip1 = PolyShape[]
-        ps_deptos_extendidos_strip2 = PolyShape[]
-        for i in eachindex(vec_coord_ini1)
-            extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini1[i], vec_dimension1_strip1[i], vec_dimension2_strip1[i], franja1, is_vertical)
-            extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
-            extended_poly_final = polyShape.polyDifference(extended_poly_final, ps_escalera)
-            extended_poly_final = polyShape.polyDifference(extended_poly_final, ps_ascensor)
-            push!(ps_deptos_extendidos_strip1, extended_poly_final)
-        end
-        for i in eachindex(vec_coord_ini2)
-            extended_local_poly = polyBoxAligned(coord_base, vec_coord_ini2[i], vec_dimension1_strip2[i], vec_dimension2_strip2[i], franja2, is_vertical)
-            extended_poly_final = polyShape.polyDifference(extended_local_poly, ps_pasillo)
-            extended_poly_final = polyShape.polyDifference(extended_poly_final, ps_escalera)
-            extended_poly_final = polyShape.polyDifference(extended_poly_final, ps_ascensor)
-            push!(ps_deptos_extendidos_strip2, extended_poly_final)
-        end
+        ps_deptos_extendidos_strip1 = regenera_strip_geometrias(vec_coord_ini1, vec_dimension1_strip1,
+                                        vec_dimension2_strip1, coord_base, franja1, is_vertical,
+                                        ps_pasillo, ps_escalera, ps_ascensor)
+        ps_deptos_extendidos_strip2 = regenera_strip_geometrias(vec_coord_ini2, vec_dimension1_strip2,
+                                        vec_dimension2_strip2, coord_base, franja2, is_vertical,
+                                        ps_pasillo, ps_escalera, ps_ascensor)
 
-        if cont >= 2
-            cond = false
+        excede_limite_dfl2 = flag_especial && (
+            verifica_limite_area_util(ps_deptos_extendidos_strip1, vec_terrazas_areas_strip1, limite_area_dfl2) ||
+            verifica_limite_area_util(ps_deptos_extendidos_strip2, vec_terrazas_areas_strip2, limite_area_dfl2))
+
+        if !excede_constructibilidad && !excede_limite_dfl2
+            break
         end
     end
+
+    println("  FINAL areas interiores strip1: $(round.(polyShape.polyArea.(ps_deptos_extendidos_strip1), digits=2))")
+    println("  FINAL areas interiores strip2: $(round.(polyShape.polyArea.(ps_deptos_extendidos_strip2), digits=2))")
+    util_areas_strip1 = [polyShape.polyArea(ps_deptos_extendidos_strip1[i]) + 0.5 * vec_terrazas_areas_strip1[i] for i in eachindex(ps_deptos_extendidos_strip1)]
+    util_areas_strip2 = [polyShape.polyArea(ps_deptos_extendidos_strip2[i]) + 0.5 * vec_terrazas_areas_strip2[i] for i in eachindex(ps_deptos_extendidos_strip2)]
+    println("  FINAL areas utiles strip1: $(round.(util_areas_strip1, digits=2))")
+    println("  FINAL areas utiles strip2: $(round.(util_areas_strip2, digits=2))")
 
     return ps_deptos_extendidos_strip1, vec_dimension1_strip1, ps_deptos_extendidos_strip2, vec_dimension1_strip2
 end
@@ -959,9 +994,11 @@ function opti_floor_plan(dict_edificio_deptos, max_constructibilidad::Float64, n
                         min_ancho_pasillo::Float64 = 0.0,
                         num_escaleras=1.0, ancho_escaleras=1.1)
 
-    # Extraer flags de normativa
-    flag_dfl2 = get(dict_edificio_deptos, "flag_dfl2", false)
-    flag_vivienda_economica = get(dict_edificio_deptos, "flag_vivienda_economica", false)
+    # Extraer flags de normativa desde variante_normativa o flags explícitos
+    variante_norm = get(dict_edificio_deptos, "variante_normativa", "")
+    variante_norm_clean = replace(lowercase(variante_norm), "_" => "")
+    flag_dfl2 = get(dict_edificio_deptos, "flag_dfl2", false) || occursin("dfl", variante_norm_clean)
+    flag_vivienda_economica = get(dict_edificio_deptos, "flag_vivienda_economica", false) || occursin("viviendaeconomica", variante_norm_clean)
 
     # Generar layout en coordenadas normalizadas
     results_pisos_superiores, results_primer_piso = genera_layout(dict_edificio_deptos, max_constructibilidad, num_pisos_superiores,

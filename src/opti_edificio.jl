@@ -95,8 +95,8 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
         "id_combi" => id_combi,
         "tipo_edificio" => dict_arquitectura["arq_tipo_edificio"],
         "variante_normativa" => dict_arquitectura["arq_variante_normativa"],
-        "flag_dfl2" => dict_arquitectura["arq_variante_normativa"] == "dfl_2",
-        "flag_economica" => dict_arquitectura["arq_variante_normativa"] == "vivienda_economica",
+        "flag_dfl2" => dict_arquitectura["arq_variante_normativa"] == "dfl2",
+        "flag_vivienda_economica" => dict_arquitectura["arq_variante_normativa"] == "vivienda_economica",
         "flag_fusion" => dict_geom["n_predios"] >= 2,
         "flag_sombra" => dict_arquitectura["arq_flag_sombra"],
         "flag_vano" => dict_arquitectura["arq_flag_vano"],
@@ -132,7 +132,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
 
     # Calculate max losa based on building type and variant
     is_apartment_special = (dict_normativa["tipo_edificio"] == "departamento" &&
-                           (dict_normativa["flag_dfl2"] || dict_normativa["flag_economica"]))
+                           (dict_normativa["flag_dfl2"] || dict_normativa["flag_vivienda_economica"]))
     if is_apartment_special
         max_losa_snt = base_constructibilidad * (OPTI_CONFIG["interior_factor"] + OPTI_CONFIG["terrace_factor"] + OPTI_CONFIG["common_areas_factor"] + OPTI_CONFIG["staircase_area"] + OPTI_CONFIG["elevator_area"])
     else
@@ -151,8 +151,8 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     dict_normativa["norm_max_unidades"] = floor(max_densidad / OPTI_CONFIG["density_divisor"] * superficie_densidad / OPTI_CONFIG["area_conversion"])
 
     # Ground occupation
-    sup_patio_vivienda_economica = dict_normativa["flag_economica"] ? dict_normativa_raw["norm_superficice_min_patio_x_depto"] : 0    
-    if dict_normativa["flag_economica"]
+    sup_patio_vivienda_economica = dict_normativa["flag_vivienda_economica"] ? dict_normativa_raw["norm_superficice_min_patio_x_depto"] : 0    
+    if dict_normativa["flag_vivienda_economica"]
         superficieTerreno = dict_geom["sup_terreno_sii"]
         max_deptos = dict_normativa["norm_max_unidades"]
         coefSupComun = dict_arquitectura["arq_coefSupComun"]
@@ -256,6 +256,8 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
 
     num_pisos = Int(np_opt)
     num_pisos_superiores = num_pisos - 1
+
+    dict_edificio_deptos["variante_normativa"] = get(dict_normativa, "variante_normativa", "")
 
     results = opti_floor_plan(dict_edificio_deptos, max_constructibilidad, num_pisos_superiores,
                 profundidad_pasillo=profundidad_pasillo,
