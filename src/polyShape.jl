@@ -2069,7 +2069,7 @@ end
 
 
 
-function building2json(results_primer_piso::Dict, results_pisos_superiores::Dict, num_pisos_superiores::Int, alturaPiso::Float64)::Dict{String, String}
+function building2json(results_primer_piso::Union{AbstractDict, Nothing}, results_pisos_superiores::AbstractDict, num_pisos_superiores::Int, alturaPiso::Float64)::Dict{String, String}
 
     function triangulatePolygon(V::Matrix{Float64})::Vector{Int}
         function pointInTriangle(p::Vector{Float64}, a::Vector{Float64}, b::Vector{Float64}, c::Vector{Float64})::Bool
@@ -2187,10 +2187,12 @@ function building2json(results_primer_piso::Dict, results_pisos_superiores::Dict
         all_indices = Int[]
 
         if element_name == "deptos"
-            vec_deptos_primer = results_primer_piso["vec_ps_deptos_interior_all"]
-            for ps_depto in vec_deptos_primer
-                if polyArea(ps_depto) > 0.0
-                    addPolyShapeTo3D(ps_depto, 0.0, alturaPiso, all_vertices, all_indices)
+            if !isnothing(results_primer_piso)
+                vec_deptos_primer = get(results_primer_piso, "vec_ps_deptos_interior_all", PolyShape[])
+                for ps_depto in vec_deptos_primer
+                    if polyArea(ps_depto) > 0.0
+                        addPolyShapeTo3D(ps_depto, 0.0, alturaPiso, all_vertices, all_indices)
+                    end
                 end
             end
 
@@ -2206,10 +2208,12 @@ function building2json(results_primer_piso::Dict, results_pisos_superiores::Dict
             end
 
         elseif element_name == "terrazas"
-            vec_terrazas_primer = results_primer_piso["vec_ps_terrazas_all"]
-            for ps_terraza in vec_terrazas_primer
-                if polyArea(ps_terraza) > 0.0
-                    addPolyShapeTo3D(ps_terraza, 0.0, 1.0, all_vertices, all_indices)
+            if !isnothing(results_primer_piso)
+                vec_terrazas_primer = get(results_primer_piso, "vec_ps_terrazas_all", PolyShape[])
+                for ps_terraza in vec_terrazas_primer
+                    if polyArea(ps_terraza) > 0.0
+                        addPolyShapeTo3D(ps_terraza, 0.0, 1.0, all_vertices, all_indices)
+                    end
                 end
             end
 
@@ -2224,14 +2228,25 @@ function building2json(results_primer_piso::Dict, results_pisos_superiores::Dict
             end
 
         elseif element_name == "area_comun"
-            ps_pasillo_primer = results_primer_piso["ps_pasillo"]
-            addPolyShapeTo3D(ps_pasillo_primer, 0.0, alturaPiso, all_vertices, all_indices)
+            if !isnothing(results_primer_piso)
+                addPolyShapeTo3D(get(results_primer_piso, "ps_pasillo", nothing), 0.0, alturaPiso, all_vertices, all_indices)
+                addPolyShapeTo3D(get(results_primer_piso, "ps_nucleo", nothing), 0.0, alturaPiso, all_vertices, all_indices)
+                addPolyShapeTo3D(get(results_primer_piso, "ps_escalera", nothing), 0.0, alturaPiso, all_vertices, all_indices)
+                addPolyShapeTo3D(get(results_primer_piso, "ps_ascensor", nothing), 0.0, alturaPiso, all_vertices, all_indices)
+                addPolyShapeTo3D(get(results_primer_piso, "ps_otros_espacios_comunes", nothing), 0.0, alturaPiso, all_vertices, all_indices)
+            end
 
-            ps_pasillo = results_pisos_superiores["ps_pasillo"]
+            ps_pasillo_sup = get(results_pisos_superiores, "ps_pasillo", nothing)
+            ps_nucleo_sup = get(results_pisos_superiores, "ps_nucleo", nothing)
+            ps_escalera_sup = get(results_pisos_superiores, "ps_escalera", nothing)
+            ps_ascensor_sup = get(results_pisos_superiores, "ps_ascensor", nothing)
             for piso in 1:num_pisos_superiores
                 z_low = alturaPiso * piso
                 z_high = alturaPiso * (piso + 1)
-                addPolyShapeTo3D(ps_pasillo, z_low, z_high, all_vertices, all_indices)
+                addPolyShapeTo3D(ps_pasillo_sup, z_low, z_high, all_vertices, all_indices)
+                addPolyShapeTo3D(ps_nucleo_sup, z_low, z_high, all_vertices, all_indices)
+                addPolyShapeTo3D(ps_escalera_sup, z_low, z_high, all_vertices, all_indices)
+                addPolyShapeTo3D(ps_ascensor_sup, z_low, z_high, all_vertices, all_indices)
             end
         end
 
@@ -2275,17 +2290,31 @@ function building2json(results_primer_piso::Dict, results_pisos_superiores::Dict
 end
 
 
-function planta2svg(vec_info_deptos::Vector, ps_area_comun::Union{PolyShape, Nothing}, ps_pasillo::Union{PolyShape, Nothing}; nombre_area_comun::String="Circulación")::String
+function planta2svg(vec_info_deptos::Vector, ps_pasillo::Union{PolyShape, Nothing};
+                    ps_nucleo::Union{PolyShape, Nothing}=nothing,
+                    ps_escalera::Union{PolyShape, Nothing}=nothing,
+                    ps_ascensor::Union{PolyShape, Nothing}=nothing,
+                    ps_otros_espacios_comunes::Union{PolyShape, Nothing}=nothing,
+                    nombre_area_comun::String="Circulación")::String
     all_shapes = PolyShape[]
     for info in vec_info_deptos
         push!(all_shapes, info["ps_depto"])
         push!(all_shapes, info["ps_terraza"])
     end
-    if ps_area_comun !== nothing
-        push!(all_shapes, ps_area_comun)
-    end
     if ps_pasillo !== nothing
         push!(all_shapes, ps_pasillo)
+    end
+    if ps_nucleo !== nothing && polyArea(ps_nucleo) > 0.0
+        push!(all_shapes, ps_nucleo)
+    end
+    if ps_escalera !== nothing && polyArea(ps_escalera) > 0.0
+        push!(all_shapes, ps_escalera)
+    end
+    if ps_ascensor !== nothing && polyArea(ps_ascensor) > 0.0
+        push!(all_shapes, ps_ascensor)
+    end
+    if ps_otros_espacios_comunes !== nothing && polyArea(ps_otros_espacios_comunes) > 0.0
+        push!(all_shapes, ps_otros_espacios_comunes)
     end
 
     if isempty(all_shapes)
@@ -2343,29 +2372,49 @@ function planta2svg(vec_info_deptos::Vector, ps_area_comun::Union{PolyShape, Not
     svg_parts = String[]
     push!(svg_parts, """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 $(width) $(height_svg)" width="$(width)" height="$(height_svg)">""")
     push!(svg_parts, "<style>")
-    push!(svg_parts, ".depto { fill: #4A90D9; stroke: #2C5282; stroke-width: $(stroke_width); }")
-    push!(svg_parts, ".terraza { fill: #68D391; stroke: #276749; stroke-width: $(stroke_width); }")
-    push!(svg_parts, ".area-comun { fill: #F6AD55; stroke: #C05621; stroke-width: $(stroke_width); }")
-    push!(svg_parts, ".pasillo { fill: #CBD5E0; stroke: #4A5568; stroke-width: $(stroke_width); }")
+    push!(svg_parts, ".depto { fill: #008080; stroke: #2b3636; stroke-width: $(stroke_width); }")
+    push!(svg_parts, ".terraza { fill: #2F4F4F; stroke: #2b3636; stroke-width: $(stroke_width); }")
+    push!(svg_parts, ".pasillo { fill: #CBD5E0; stroke: #2b3636; stroke-width: $(stroke_width); }")
+    push!(svg_parts, ".escalera { fill: #bfb4a8; stroke: #2b3636; stroke-width: $(stroke_width); }")
+    push!(svg_parts, ".ascensor { fill: #918981; stroke: #2b3636; stroke-width: $(stroke_width); }")
+    push!(svg_parts, ".otros-espacios { fill: #826d57; stroke: #2b3636; stroke-width: $(stroke_width); }")
     push!(svg_parts, ".unidad-depto:hover .depto, .unidad-depto:hover .terraza { filter: brightness(1.15); cursor: pointer; }")
-    push!(svg_parts, ".unidad-comun:hover .pasillo, .unidad-comun:hover .area-comun { filter: brightness(1.15); cursor: pointer; }")
+    push!(svg_parts, ".unidad-comun:hover { filter: brightness(1.15); cursor: pointer; }")
     push!(svg_parts, "</style>")
 
     if ps_pasillo !== nothing && ps_pasillo.NumRegions > 0
         area_pasillo = polyArea(ps_pasillo)
         path_d = poly_to_path(ps_pasillo, offset_x, offset_y, height_svg, scale)
-        push!(svg_parts, """<g class="unidad-comun" data-tipo="superficie-comun" data-nombre="$(nombre_area_comun)" data-sup-comun="$(round(area_pasillo, digits=2))">""")
-        push!(svg_parts, """<title>Superficie común – $(nombre_area_comun)\nSuperficie: $(round(area_pasillo, digits=2)) m²</title>""")
+        push!(svg_parts, """<g class="unidad-comun" data-tipo="pasillo" data-nombre="$(nombre_area_comun)" data-sup-comun="$(round(area_pasillo, digits=2))">""")
+        push!(svg_parts, """<title>$(nombre_area_comun)\nSuperficie: $(round(area_pasillo, digits=2)) m²</title>""")
         push!(svg_parts, """<path class="pasillo" d="$(path_d)"/>""")
         push!(svg_parts, "</g>")
     end
 
-    if ps_area_comun !== nothing && ps_area_comun.NumRegions > 0
-        area_comun = polyArea(ps_area_comun)
-        path_d = poly_to_path(ps_area_comun, offset_x, offset_y, height_svg, scale)
-        push!(svg_parts, """<g class="unidad-comun" data-tipo="area-comun" data-sup-comun="$(round(area_comun, digits=2))">""")
-        push!(svg_parts, """<title>Área común\nSuperficie: $(round(area_comun, digits=2)) m²</title>""")
-        push!(svg_parts, """<path class="area-comun" d="$(path_d)"/>""")
+    if ps_escalera !== nothing && ps_escalera.NumRegions > 0 && polyArea(ps_escalera) > 0.0
+        area_escalera = polyArea(ps_escalera)
+        path_d = poly_to_path(ps_escalera, offset_x, offset_y, height_svg, scale)
+        push!(svg_parts, """<g class="unidad-comun" data-tipo="escalera" data-sup-comun="$(round(area_escalera, digits=2))">""")
+        push!(svg_parts, """<title>Escalera\nSuperficie: $(round(area_escalera, digits=2)) m²</title>""")
+        push!(svg_parts, """<path class="escalera" d="$(path_d)"/>""")
+        push!(svg_parts, "</g>")
+    end
+
+    if ps_ascensor !== nothing && ps_ascensor.NumRegions > 0 && polyArea(ps_ascensor) > 0.0
+        area_ascensor = polyArea(ps_ascensor)
+        path_d = poly_to_path(ps_ascensor, offset_x, offset_y, height_svg, scale)
+        push!(svg_parts, """<g class="unidad-comun" data-tipo="ascensor" data-sup-comun="$(round(area_ascensor, digits=2))">""")
+        push!(svg_parts, """<title>Ascensor\nSuperficie: $(round(area_ascensor, digits=2)) m²</title>""")
+        push!(svg_parts, """<path class="ascensor" d="$(path_d)"/>""")
+        push!(svg_parts, "</g>")
+    end
+
+    if ps_otros_espacios_comunes !== nothing && ps_otros_espacios_comunes.NumRegions > 0 && polyArea(ps_otros_espacios_comunes) > 0.0
+        area_otros = polyArea(ps_otros_espacios_comunes)
+        path_d = poly_to_path(ps_otros_espacios_comunes, offset_x, offset_y, height_svg, scale)
+        push!(svg_parts, """<g class="unidad-comun" data-tipo="otros-espacios" data-sup-comun="$(round(area_otros, digits=2))">""")
+        push!(svg_parts, """<title>Otros espacios comunes\nSuperficie: $(round(area_otros, digits=2)) m²</title>""")
+        push!(svg_parts, """<path class="otros-espacios" d="$(path_d)"/>""")
         push!(svg_parts, "</g>")
     end
 

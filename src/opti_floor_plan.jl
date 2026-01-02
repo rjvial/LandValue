@@ -187,7 +187,6 @@ function extiende_deptos_con_interseccion_pasillo(vec_profundidad_terraza_strip1
     # Iteración para ajustar constructibilidad
     limite_area_dfl2 = 140.0
     flag_especial = flag_dfl2 || flag_vivienda_economica
-    println("flag_especial (DFL2/vivienda económica): $flag_especial")
 
     for iter in 1:10
         interior_area_piso_superior = sum(polyShape.polyArea.(ps_deptos_extendidos_strip1)) + sum(polyShape.polyArea.(ps_deptos_extendidos_strip2))
@@ -201,13 +200,6 @@ function extiende_deptos_con_interseccion_pasillo(vec_profundidad_terraza_strip1
         constructibilidad_primer_piso = interior_area_primer_piso + 0.5 * terrace_area_primer_piso
         constructibilidad_edificio_max = num_pisos_superiores * constructibilidad_piso_superior + constructibilidad_primer_piso
         total_interior_area_edificio_max = num_pisos_superiores * interior_area_piso_superior + interior_area_primer_piso
-
-        println("Iteración $iter - max_constructibilidad: $(round(max_constructibilidad, digits=2))")
-        println("  constructibilidad_piso_superior: $(round(constructibilidad_piso_superior, digits=2))")
-        println("  constructibilidad_primer_piso: $(round(constructibilidad_primer_piso, digits=2))")
-        println("  constructibilidad_edificio_max: $(round(constructibilidad_edificio_max, digits=2)) ($(num_pisos_superiores) pisos sup + 1 primer piso)")
-        println("  areas interiores strip1: $(round.(polyShape.polyArea.(ps_deptos_extendidos_strip1), digits=2))")
-        println("  areas interiores strip2: $(round.(polyShape.polyArea.(ps_deptos_extendidos_strip2), digits=2))")
 
         excede_constructibilidad = (constructibilidad_edificio_max - max_constructibilidad) > 10
 
@@ -242,13 +234,6 @@ function extiende_deptos_con_interseccion_pasillo(vec_profundidad_terraza_strip1
             break
         end
     end
-
-    println("  FINAL areas interiores strip1: $(round.(polyShape.polyArea.(ps_deptos_extendidos_strip1), digits=2))")
-    println("  FINAL areas interiores strip2: $(round.(polyShape.polyArea.(ps_deptos_extendidos_strip2), digits=2))")
-    util_areas_strip1 = [polyShape.polyArea(ps_deptos_extendidos_strip1[i]) + 0.5 * vec_terrazas_areas_strip1[i] for i in eachindex(ps_deptos_extendidos_strip1)]
-    util_areas_strip2 = [polyShape.polyArea(ps_deptos_extendidos_strip2[i]) + 0.5 * vec_terrazas_areas_strip2[i] for i in eachindex(ps_deptos_extendidos_strip2)]
-    println("  FINAL areas utiles strip1: $(round.(util_areas_strip1, digits=2))")
-    println("  FINAL areas utiles strip2: $(round.(util_areas_strip2, digits=2))")
 
     return ps_deptos_extendidos_strip1, vec_dimension1_strip1, ps_deptos_extendidos_strip2, vec_dimension1_strip2
 end
@@ -653,7 +638,7 @@ function empaqueta_resultados(dimension1::Float64, dimension2::Float64,
                     W::Float64, H::Float64, profundidad_pasillo::Float64, ancho_pasillo::Float64, ps_pasillo::PolyShape,
                     vec_ps_deptos_franja_1::Vector{PolyShape}, vec_ps_deptos_franja_2::Vector{PolyShape},
                     vec_terrazas1::Vector{PolyShape}, vec_terrazas2::Vector{PolyShape},
-                    ps_planta::PolyShape, vec_tipo_strings1::Vector{String}=String[], vec_tipo_strings2::Vector{String}=String[];
+                    vec_tipo_strings1::Vector{String}=String[], vec_tipo_strings2::Vector{String}=String[];
                     area_escalera::Float64=0.0, area_ascensor::Float64=0.0,
                     ps_nucleo::PolyShape=polyShape.polyBox(0.0, 0.0, 0.0, 0.0, 0.0),
                     ps_escalera::PolyShape=polyShape.polyBox(0.0, 0.0, 0.0, 0.0, 0.0),
@@ -661,7 +646,7 @@ function empaqueta_resultados(dimension1::Float64, dimension2::Float64,
 
     # Crear diccionario con dimensiones y áreas
     area_pasillo = polyShape.polyArea(ps_pasillo)
-    result = Dict(
+    result = OrderedDict(
         "feasible" => true,
         "status" => "LOCALLY_SOLVED",
         "profundidad_franja_1" => round(dimension1, digits=2),
@@ -687,14 +672,6 @@ function empaqueta_resultados(dimension1::Float64, dimension2::Float64,
     # Analizar forma de departamentos
     shape_analysis = analiza_forma_apartamentos(vec_ps_deptos_franja_1, vec_ps_deptos_franja_2)
     result["max_depto_square_deviation"] = round(shape_analysis, digits=3)
-
-    # Calcular área fuera de planta
-    valid_terrazas = [ps for ps in result["vec_ps_terrazas_all"] if polyShape.polyArea(ps) > 0.0]
-    all_shapes = vcat([ps_pasillo], result["vec_ps_deptos_interior_all"], valid_terrazas)
-    ps_union_all = reduce((acc, ps) -> polyShape.polyUnion(acc, ps), all_shapes)
-    ps_outbound = polyShape.polyDifference(ps_union_all, ps_planta)
-    area_outbound = polyShape.polyArea(ps_outbound)
-    result["area_outbound"] = round(area_outbound, digits=2)
 
     return result
 end
@@ -891,16 +868,10 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad::Float64, num
 
     results = empaqueta_resultados(dimension_depto1, dimension_depto2, W, H, profundidad_pasillo, ancho_pasillo, ps_pasillo_normalizado,
                                     vec_ps_deptos_franja_1_normalizado, vec_ps_deptos_franja_2_normalizado,
-                                    vec_terrazas_strip1, vec_terrazas_strip2, ps_planta_normalizado, vec_tipo_strings1, vec_tipo_strings2,
+                                    vec_terrazas_strip1, vec_terrazas_strip2, vec_tipo_strings1, vec_tipo_strings2,
                                     area_escalera=area_escalera, area_ascensor=area_ascensor, ps_nucleo=ps_nucleo, ps_escalera=ps_escalera, ps_ascensor=ps_ascensor)
 
     results["ps_planta"] = ps_planta
-
-    # Área común total
-    delta = 0.02
-    ps_area_comun_total = polyClipper.polyOffset(ps_pasillo_normalizado, delta)
-    ps_area_comun_total = polyClipper.polyOffset(ps_area_comun_total, -delta)
-    results["ps_area_comun_total"] = ps_area_comun_total
 
     results_pisos_superiores = results
 
@@ -936,27 +907,29 @@ function genera_layout(dict_edificio_deptos, max_constructibilidad::Float64, num
     vec_ps_terrazas_all_pp = vec_ps_terrazas_all_superior[indices_primer_piso]
     vec_strips_all_pp = vec_strips_all_superior[indices_primer_piso]
 
-    # Agregar espacios vacíos al área común del primer piso
+    # Separar espacios vacíos del pasillo
     vec_ps_espacios_vacios = vec_ps_deptos_interior_all_superior[indices_espacios_vacios]
-
     valid_espacios_vacios = [ps for ps in vec_ps_espacios_vacios if polyShape.polyArea(ps) > 0.0]
-    ps_pasillo_pp = isempty(valid_espacios_vacios) ? ps_pasillo_superior : reduce((acc, ps) -> polyShape.polyUnion(acc, ps), valid_espacios_vacios, init=ps_pasillo_superior)
+    ps_otros_espacios_comunes = isempty(valid_espacios_vacios) ? polyShape.polyBox(0.0, 0.0, 0.0, 0.0, 0.0) : reduce((acc, ps) -> polyShape.polyUnion(acc, ps), valid_espacios_vacios)
 
-    area_pasillo_pp = polyShape.polyArea(ps_pasillo_pp)
+    area_pasillo_pp = polyShape.polyArea(ps_pasillo_superior)
+    area_otros_espacios_comunes = polyShape.polyArea(ps_otros_espacios_comunes)
     ps_planta_original = dict_edificio_deptos["ps_planta"]
 
     # Empaquetar resultados del primer piso
-    results_primer_piso = Dict(
+    results_primer_piso = OrderedDict(
         "vec_ps_deptos_interior_all" => vec_ps_deptos_interior_all_pp,
         "vec_ps_terrazas_all" => vec_ps_terrazas_all_pp,
         "vec_strips" => vec_strips_all_pp,
         "area_pasillo" => round(area_pasillo_pp, digits=2),
+        "area_otros_espacios_comunes" => round(area_otros_espacios_comunes, digits=2),
         "area_escalera" => round(area_escalera, digits=2),
         "area_ascensor" => round(area_ascensor, digits=2),
         "ps_nucleo" => ps_nucleo,
         "ps_escalera" => ps_escalera,
         "ps_ascensor" => ps_ascensor,
-        "ps_pasillo" => ps_pasillo_pp,
+        "ps_pasillo" => ps_pasillo_superior,
+        "ps_otros_espacios_comunes" => ps_otros_espacios_comunes,
         "ps_planta" => ps_planta_original
         )
 
@@ -986,6 +959,9 @@ function procesa_resultados_piso!(results, angulo_rotacion, cr, max_ratio_terraz
     results["ps_nucleo"] = polyShape.polyRotate(results["ps_nucleo"], -angulo_rotacion, cr)
     results["ps_escalera"] = polyShape.polyRotate(results["ps_escalera"], -angulo_rotacion, cr)
     results["ps_ascensor"] = polyShape.polyRotate(results["ps_ascensor"], -angulo_rotacion, cr)
+    if haskey(results, "ps_otros_espacios_comunes")
+        results["ps_otros_espacios_comunes"] = polyShape.polyRotate(results["ps_otros_espacios_comunes"], -angulo_rotacion, cr)
+    end
 end
 
 # Función principal: optimiza planta de piso para edificio residencial
@@ -1029,7 +1005,7 @@ function opti_floor_plan(dict_edificio_deptos, max_constructibilidad::Float64, n
         procesa_resultados_piso!(results_primer_piso, angulo_rotacion, cr, 0.25)
     end
 
-    return Dict(
+    return OrderedDict(
         "pisos_superiores" => results_pisos_superiores,
         "primer_piso" => results_primer_piso
     )
