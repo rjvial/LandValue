@@ -14,12 +14,12 @@ const MIN_AREA_THRESHOLD = 50.0
 # ============================================================================
 # HELPER FUNCTIONS FOR AREA AND VOLUME CALCULATIONS
 # ============================================================================
-function calculate_buildable_area(dict_geom, dict_requerimientos, dict_arquitectura, altura, n_pisos)
+function calculate_buildable_area(dict_geom, dict_normativa_raw, dict_arquitectura, altura, n_pisos)
     # Calculates the buildable footprint area considering setbacks and separations.
 
     # Calculate separation from neighbors
-    distanciamiento = dict_requerimientos["norm_distanciamiento"][1]
-    expr_str = expression_converter.parse_python_expression(dict_requerimientos["norm_distanciamiento"][3])
+    distanciamiento = dict_normativa_raw["norm_distanciamiento"][1]
+    expr_str = expression_converter.parse_python_expression(dict_normativa_raw["norm_distanciamiento"][3])
     expr_str = replace(expr_str, "flag_sombra" => false)
     expr_str = replace(expr_str, "altura" => string(altura))
     expr_str = replace(expr_str, "n_pisos" => string(n_pisos))
@@ -29,7 +29,7 @@ function calculate_buildable_area(dict_geom, dict_requerimientos, dict_arquitect
     
     # Create offset distances vector
     vec_dist = Float64.(copy(dict_geom["vecSecTodos"]))
-    vec_dist .= -dict_requerimientos["norm_antejardin"]
+    vec_dist .= -dict_normativa_raw["norm_antejardin"]
     vec_dist[dict_geom["vecSecSinCalle"]] .= -sepVecinos
 
     ps = deepcopy(dict_geom["ps_combi"])
@@ -62,100 +62,122 @@ end
 # ============================================================================
 # VOLUME OPTIMIZATION FUNCTIONS
 # ============================================================================
-function quad_opti_sol_ini(vec_psVolteor, floors)
-    if isempty(vec_psVolteor)
-        @warn "Volume vector cannot be empty for floors $floors"
-        return 0, 0, 0, 0, 0, 0, PolyShape([], 1)
-    end
+function quad_opti_sol_ini(vec_psVolteor, floors, max_ocupacion_suelo)
 
     ps0 = vec_psVolteor[1]
-    if isempty(ps0.Vertices)
-        @warn "First polygon has no vertices for floors $floors"
-        return 0, 0, 0, 0, 0, 0, PolyShape([], 1)
+    (ps_opt, angle) = polyShape.polyLargestRect(ps0)
+
+    dist = 0.0
+    while polyShape.polyArea(ps_opt) > max_ocupacion_suelo
+        dist = -0.5
+        ps_opt = polyClipper.polyOffset(ps_opt, dist)
     end
 
-    vertices = ps0.Vertices[1]
-    x_coords = vertices[:, 1]
-    y_coords = vertices[:, 2]
-    width = maximum(x_coords) - minimum(x_coords)
-    height = maximum(y_coords) - minimum(y_coords)
+    vertices = ps_opt.Vertices[1]
+    x1 = vertices[1, 1]
+    y1 = vertices[1, 2]
+    x2 = vertices[2, 1]
+    y2 = vertices[2, 2]
+    x4 = vertices[4, 1]
+    y4 = vertices[4, 2]
+    w_val = sqrt((x2 - x1)^2 + (y2 - y1)^2)
+    h_val = sqrt((x4 - x1)^2 + (y4 - y1)^2)
 
-    if width <= 0 || height <= 0
-        @warn "Invalid polygon dimensions for floors $floors: width=$width, height=$height"
-        return 0, 0, 0, 0, 0, 0, PolyShape([], 1)
-    end
+    best_solution = (w_val, h_val, ps_opt)
 
-    best_objective = 0.0
-    best_solution = (0, 0, 0, 0, 0, 0, PolyShape([], 1))
+    # if isempty(vec_psVolteor)
+    #     @warn "Volume vector cannot be empty for floors $floors"
+    #     return 0, 0, 0, 0, 0, 0, PolyShape([], 1)
+    # end
 
-    # Try horizontal orientation
-    for (orientation, min_w, min_h) in [
-        ("horizontal", max(width - 5, 2), 2),
-        ("vertical", 2, max(height - 5, 2))
-    ]
-        try
-            model = Model(optimizer_with_attributes(Ipopt.Optimizer, "sb" => "yes"))
-            set_silent(model)
+    # ps0 = vec_psVolteor[1]
+    # if isempty(ps0.Vertices)
+    #     @warn "First polygon has no vertices for floors $floors"
+    #     return 0, 0, 0, 0, 0, 0, PolyShape([], 1)
+    # end
 
-            @variable(model, x1)
-            @variable(model, y1)
-            @variable(model, 0 <= c <= 1)
-            @variable(model, -1 <= s <= 1)
-            @constraint(model, c^2 + s^2 == 1)
-            @variable(model, w >= min_w)
-            @variable(model, h >= min_h)
+    # vertices = ps0.Vertices[1]
+    # x_coords = vertices[:, 1]
+    # y_coords = vertices[:, 2]
+    # width = maximum(x_coords) - minimum(x_coords)
+    # height = maximum(y_coords) - minimum(y_coords)
 
-            # Add polygon constraints
-            psC_hull = polyGdal.shapeHull(ps0)
-            A, b = polyShape.poly2Constraints(psC_hull)
+    # if width <= 0 || height <= 0
+    #     @warn "Invalid polygon dimensions for floors $floors: width=$width, height=$height"
+    #     return 0, 0, 0, 0, 0, 0, PolyShape([], 1)
+    # end
 
-            corners = [[0, 0], [w, 0], [w, h], [0, h]]
-            for corner in corners, row in axes(A, 1)
-                xg = x1 + c * corner[1] - s * corner[2]
-                yg = y1 + s * corner[1] + c * corner[2]
-                @constraint(model, A[row, 1] * xg + A[row, 2] * yg <= b[row])
-            end
+    # best_objective = 0.0
+    # best_solution = (0, 0, 0, 0, 0, 0, PolyShape([], 1))
 
-            @objective(model, Max, w * h)
+    # # Try horizontal orientation
+    # for (orientation, min_w, min_h) in [
+    #     ("horizontal", max(width - 5, 2), 2),
+    #     ("vertical", 2, max(height - 5, 2))
+    # ]
+    #     try
+    #         model = Model(optimizer_with_attributes(Ipopt.Optimizer, "sb" => "yes"))
+    #         set_silent(model)
 
-            optimize!(model)
-            status = termination_status(model)
+    #         @variable(model, x1)
+    #         @variable(model, y1)
+    #         @variable(model, 0 <= c <= 1)
+    #         @variable(model, -1 <= s <= 1)
+    #         @constraint(model, c^2 + s^2 == 1)
+    #         @variable(model, w >= min_w)
+    #         @variable(model, h >= min_h)
 
-            if status in (MOI.LOCALLY_SOLVED, MOI.OPTIMAL, MOI.ALMOST_LOCALLY_SOLVED, MOI.ALMOST_OPTIMAL)
-                objective_val = objective_value(model)
-                if objective_val > best_objective
-                    x1_val = value(x1)
-                    y1_val = value(y1)
-                    c_val = value(c)
-                    s_val = value(s)
-                    w_val = value(w)
-                    h_val = value(h)
+    #         # Add polygon constraints
+    #         psC_hull = polyGdal.shapeHull(ps0)
+    #         A, b = polyShape.poly2Constraints(psC_hull)
 
-                    if w_val > 0 && h_val > 0
-                        coords = Float64[]
-                        for (px, py) in [(0, 0), (w_val, 0), (w_val, h_val), (0, h_val)]
-                            gx = x1_val + c_val * px - s_val * py
-                            gy = y1_val + s_val * px + c_val * py
-                            append!(coords, [gx, gy])
-                        end
+    #         corners = [[0, 0], [w, 0], [w, h], [0, h]]
+    #         for corner in corners, row in axes(A, 1)
+    #             xg = x1 + c * corner[1] - s * corner[2]
+    #             yg = y1 + s * corner[1] + c * corner[2]
+    #             @constraint(model, A[row, 1] * xg + A[row, 2] * yg <= b[row])
+    #         end
 
-                        mat = reshape(coords, 2, 4)'
-                        ps_opt = PolyShape([mat], 1)
+    #         @objective(model, Max, w * h)
 
-                        best_objective = objective_val
-                        best_solution = (x1_val, y1_val, c_val, s_val, w_val, h_val, ps_opt)
-                    end
-                end
-            end
-        catch e
-            @warn "Optimization failed for $orientation orientation with floors $floors: $e"
-        end
-    end
+    #         optimize!(model)
+    #         status = termination_status(model)
 
-    if best_objective <= 1e-6
-        @warn "No valid solution found for floors $floors"
-        return 0, 0, 0, 0, 0, 0, PolyShape([], 1)
-    end
+    #         if status in (MOI.LOCALLY_SOLVED, MOI.OPTIMAL, MOI.ALMOST_LOCALLY_SOLVED, MOI.ALMOST_OPTIMAL)
+    #             objective_val = objective_value(model)
+    #             if objective_val > best_objective
+    #                 x1_val = value(x1)
+    #                 y1_val = value(y1)
+    #                 c_val = value(c)
+    #                 s_val = value(s)
+    #                 w_val = value(w)
+    #                 h_val = value(h)
+
+    #                 if w_val > 0 && h_val > 0
+    #                     coords = Float64[]
+    #                     for (px, py) in [(0, 0), (w_val, 0), (w_val, h_val), (0, h_val)]
+    #                         gx = x1_val + c_val * px - s_val * py
+    #                         gy = y1_val + s_val * px + c_val * py
+    #                         append!(coords, [gx, gy])
+    #                     end
+
+    #                     mat = reshape(coords, 2, 4)'
+    #                     ps_opt = PolyShape([mat], 1)
+
+    #                     best_objective = objective_val
+    #                     best_solution = (x1_val, y1_val, c_val, s_val, w_val, h_val, ps_opt)
+    #                 end
+    #             end
+    #         end
+    #     catch e
+    #         @warn "Optimization failed for $orientation orientation with floors $floors: $e"
+    #     end
+    # end
+
+    # if best_objective <= 1e-6
+    #     @warn "No valid solution found for floors $floors"
+    #     return 0, 0, 0, 0, 0, 0, PolyShape([], 1)
+    # end
 
     return best_solution
 end
@@ -163,17 +185,7 @@ end
 function quad_opti_vol(vec_psVolteor, vec_altVolteor, n_pisos, alturaPiso, max_ocupacion_suelo, max_losa_snt)
 
     # Get initial solution
-    x1_ini, y1_ini, c_ini, s_ini, w_ini, h_ini, ps0 = quad_opti_sol_ini(vec_psVolteor, n_pisos)
-
-    # Calculate initial dimensions
-    width, height = if isempty(ps0.Vertices)
-        (0.0, 0.0)
-    else
-        vertices = ps0.Vertices[1]
-        x_coords = vertices[:, 1]
-        y_coords = vertices[:, 2]
-        (maximum(x_coords) - minimum(x_coords), maximum(y_coords) - minimum(y_coords))
-    end
+    width, height, ps0 = quad_opti_sol_ini(vec_psVolteor, n_pisos, max_ocupacion_suelo)
 
     # Initialize result
     ps_opt = PolyShape([], 1)
@@ -199,14 +211,14 @@ function quad_opti_vol(vec_psVolteor, vec_altVolteor, n_pisos, alturaPiso, max_o
             if attempt == 1 && width > 0 && height > 0
                 if width > height
                     @variable(model, w >= width * 0.25)
-                    @variable(model, h >= 2.0)
+                    @variable(model, h >= 5.0)
                 else
-                    @variable(model, w >= 2.0)
+                    @variable(model, w >= 5.0)
                     @variable(model, h >= height * 0.25)
                 end
             else
-                @variable(model, w >= 0.1)
-                @variable(model, h >= 0.1)
+                @variable(model, w >= 5.0)
+                @variable(model, h >= 5.0)
             end
 
             # Ground occupation constraint
@@ -429,7 +441,7 @@ end
 # ============================================================================
 # MAIN VOLUME OPTIMIZATION FUNCTION
 # ============================================================================
-function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, vec_pisos, max_ocupacion_suelo, max_losa_snt)
+function opti_edificio_vol(dict_geom, dict_arquitectura, dict_normativa_raw, vec_pisos, max_ocupacion_suelo, max_losa_snt)
 
     # ============================================================================
     # 1. PARAMETER INITIALIZATION
@@ -438,9 +450,9 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
     ps_bruto = dict_geom["ps_bruto"]
     alturaPiso = dict_arquitectura["arq_alturaPiso"]
     flag_sombra = dict_arquitectura["arq_flag_sombra"]
-    alturaMax = dict_requerimientos["norm_altura_max"]
-    rasante = tan(dict_requerimientos["norm_rasante"] * π / 180)
-    rasante_sombra = dict_requerimientos["norm_rasante_sombra"]
+    alturaMax = dict_normativa_raw["norm_altura_max"]
+    rasante = tan(dict_normativa_raw["norm_rasante"] * π / 180)
+    rasante_sombra = dict_normativa_raw["norm_rasante_sombra"]
 
     min_pisos = minimum(vec_pisos)
     max_pisos = maximum(vec_pisos)
@@ -480,7 +492,7 @@ function opti_edificio_vol(dict_geom, dict_arquitectura, dict_requerimientos, ve
             altura_ant = altura
 
             # Calculate buildable area
-            ps_areaEdif = calculate_buildable_area(dict_geom, dict_requerimientos, dict_arquitectura, altura, n_pisos)
+            ps_areaEdif = calculate_buildable_area(dict_geom, dict_normativa_raw, dict_arquitectura, altura, n_pisos)
 
             # Early termination if area too small
             if polyShape.polyArea(ps_areaEdif) < MIN_AREA_THRESHOLD

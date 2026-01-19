@@ -359,15 +359,15 @@ flag_create_table = false; combi_aux = ""; dict_geom = nothing
                 ps_ascensor=results_pisos_superiores["ps_ascensor"],
                 nombre_area_comun="Circulación pisos superiores")
 
-            for (svg_key, svg_content) in dict_svg
-                if startswith(svg_key, "svg_")
-                    svg_file_path = "$(svg_key).svg"
-                    open(svg_file_path, "w") do f
-                        write(f, svg_content)
-                    end
-                    println("Saved SVG to: $svg_file_path")
-                end
-            end
+            # for (svg_key, svg_content) in dict_svg
+            #     if startswith(svg_key, "svg_")
+            #         svg_file_path = "$(svg_key).svg"
+            #         open(svg_file_path, "w") do f
+            #             write(f, svg_content)
+            #         end
+            #         println("Saved SVG to: $svg_file_path")
+            #     end
+            # end
 
             dict_all = OrderedDict{String,Any}()
             dicts = [dict_normativa, dict_proyecto, dict_arquitectura, dict_json, dict_svg]

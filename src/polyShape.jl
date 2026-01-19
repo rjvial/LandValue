@@ -3025,8 +3025,128 @@ function polyShape2json(ps::PolyShape; height::Float64=0.0)::String
 end
 
 
+function polyLargestRect(ps::PolyShape; num_angles::Int=36, num_samples::Int=20)::Tuple{PolyShape, Float64}
+    if ps.NumRegions == 0
+        return (PolyShape(Vector{Matrix{Float64}}(), 0), 0.0)
+    end
+
+    ps_unified = polyShape.polyUnion(ps)
+    if ps_unified.NumRegions == 0
+        return (PolyShape(Vector{Matrix{Float64}}(), 0), 0.0)
+    end
+
+    centroid = polyGdal.shapeCentroid(ps_unified)
+    cx, cy = centroid.Vertices[1, 1], centroid.Vertices[1, 2]
+
+    vec_edges, _ = polyShape.shape2vector(ps_unified)
+    edge_angles = [polyShape.lineAngle(edge) for edge in vec_edges]
+    unique_angles = unique(mod.(edge_angles, pi/2))
+
+    test_angles = collect(range(0, pi/2, length=num_angles))
+    test_angles = unique(vcat(test_angles, unique_angles))
+
+    best_rect = PolyShape(Vector{Matrix{Float64}}(), 0)
+    best_area = 0.0
+    best_angle = 0.0
+
+    for angle in test_angles
+        ps_rotated = polyShape.polyRotate(ps_unified, -angle, [cx, cy])
+        V_rot = ps_rotated.Vertices[1]
+        min_x_rot, max_x_rot = minimum(V_rot[:, 1]), maximum(V_rot[:, 1])
+        min_y_rot, max_y_rot = minimum(V_rot[:, 2]), maximum(V_rot[:, 2])
+
+        step_x = (max_x_rot - min_x_rot) / num_samples
+        step_y = (max_y_rot - min_y_rot) / num_samples
+
+        for i = 1:num_samples
+            for j = 1:num_samples
+                px = min_x_rot + (i - 0.5) * step_x
+                py = min_y_rot + (j - 0.5) * step_y
+
+                test_pt = PointShape([px py], 1)
+                if !polyGdal.shapeContains(ps_rotated, test_pt)
+                    continue
+                end
+
+                max_w = 0.0
+                for w_test in range(step_x, max_x_rot - min_x_rot, length=15)
+                    rect_test = polyShape.polyBox(px - w_test/2, py - step_y/2, w_test, step_y)
+                    intersection = polyShape.polyIntersection(rect_test, ps_rotated)
+                    area_rect = polyShape.polyArea(rect_test)
+                    area_int = polyShape.polyArea(intersection)
+                    if area_rect > 0 && area_int >= 0.99 * area_rect
+                        max_w = w_test
+                    else
+                        break
+                    end
+                end
+                if max_w == 0.0
+                    continue
+                end
+
+                max_h = 0.0
+                for h_test in range(step_y, max_y_rot - min_y_rot, length=15)
+                    rect_test = polyShape.polyBox(px - max_w/2, py - h_test/2, max_w, h_test)
+                    intersection = polyShape.polyIntersection(rect_test, ps_rotated)
+                    area_rect = polyShape.polyArea(rect_test)
+                    area_int = polyShape.polyArea(intersection)
+                    if area_rect > 0 && area_int >= 0.99 * area_rect
+                        max_h = h_test
+                    else
+                        break
+                    end
+                end
+                if max_h == 0.0
+                    continue
+                end
+
+                w_lo, w_hi = max_w * 0.5, max_w
+                for _ = 1:8
+                    w_mid = (w_lo + w_hi) / 2
+                    rect_test = polyShape.polyBox(px - w_mid/2, py - max_h/2, w_mid, max_h)
+                    intersection = polyShape.polyIntersection(rect_test, ps_rotated)
+                    area_rect = polyShape.polyArea(rect_test)
+                    area_int = polyShape.polyArea(intersection)
+                    if area_rect > 0 && area_int >= 0.99 * area_rect
+                        w_lo = w_mid
+                    else
+                        w_hi = w_mid
+                    end
+                end
+                final_w = w_lo
+
+                h_lo, h_hi = max_h * 0.5, max_h
+                for _ = 1:8
+                    h_mid = (h_lo + h_hi) / 2
+                    rect_test = polyShape.polyBox(px - final_w/2, py - h_mid/2, final_w, h_mid)
+                    intersection = polyShape.polyIntersection(rect_test, ps_rotated)
+                    area_rect = polyShape.polyArea(rect_test)
+                    area_int = polyShape.polyArea(intersection)
+                    if area_rect > 0 && area_int >= 0.99 * area_rect
+                        h_lo = h_mid
+                    else
+                        h_hi = h_mid
+                    end
+                end
+                final_h = h_lo
+
+                area = final_w * final_h
+                if area > best_area
+                    best_area = area
+                    best_angle = angle
+                    rect_aligned = polyShape.polyBox(px - final_w/2, py - final_h/2, final_w, final_h)
+                    best_rect = polyShape.polyRotate(rect_aligned, angle, [cx, cy])
+                end
+            end
+        end
+    end
+
+    return (best_rect, best_angle)
+end
+
+
 export isPolyConvex,
-    polyArea, polyDifference, polyOrientation, polyUnion, polyIntersection, polyIntersects, polyOffset,
+    polyArea, polyDifference, polyOrientation, polyUnion, polyIntersection, polyIntersects, polyOffset, polyLargestRect,
     polyEliminaColineales, subShape, shapeVertex, numVertices,
     polyBox, polyRotate, polyReverse, setPolyOrientation, polyCopy, intersectLines,
     lineAngle, halfspaceSignOfPointToLine, lineVec2polyShape, ajustaCoordenadas, polyBoxFromEdge,

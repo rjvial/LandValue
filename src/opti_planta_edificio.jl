@@ -1,3 +1,8 @@
+# ============================================================================
+# STREET PARALLEL EVALUATION
+# Determines which building strip faces the street for terrace placement
+# ============================================================================
+
 function evalua_strip_paralelo_calle(ps_calles, angulo_rotacion, cr, best_layout, ps_planta_normalizado)
     ps_calle_paralela_empty = PolyShape(Vector{Matrix{Float64}}(), 0)
 
@@ -11,6 +16,7 @@ function evalua_strip_paralelo_calle(ps_calles, angulo_rotacion, cr, best_layout
         return false, false, ps_calle_paralela_empty
     end
 
+    # Calculate center of normalized floor plan in original coordinates
     V_planta_norm = ps_planta_normalizado.Vertices[1]
     centro_x_norm = (maximum(V_planta_norm[:, 1]) + minimum(V_planta_norm[:, 1])) / 2
     centro_y_norm = (maximum(V_planta_norm[:, 2]) + minimum(V_planta_norm[:, 2])) / 2
@@ -23,6 +29,7 @@ function evalua_strip_paralelo_calle(ps_calles, angulo_rotacion, cr, best_layout
 
     tolerancia_angulo = deg2rad(20.0)
 
+    # Reference angle depends on layout orientation
     if best_layout == 1
         angulo_strip_ref_norm = pi/2
     else
@@ -30,6 +37,7 @@ function evalua_strip_paralelo_calle(ps_calles, angulo_rotacion, cr, best_layout
     end
     angulo_strip_ref = angulo_strip_ref_norm - angulo_rotacion
 
+    # Helper: check if two angles are parallel (within tolerance)
     function angulo_paralelo(ang1, ang2, tol)
         diff = abs(ang1 - ang2)
         diff = min(diff, 2*pi - diff)
@@ -37,6 +45,7 @@ function evalua_strip_paralelo_calle(ps_calles, angulo_rotacion, cr, best_layout
         return diff < tol || diff_180 < tol
     end
 
+    # Helper: calculate centroid of edge
     function centroide_edge(edge)
         V = edge.Vertices[1]
         cx = sum(V[:, 1]) / size(V, 1)
@@ -44,12 +53,14 @@ function evalua_strip_paralelo_calle(ps_calles, angulo_rotacion, cr, best_layout
         return cx, cy
     end
 
+    # Helper: signed distance from point to strip direction
     function signed_distance_to_strip(cx, cy, centro, angulo_normal)
         dx = cx - centro[1]
         dy = cy - centro[2]
         return dx * cos(angulo_normal) + dy * sin(angulo_normal)
     end
 
+    # Normal angles for each strip depend on layout
     if best_layout == 1
         angulo_normal_strip1 = pi/2 - angulo_rotacion
         angulo_normal_strip2 = -pi/2 - angulo_rotacion
@@ -63,6 +74,7 @@ function evalua_strip_paralelo_calle(ps_calles, angulo_rotacion, cr, best_layout
     found_parallel_strip1 = false
     found_parallel_strip2 = false
 
+    # Find closest parallel street edge to each strip
     for edge in vec_edges_calle
         angulo = polyShape.lineAngle(edge)
         largo = polyShape.lineLength(edge)
@@ -90,6 +102,7 @@ function evalua_strip_paralelo_calle(ps_calles, angulo_rotacion, cr, best_layout
         end
     end
 
+    # Assign street to closest strip
     strip1_paralelo = false
     strip2_paralelo = false
     ps_calle_paralela_strip1 = ps_calle_paralela_empty
@@ -114,9 +127,17 @@ function evalua_strip_paralelo_calle(ps_calles, angulo_rotacion, cr, best_layout
     return strip1_paralelo, strip2_paralelo, ps_calle_paralela_strip1, ps_calle_paralela_strip2
 end
 
+# ============================================================================
+# BUILDING FLOOR PLAN OPTIMIZATION
+# Main function that optimizes apartment distribution across building floors
+# Uses MIP optimization to maximize usable area while respecting constraints
+# ============================================================================
+
 function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_deptos, ps_opt, np_opt, ps_calles=nothing)
 
-    # Rotates floor plan to axis-aligned rectangle with width > height, returns dimensions and transformation
+    # -------------------------------------------------------------------------
+    # HELPER: Normalize floor plan to axis-aligned rectangle
+    # -------------------------------------------------------------------------
     function normaliza_planta_rectangular(ps_planta::PolyShape, layout)
         V_planta = ps_planta.Vertices[1]
         x_cr = sum(V_planta[1:end, 1]) / (size(V_planta, 1) - 1)
@@ -147,6 +168,9 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         return W, H, angulo_rotacion, cr, ps_planta_normalizado
     end
 
+    # -------------------------------------------------------------------------
+    # HELPER: Generate all feasible apartment configurations (width x height)
+    # -------------------------------------------------------------------------
     function compute_depto_configs(vec_area_depto, vec_area_t, dict_arquitectura, flag_especial=false)
         vec_w = collect(6.0:0.5:25.0) #width interior deptos
         vec_h = collect(5.0:0.5:14.0) #height interior deptos
@@ -174,6 +198,9 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         return depto_configs
     end
 
+    # -------------------------------------------------------------------------
+    # HELPER: Interpolate terrace area based on apartment interior area
+    # -------------------------------------------------------------------------
     function interpolate_terrace_area(area::Float64, vec_area_depto::Vector{Float64}, vec_area_t::Vector{Float64})
         if area <= vec_area_depto[1]
             return vec_area_t[1]
@@ -191,6 +218,9 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         return vec_area_t[end]
     end
 
+    # -------------------------------------------------------------------------
+    # HELPER: Generate sequences of similar-sized apartments (max_ratio constraint)
+    # -------------------------------------------------------------------------
     function generate_area_sequences(I_dim_feasible, depto_configs, max_ratio)
         areas = [(i, depto_configs[i].area) for i in I_dim_feasible]
         sort!(areas, by=x->x[2])
@@ -211,6 +241,9 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         return sequences
     end
 
+    # =========================================================================
+    # CORE: MIP optimization for a single layout orientation
+    # =========================================================================
     function opti_planta_edificio_layout(depto_configs, max_constructibilidad, max_deptos,
                                 ps_opt, np_opt, layout, num_threads_highs, flag_especial)
 
@@ -220,6 +253,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         num_pisos = np_opt
         num_strips = 2
 
+        # Filter configs that fit within floor dimensions
         I = 1:length(depto_configs)
         S = 1:num_strips
 
@@ -228,6 +262,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         K = 1:length(sequences)
         I_feasible = I_dim_feasible
 
+        # Setup HiGHS MIP solver
         model = Model(HiGHS.Optimizer)
         set_silent(model)
         set_time_limit_sec(model, 300.0)
@@ -242,7 +277,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         min_width = minimum(cfg.w for cfg in depto_configs)
         max_apts_per_strip = floor(Int, W / min_width)
 
-
+        # Decision variables
         @variables(model, begin
             H_s[s in S] >= 0
             0 <= n[i in I_feasible, s in S] <= max_apts_per_strip, Int
@@ -252,6 +287,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             z[k in K], Bin
         end)
 
+        # Computed expressions for areas and counts
         @expressions(model, begin
             total_num_deptos_por_piso, sum(n[i,s] for i in I_feasible, s in S)
             area_interior_bruta_por_piso, sum(n[i,s] * depto_configs[i].area for i in I_feasible, s in S)
@@ -266,6 +302,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             deptos_total, total_num_deptos_primer_piso + total_num_deptos_por_piso * (num_pisos - 1)
         end)
 
+        # Building and geometric constraints
         @constraints(model, begin
             constraint_buildability, area_util_total <= max_constructibilidad
             constraint_min_deptos, deptos_total >= min_deptos
@@ -280,8 +317,10 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             constraint_primer_fewer_deptos, total_num_deptos_primer_piso <= total_num_deptos_por_piso - 1
         end)
 
+        # Sequence constraint: only one apartment size sequence allowed
         @constraint(model, constraint_one_sequence, sum(z[k] for k in K) == 1)
 
+        # Link apartment types to selected sequence
         for i in I_feasible
             sequences_with_i = [k for k in K if i in sequences[k]]
             if length(sequences_with_i) < length(K)
@@ -289,8 +328,10 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
             end
         end
 
+        # Symmetry breaking: strip 1 has at least as many apartments as strip 2
         @constraint(model, sum(n[i,1] for i in I_feasible) >= sum(n[i,2] for i in I_feasible))
 
+        # Objective: maximize total usable area
         @objective(model, Max, area_util_total)
 
         println("\n" * "="^60)
@@ -306,6 +347,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
 
         optimize!(model)
 
+        # Process optimization results
         results = OrderedDict{String,Any}()
         df_deptos_data = []
 
@@ -321,8 +363,8 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                 scale_factor = (total_width > 0.01 && total_width < W - 0.01) ? W / total_width : 1.0
 
                 for i in I_feasible
-                    num_unidades_superior = value(n[i,s])
-                    num_unidades_primer = value(n_primer[i,s])
+                    num_unidades_superior = round(Int, value(n[i,s]))
+                    num_unidades_primer = round(Int, value(n_primer[i,s]))
                     if num_unidades_superior > 0.001 || num_unidades_primer > 0.001
                         cfg = depto_configs[i]
                         ancho_ajustado = cfg.w * scale_factor
@@ -332,7 +374,6 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
                         # sup_interior_bruta = sup_interior + area_comun (prorrateo)
                         push!(df_deptos_data, (
                             strip = s,
-                            tipo = "simple",
                             sup_interior_bruta = ancho_ajustado * profundidad_ajustada,
                             sup_terraza = ancho_ajustado * profundidad_terraza_ajustada,
                             ancho_interior = ancho_ajustado,
@@ -384,12 +425,17 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
         return results, W, H, angulo_rotacion
     end
 
+    # =========================================================================
+    # MAIN EXECUTION: Run optimization for both layout orientations
+    # =========================================================================
+
     vec_area_t = dict_arquitectura["arq_vecSupTerraza"]
     vec_area_depto = dict_arquitectura["arq_vecSupInterior"]
 
     flag_especial = dict_arquitectura["arq_variante_normativa"] in ["vivienda_economica", "dfl2"]
     depto_configs = compute_depto_configs(vec_area_depto, vec_area_t, dict_arquitectura, flag_especial)
 
+    # Run both layout orientations and compare
     total_threads = Threads.nthreads()
     println("Running layouts SEQUENTIALLY ($(total_threads) threads for HiGHS solver)")
     results_1, W_1, H_1, angulo_1 = opti_planta_edificio_layout(depto_configs, max_constructibilidad, max_deptos,
@@ -397,6 +443,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
     results_2, W_2, H_2, angulo_2 = opti_planta_edificio_layout(depto_configs, max_constructibilidad, max_deptos,
                                 ps_opt, np_opt, 2, total_threads, flag_especial)
 
+    # Select best layout based on usable area
     area_util_1 = results_1["sup_interior_bruta_edificio"] + results_1["sup_terraza_edificio"] * 0.5
     area_util_2 = results_2["sup_interior_bruta_edificio"] + results_2["sup_terraza_edificio"] * 0.5
 
@@ -428,6 +475,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
     results["flag_dfl2"] = false
     results["flag_vivienda_economica"] = false
 
+    # Determine which strip faces the street (for terrace orientation)
     strip1_paralelo, strip2_paralelo, ps_calle_paralela_strip1, ps_calle_paralela_strip2 = evalua_strip_paralelo_calle(
         ps_calles,
         results["angulo_rotacion"],

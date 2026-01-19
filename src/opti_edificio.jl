@@ -217,6 +217,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     max_deptos = dict_normativa["norm_max_unidades"]
 
     dict_edificio_deptos = opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_deptos, ps_opt, np_opt, dict_geom["ps_calles"])
+    # Show rows as dictionary: Dict(pairs(dict_edificio_deptos["df_deptos"][2, :]))
 
     # ============================================================================
     # 5. APARTMENT SHAPE COMPILATION
@@ -251,10 +252,10 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
             "personas" => num_personas_edificio)
     escalera_str = python_expression_eval_with_varmap(ancho_escalera_raw, variable_map)
     escalera_parts = Dict(strip(split(p, "=")[1]) => parse(Float64, split(p, "=")[2]) for p in split(escalera_str, ";"))
-    num_escaleras = escalera_parts["num_escaleras"]
+    num_escaleras = round(Int, escalera_parts["num_escaleras"])
     ancho_escaleras = escalera_parts["ancho_escaleras"]
 
-    num_pisos = Int(np_opt)
+    num_pisos = round(Int, np_opt)
     num_pisos_superiores = num_pisos - 1
 
     dict_edificio_deptos["variante_normativa"] = get(dict_normativa, "variante_normativa", "")
