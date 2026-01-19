@@ -87,9 +87,9 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     # MAIN BUILDING OPTIMIZATION FUNCTION
     # ============================================================================
 
-    profundidad_pasillo = 1.5 # opti_floor_plan
-    min_ancho_pasillo = 4.0 # opti_floor_plan
-    max_ancho_terraza = 4.0 # opti_floor_plan
+    profundidad_pasillo = 1.5 # genera_planta_realista
+    min_ancho_pasillo = 4.0 # genera_planta_realista
+    max_ancho_terraza = 4.0 # genera_planta_realista
 
     dict_normativa = OrderedDict(
         "id_combi" => id_combi,
@@ -260,7 +260,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
 
     dict_edificio_deptos["variante_normativa"] = get(dict_normativa, "variante_normativa", "")
 
-    results = opti_floor_plan(dict_edificio_deptos, max_constructibilidad, num_pisos_superiores,
+    results = genera_planta_realista(dict_edificio_deptos, max_constructibilidad, num_pisos_superiores,
                 profundidad_pasillo=profundidad_pasillo,
                 min_ancho_pasillo=min_ancho_pasillo,
                 num_escaleras=num_escaleras, ancho_escaleras=ancho_escaleras)
