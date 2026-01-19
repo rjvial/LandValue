@@ -205,13 +205,13 @@ using JuMP, HiGHS, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, Optim, OrderedCo
     include("neo4j_julia.jl")
     include("opti_edificio_vol.jl")
     include("opti_edificio.jl")
-    include("opti_planta_edificio.jl")
+    include("opti_planta_teorica.jl")
     include("opti_vol_estacionamiento.jl")
     include("expression_converter.jl")
     include("obtiene_geometrias_combi.jl")
 
     export obtiene_requerimientos_normativos, generaSombraEdificio,
-        genera_planta_realista, opti_planta_edificio, calcula_orientaciones_apartamentos,
+        genera_planta_realista, opti_planta_teorica, calcula_orientaciones_apartamentos,
         polyShape, polyPlot, polyGdal, polyClipper, graphMod, resultConverter, plotBaseEdificio3D, plotBaseEdificio3Dnew, generaSombraTeor,
         pg_julia, aws_julia, neo4j_julia, obtieneCalles, generaPoligonoCorte, create_scr, create_edificio_geojson,
         optimal_pricing, optimal_lot_selection, opti_edificio_vol,

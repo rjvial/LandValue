@@ -2,7 +2,7 @@ using JuMP
 using Cbc
 
 """
-    opti_planta_edificio(W, H, num_strips, set_i, set_w, mat_w, vec_h, vec_a, mat_p, mat_pc, mat_pcc, min_deptos, max_deptos)
+    opti_planta_teorica(W, H, num_strips, set_i, set_w, mat_w, vec_h, vec_a, mat_p, mat_pc, mat_pcc, min_deptos, max_deptos)
 
 Optimiza la asignación de departamentos en strips horizontales para maximizar superficie total.
 
@@ -27,7 +27,7 @@ Optimiza la asignación de departamentos en strips horizontales para maximizar s
 # Returns
 - `Dict{String,Any}`: Diccionario con resultados de optimización
 """
-function opti_planta_edificio(
+function opti_planta_teorica(
     W::Float64,
     H::Float64,
     num_strips::Int,

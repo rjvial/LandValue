@@ -6,7 +6,7 @@
       "Bash(julia -e:*)",
       "Bash(git log:*)",
       "Bash(julia --project=. -e:*)",
-      "Bash(julia --project=. src/ejemplo_opti_planta_edificio.jl:*)",
+      "Bash(julia --project=. src/ejemplo_opti_planta_teorica.jl:*)",
       "Bash(julia --project=.. -e:*)",
       "Read(//c/Users/rjvia/Documents/Land_engines_code/Julia/**)",
       "Bash(sed:*)",

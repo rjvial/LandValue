@@ -222,7 +222,7 @@ flag_create_table = false; combi_aux = ""; dict_geom = nothing
             dict_arquitectura["arq_vecDormitorios"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1, "n_dorm_tipos_comuna"]))
             dict_arquitectura["arq_vecBanos"] = Float64.(JSON.parse(df_tipo_deptos_filtered[1, "n_banos_tipos_comuna"]))
 
-            dict_proyecto, dict_normativa, results_pisos_superiores, results_primer_piso = opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti, id_combi)
+            dict_proyecto, dict_normativa, results_pisos_superiores, results_primer_piso = opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_combi)
 
             ps_planta = dict_proyecto["proyecto_ps_opt"]
 

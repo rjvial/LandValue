@@ -2,7 +2,7 @@
 # FLOOR PLAN LAYOUT OPTIMIZATION
 # ============================================================================
 # This module generates detailed floor plan layouts from building optimization
-# results. It takes apartment counts and dimensions from opti_planta_edificio
+# results. It takes apartment counts and dimensions from opti_planta_teorica
 # and creates actual geometric layouts including:
 #   - Apartment polygons with corridor intersection
 #   - Terraces sized according to apartment area
@@ -21,7 +21,7 @@
 # ============================================================================
 
 # optimiza planta de piso para edificio residencial
-# Input: dict_edificio_deptos from opti_planta_edificio (apartment counts, dimensions, angles)
+# Input: dict_edificio_deptos from opti_planta_teorica (apartment counts, dimensions, angles)
 # Output: OrderedDict with "pisos_superiores" and "primer_piso" layouts
 #         Each contains apartment polygons, terraces, corridor, and circulation core
 

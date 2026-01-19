@@ -82,7 +82,7 @@ function estimacion_ocupacion_suelo_viv_econ(superficieTerreno, max_deptos, sup_
     return sup_ocupacion_est
 end
 
-function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti=nothing, id_combi=nothing)
+function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_combi=nothing)
     # ============================================================================
     # MAIN BUILDING OPTIMIZATION FUNCTION
     # ============================================================================
@@ -216,7 +216,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_opti
     max_constructibilidad = dict_normativa["norm_max_constructibilidad"]
     max_deptos = dict_normativa["norm_max_unidades"]
 
-    dict_edificio_deptos = opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_deptos, ps_opt, np_opt, dict_geom["ps_calles"])
+    dict_edificio_deptos = opti_planta_teorica(dict_arquitectura, max_constructibilidad, max_deptos, ps_opt, np_opt, dict_geom["ps_calles"])
     # Show rows as dictionary: Dict(pairs(dict_edificio_deptos["df_deptos"][2, :]))
 
     # ============================================================================

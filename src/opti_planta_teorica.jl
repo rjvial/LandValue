@@ -133,7 +133,7 @@ end
 # Uses MIP optimization to maximize usable area while respecting constraints
 # ============================================================================
 
-function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_deptos, ps_opt, np_opt, ps_calles=nothing)
+function opti_planta_teorica(dict_arquitectura, max_constructibilidad, max_deptos, ps_opt, np_opt, ps_calles=nothing)
 
     # -------------------------------------------------------------------------
     # HELPER: Normalize floor plan to axis-aligned rectangle
@@ -244,7 +244,7 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
     # =========================================================================
     # CORE: MIP optimization for a single layout orientation
     # =========================================================================
-    function opti_planta_edificio_layout(depto_configs, max_constructibilidad, max_deptos,
+    function opti_planta_teorica_layout(depto_configs, max_constructibilidad, max_deptos,
                                 ps_opt, np_opt, layout, num_threads_highs, flag_especial)
 
         W, H, angulo_rotacion, cr, ps_planta_normalizado = normaliza_planta_rectangular(ps_opt, layout)
@@ -438,9 +438,9 @@ function opti_planta_edificio(dict_arquitectura, max_constructibilidad, max_dept
     # Run both layout orientations and compare
     total_threads = Threads.nthreads()
     println("Running layouts SEQUENTIALLY ($(total_threads) threads for HiGHS solver)")
-    results_1, W_1, H_1, angulo_1 = opti_planta_edificio_layout(depto_configs, max_constructibilidad, max_deptos,
+    results_1, W_1, H_1, angulo_1 = opti_planta_teorica_layout(depto_configs, max_constructibilidad, max_deptos,
                                 ps_opt, np_opt, 1, total_threads, flag_especial)
-    results_2, W_2, H_2, angulo_2 = opti_planta_edificio_layout(depto_configs, max_constructibilidad, max_deptos,
+    results_2, W_2, H_2, angulo_2 = opti_planta_teorica_layout(depto_configs, max_constructibilidad, max_deptos,
                                 ps_opt, np_opt, 2, total_threads, flag_especial)
 
     # Select best layout based on usable area
