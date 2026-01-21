@@ -217,7 +217,7 @@ function opti_edificio(dict_geom, dict_arquitectura, dict_normativa_raw, id_comb
     max_deptos = dict_normativa["norm_max_unidades"]
 
     dict_edificio_deptos = opti_planta_teorica(dict_arquitectura, max_constructibilidad, max_deptos, ps_opt, np_opt, dict_geom["ps_calles"])
-    # Show rows as dictionary: Dict(pairs(dict_edificio_deptos["df_deptos"][2, :]))
+    # Show a row as dictionary: Dict(pairs(dict_edificio_deptos["df_deptos"][2, :]))
 
     # ============================================================================
     # 5. APARTMENT SHAPE COMPILATION

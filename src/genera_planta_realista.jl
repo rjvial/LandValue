@@ -270,6 +270,18 @@ function genera_planta_realista(dict_edificio_deptos, max_constructibilidad::Flo
                     flag_dfl2::Bool = false,
                     flag_vivienda_economica::Bool = false)
 
+            # Extiende un departamento individual y resta geometrías del pasillo, escalera y ascensor
+            function extiende_depto_individual(coord_base::Float64, coord_ini::Float64, dimension1::Float64,
+                        dimension2::Float64, franja::Symbol, is_vertical::Bool,
+                        ps_pasillo::PolyShape, ps_escalera::PolyShape, ps_ascensor::PolyShape)
+
+                extended_poly = polyBoxAligned(coord_base, coord_ini, dimension1, dimension2, franja, is_vertical)
+                extended_poly = polyShape.polyDifference(extended_poly, ps_pasillo)
+                extended_poly = polyShape.polyDifference(extended_poly, ps_escalera)
+                extended_poly = polyShape.polyDifference(extended_poly, ps_ascensor)
+                return extended_poly
+            end
+
             # Procesa extensión de todos los departamentos de una franja
             function procesa_strip_extension(vec_coord_ini::Vector{Float64}, vec_dimension1::Vector{Float64},
                         vec_dimension2::Vector{Float64}, coord_base::Float64, franja::Symbol, is_vertical::Bool,
@@ -298,18 +310,6 @@ function genera_planta_realista(dict_edificio_deptos, max_constructibilidad::Flo
                 end
 
                 return ps_deptos_extendidos, vec_dimension1_ajustada
-            end
-
-            # Extiende un departamento individual y resta geometrías del pasillo, escalera y ascensor
-            function extiende_depto_individual(coord_base::Float64, coord_ini::Float64, dimension1::Float64,
-                        dimension2::Float64, franja::Symbol, is_vertical::Bool,
-                        ps_pasillo::PolyShape, ps_escalera::PolyShape, ps_ascensor::PolyShape)
-
-                extended_poly = polyBoxAligned(coord_base, coord_ini, dimension1, dimension2, franja, is_vertical)
-                extended_poly = polyShape.polyDifference(extended_poly, ps_pasillo)
-                extended_poly = polyShape.polyDifference(extended_poly, ps_escalera)
-                extended_poly = polyShape.polyDifference(extended_poly, ps_ascensor)
-                return extended_poly
             end
 
             # Ajusta dimensiones para cumplir límite de área útil (maximizando área hasta el límite)
@@ -653,14 +653,13 @@ function genera_planta_realista(dict_edificio_deptos, max_constructibilidad::Flo
         # Generar geometrías de departamentos para cada franja
         coord_min_planta = coord_min
         vec_coord_ini1, vec_coord_fin1, vec_dimension1_franja1_deptos, vec_dimension2_franja1_deptos, vec_tipo_deptos1,
-                _ = genera_deptos_franja(mat_deptos_strip1, coord_min_planta,
-                                                is_vertical, coord_base, franja1)
+                _ = genera_deptos_franja(mat_deptos_strip1, coord_min_planta, is_vertical, coord_base, franja1)
         vec_coord_ini2, vec_coord_fin2, vec_dimension1_franja2_deptos, vec_dimension2_franja2_deptos, vec_tipo_deptos2,
-                _ = genera_deptos_franja(mat_deptos_strip2, coord_min_planta,
-                                                is_vertical, coord_base, franja2)
+                _ = genera_deptos_franja(mat_deptos_strip2, coord_min_planta, is_vertical, coord_base, franja2)
 
         # Calcular geometría del pasillo y núcleo
-        ancho_pasillo, ps_pasillo_normalizado, area_escalera, area_ascensor, ps_nucleo, ps_escalera, ps_ascensor = calcula_geometria_pasillo(
+        ancho_pasillo, ps_pasillo_normalizado, area_escalera, area_ascensor, ps_nucleo, 
+        ps_escalera, ps_ascensor = calcula_geometria_pasillo(
                                                 vec_coord_fin1, vec_coord_fin2, vec_coord_ini1, vec_coord_ini2,
                                                 coord_base, profundidad_pasillo, is_vertical,
                                                 W, H,
@@ -704,23 +703,25 @@ function genera_planta_realista(dict_edificio_deptos, max_constructibilidad::Flo
 
         # Extender departamentos hacia pasillo y ajustar constructibilidad
         vec_ps_deptos_franja_1_normalizado, vec_dimension1_franja1_deptos_ext,
-            vec_ps_deptos_franja_2_normalizado, vec_dimension1_franja2_deptos_ext = extiende_deptos_con_interseccion_pasillo(
-                                                                                        vec_profundidad_terraza_strip1, vec_profundidad_terraza_strip2,
-                                                                                        vec_coord_ini1, vec_coord_fin1,
-                                                                                        vec_coord_ini2, vec_coord_fin2,
-                                                                                        coord_base, ps_pasillo_normalizado, ps_escalera, ps_ascensor,
-                                                                                        franja1, franja2, is_vertical,
-                                                                                        H_s_strip1, H_s_strip2,
-                                                                                        vec_terrazas_areas_strip1, vec_terrazas_areas_strip2,
-                                                                                        vec_terrazas_areas_pp_strip1, vec_terrazas_areas_pp_strip2,
-                                                                                        vec_en_primer_piso_strip1, vec_en_primer_piso_strip2,
-                                                                                        num_pisos_superiores,
-                                                                                        max_constructibilidad,
-                                                                                        flag_dfl2,
-                                                                                        flag_vivienda_economica)
+        vec_ps_deptos_franja_2_normalizado, vec_dimension1_franja2_deptos_ext = 
+                    extiende_deptos_con_interseccion_pasillo(vec_profundidad_terraza_strip1, 
+                                vec_profundidad_terraza_strip2,
+                                vec_coord_ini1, vec_coord_fin1,
+                                vec_coord_ini2, vec_coord_fin2,
+                                coord_base, ps_pasillo_normalizado, ps_escalera, ps_ascensor,
+                                franja1, franja2, is_vertical,
+                                H_s_strip1, H_s_strip2,
+                                vec_terrazas_areas_strip1, vec_terrazas_areas_strip2,
+                                vec_terrazas_areas_pp_strip1, vec_terrazas_areas_pp_strip2,
+                                vec_en_primer_piso_strip1, vec_en_primer_piso_strip2,
+                                num_pisos_superiores,
+                                max_constructibilidad,
+                                flag_dfl2,
+                                flag_vivienda_economica)
 
         # Generar geometrías de terrazas
-        vec_terrazas_strip1, vec_terrazas_strip2 = genera_terrazas_ambas_franjas(vec_terrazas_areas_strip1, vec_terrazas_areas_strip2,
+        vec_terrazas_strip1, vec_terrazas_strip2 = genera_terrazas_ambas_franjas(vec_terrazas_areas_strip1, 
+                                            vec_terrazas_areas_strip2,
                                             vec_dimension1_franja1_deptos_ext, vec_dimension1_franja2_deptos_ext,
                                             vec_dimension2_franja1_deptos, vec_dimension2_franja2_deptos,
                                             vec_coord_ini1, vec_coord_ini2,
@@ -730,14 +731,15 @@ function genera_planta_realista(dict_edificio_deptos, max_constructibilidad::Flo
         # Empaquetar resultados en coordenadas normalizadas
         ps_planta = dict_edificio_deptos["ps_planta"]
 
-        results = empaqueta_resultados(dimension_depto1, dimension_depto2, W, H, profundidad_pasillo, ancho_pasillo, ps_pasillo_normalizado,
+        results = empaqueta_resultados(dimension_depto1, dimension_depto2, W, H,
+                                        profundidad_pasillo, ancho_pasillo, ps_pasillo_normalizado,
                                         vec_ps_deptos_franja_1_normalizado, vec_ps_deptos_franja_2_normalizado,
                                         vec_terrazas_strip1, vec_terrazas_strip2,
                                         area_escalera=area_escalera, area_ascensor=area_ascensor, ps_nucleo=ps_nucleo, ps_escalera=ps_escalera, ps_ascensor=ps_ascensor)
 
         results["ps_planta"] = ps_planta
 
-        results_pisos_superiores = results
+        results_pisos_superiores = deepcopy(results)
 
         # Procesar primer piso (puede tener menos departamentos)
         df_deptos = dict_edificio_deptos["df_deptos"]

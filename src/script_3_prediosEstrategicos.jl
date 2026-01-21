@@ -117,9 +117,9 @@ for i_m in eachindex(unique_manzanas)
         end
     end
 
-    x_opt = optimal_lot_selection(C_m, df_predios_m, "con_control")
+    x_opt = optimal_lot_selection(C_m, df_predios_m; tipo_opt="con_control")
     if sum(x_opt) > 1 || sum(x_opt) == 0
-        x_opt = optimal_lot_selection(C_m, df_predios_m, "sin_control")
+        x_opt = optimal_lot_selection(C_m, df_predios_m; tipo_opt="sin_control")
     else
         df_manzanas.tipo_control[i_m] = "con_control"
     end
