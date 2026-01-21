@@ -211,7 +211,7 @@ using JuMP, HiGHS, Cbc, Ipopt, ArchGDAL, DotEnv, LinearAlgebra, Optim, OrderedCo
     include("obtiene_geometrias_combi.jl")
 
     export obtiene_requerimientos_normativos, generaSombraEdificio,
-        genera_planta_realista, opti_planta_teorica, calcula_orientaciones_apartamentos,
+        genera_planta_realista, opti_planta_teorica, calcula_orientacion_departamentos,
         polyShape, polyPlot, polyGdal, polyClipper, graphMod, resultConverter, plotBaseEdificio3D, plotBaseEdificio3Dnew, generaSombraTeor,
         pg_julia, aws_julia, neo4j_julia, obtieneCalles, generaPoligonoCorte, create_scr, create_edificio_geojson,
         optimal_pricing, optimal_lot_selection, opti_edificio_vol,

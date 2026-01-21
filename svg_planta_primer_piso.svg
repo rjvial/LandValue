@@ -1,65 +1,43 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800.0 715.4024702447464" width="800.0" height="715.4024702447464">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800.0 477.52928232109446" width="800.0" height="477.52928232109446">
 <style>
-.depto { fill: #008080; stroke: #2b3636; stroke-width: 2.8832761644425315; }
-.terraza { fill: #2F4F4F; stroke: #2b3636; stroke-width: 2.8832761644425315; }
-.pasillo { fill: #CBD5E0; stroke: #2b3636; stroke-width: 2.8832761644425315; }
-.escalera { fill: #bfb4a8; stroke: #2b3636; stroke-width: 2.8832761644425315; }
-.ascensor { fill: #918981; stroke: #2b3636; stroke-width: 2.8832761644425315; }
-.otros-espacios { fill: #826d57; stroke: #2b3636; stroke-width: 2.8832761644425315; }
+.depto { fill: #008080; stroke: #2b3636; stroke-width: 2.4709547635824576; }
+.terraza { fill: #2F4F4F; stroke: #2b3636; stroke-width: 2.4709547635824576; }
+.pasillo { fill: #CBD5E0; stroke: #2b3636; stroke-width: 2.4709547635824576; }
+.escalera { fill: #bfb4a8; stroke: #2b3636; stroke-width: 2.4709547635824576; }
+.ascensor { fill: #918981; stroke: #2b3636; stroke-width: 2.4709547635824576; }
+.otros-espacios { fill: #826d57; stroke: #2b3636; stroke-width: 2.4709547635824576; }
 .unidad-depto:hover .depto, .unidad-depto:hover .terraza { filter: brightness(1.15); cursor: pointer; }
 .unidad-comun:hover { filter: brightness(1.15); cursor: pointer; }
 </style>
-<g class="unidad-comun" data-tipo="pasillo" data-nombre="Circulación primer piso" data-sup-comun="11.79">
+<g class="unidad-comun" data-tipo="pasillo" data-nombre="Circulación primer piso" data-sup-comun="8.67">
 <title>Circulación primer piso
-Superficie: 11.79 m²</title>
-<path class="pasillo" d="M 256.30719245922614 356.7446953532312 L 482.0216018197188 377.04557254707936 L 485.8958150246516 333.97030358515326 L 260.181405664159 313.66942639130514 Z"/>
+Superficie: 8.67 m²</title>
+<path class="pasillo" d="M 415.22036957917646 168.68144737418135 L 395.75918983168395 310.17050512547553 L 432.477803434961 315.22098429870016 L 451.93898318245346 173.73192654740603 Z"/>
 </g>
 <g class="unidad-comun" data-tipo="escalera" data-sup-comun="17.34">
 <title>Escalera
 Superficie: 17.34 m²</title>
-<path class="escalera" d="M 320.0331327194492 319.1404018713982 L 486.0165024527377 334.0690367544062 L 493.7649288626035 247.91849883055403 L 327.78155912931487 232.9898639475461 Z"/>
+<path class="escalera" d="M 432.3964249369171 315.2708826378419 L 505.8336521434711 325.37184098429134 L 525.2948318909636 183.88278323299704 L 451.8576046844095 173.78182488654767 Z"/>
 </g>
 <g class="unidad-comun" data-tipo="ascensor" data-sup-comun="14.45">
 <title>Ascensor
 Superficie: 14.45 m²</title>
-<path class="ascensor" d="M 309.7018975050775 434.0077857697583 L 475.685267238366 448.9364206527663 L 482.14228924658744 377.14430571622285 L 316.15891951329894 362.2156708332148 Z"/>
+<path class="ascensor" d="M 334.48012199484486 301.8029381759094 L 395.67781133363997 310.2204034646172 L 415.1389910811325 168.73134571332292 L 353.94130174233743 160.3138804246151 Z"/>
 </g>
-<g class="unidad-comun" data-tipo="otros-espacios" data-sup-comun="71.61">
+<g class="unidad-comun" data-tipo="otros-espacios" data-sup-comun="125.67">
 <title>Otros espacios comunes
-Superficie: 71.61 m²</title>
-<path class="otros-espacios" d="M 258.2442990616926 335.20706087226813 L 79.0511801800801 319.0903339397475 L 57.66552328885063 556.8658186095794 L 320.99900087609217 580.5501753357356 L 333.99052915663367 436.1044400834102 L 309.581210078209 433.9090526006149 L 316.0382320864304 362.11693766407143 L 256.30719245922614 356.7446953532312 Z"/>
+Superficie: 125.67 m²</title>
+<path class="otros-espacios" d="M 404.0512081480279 385.8881811612868 L 711.0188178714241 428.1101870494453 L 750.5809047283509 140.48104715710838 L 443.61329500495464 98.25904126894994 L 433.57967638081493 171.2066869607936 L 525.3762103890076 183.83288489385535 L 505.91503064151505 325.3219426451496 L 414.1184966333225 312.6957447120879 Z"/>
 </g>
-<g class="unidad-depto" data-depto-tipo="A" data-stack="101" data-sup-interior="53.59" data-sup-terraza="12.08" data-sup-util="59.63" data-orientacion="Po" data-num-dormitorios="1" data-num-banos="1" data-vertices-depto="[[[14.5613,22.3771],[15.6171,22.2821],[16.2172,28.9552],[8.9466,29.6091],[8.2792,22.189],[14.4941,21.6301]]]" data-vertices-terraza="[[[8.9424,29.6085],[16.2182,28.9541],[16.3663,30.6016],[9.0906,31.256]]]" data-edge-lengths="{&quot;N&quot;:1.06,&quot;E&quot;:6.7,&quot;S&quot;:7.3,&quot;O&quot;:7.45}">
+<g class="unidad-depto" data-depto-tipo="A" data-stack="101" data-sup-interior="128.44" data-sup-terraza="23.0" data-sup-util="139.94" data-orientacion="S" data-num-dormitorios="3" data-num-banos="3" data-vertices-depto="[[[19.187,17.59],[22.4067,17.1471],[22.8127,20.0993],[10.3996,21.8067],[8.7985,10.1663],[21.2116,8.4589],[21.6191,11.4211],[18.3994,11.8639]]]" data-vertices-terraza="[[[6.8596,10.4356],[8.7988,10.1689],[10.3999,21.8092],[8.4607,22.0759]]]" data-edge-lengths="{&quot;N&quot;:3.25,&quot;E&quot;:2.98,&quot;S&quot;:12.53,&quot;O&quot;:11.75}">
 <title>Depto Tipo A – 101
-Sup interior: 53.59 m²
-Sup terraza: 12.08 m²
-Sup útil: 59.63 m²
-Orientación: Po
-Dormitorios: 1
-Baños: 1</title>
-<path class="depto" d="M 260.181405664159 313.66942639130514 L 290.6212623972534 316.40720372279094 L 307.9260813792869 124.00433569285451 L 98.29310576457995 105.14983142884796 L 79.0511801800801 319.0903339397475 L 258.2442990616926 335.20706087226813 Z"/>
-<path class="terraza" d="M 98.17350454522038 105.16588435284518 L 307.95313835112336 124.03357913462764 L 312.2253467553441 76.5332180706331 L 102.44571294944103 57.665523288850636 Z"/>
-</g>
-<g class="unidad-depto" data-depto-tipo="B" data-stack="102" data-sup-interior="89.82" data-sup-terraza="22.46" data-sup-util="101.05" data-orientacion="N-Or" data-num-dormitorios="2" data-num-banos="2" data-vertices-depto="[[[16.9017,25.1787],[22.6585,24.6609],[22.3225,20.926],[30.619,20.1798],[31.2837,27.57],[16.2145,28.9253],[15.6171,22.2821],[16.633,22.1907]]]" data-vertices-terraza="[[[17.115,28.8432],[30.3871,27.6495],[30.5381,29.3279],[17.2659,30.5216]]]" data-edge-lengths="{&quot;N&quot;:5.78,&quot;E&quot;:3.75,&quot;S&quot;:8.33,&quot;O&quot;:7.42}">
-<title>Depto Tipo B – 102
-Sup interior: 89.82 m²
-Sup terraza: 22.46 m²
-Sup útil: 101.05 m²
-Orientación: N-Or
-Dormitorios: 2
-Baños: 2</title>
-<path class="depto" d="M 327.66087170122904 232.89113077829325 L 493.64424143451737 247.81976566130118 L 483.9587084221852 355.5079380661163 L 723.1700353907481 377.02273539751025 L 742.3344767111494 163.94373826584922 L 307.8485971151882 124.86584107209308 L 290.6212623972534 316.40720372279094 L 319.9124452913632 319.04166870214533 Z"/>
-<path class="terraza" d="M 333.81026506222895 127.23208719335003 L 716.4837798718157 161.64995201420106 L 720.8362509309551 113.25719415494962 L 338.16273612136837 78.83932933409858 Z"/>
-</g>
-<g class="unidad-depto" data-depto-tipo="C" data-stack="103" data-sup-interior="93.9" data-sup-terraza="19.5" data-sup-util="103.65" data-orientacion="S" data-num-dormitorios="2" data-num-banos="3" data-vertices-depto="[[[17.1212,18.1307],[16.6697,13.1109],[29.8764,11.9231],[30.619,20.1798],[22.3225,20.926],[22.0314,17.689]]]" data-vertices-terraza="[[[16.669,11.6084],[29.6168,10.4438],[29.7511,11.9378],[16.8034,13.1023]]]" data-edge-lengths="{&quot;N&quot;:5.04,&quot;E&quot;:13.26,&quot;S&quot;:8.29,&quot;O&quot;:8.33}">
-<title>Depto Tipo C – 103
-Sup interior: 93.9 m²
-Sup terraza: 19.5 m²
-Sup útil: 103.65 m²
+Sup interior: 128.44 m²
+Sup terraza: 23.0 m²
+Sup útil: 139.94 m²
 Orientación: S
-Dormitorios: 2
+Dormitorios: 3
 Baños: 3</title>
-<path class="depto" d="M 333.99052915663367 436.1044400834102 L 320.97317278805923 580.8373437954817 L 701.7585504114858 615.0853885270883 L 723.1700353907481 377.02273539751025 L 483.9587084221852 355.5079380661163 L 475.56457981149737 448.83768748362286 Z"/>
-<path class="terraza" d="M 320.9525406628549 624.1604325131443 L 694.2715383328809 657.7369469558957 L 698.1457515378137 614.6616779939696 L 324.8267538677878 581.0851635512182 Z"/>
+<path class="depto" d="M 354.02268024038136 160.2639820854734 L 433.57967638081493 171.2066869607936 L 443.61329500495464 98.25904126894994 L 136.8904760389139 56.0707052419462 L 97.32838918198708 343.6998451342832 L 404.0512081480279 385.8881811612868 L 414.1184966333225 312.6957447120879 L 334.5615004928889 301.7530398367677 Z"/>
+<path class="terraza" d="M 49.41909527164915 337.04473695737437 L 97.33616672301632 343.6355133418469 L 136.8977724174508 56.00987165612179 L 88.98070096608363 49.419095271649155 Z"/>
 </g>
 </svg>

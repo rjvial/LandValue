@@ -171,8 +171,8 @@ const PRIMARY_KEY = "id_opti"
 const TABLE_NAME = "tabla_resultados_optimizacion"
 const PRIORITY_KEYS = ["id_opti", "id_combi", "flag_sombra", "arq_variante_normativa", "arq_tipo_edificio"]
 
-# let flag_create_table = false, combi_aux = "", dict_geom = nothing
-flag_create_table = false; combi_aux = ""; dict_geom = nothing
+let flag_create_table = false, combi_aux = "", dict_geom = nothing
+# flag_create_table = false; combi_aux = ""; dict_geom = nothing
 
     # Check if results table already exists
     table_check_query = """
@@ -196,19 +196,19 @@ flag_create_table = false; combi_aux = ""; dict_geom = nothing
             vec_predios = parse.(Int, split(strip(df_combis_row[1, "list_predios"], ['(', ')']), ';'))
 
             # Process geometry once per combi
-            # if id_combi != combi_aux
+            if id_combi != combi_aux
                 println("\nProcessing Combi ID: $id_combi\n")
                 df_combined_row = filter(r -> r.id_combi == id_combi, df_combined)
 
-                # if nrow(df_combined_row) == 0
-                #     println("WARNING: No geometry data for id_combi = $id_combi. Skipping...")
-                #     update_optimization_status(conn_postgres, id_opti, 9)
-                #     continue
-                # end
+                if nrow(df_combined_row) == 0
+                    println("WARNING: No geometry data for id_combi = $id_combi. Skipping...")
+                    update_optimization_status(conn_postgres, id_opti, 9)
+                    continue
+                end
 
                 dict_geom = obtiene_geometrias_combi(df_combined_row)
                 combi_aux = id_combi
-            # end
+            end
 
             println("Processing ID Opti: $(id_opti)")
 
@@ -226,57 +226,55 @@ flag_create_table = false; combi_aux = ""; dict_geom = nothing
 
             ps_planta = dict_proyecto["proyecto_ps_opt"]
 
-            println("Plotting Pisos Superiores...")
-            fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
-            for apt_poly in results_pisos_superiores["vec_ps_deptos_interior_all"]
-                polyPlot.plotPolyshape2D(apt_poly, "#008080", 0.6, fig=fig, ax=ax, ax_mat=ax_mat)
-            end
-            for terrace in results_pisos_superiores["vec_ps_terrazas_all"]
-                if polyShape.polyArea(terrace) > 0.0
-                    polyPlot.plotPolyshape2D(terrace, "#2F4F4F", 0.6, fig=fig, ax=ax, ax_mat=ax_mat)
-                end
-            end
-            if !isnothing(results_pisos_superiores["ps_pasillo"])
-                polyPlot.plotPolyshape2D(results_pisos_superiores["ps_pasillo"], "#CBD5E0", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
-            end
-            if !isnothing(results_pisos_superiores["ps_ascensor"])
-                polyPlot.plotPolyshape2D(results_pisos_superiores["ps_ascensor"], "#918981", 0.99, fig=fig, ax=ax, ax_mat=ax_mat)
-            end
-            if !isnothing(results_pisos_superiores["ps_escalera"])
-                polyPlot.plotPolyshape2D(results_pisos_superiores["ps_escalera"], "#bfb4a8", 0.99, fig=fig, ax=ax, ax_mat=ax_mat)
-            end
+            # println("Plotting Pisos Superiores...")
+            # fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
+            # for apt_poly in results_pisos_superiores["vec_ps_deptos_interior_all"]
+            #     polyPlot.plotPolyshape2D(apt_poly, "#008080", 0.6, fig=fig, ax=ax, ax_mat=ax_mat)
+            # end
+            # for terrace in results_pisos_superiores["vec_ps_terrazas_all"]
+            #     if polyShape.polyArea(terrace) > 0.0
+            #         polyPlot.plotPolyshape2D(terrace, "#2F4F4F", 0.6, fig=fig, ax=ax, ax_mat=ax_mat)
+            #     end
+            # end
+            # if !isnothing(results_pisos_superiores["ps_pasillo"])
+            #     polyPlot.plotPolyshape2D(results_pisos_superiores["ps_pasillo"], "#CBD5E0", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
+            # end
+            # if !isnothing(results_pisos_superiores["ps_ascensor"])
+            #     polyPlot.plotPolyshape2D(results_pisos_superiores["ps_ascensor"], "#918981", 0.99, fig=fig, ax=ax, ax_mat=ax_mat)
+            # end
+            # if !isnothing(results_pisos_superiores["ps_escalera"])
+            #     polyPlot.plotPolyshape2D(results_pisos_superiores["ps_escalera"], "#bfb4a8", 0.99, fig=fig, ax=ax, ax_mat=ax_mat)
+            # end
 
-            println("Plotting Primer Piso...")
-            ps_planta = results_primer_piso["ps_planta"]
-            fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
-            for apt_poly in results_primer_piso["vec_ps_deptos_interior_all"]
-                polyPlot.plotPolyshape2D(apt_poly, "#008080", 0.6, fig=fig, ax=ax, ax_mat=ax_mat)
-            end
-            for terrace in results_primer_piso["vec_ps_terrazas_all"]
-                if polyShape.polyArea(terrace) > 0.0
-                    polyPlot.plotPolyshape2D(terrace, "#2F4F4F", 0.6, fig=fig, ax=ax, ax_mat=ax_mat)
-                end
-            end
-            if !isnothing(results_primer_piso["ps_pasillo"])
-                polyPlot.plotPolyshape2D(results_primer_piso["ps_pasillo"], "#CBD5E0", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
-            end
-            if !isnothing(results_primer_piso["ps_ascensor"])
-                polyPlot.plotPolyshape2D(results_primer_piso["ps_ascensor"], "#918981", 0.99, fig=fig, ax=ax, ax_mat=ax_mat)
-            end
-            if !isnothing(results_primer_piso["ps_escalera"])
-                polyPlot.plotPolyshape2D(results_primer_piso["ps_escalera"], "#bfb4a8", 0.99, fig=fig, ax=ax, ax_mat=ax_mat)
-            end
-            if !isnothing(results_primer_piso["ps_otros_espacios_comunes"])
-                polyPlot.plotPolyshape2D(results_primer_piso["ps_otros_espacios_comunes"], "#826d57", 0.99, fig=fig, ax=ax, ax_mat=ax_mat)
-            end
+            # println("Plotting Primer Piso...")
+            # ps_planta = results_primer_piso["ps_planta"]
+            # fig, ax, ax_mat = polyPlot.plotPolyshape2D(ps_planta, "green", 0.2)
+            # for apt_poly in results_primer_piso["vec_ps_deptos_interior_all"]
+            #     polyPlot.plotPolyshape2D(apt_poly, "#008080", 0.6, fig=fig, ax=ax, ax_mat=ax_mat)
+            # end
+            # for terrace in results_primer_piso["vec_ps_terrazas_all"]
+            #     if polyShape.polyArea(terrace) > 0.0
+            #         polyPlot.plotPolyshape2D(terrace, "#2F4F4F", 0.6, fig=fig, ax=ax, ax_mat=ax_mat)
+            #     end
+            # end
+            # if !isnothing(results_primer_piso["ps_pasillo"])
+            #     polyPlot.plotPolyshape2D(results_primer_piso["ps_pasillo"], "#CBD5E0", 0.9, fig=fig, ax=ax, ax_mat=ax_mat)
+            # end
+            # if !isnothing(results_primer_piso["ps_ascensor"])
+            #     polyPlot.plotPolyshape2D(results_primer_piso["ps_ascensor"], "#918981", 0.99, fig=fig, ax=ax, ax_mat=ax_mat)
+            # end
+            # if !isnothing(results_primer_piso["ps_escalera"])
+            #     polyPlot.plotPolyshape2D(results_primer_piso["ps_escalera"], "#bfb4a8", 0.99, fig=fig, ax=ax, ax_mat=ax_mat)
+            # end
+            # if !isnothing(results_primer_piso["ps_otros_espacios_comunes"])
+            #     polyPlot.plotPolyshape2D(results_primer_piso["ps_otros_espacios_comunes"], "#826d57", 0.99, fig=fig, ax=ax, ax_mat=ax_mat)
+            # end
 
-
-            println("Area  primer piso")
 
             vec_info_deptos_primer_piso = Vector{OrderedDict{String,Any}}()
             vec_ps_deptos_pp = results_primer_piso["vec_ps_deptos_interior_all"]
             vec_ps_terrazas_pp = results_primer_piso["vec_ps_terrazas_all"]
-            vec_orientaciones_pp = calcula_orientaciones_apartamentos(vec_ps_deptos_pp, results_primer_piso["ps_pasillo"])
+            vec_orientaciones_pp = calcula_orientacion_departamentos(vec_ps_deptos_pp, results_primer_piso["ps_pasillo"])
             vec_sup_interior = dict_arquitectura["arq_vecSupInterior"]
             vec_dormitorios = dict_arquitectura["arq_vecDormitorios"]
             vec_banos = dict_arquitectura["arq_vecBanos"]
@@ -359,15 +357,15 @@ flag_create_table = false; combi_aux = ""; dict_geom = nothing
                 ps_ascensor=results_pisos_superiores["ps_ascensor"],
                 nombre_area_comun="Circulación pisos superiores")
 
-            # for (svg_key, svg_content) in dict_svg
-            #     if startswith(svg_key, "svg_")
-            #         svg_file_path = "$(svg_key).svg"
-            #         open(svg_file_path, "w") do f
-            #             write(f, svg_content)
-            #         end
-            #         println("Saved SVG to: $svg_file_path")
-            #     end
-            # end
+            for (svg_key, svg_content) in dict_svg
+                if startswith(svg_key, "svg_")
+                    svg_file_path = "$(svg_key).svg"
+                    open(svg_file_path, "w") do f
+                        write(f, svg_content)
+                    end
+                    println("Saved SVG to: $svg_file_path")
+                end
+            end
 
             dict_all = OrderedDict{String,Any}()
             dicts = [dict_normativa, dict_proyecto, dict_arquitectura, dict_json, dict_svg]
@@ -377,7 +375,7 @@ flag_create_table = false; combi_aux = ""; dict_geom = nothing
                     dict_all[key] = processValue(value, dict_geom)
                 end
             end
-            fig, ax, ax_mat = plotBaseEdificio3Dnew(fpe, dict_arquitectura["arq_alturaPiso"], dict_geom["ps_combi"], dict_all, results_primer_piso, results_pisos_superiores, num_pisos_superiores)
+            # fig, ax, ax_mat = plotBaseEdificio3Dnew(fpe, dict_arquitectura["arq_alturaPiso"], dict_geom["ps_combi"], dict_all, results_primer_piso, results_pisos_superiores, num_pisos_superiores)
 
             vecColumnNames, vecColumnTypes = dict2tablevec(dict_all, PRIMARY_KEY)
             if flag_create_table
@@ -403,6 +401,6 @@ flag_create_table = false; combi_aux = ""; dict_geom = nothing
         end
     end
 
-# end
+end
 
 println("All optimizations completed successfully!")
