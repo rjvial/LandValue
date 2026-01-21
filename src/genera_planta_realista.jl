@@ -300,7 +300,7 @@ function genera_planta_realista(dict_edificio_deptos, max_constructibilidad::Flo
                         area_depto = polyShape.polyArea(extended_poly)
                         profundidad_promedio = area_depto / vec_dimension2[i]
                         diferencia = profundidad_promedio - max_profundidad_interior
-                        if abs(diferencia) > 0.01
+                        if diferencia > 0.01
                             vec_dimension1_ajustada[i] = vec_dimension1_ajustada[i] - diferencia
                             extended_poly = extiende_depto_individual(coord_base, vec_coord_ini[i], vec_dimension1_ajustada[i],
                                                 vec_dimension2[i], franja, is_vertical, ps_pasillo, ps_escalera, ps_ascensor)
