@@ -1,4 +1,4 @@
-function optimal_lot_selection(C, df; tipo_opt="sin_control")
+function optimal_lot_selection(C, df)
     numCombi, numPredios = size(C)
 
     model = JuMP.Model(Cbc.Optimizer)
@@ -24,11 +24,7 @@ function optimal_lot_selection(C, df; tipo_opt="sin_control")
         [j in combi_ids, k in predio_ids; C[j,k] == 0], y[j] + x[k] <= 1
     end)
 
-    if tipo_opt == "con_control"
-        @constraint(model, [j in combi_ids], sum(C[j,:] .* x) >= 1)
-    else
-        @constraint(model, sum(x) >= 1)
-    end
+    @constraint(model, [j in combi_ids], sum(C[j,:] .* x) >= 1)
 
     @objective(model, Min, sum(x) + sum(df.sup_terreno_sii .* x) / 1e5)
     optimize!(model)

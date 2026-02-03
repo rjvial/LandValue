@@ -1,49 +1,115 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800.0 456.70123369924175" width="800.0" height="456.70123369924175">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800.0 651.4014289347" width="800.0" height="651.4014289347">
 <style>
-.depto { fill: #008080; stroke: #2b3636; stroke-width: 2.331325269535306; }
-.terraza { fill: #2F4F4F; stroke: #2b3636; stroke-width: 2.331325269535306; }
-.pasillo { fill: #CBD5E0; stroke: #2b3636; stroke-width: 2.331325269535306; }
-.escalera { fill: #bfb4a8; stroke: #2b3636; stroke-width: 2.331325269535306; }
-.ascensor { fill: #918981; stroke: #2b3636; stroke-width: 2.331325269535306; }
-.otros-espacios { fill: #826d57; stroke: #2b3636; stroke-width: 2.331325269535306; }
+.depto { fill: #008080; stroke: #2b3636; stroke-width: 1.6784089894859378; }
+.terraza { fill: #2F4F4F; stroke: #2b3636; stroke-width: 1.6784089894859378; }
+.pasillo { fill: #CBD5E0; stroke: #2b3636; stroke-width: 1.6784089894859378; }
+.escalera { fill: #bfb4a8; stroke: #2b3636; stroke-width: 1.6784089894859378; }
+.ascensor { fill: #918981; stroke: #2b3636; stroke-width: 1.6784089894859378; }
+.otros-espacios { fill: #826d57; stroke: #2b3636; stroke-width: 1.6784089894859378; }
 .unidad-depto:hover .depto, .unidad-depto:hover .terraza { filter: brightness(1.15); cursor: pointer; }
 .unidad-comun:hover { filter: brightness(1.15); cursor: pointer; }
 </style>
-<g class="unidad-comun" data-tipo="pasillo" data-nombre="Circulación pisos superiores" data-sup-comun="8.67">
+<g class="unidad-comun" data-tipo="pasillo" data-nombre="Circulación pisos superiores" data-sup-comun="28.5">
 <title>Circulación pisos superiores
-Superficie: 8.67 m²</title>
-<path class="pasillo" d="M 391.75696548255314 159.14954274398457 L 373.3955042413449 292.6432920265885 L 408.03921080257436 297.40837712378783 L 426.4006720437825 163.91462784118391 Z"/>
+Superficie: 28.5 m²</title>
+<path class="pasillo" d="M 261.29355794017494 395.620656163228 L 552.1030093204436 264.75579778999867 L 541.7715731330833 241.79715689155637 L 250.96212175281474 372.66201526478574 Z"/>
 </g>
-<g class="unidad-comun" data-tipo="escalera" data-sup-comun="17.34">
+<g class="unidad-comun" data-tipo="escalera" data-sup-comun="22.97">
 <title>Escalera
-Superficie: 17.34 m²</title>
-<path class="escalera" d="M 407.96243086646103 297.4554557917843 L 477.24984398891985 306.985625986183 L 495.611305230128 173.491876703579 L 426.3238921076692 163.96170650918032 Z"/>
+Superficie: 22.97 m²</title>
+<path class="escalera" d="M 343.6745720597605 331.005531110934 L 441.3253246811349 287.06248919402856 L 416.5298778314704 231.96175103776704 L 318.87912521009605 275.90479295467253 Z"/>
 </g>
-<g class="unidad-comun" data-tipo="ascensor" data-sup-comun="14.45">
+<g class="unidad-comun" data-tipo="ascensor" data-sup-comun="15.95">
 <title>Ascensor
-Superficie: 14.45 m²</title>
-<path class="ascensor" d="M 315.57921336984924 284.74856219925266 L 373.3187243052316 292.6903706945849 L 391.68018554643976 159.1966214119809 L 333.9406746110575 151.2548129166487 Z"/>
+Superficie: 15.95 m²</title>
+<path class="ascensor" d="M 371.22506855938775 392.2285735067799 L 468.87582118076216 348.2855315898746 L 451.65676086849504 310.0211300924708 L 354.0060082471207 353.9641720093762 Z"/>
 </g>
-<g class="unidad-depto" data-depto-tipo="A" data-stack="201 - 401" data-sup-interior="125.67" data-sup-terraza="23.0" data-sup-util="137.17" data-orientacion="Or" data-num-dormitorios="3" data-num-banos="3" data-vertices-depto="[[[21.2116,8.4589],[33.6347,6.7502],[35.2358,18.3906],[22.8127,20.0993],[22.4067,17.1471],[26.1217,16.6362],[25.3341,10.9101],[21.6191,11.4211]]]" data-vertices-terraza="[[[33.6346,6.7529],[35.5738,6.4861],[37.1748,18.1264],[35.2356,18.3931]]]" data-edge-lengths="{&quot;N&quot;:12.54,&quot;E&quot;:11.75,&quot;S&quot;:12.54,&quot;O&quot;:2.98}">
+<g class="unidad-depto" data-depto-tipo="A" data-stack="201 - 401" data-sup-interior="85.85" data-sup-terraza="15.0" data-sup-util="93.35" data-orientacion="N-Po" data-num-dormitorios="2" data-num-banos="2" data-vertices-depto="[[[15.2927,21.4197],[24.4119,25.5234],[20.889,33.3522],[11.7697,29.2486]]]" data-vertices-terraza="[[[11.7697,29.2486],[20.889,33.3522],[20.2734,34.7201],[11.1542,30.6165]]]" data-edge-lengths="{&quot;N&quot;:10.0,&quot;E&quot;:8.58,&quot;S&quot;:10.0,&quot;O&quot;:8.58}">
 <title>Depto Tipo A – 201 - 401
-Sup interior: 125.67 m²
-Sup terraza: 23.0 m²
-Sup útil: 137.17 m²
-Orientación: Or
-Dormitorios: 3
-Baños: 3</title>
-<path class="depto" d="M 381.21895456154226 364.0822896539055 L 670.8403414134201 403.9184010664921 L 708.1668413414817 132.54269967019508 L 418.5454544896038 92.70658825760853 L 409.07881876316776 161.5320852925842 L 495.6880851662413 173.4447980355826 L 477.3266239250331 306.9385473181866 L 390.7173575219596 295.02583457518824 Z"/>
-<path class="terraza" d="M 670.8380902460635 403.85638560253625 L 716.0474486540421 410.0747283085356 L 753.3734946092939 138.70232744108375 L 708.1641362013153 132.4839847350844 Z"/>
+Sup interior: 85.85 m²
+Sup terraza: 15.0 m²
+Sup útil: 93.35 m²
+Orientación: N-Po
+Dormitorios: 2
+Baños: 2</title>
+<path class="depto" d="M 103.02977493411883 453.1000950061583 L 256.0873809237339 384.2238537570903 L 196.9572219666941 252.82410824800485 L 43.89961597707897 321.700349497073 Z"/>
+<path class="terraza" d="M 43.89961597707897 321.700349497073 L 196.9572219666941 252.82410824800485 L 186.62578577933388 229.86546734956266 L 33.568179789718755 298.74170859863074 Z"/>
 </g>
-<g class="unidad-depto" data-depto-tipo="B" data-stack="202 - 402" data-sup-interior="128.44" data-sup-terraza="23.0" data-sup-util="139.94" data-orientacion="Po" data-num-dormitorios="3" data-num-banos="3" data-vertices-depto="[[[19.187,17.59],[22.4067,17.1471],[22.8127,20.0993],[10.3996,21.8067],[8.7985,10.1663],[21.2116,8.4589],[21.6191,11.4211],[18.3994,11.8639]]]" data-vertices-terraza="[[[6.8596,10.4356],[8.7988,10.1689],[10.3999,21.8092],[8.4607,22.0759]]]" data-edge-lengths="{&quot;N&quot;:3.25,&quot;E&quot;:2.98,&quot;S&quot;:12.53,&quot;O&quot;:11.75}">
+<g class="unidad-depto" data-depto-tipo="B" data-stack="202 - 402" data-sup-interior="61.24" data-sup-terraza="15.0" data-sup-util="68.74" data-orientacion="S-Po" data-num-dormitorios="2" data-num-banos="2" data-vertices-depto="[[[28.1555,31.982],[31.2925,33.3937],[29.5895,37.1781],[20.9262,33.2797],[24.1066,26.2123],[29.6328,28.6991]]]" data-vertices-terraza="[[[20.9213,33.2802],[29.5846,37.1787],[28.9366,38.6186],[20.2734,34.7201]]]" data-edge-lengths="{&quot;N&quot;:3.44,&quot;E&quot;:4.15,&quot;S&quot;:9.5,&quot;O&quot;:7.75}">
 <title>Depto Tipo B – 202 - 402
-Sup interior: 128.44 m²
-Sup terraza: 23.0 m²
-Sup útil: 139.94 m²
-Orientación: Po
+Sup interior: 61.24 m²
+Sup terraza: 15.0 m²
+Sup útil: 68.74 m²
+Orientación: S-Po
+Dormitorios: 2
+Baños: 2</title>
+<path class="depto" d="M 318.9195841328571 275.8222749115891 L 371.5714005932846 252.12884792190977 L 342.98776047492134 188.60994143621934 L 197.583034784787 254.04237062283403 L 250.96212175281474 372.66201526478574 L 343.7150309825215 330.92301306785043 Z"/>
+<path class="terraza" d="M 197.50098176602884 254.03245776897563 L 342.9057074561631 188.60002858236095 L 332.0305114694682 164.43303816294798 L 186.62578577933388 229.86546734956266 Z"/>
+</g>
+<g class="unidad-depto" data-depto-tipo="C" data-stack="203 - 403" data-sup-interior="63.04" data-sup-terraza="15.0" data-sup-util="70.54" data-orientacion="S-Po" data-num-dormitorios="2" data-num-banos="2" data-vertices-depto="[[[38.2527,41.0766],[29.5895,37.1781],[31.2925,33.3937],[33.9736,34.6001],[35.4509,31.3172],[41.4331,34.0092]]]" data-vertices-terraza="[[[29.5846,37.1787],[38.2478,41.0772],[37.5999,42.5171],[28.9366,38.6186]]]" data-edge-lengths="{&quot;N&quot;:9.5,&quot;E&quot;:4.15,&quot;S&quot;:2.94,&quot;O&quot;:3.6}">
+<title>Depto Tipo C – 203 - 403
+Sup interior: 63.04 m²
+Sup terraza: 15.0 m²
+Sup útil: 70.54 m²
+Orientación: S-Po
+Dormitorios: 2
+Baños: 2</title>
+<path class="depto" d="M 488.39248616505563 123.17751224960477 L 342.98776047492134 188.60994143621934 L 371.5714005932846 252.12884792190977 L 416.57033675423145 231.8792329946836 L 441.3657836038959 286.979971150945 L 541.7715731330833 241.79715689155637 Z"/>
+<path class="terraza" d="M 342.9057074561631 188.60002858236095 L 488.3104331462974 123.16759939574638 L 477.4352371596025 99.00060897633341 L 332.0305114694682 164.43303816294798 Z"/>
+</g>
+<g class="unidad-depto" data-depto-tipo="D" data-stack="204 - 404" data-sup-interior="80.75" data-sup-terraza="15.0" data-sup-util="88.25" data-orientacion="N-Or" data-num-dormitorios="2" data-num-banos="2" data-vertices-depto="[[[50.4041,37.2238],[46.916,44.9751],[38.2527,41.0766],[41.7408,33.3253]]]" data-vertices-terraza="[[[38.2478,41.0772],[46.9111,44.9757],[46.2631,46.4156],[37.5999,42.5171]]]" data-edge-lengths="{&quot;N&quot;:8.5,&quot;E&quot;:9.5,&quot;S&quot;:8.5,&quot;O&quot;:9.5}">
+<title>Depto Tipo D – 204 - 404
+Sup interior: 80.75 m²
+Sup terraza: 15.0 m²
+Sup útil: 88.25 m²
+Orientación: N-Or
+Dormitorios: 2
+Baños: 2</title>
+<path class="depto" d="M 692.3420169168977 187.84404815416286 L 633.7972118551899 57.745083062990034 L 488.39248616505563 123.17751224960477 L 546.9372912267635 253.27647734077755 Z"/>
+<path class="terraza" d="M 488.3104331462974 123.16759939574638 L 633.7151588364317 57.73517020913164 L 622.8399628497367 33.56817978971867 L 477.4352371596025 99.00060897633341 Z"/>
+</g>
+<g class="unidad-depto" data-depto-tipo="E" data-stack="205 - 405" data-sup-interior="109.38" data-sup-terraza="18.33" data-sup-util="118.54" data-orientacion="S" data-num-dormitorios="3" data-num-banos="3" data-vertices-depto="[[[26.546,25.6651],[24.7221,24.8444],[24.4144,25.5283],[15.2951,21.4247],[19.0869,12.9985],[30.03,17.9229]]]" data-vertices-terraza="[[[19.7094,11.6049],[30.6525,16.5293],[30.0255,17.9225],[19.0825,12.9981]]]" data-edge-lengths="{&quot;N&quot;:2.0,&quot;E&quot;:0.75,&quot;S&quot;:10.0,&quot;O&quot;:9.24}">
+<title>Depto Tipo E – 205 - 405
+Sup interior: 109.38 m²
+Sup terraza: 18.33 m²
+Sup útil: 118.54 m²
+Orientación: S
 Dormitorios: 3
 Baños: 3</title>
-<path class="depto" d="M 334.01745454717076 151.2077342486523 L 409.07881876316776 161.5320852925842 L 418.5454544896038 92.70658825760853 L 129.15502568146772 52.90224407900325 L 91.82852575340611 324.2779454753002 L 381.21895456154226 364.0822896539055 L 390.7173575219596 295.02583457518824 L 315.6559933059626 284.70148353125626 Z"/>
-<path class="terraza" d="M 46.62650539070612 317.99890625815806 L 91.83586379868461 324.2172489641574 L 129.16190975393633 52.84484809670545 L 83.95255134595784 46.626505390706086 Z"/>
+<path class="depto" d="M 291.90507913809796 381.84540791341436 L 261.29355794017494 395.620656163228 L 256.12783984649485 384.14133571400686 L 103.07023385687977 453.0175769630748 L 166.7118807710187 594.4428048974792 L 350.3810079585568 511.7913153985976 Z"/>
+<path class="terraza" d="M 177.16003715026326 617.8332491449812 L 360.82916433780133 535.1817596460996 L 350.3064052580826 511.7979587310195 L 166.63727807054454 594.4494482299011 Z"/>
+</g>
+<g class="unidad-depto" data-depto-tipo="F" data-stack="206 - 406" data-sup-interior="55.99" data-sup-terraza="13.33" data-sup-util="62.66" data-orientacion="S-Or" data-num-dormitorios="2" data-num-banos="2" data-vertices-depto="[[[34.8672,26.6682],[31.2743,25.0514],[30.2484,27.3312],[26.546,25.6651],[29.9233,18.16],[37.2186,21.4429]]]" data-vertices-terraza="[[[30.6037,16.6376],[37.8991,19.9205],[37.2152,21.4404],[29.9198,18.1575]]]" data-edge-lengths="{&quot;N&quot;:3.94,&quot;E&quot;:2.5,&quot;S&quot;:4.06,&quot;O&quot;:8.23}">
+<title>Depto Tipo F – 206 - 406
+Sup interior: 55.99 m²
+Sup terraza: 13.33 m²
+Sup útil: 62.66 m²
+Orientación: S-Or
+Dormitorios: 2
+Baños: 2</title>
+<path class="depto" d="M 431.57022424205707 365.0088164115637 L 371.26552748214874 392.1460554636965 L 354.04646716988174 353.8816539662927 L 291.90507913809796 381.84540791341436 L 348.590225686081 507.8118176428676 L 471.0363104777731 452.71082464361314 Z"/>
+<path class="terraza" d="M 360.0112589729686 533.364200574973 L 482.4573437646607 478.2632075757185 L 470.9779702231494 452.7536065774493 L 348.5318854314573 507.8545995767038 Z"/>
+</g>
+<g class="unidad-depto" data-depto-tipo="G" data-stack="207 - 407" data-sup-interior="45.51" data-sup-terraza="11.38" data-sup-util="51.2" data-orientacion="S-Or" data-num-dormitorios="1" data-num-banos="1" data-vertices-depto="[[[39.7688,31.6154],[36.0664,29.9493],[37.0923,27.6695],[34.8672,26.6682],[37.0996,21.7074],[43.0271,24.3748]]]" data-vertices-terraza="[[[37.8409,20.1057],[43.7266,22.7543],[43.0032,24.3619],[37.1175,21.7133]]]" data-edge-lengths="{&quot;N&quot;:4.06,&quot;E&quot;:2.5,&quot;S&quot;:2.44,&quot;O&quot;:5.44}">
+<title>Depto Tipo G – 207 - 407
+Sup interior: 45.51 m²
+Sup terraza: 11.38 m²
+Sup útil: 51.2 m²
+Orientación: S-Or
+Dormitorios: 1
+Baños: 1</title>
+<path class="depto" d="M 513.8386078230398 281.9748581022656 L 451.69721979125615 309.93861204938725 L 468.9162801035232 348.20301354679106 L 431.57022424205707 365.0088164115637 L 469.03889948155 448.2721540699143 L 568.5263433747998 403.50259725802005 Z"/>
+<path class="terraza" d="M 481.4804086535155 475.15451910041384 L 580.2660138516636 430.700791162029 L 568.1243687596806 403.7194824138597 L 469.33876356153235 448.1732103522445 Z"/>
+</g>
+<g class="unidad-depto" data-depto-tipo="H" data-stack="208 - 408" data-sup-interior="109.0" data-sup-terraza="18.33" data-sup-util="118.16" data-orientacion="S-Or" data-num-dormitorios="3" data-num-banos="3" data-vertices-depto="[[[50.4041,37.2238],[41.7408,33.3253],[42.0486,32.6413],[39.7688,31.6154],[43.2528,23.8732],[54.1959,28.7976]]]" data-vertices-terraza="[[[43.8753,22.4796],[54.8184,27.404],[54.1914,28.7972],[43.2484,23.8728]]]" data-edge-lengths="{&quot;N&quot;:9.5,&quot;E&quot;:0.75,&quot;S&quot;:2.5,&quot;O&quot;:8.49}">
+<title>Depto Tipo H – 208 - 408
+Sup interior: 109.0 m²
+Sup terraza: 18.33 m²
+Sup útil: 118.16 m²
+Orientación: S-Or
+Dormitorios: 3
+Baños: 3</title>
+<path class="depto" d="M 692.3420169168977 187.84404815416286 L 546.9372912267635 253.27647734077755 L 552.1030093204436 264.75579778999867 L 513.8386078230398 281.9748581022656 L 572.3145366434985 411.92076558744884 L 755.9836638310367 329.2692760885672 Z"/>
+<path class="terraza" d="M 582.7626930227432 435.3112098349509 L 766.4318202102812 352.65972033606926 L 755.9090611305625 329.27591942098917 L 572.2399339430244 411.9274089198708 Z"/>
 </g>
 </svg>

@@ -62,7 +62,6 @@ num_manzanas = length(unique_manzanas)
 df_manzanas = DataFrame(manzent = unique_manzanas)
 df_manzanas.predios_estrategicos = fill("", length(unique_manzanas))
 df_manzanas.num_predios_estrategicos = zeros(Int, length(unique_manzanas))
-df_manzanas.tipo_control = fill("sin_control", length(unique_manzanas))
 df_manzanas.num_combis_consideradas = fill(0, length(unique_manzanas))
 df_manzanas.num_combis_disponibles = fill(0, length(unique_manzanas))
 df_manzanas.num_predios_considerados = fill(0, length(unique_manzanas))
@@ -77,7 +76,6 @@ if isfile(checkpoint_file)
         if idx !== nothing
             df_manzanas.predios_estrategicos[idx] = coalesce(row.predios_estrategicos, "")
             df_manzanas.num_predios_estrategicos[idx] = row.num_predios_estrategicos
-            df_manzanas.tipo_control[idx] = coalesce(row.tipo_control, "sin_control")
             df_manzanas.num_combis_consideradas[idx] = row.num_combis_consideradas
             df_manzanas.num_combis_disponibles[idx] = row.num_combis_disponibles
             df_manzanas.num_predios_considerados[idx] = row.num_predios_considerados
@@ -117,12 +115,7 @@ for i_m in eachindex(unique_manzanas)
         end
     end
 
-    x_opt = optimal_lot_selection(C_m, df_predios_m; tipo_opt="con_control")
-    if sum(x_opt) > 1 || sum(x_opt) == 0
-        x_opt = optimal_lot_selection(C_m, df_predios_m; tipo_opt="sin_control")
-    else
-        df_manzanas.tipo_control[i_m] = "con_control"
-    end
+    x_opt = optimal_lot_selection(C_m, df_predios_m)
 
     predios_opt = string(unique_codigo_predial_m[x_opt .== 1])
     num_predios_opt = sum(x_opt)
