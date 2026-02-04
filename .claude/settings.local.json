@@ -11,7 +11,9 @@
       "Read(//c/Users/rjvia/Documents/Land_engines_code/Julia/**)",
       "Bash(sed:*)",
       "Bash(cat:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(setx:*)",
+      "Bash(wmic cpu get Name,NumberOfCores,NumberOfLogicalProcessors)"
     ],
     "deny": [],
     "ask": []
