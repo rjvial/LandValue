@@ -97,6 +97,10 @@ function normalize_name(s::AbstractString)
     s = replace(s, r"\bINVERSIONES\b" => "INV")
     s = replace(s, r"\bINVERSION\b" => "INV")
     s = replace(s, r"\bINEVERSION\b" => "INV")
+    s = replace(s, r"\bEMPRE\b" => "EMPRESA")
+    s = replace(s, r"\bEMP\b" => "EMPRESA")
+    s = replace(s, r"\bNACIONAL\b" => "NAC")
+    s = replace(s, r"\bNACIONA\b" => "NAC")
     s = replace(s, r"LEASING\s*HABITACIONAL" => "LEASINGHAB")
     s = replace(s, r"\bCIA\b" => "COMPANIA")
     s = replace(s, r"\bCI\b" => "COMPANIA")
@@ -199,9 +203,7 @@ function trigram_similarity_precomputed(t1::Set{String}, t2::Set{String})
     n_inter / (length(t1) + length(t2) - n_inter)
 end
 
-function soft_token_similarity(tokens_a::Vector{String}, tokens_b::Vector{String})
-    (isempty(tokens_a) || isempty(tokens_b)) && return 0.0
-
+function directional_soft_sim(tokens_a::Vector{String}, tokens_b::Vector{String})
     total_score = 0.0
     na = length(tokens_a)
     @inbounds for i in 1:na
@@ -216,6 +218,11 @@ function soft_token_similarity(tokens_a::Vector{String}, tokens_b::Vector{String
         total_score += best_match
     end
     total_score / na
+end
+
+function soft_token_similarity(tokens_a::Vector{String}, tokens_b::Vector{String})
+    (isempty(tokens_a) || isempty(tokens_b)) && return 0.0
+    min(directional_soft_sim(tokens_a, tokens_b), directional_soft_sim(tokens_b, tokens_a))
 end
 
 function tfidf_weighted_overlap(tokens_a::Set, tokens_b::Set, idf::Dict{String,Float64})
@@ -271,7 +278,14 @@ const SKIP_WORDS = Set([
     "AGRICOLA", "AGRICOLAS", "CONSTRUCTORA", "CONSTRUCCIONES",
     "CONSULTORA", "CONSULTORES", "HOLDING", "CAPITAL", "GRUPO",
     "HERMANOS", "ABOGADOS", "ASOCIADOS", "PROFESIONALES",
-    "INV", "INVER", "E", "DEL", "LIMITAD", "LIMIT"
+    "INV", "INVER", "E", "DEL", "LIMITAD", "LIMIT",
+    "SEGUROS", "SEGURO", "SEG", "VIDA", "SALUD",
+    "FONDO", "FONDOS", "CHILE", "CHILENA", "CHILENO",
+    "GENERAL", "GRAL", "NACIONAL", "NAC",
+    "INTERNACIONAL", "INTERAMERICANA",
+    "PENSIONES", "PENSION", "PENS", "PREVISION", "PREVISIONAL",
+    "ADMINISTRADORAS", "ASOC",
+    "ASOCIACION", "ASOCIACIONES"
 ])
 
 # Blocking: use 3-char prefix + first 2 chars of first token (only if starts with letter)
@@ -326,6 +340,16 @@ for (term, df) in doc_freq
     idf_weights[term] = log(nA / df)
 end
 
+function extract_legal_type(s::AbstractString)
+    s = strip(s)
+    endswith(s, " SA") && return "SA"
+    endswith(s, " SPA") && return "SPA"
+    endswith(s, " LTDA") && return "LTDA"
+    return ""
+end
+
+legal_types_A = [extract_legal_type(s) for s in norm_A]
+
 println("Building block index for A...")
 block_to_A = Dict{String, Vector{Int}}()
 for i in 1:nA
@@ -364,6 +388,9 @@ thread_seen = [Set{Tuple{Int,Int}}() for _ in 1:nthreads()]
             pair = minmax(u, v)
             pair in local_seen && continue
             push!(local_seen, pair)
+            lt_u = legal_types_A[u]
+            lt_v = legal_types_A[v]
+            (!isempty(lt_u) && !isempty(lt_v) && lt_u != lt_v) && continue
             thread_comparisons[tid] += 1
             sim = fast_similarity(token_vecs_A[u], token_vecs_A[v], trigrams_A[u], trigrams_A[v])
             sim >= SIM_THRESHOLD && push!(local_edges, (u, v))
@@ -435,7 +462,7 @@ function save_progress(thread_results, filename="matching_results_progress.csv")
         end
     end
     sort!(temp_result, :cluster_id)
-    CSV.write(filename, temp_result)
+    CSV.write(filename, temp_result; delim='|')
     temp_result
 end
 
@@ -487,7 +514,7 @@ end
         cluster_tri = trigrams_A[rep_idx]
 
         for (b, _) in filtered
-            sim = hybrid_similarity(cluster_tokens, token_sets_B[b], cluster_vec, token_vecs_B[b], cluster_tri, trigrams_B[b], idf_weights)
+            sim = hybrid_similarity(token_sets_B[b], cluster_tokens, token_vecs_B[b], cluster_vec, trigrams_B[b], cluster_tri, idf_weights)
             if sim > best_sim
                 best_sim = sim
                 best_b = b
@@ -504,13 +531,17 @@ end
 println()
 
 result = save_progress(thread_results, "empresas_tgr.csv")
+
+rm("matching_results_progress.csv"; force=true)
+
+
 result.prop_tgr_id = ["E" * lpad(string(cid), 9, '0') for cid in result.cluster_id]
 
 rename!(result, :A_id => :propietario, :B_id => :rut)
 result.rut = [ismissing(r) ? "0-0" : r for r in result.rut]
 select!(result, Not(:cluster_id))
 
-CSV.write("empresas_tgr.csv", result)
+CSV.write("empresas_tgr.csv", result; delim='|')
 
 aws_client = conn_aws
 aws_bucket = "landengines-data"
@@ -521,4 +552,4 @@ aws_julia.upload_csv_file_to_s3(aws_client, aws_bucket, aws_file_name, local_fil
 
 matched = count(r -> r != "0-0", result.rut)
 println("Done. Result: $(nrow(result)) rows, $matched matched ($(round(100*matched/nrow(result), digits=1))%)")
-println("Saved to matching_results.csv")
+println("Saved to empresas_tgr.csv")

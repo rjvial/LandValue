@@ -13,7 +13,8 @@
       "Bash(cat:*)",
       "Bash(grep:*)",
       "Bash(setx:*)",
-      "Bash(wmic cpu get Name,NumberOfCores,NumberOfLogicalProcessors)"
+      "Bash(wmic cpu get Name,NumberOfCores,NumberOfLogicalProcessors)",
+      "Bash(git -C \"c:\\Users\\rjvia\\Documents\\Land_engines_code\\Julia\\LandValue\" status)"
     ],
     "deny": [],
     "ask": []
