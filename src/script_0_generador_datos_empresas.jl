@@ -27,7 +27,7 @@ athena_output = "query-results"
 athena_catalog_name = "AwsDataCatalog"
 database_name = "iceberg_db"
 
-owner_type = "\'" .* "Organization" .* "\'" 
+owner_type = "\'Organization\'" 
 query = """
 SELECT propietario, tipo_propietario
 FROM (
@@ -43,12 +43,8 @@ dfA = aws_julia.query_to_dataframe(query, database_name, athena_bucket, athena_o
 
 query = """
 SELECT DISTINCT rut_sociedad_completo, razon_social_sociedad
-FROM (
-SELECT rut_sociedad_completo, razon_social_sociedad,
-ROW_NUMBER() OVER (PARTITION BY rut_sociedad_completo ORDER BY year DESC) AS rn
-FROM "iceberg_db"."empresas_consolidada") t
-WHERE rn = 1 AND razon_social_sociedad <> ''
-ORDER BY rut_sociedad_completo;
+FROM "iceberg_db"."empresas_consolidada"
+ORDER BY razon_social_sociedad;
 """
 dfB = aws_julia.query_to_dataframe(query, database_name, athena_bucket, athena_output, athena_catalog_name, conn_aws)
 
@@ -114,7 +110,6 @@ function normalize_name(s::AbstractString)
     s = replace(s, r"\bLIMI\b" => "LTDA")
     s = replace(s, r"\bLIM\b" => "LTDA")
     s = replace(s, r"\bLTD\b" => "LTDA")
-    s = replace(s, r"\bL\b" => "LTDA")
     s = replace(s, r"\bSOCIEDAD POR ACCIONES\b" => "SPA")
     s = replace(s, r"\bSP\b" => "SPA")
     s = replace(s, r"\s+" => " ")
@@ -267,6 +262,17 @@ function hybrid_similarity(tokens_a::Set, tokens_b::Set, vec_a::Vector{String}, 
     0.4 * score_tfidf + 0.4 * score_soft + 0.2 * score_trigram
 end
 
+function hybrid_similarity_v2(tokens_a::Set, tokens_b::Set, vec_a::Vector{String}, vec_b::Vector{String}, tri_a::Set{String}, tri_b::Set{String}, idf::Dict{String,Float64}, full_a::String, full_b::String)
+    score_tfidf = tfidf_weighted_overlap(tokens_a, tokens_b, idf)
+    score_tfidf == 0.0 && isempty(intersect(tokens_a, tokens_b)) && return 0.0
+
+    score_soft = soft_token_similarity(vec_a, vec_b)
+    score_trigram = trigram_similarity_precomputed(tri_a, tri_b)
+    score_jw = jaro_winkler(full_a, full_b)
+
+    0.3 * score_tfidf + 0.3 * score_soft + 0.2 * score_trigram + 0.2 * score_jw
+end
+
 # Common business words to skip in blocking (these don't distinguish companies)
 const SKIP_WORDS = Set([
     "SOCIEDAD", "EMPRESA", "COMERCIAL", "SERVICIOS", "INVERSIONES", "INVERSION",
@@ -288,16 +294,18 @@ const SKIP_WORDS = Set([
     "ASOCIACION", "ASOCIACIONES"
 ])
 
-# Blocking: use 3-char prefix + first 2 chars of first token (only if starts with letter)
 function block_keys(s::AbstractString)
     tokens = split(s)
     significant = [t for t in tokens if !(t in SKIP_WORDS) && length(t) >= 3]
     isempty(significant) && return [isempty(tokens) ? "" : first(tokens[1], 3)]
 
     keys = String[]
-    for (idx, t) in enumerate(significant)
+    for t in significant
         push!(keys, first(t, 3))
-        if idx == 1 && length(t) >= 2 && isascii(t[1]) && isletter(t[1])
+        if length(t) >= 5
+            push!(keys, first(t, 5))
+        end
+        if length(t) >= 2 && isascii(t[1]) && isletter(t[1])
             push!(keys, first(t, 2))
         end
     end
@@ -307,6 +315,10 @@ end
 # --- normalize & prepare ---
 dfA = copy(dfA)
 dfB = copy(dfB)
+
+dropmissing!(dfA, :propietario)
+dropmissing!(dfB, :razon_social_sociedad)
+filter!(row -> row.razon_social_sociedad != "", dfB)
 
 dfA.norm = normalize_name.(dfA.propietario)
 dfB.norm = normalize_name.(dfB.razon_social_sociedad)
@@ -328,17 +340,7 @@ token_vecs_A = [String.(collect(ts)) for ts in token_sets_A]
 println("Pre-computing trigrams for A...")
 trigrams_A = [trigrams(s) for s in norm_A]
 
-println("Computing IDF weights...")
-doc_freq = Dict{String,Int}()
-for ts in token_sets_A
-    for t in ts
-        doc_freq[String(t)] = get(doc_freq, String(t), 0) + 1
-    end
-end
-idf_weights = Dict{String,Float64}()
-for (term, df) in doc_freq
-    idf_weights[term] = log(nA / df)
-end
+println("IDF weights will be computed after B tokenization...")
 
 function extract_legal_type(s::AbstractString)
     s = strip(s)
@@ -425,6 +427,27 @@ token_vecs_B = [String.(collect(ts)) for ts in token_sets_B]
 println("Pre-computing trigrams for B...")
 trigrams_B = [trigrams(s) for s in norm_B]
 
+println("Computing IDF weights over A+B corpus...")
+doc_freq = Dict{String,Int}()
+n_total = nA + nB
+for ts in token_sets_A
+    for t in ts
+        doc_freq[String(t)] = get(doc_freq, String(t), 0) + 1
+    end
+end
+for ts in token_sets_B
+    for t in ts
+        doc_freq[String(t)] = get(doc_freq, String(t), 0) + 1
+    end
+end
+idf_weights = Dict{String,Float64}()
+for (term, df) in doc_freq
+    idf_weights[term] = log(n_total / df)
+end
+
+println("Extracting legal types for B...")
+legal_types_B = [extract_legal_type(s) for s in norm_B]
+
 println("Pre-computing block keys for A...")
 block_keys_A = [block_keys(s) for s in norm_A]
 
@@ -437,7 +460,7 @@ for i in 1:nB
 end
 
 const MAX_CANDIDATES = 100
-const FAST_THRESHOLD = 0.5
+const FAST_THRESHOLD = 0.3
 
 using CSV
 
@@ -484,8 +507,6 @@ end
         end
     end
 
-    cluster_tokens = union([token_sets_A[i] for i in comp]...)
-
     cluster_blocks = Set{String}()
     for i in comp
         for bk in block_keys_A[i]
@@ -498,10 +519,26 @@ end
         haskey(block_to_B, bk) && union!(candidate_B, block_to_B[bk])
     end
 
+    cluster_lt = ""
+    for i in comp
+        lt = legal_types_A[i]
+        if !isempty(lt)
+            cluster_lt = lt
+            break
+        end
+    end
+
     filtered = Vector{Tuple{Int,Float64}}()
     for b in candidate_B
-        fast_sim = token_overlap(cluster_tokens, token_sets_B[b])
-        fast_sim >= FAST_THRESHOLD && push!(filtered, (b, fast_sim))
+        if !isempty(cluster_lt) && !isempty(legal_types_B[b]) && cluster_lt != legal_types_B[b]
+            continue
+        end
+        best_overlap = 0.0
+        for a in comp
+            ovlp = token_overlap(token_sets_A[a], token_sets_B[b])
+            ovlp > best_overlap && (best_overlap = ovlp)
+        end
+        best_overlap >= FAST_THRESHOLD && push!(filtered, (b, best_overlap))
     end
     sort!(filtered, by = x -> x[2], rev = true)
     length(filtered) > MAX_CANDIDATES && resize!(filtered, MAX_CANDIDATES)
@@ -509,17 +546,15 @@ end
     best_b = nothing
     best_sim = SIM_THRESHOLD
     if !isempty(filtered)
-        cluster_vec = String.(collect(cluster_tokens))
-        rep_idx = first(comp)
-        cluster_tri = trigrams_A[rep_idx]
-
         for (b, _) in filtered
-            sim = hybrid_similarity(token_sets_B[b], cluster_tokens, token_vecs_B[b], cluster_vec, trigrams_B[b], cluster_tri, idf_weights)
-            if sim > best_sim
-                best_sim = sim
-                best_b = b
-                best_sim >= 1.0 && break
+            for a in comp
+                sim = hybrid_similarity_v2(token_sets_A[a], token_sets_B[b], token_vecs_A[a], token_vecs_B[b], trigrams_A[a], trigrams_B[b], idf_weights, norm_A[a], norm_B[b])
+                if sim > best_sim
+                    best_sim = sim
+                    best_b = b
+                end
             end
+            best_sim >= 1.0 && break
         end
     end
 
@@ -529,6 +564,139 @@ end
     end
 end
 println()
+
+println("\nSecond pass for unmatched clusters...")
+matched_set = Set{Int}()
+for tr in thread_results
+    for row in tr
+        if !ismissing(row.B_id)
+            push!(matched_set, row.cluster_id)
+        end
+    end
+end
+unmatched_clusters = Int[]
+for cid in 1:length(comps_A)
+    cid in matched_set && continue
+    push!(unmatched_clusters, cid)
+end
+
+if !isempty(unmatched_clusters)
+    println("  $(length(unmatched_clusters)) unmatched clusters, running second pass...")
+    SIM_THRESHOLD_2 = 0.80
+
+    block_to_B_expanded = Dict{String, Vector{Int}}()
+    for i in 1:nB
+        for bk in block_keys(norm_B[i])
+            push!(get!(Vector{Int}, block_to_B_expanded, bk), i)
+        end
+        tokens_b = split(norm_B[i])
+        sig_b = [t for t in tokens_b if !(t in SKIP_WORDS) && length(t) >= 2]
+        for t in sig_b
+            bk2 = first(t, 2)
+            push!(get!(Vector{Int}, block_to_B_expanded, bk2), i)
+        end
+    end
+    for (k, v) in block_to_B_expanded
+        unique!(v)
+    end
+
+    n_unmatched = length(unmatched_clusters)
+    step2 = max(1, n_unmatched ÷ 20)
+    progress_counter2 = Atomic{Int}(0)
+
+    thread_results_2 = [sizehint!(Vector{NamedTuple{(:A_id, :B_id, :cluster_id), Tuple{String, Union{String,Missing}, Int}}}(), n_unmatched ÷ nthreads() + 10) for _ in 1:nthreads()]
+
+    @threads for uidx in 1:n_unmatched
+        tid = threadid()
+        cluster_id = unmatched_clusters[uidx]
+        comp = comps_A[cluster_id]
+
+        cnt = atomic_add!(progress_counter2, 1)
+        cnt % step2 == 0 && print("\r  Second pass: $cnt / $n_unmatched")
+
+        cluster_blocks = Set{String}()
+        for i in comp
+            for bk in block_keys_A[i]
+                push!(cluster_blocks, bk)
+            end
+            tokens_i = split(norm_A[i])
+            sig_i = [t for t in tokens_i if !(t in SKIP_WORDS) && length(t) >= 2]
+            for t in sig_i
+                push!(cluster_blocks, first(t, 2))
+            end
+        end
+
+        candidate_B = Set{Int}()
+        for bk in cluster_blocks
+            haskey(block_to_B_expanded, bk) && union!(candidate_B, block_to_B_expanded[bk])
+        end
+
+        cluster_lt = ""
+        for i in comp
+            lt = legal_types_A[i]
+            if !isempty(lt)
+                cluster_lt = lt
+                break
+            end
+        end
+
+        filtered = Vector{Tuple{Int,Float64}}()
+        for b in candidate_B
+            if !isempty(cluster_lt) && !isempty(legal_types_B[b]) && cluster_lt != legal_types_B[b]
+                continue
+            end
+            best_overlap = 0.0
+            for a in comp
+                ovlp = token_overlap(token_sets_A[a], token_sets_B[b])
+                ovlp > best_overlap && (best_overlap = ovlp)
+            end
+            best_overlap >= 0.2 && push!(filtered, (b, best_overlap))
+        end
+        sort!(filtered, by = x -> x[2], rev = true)
+        length(filtered) > MAX_CANDIDATES && resize!(filtered, MAX_CANDIDATES)
+
+        best_b = nothing
+        best_sim = SIM_THRESHOLD_2
+        if !isempty(filtered)
+            for (b, _) in filtered
+                for a in comp
+                    sim = hybrid_similarity_v2(token_sets_A[a], token_sets_B[b], token_vecs_A[a], token_vecs_B[b], trigrams_A[a], trigrams_B[b], idf_weights, norm_A[a], norm_B[b])
+                    if sim > best_sim
+                        best_sim = sim
+                        best_b = b
+                    end
+                end
+                best_sim >= 1.0 && break
+            end
+        end
+
+        b_id = isnothing(best_b) ? missing : id_B[best_b]
+        for a in comp
+            push!(thread_results_2[tid], (A_id=id_A[a], B_id=b_id, cluster_id=cluster_id))
+        end
+    end
+    println()
+
+    second_pass_results = Dict{String, Union{String, Missing}}()
+    for tr in thread_results_2
+        for row in tr
+            if !ismissing(row.B_id)
+                second_pass_results[row.A_id] = row.B_id
+            end
+        end
+    end
+
+    for tr in thread_results
+        for (ridx, row) in enumerate(tr)
+            if ismissing(row.B_id) && haskey(second_pass_results, row.A_id)
+                tr[ridx] = (A_id=row.A_id, B_id=second_pass_results[row.A_id], cluster_id=row.cluster_id)
+            end
+        end
+    end
+
+    newly_matched = length(second_pass_results)
+    println("Second pass matched $newly_matched additional records")
+end
 
 result = save_progress(thread_results, "empresas_tgr.csv")
 
