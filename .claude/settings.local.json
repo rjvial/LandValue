@@ -14,7 +14,13 @@
       "Bash(grep:*)",
       "Bash(setx:*)",
       "Bash(wmic cpu get Name,NumberOfCores,NumberOfLogicalProcessors)",
-      "Bash(git -C \"c:\\Users\\rjvia\\Documents\\Land_engines_code\\Julia\\LandValue\" status)"
+      "Bash(git -C \"c:\\Users\\rjvia\\Documents\\Land_engines_code\\Julia\\LandValue\" status)",
+      "Bash(powershell -Command \"Get-ChildItem *.csv | Select-Object Name, @{N=''SizeMB'';E={[math]::Round\\($_Length/1MB,2\\)}}\")",
+      "Bash(forfiles /M *.csv /C \"cmd /c echo @file @fsize\")",
+      "Bash(dir:*)",
+      "Bash(ls:*)",
+      "Bash(git reset:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
