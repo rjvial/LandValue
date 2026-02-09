@@ -43,20 +43,28 @@ dfA = aws_julia.query_to_dataframe(query, database_name, athena_bucket, athena_o
 
 
 query = """
-SELECT DISTINCT rut_sociedad_completo, razon_social_sociedad
-FROM "iceberg_db"."empresas_consolidada"
+SELECT *
+FROM (
+    SELECT *,
+           ROW_NUMBER() OVER (
+               PARTITION BY rut_sociedad_completo, razon_social_sociedad
+               ORDER BY razon_social_sociedad
+           ) AS rn
+    FROM "iceberg_db"."empresas_consolidada"
+) t
+WHERE rn = 1
 ORDER BY razon_social_sociedad;
 """
 dfB = aws_julia.query_to_dataframe(query, database_name, athena_bucket, athena_output, athena_catalog_name, conn_aws)
 
-owner_type = "\'Person\'" 
-query = """
-SELECT propietario, tipo_propietario
-FROM datos_tgr
-WHERE tipo_propietario = $owner_type
-ORDER BY propietario;
-"""
-dfC = aws_julia.query_to_dataframe(query, database_name, athena_bucket, athena_output, athena_catalog_name, conn_aws)
+# owner_type = "\'Person\'" 
+# query = """
+# SELECT propietario, tipo_propietario
+# FROM datos_tgr
+# WHERE tipo_propietario = $owner_type
+# ORDER BY propietario;
+# """
+# dfC = aws_julia.query_to_dataframe(query, database_name, athena_bucket, athena_output, athena_catalog_name, conn_aws)
 
 using DataFrames, Graphs, Unicode, CSV, Base.Threads
 
