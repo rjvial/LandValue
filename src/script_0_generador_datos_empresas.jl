@@ -57,14 +57,6 @@ ORDER BY razon_social_sociedad;
 """
 dfB = aws_julia.query_to_dataframe(query, database_name, athena_bucket, athena_output, athena_catalog_name, conn_aws)
 
-# owner_type = "\'Person\'" 
-# query = """
-# SELECT propietario, tipo_propietario
-# FROM datos_tgr
-# WHERE tipo_propietario = $owner_type
-# ORDER BY propietario;
-# """
-# dfC = aws_julia.query_to_dataframe(query, database_name, athena_bucket, athena_output, athena_catalog_name, conn_aws)
 
 using DataFrames, Graphs, Unicode, CSV, Base.Threads
 
@@ -799,10 +791,10 @@ function run_matching_pipeline(dfA::DataFrame, dfB::DataFrame; progress_callback
     end
 
     # --- Save ---
-    CSV.write("rel_prop_tgr_id_to_rut.csv", unique(select(df_out, :prop_tgr_id, :rut), [:prop_tgr_id, :rut]); delim='|')
+    # CSV.write("rel_prop_tgr_id_to_rut.csv", unique(select(df_out, :prop_tgr_id, :rut), [:prop_tgr_id, :rut]); delim='|')
     CSV.write("empresas_tgr.csv", select(df_out, :propietario, :prop_tgr_id, :rut); delim='|')
-    CSV.write("empresas_tgr_full.csv", df_out; delim='|')
-    CSV.write("empresas_tgr_diagnostics.csv", df_diag; delim='|')
+    # CSV.write("empresas_tgr_full.csv", df_out; delim='|')
+    # CSV.write("empresas_tgr_diagnostics.csv", df_diag; delim='|')
 
     # --- Stats ---
     elapsed = round(time() - t0, digits=1)
@@ -827,10 +819,10 @@ function run_matching_pipeline(dfA::DataFrame, dfB::DataFrame; progress_callback
     _log("  Elapsed:           $(elapsed)s")
     _log("═══════════════════════════════════════")
     _log("\nFiles saved:")
-    _log("  rel_prop_tgr_id_to_rut.csv        — relation table (prop_tgr_id|rut)")
+    # _log("  rel_prop_tgr_id_to_rut.csv        — relation table (prop_tgr_id|rut)")
     _log("  empresas_tgr.csv                  — (propietario|prop_tgr_id|rut)")
-    _log("  empresas_tgr_full.csv             — with scores, confidence, ambiguity flags")
-    _log("  empresas_tgr_diagnostics.csv      — top-$(CONFIG.top_k_diagnostics) candidates per cluster for review")
+    # _log("  empresas_tgr_full.csv             — with scores, confidence, ambiguity flags")
+    # _log("  empresas_tgr_diagnostics.csv      — top-$(CONFIG.top_k_diagnostics) candidates per cluster for review")
 
 
     df_out
@@ -848,6 +840,6 @@ for col in names(df_sii, Union{Missing, AbstractString})
 end
 CSV.write("empresas_sii.csv", df_sii; delim='|')
 
-aws_julia.upload_csv_file_to_s3(conn_aws, "landengines-data", "kg/rel_prop_tgr_id_to_rut.csv", "rel_prop_tgr_id_to_rut.csv")
+# aws_julia.upload_csv_file_to_s3(conn_aws, "landengines-data", "kg/rel_prop_tgr_id_to_rut.csv", "rel_prop_tgr_id_to_rut.csv")
 aws_julia.upload_csv_file_to_s3(conn_aws, "landengines-data", "kg/empresas_tgr.csv", "empresas_tgr.csv")
 aws_julia.upload_csv_file_to_s3(conn_aws, "landengines-data", "kg/empresas_sii.csv", "empresas_sii.csv")
