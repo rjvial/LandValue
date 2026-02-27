@@ -1,0 +1,135 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction and Problem Statement}{3}{section.1}\protected@file@percent }
+\newlabel{sec:intro}{{1}{3}{Introduction and Problem Statement}{section.1}{}}
+\newlabel{sec:intro@cref}{{[section][1][]1}{[1][3][]3}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Problem Decomposition}{4}{section.2}\protected@file@percent }
+\newlabel{sec:decomposition}{{2}{4}{Problem Decomposition}{section.2}{}}
+\newlabel{sec:decomposition@cref}{{[section][2][]2}{[1][4][]4}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Three-stage decomposition pipeline. Stage~A computes the buildable envelope for each facade setback candidate $d_f$, producing the set of distinct footprints $\mathcal  {D}$ with floor counts $\{n_d\}$. Stage~B optimizes the floor plan for each distinct footprint independently, through skeleton construction, strip decomposition, and knapsack packing. Stage~C assembles the building and evaluates the total profit $R_{\text  {total}} - C_{\text  {total}}$.}}{5}{figure.1}\protected@file@percent }
+\newlabel{fig:pipeline}{{1}{5}{Three-stage decomposition pipeline. Stage~A computes the buildable envelope for each facade setback candidate $d_f$, producing the set of distinct footprints $\mathcal {D}$ with floor counts $\{n_d\}$. Stage~B optimizes the floor plan for each distinct footprint independently, through skeleton construction, strip decomposition, and knapsack packing. Stage~C assembles the building and evaluates the total profit $R_{\text {total}} - C_{\text {total}}$}{figure.1}{}}
+\newlabel{fig:pipeline@cref}{{[figure][1][]1}{[1][5][]5}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3}Stage A: Buildable Envelope Computation}{6}{section.3}\protected@file@percent }
+\newlabel{sec:envelope}{{3}{6}{Stage A: Buildable Envelope Computation}{section.3}{}}
+\newlabel{sec:envelope@cref}{{[section][3][]3}{[1][6][]6}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Discretization}{6}{subsection.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Facade Setback as Decision Variable}{6}{subsection.3.2}\protected@file@percent }
+\newlabel{eq:height-vs-setback}{{1}{6}{Facade Setback as Decision Variable}{equation.1}{}}
+\newlabel{eq:height-vs-setback@cref}{{[equation][1][]1}{[1][6][]6}{}{}{}}
+\newlabel{eq:buildable-cells}{{2}{7}{Facade Setback as Decision Variable}{equation.2}{}}
+\newlabel{eq:buildable-cells@cref}{{[equation][2][]2}{[1][7][]7}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Facade setback trade-off (cross-section view). Three candidate setback distances are shown for a 20\,m-deep lot: $d_f = 3$\,m yields 9~floors on 17\,m of depth (blue), $d_f = 7$\,m yields 11~floors on 13\,m (green), and $d_f = 12$\,m yields 13~floors on only 8\,m (red). The optimal $d_f$ balances height gain against footprint loss.}}{7}{figure.2}\protected@file@percent }
+\newlabel{fig:setback-tradeoff}{{2}{7}{Facade setback trade-off (cross-section view). Three candidate setback distances are shown for a 20\,m-deep lot: $d_f = 3$\,m yields 9~floors on 17\,m of depth (blue), $d_f = 7$\,m yields 11~floors on 13\,m (green), and $d_f = 12$\,m yields 13~floors on only 8\,m (red). The optimal $d_f$ balances height gain against footprint loss}{figure.2}{}}
+\newlabel{fig:setback-tradeoff@cref}{{[figure][2][]2}{[1][7][]7}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Parametric Height Map}{7}{subsection.3.3}\protected@file@percent }
+\newlabel{eq:heightmap}{{3}{7}{Parametric Height Map}{equation.3}{}}
+\newlabel{eq:heightmap@cref}{{[equation][3][]3}{[1][7][]7}{}{}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.1}Maximum Height (Distance-Dependent)}{8}{subsubsection.3.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.2}Setbacks (Lateral and Rear)}{8}{subsubsection.3.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.3}Rasante (Inclined Plane)}{9}{subsubsection.3.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.4}Shadow Projection}{9}{subsubsection.3.3.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}Optimal Facade Setback Selection}{10}{subsection.3.4}\protected@file@percent }
+\newlabel{sec:facade-opt}{{3.4}{10}{Optimal Facade Setback Selection}{subsection.3.4}{}}
+\newlabel{sec:facade-opt@cref}{{[subsection][4][3]3.4}{[1][10][]10}{}{}{}}
+\newlabel{eq:facade-opt}{{10}{10}{Optimal Facade Setback Selection}{equation.10}{}}
+\newlabel{eq:facade-opt@cref}{{[equation][10][]10}{[1][10][]10}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.5}Floor Footprint Extraction}{11}{subsection.3.5}\protected@file@percent }
+\newlabel{eq:footprint}{{11}{11}{Floor Footprint Extraction}{equation.11}{}}
+\newlabel{eq:footprint@cref}{{[equation][11][]11}{[1][10][]11}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Building cross-section shaped by the rasante constraint (not to scale). The rasante planes from both lateral boundaries create a tapered envelope. The building steps back at higher floors, producing nested footprints $\mathcal  {F}_1 \supseteq \mathcal  {F}_6 \supseteq \mathcal  {F}_9 \supseteq \mathcal  {F}_{12}$. Each distinct footprint defines a group of floors with identical plans.}}{11}{figure.3}\protected@file@percent }
+\newlabel{fig:rasante-envelope}{{3}{11}{Building cross-section shaped by the rasante constraint (not to scale). The rasante planes from both lateral boundaries create a tapered envelope. The building steps back at higher floors, producing nested footprints $\calF _1 \supseteq \calF _6 \supseteq \calF _9 \supseteq \calF _{12}$. Each distinct footprint defines a group of floors with identical plans}{figure.3}{}}
+\newlabel{fig:rasante-envelope@cref}{{[figure][3][]3}{[1][11][]11}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.6}Ground Occupation Constraint}{12}{subsection.3.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}Stage B: Floor Plan Optimization}{12}{section.4}\protected@file@percent }
+\newlabel{sec:floorplan}{{4}{12}{Stage B: Floor Plan Optimization}{section.4}{}}
+\newlabel{sec:floorplan@cref}{{[section][4][]4}{[1][12][]12}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Stage B.1: Skeleton Graph and Corridor Routing}{13}{subsection.4.1}\protected@file@percent }
+\newlabel{sec:skeleton}{{4.1}{13}{Stage B.1: Skeleton Graph and Corridor Routing}{subsection.4.1}{}}
+\newlabel{sec:skeleton@cref}{{[subsection][1][4]4.1}{[1][12][]13}{}{}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.1}Rectilinear Medial Axis}{13}{subsubsection.4.1.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Skeleton graphs (red) for three common floor plan shapes. Vertices (dots) mark corridor endpoints and junctions; edges define corridor segments. The \textbf  {rectangle} has a single straight corridor. The \textbf  {L-shape} has a two-edge corridor with one junction (orange) at the corner. The \textbf  {H-shape} has a cross-shaped corridor with a central junction. The blue square marks a possible circulation core placement.}}{13}{figure.4}\protected@file@percent }
+\newlabel{fig:skeleton-topologies}{{4}{13}{Skeleton graphs (red) for three common floor plan shapes. Vertices (dots) mark corridor endpoints and junctions; edges define corridor segments. The \textbf {rectangle} has a single straight corridor. The \textbf {L-shape} has a two-edge corridor with one junction (orange) at the corner. The \textbf {H-shape} has a cross-shaped corridor with a central junction. The blue square marks a possible circulation core placement}{figure.4}{}}
+\newlabel{fig:skeleton-topologies@cref}{{[figure][4][]4}{[1][13][]13}{}{}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.2}Corridor as Connected Subtree}{13}{subsubsection.4.1.2}\protected@file@percent }
+\newlabel{eq:corridor-valid}{{14}{14}{Valid Corridor}{equation.14}{}}
+\newlabel{eq:corridor-valid@cref}{{[equation][14][]14}{[1][14][]14}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Stage B.2: Strip Decomposition}{14}{subsection.4.2}\protected@file@percent }
+\newlabel{sec:strips}{{4.2}{14}{Stage B.2: Strip Decomposition}{subsection.4.2}{}}
+\newlabel{sec:strips@cref}{{[subsection][2][4]4.2}{[1][14][]14}{}{}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.2.1}Strip Segments}{14}{subsubsection.4.2.1}\protected@file@percent }
+\newlabel{eq:strip-north}{{15}{14}{Strip Segments}{equation.15}{}}
+\newlabel{eq:strip-north@cref}{{[equation][15][]15}{[1][14][]14}{}{}{}}
+\newlabel{eq:strip-south}{{16}{14}{Strip Segments}{equation.16}{}}
+\newlabel{eq:strip-south@cref}{{[equation][16][]16}{[1][14][]14}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Strip decomposition of a rectangular floor plan. The corridor (red) divides the floor into two strips: $S^+$ (north-facing) and $S^-$ (south-facing). Each strip is packed independently with apartment templates via the bounded knapsack: template widths $w_t$ consume strip length $L_S$, while template depths must fit within strip depth $D_S$. Different shading intensities indicate different apartment types.}}{15}{figure.5}\protected@file@percent }
+\newlabel{fig:strip-packing}{{5}{15}{Strip decomposition of a rectangular floor plan. The corridor (red) divides the floor into two strips: $S^+$ (north-facing) and $S^-$ (south-facing). Each strip is packed independently with apartment templates via the bounded knapsack: template widths $w_t$ consume strip length $L_S$, while template depths must fit within strip depth $D_S$. Different shading intensities indicate different apartment types}{figure.5}{}}
+\newlabel{fig:strip-packing@cref}{{[figure][5][]5}{[1][14][]15}{}{}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.2.2}Junction Zones}{15}{subsubsection.4.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Stage B.3: Apartment Template Packing}{16}{subsection.4.3}\protected@file@percent }
+\newlabel{sec:knapsack}{{4.3}{16}{Stage B.3: Apartment Template Packing}{subsection.4.3}{}}
+\newlabel{sec:knapsack@cref}{{[subsection][3][4]4.3}{[1][16][]16}{}{}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.3.1}Apartment Templates}{16}{subsubsection.4.3.1}\protected@file@percent }
+\newlabel{eq:revenue}{{21}{17}{Apartment Templates}{equation.21}{}}
+\newlabel{eq:revenue@cref}{{[equation][21][]21}{[1][17][]17}{}{}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.3.2}Bounded Knapsack Formulation}{17}{subsubsection.4.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Sets and indices.}{17}{section*.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Parameters.}{17}{section*.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Decision variables.}{17}{section*.4}\protected@file@percent }
+\newlabel{eq:knapsack}{{22}{17}{Formulation}{equation.22}{}}
+\newlabel{eq:knapsack@cref}{{[subequation][0][22]22}{[1][17][]17}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{Formulation.}{17}{equation.22}\protected@file@percent }
+\newlabel{eq:knapsack-obj}{{22a}{17}{Formulation}{equation.22a}{}}
+\newlabel{eq:knapsack-obj@cref}{{[subequation][1][22]22a}{[1][17][]17}{}{}{}}
+\newlabel{eq:knapsack-cap}{{22b}{17}{Formulation}{equation.22b}{}}
+\newlabel{eq:knapsack-cap@cref}{{[subequation][2][22]22b}{[1][17][]17}{}{}{}}
+\newlabel{eq:knapsack-int}{{22c}{17}{Formulation}{equation.22c}{}}
+\newlabel{eq:knapsack-int@cref}{{[subequation][3][22]22c}{[1][17][]17}{}{}{}}
+\newlabel{eq:dp}{{23}{18}{Formulation}{equation.23}{}}
+\newlabel{eq:dp@cref}{{[equation][23][]23}{[1][18][]18}{}{}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.3.3}Market Mix via Lagrangian Relaxation}{18}{subsubsection.4.3.3}\protected@file@percent }
+\newlabel{eq:mix}{{24}{18}{Market Mix via Lagrangian Relaxation}{equation.24}{}}
+\newlabel{eq:mix@cref}{{[equation][24][]24}{[1][18][]18}{}{}{}}
+\newlabel{eq:lagrangian}{{25}{18}{Market Mix via Lagrangian Relaxation}{equation.25}{}}
+\newlabel{eq:lagrangian@cref}{{[equation][25][]25}{[1][18][]18}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}Stage B.4: Joint Floor Optimization}{18}{subsection.4.4}\protected@file@percent }
+\newlabel{sec:joint}{{4.4}{18}{Stage B.4: Joint Floor Optimization}{subsection.4.4}{}}
+\newlabel{sec:joint@cref}{{[subsection][4][4]4.4}{[1][18][]18}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{Sets.}{19}{section*.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Joint optimization.}{19}{section*.7}\protected@file@percent }
+\newlabel{eq:floor-value}{{29}{19}{Joint optimization}{equation.29}{}}
+\newlabel{eq:floor-value@cref}{{[equation][29][]29}{[1][19][]19}{}{}{}}
+\newlabel{eq:floor-opt}{{30}{19}{Joint optimization}{equation.30}{}}
+\newlabel{eq:floor-opt@cref}{{[equation][30][]30}{[1][19][]19}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Search space size for the joint floor optimization by floor shape. Even the most complex shape (H) requires evaluating at most 45~combinations, each consisting of a handful of microsecond knapsack solves.}}{19}{table.1}\protected@file@percent }
+\newlabel{tab:search-space}{{1}{19}{Search space size for the joint floor optimization by floor shape. Even the most complex shape (H) requires evaluating at most 45~combinations, each consisting of a handful of microsecond knapsack solves}{table.1}{}}
+\newlabel{tab:search-space@cref}{{[table][1][]1}{[1][19][]19}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Stage C: Multi-floor Assembly}{19}{section.5}\protected@file@percent }
+\newlabel{sec:multifloor}{{5}{19}{Stage C: Multi-floor Assembly}{section.5}{}}
+\newlabel{sec:multifloor@cref}{{[section][5][]5}{[1][19][]19}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Floor Grouping}{20}{subsection.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Building-wide Constraints}{20}{subsection.5.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Constructibility.}{20}{section*.8}\protected@file@percent }
+\newlabel{eq:constructibility}{{31}{20}{Constructibility}{equation.31}{}}
+\newlabel{eq:constructibility@cref}{{[equation][31][]31}{[1][20][]20}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{Density.}{20}{section*.9}\protected@file@percent }
+\newlabel{eq:density}{{32}{20}{Density}{equation.32}{}}
+\newlabel{eq:density@cref}{{[equation][32][]32}{[1][20][]20}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{Total units.}{20}{section*.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Parking Requirements}{20}{subsection.5.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.3.1}Underground Parking Optimization}{21}{subsubsection.5.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.4}Total Building Value}{21}{subsection.5.4}\protected@file@percent }
+\newlabel{eq:total-value}{{37}{21}{Total Building Value}{equation.37}{}}
+\newlabel{eq:total-value@cref}{{[equation][37][]37}{[1][21][]21}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {6}Computational Complexity}{22}{section.6}\protected@file@percent }
+\newlabel{sec:complexity}{{6}{22}{Computational Complexity}{section.6}{}}
+\newlabel{sec:complexity@cref}{{[section][6][]6}{[1][22][]22}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Computational complexity by stage. The outer loop over facade setback candidates $N_{d_f}$ multiplies the cost of Stages~A--C. Within each candidate, the height map computation (Stage~A) and the knapsack DP (Stage~B.3) dominate the runtime.}}{22}{table.2}\protected@file@percent }
+\newlabel{tab:complexity}{{2}{22}{Computational complexity by stage. The outer loop over facade setback candidates $N_{d_f}$ multiplies the cost of Stages~A--C. Within each candidate, the height map computation (Stage~A) and the knapsack DP (Stage~B.3) dominate the runtime}{table.2}{}}
+\newlabel{tab:complexity@cref}{{[table][2][]2}{[1][22][]22}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {7}Conclusion}{23}{section.7}\protected@file@percent }
+\newlabel{sec:conclusion}{{7}{23}{Conclusion}{section.7}{}}
+\newlabel{sec:conclusion@cref}{{[section][7][]7}{[1][23][]23}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{Limitations and extensions.}{24}{section*.11}\protected@file@percent }
+\gdef \@abspage@last{24}
