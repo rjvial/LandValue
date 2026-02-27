@@ -10,10 +10,10 @@ key_pair   = "neo4j-key-pair.pem"
 ec2_user   = "ec2-user"
 neo4j_public_dns = aws_julia.find_instance_by_name("Neo4j-EC2-V2", conn_aws)["dnsName"]
 folder = "/usr/bin/cypher-shell"
-neo4j_host = "bolt://localhost:7687"
+neo4j_host = my_env["NEO4J_URI"]
 
-neo4j_user = "neo4j"
-neo4j_password = "x67y1332"
+neo4j_user = my_env["NEO4J_USER"]
+neo4j_password = my_env["NEO4J_PASSWORD"]
 conn_neo4j = neo4j_julia.connection(neo4j_host, neo4j_user, neo4j_password, folder, key_pair, ec2_user, neo4j_public_dns)
 
 

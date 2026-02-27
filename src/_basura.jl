@@ -83,11 +83,12 @@ function compute_relative_strategic_power(data)
     P = data.num_predios
     P <= 1 && return zeros(P)
     V = compute_V(data)
-    SP_norm = [compute_SP(p, data, V) / V for p in 1:P]
+    SP = [compute_SP(p, data, V) for p in 1:P]
+    # SP_norm = [compute_SP(p, data, V) / V for p in 1:P]
     RSP = zeros(P)
     for p in 1:P
-        others = [SP_norm[q] for q in 1:P if q != p]
-        RSP[p] = SP_norm[p] - median(others)
+        others = [SP[q] for q in 1:P if q != p]
+        RSP[p] = SP[p] - median(others)
     end
     return RSP
 end
@@ -96,8 +97,8 @@ end
 min_rectangularity = 0.95
 
 query = """
-MATCH (p:Predio)-[]-(c:Combi) 
-WHERE c.rectangularity >= $(min_rectangularity) 
+MATCH (m:Manzana)-[]-(p:Predio)-[]-(c:Combi) 
+WHERE c.rectangularity >= $(min_rectangularity)
 RETURN DISTINCT c.manzent as manzent, c.id_combi as id_combi, p.codigo_predial as codigo_predial, p.sup_terreno_sii as sup_terreno_sii 
 ORDER BY manzent, id_combi, codigo_predial
 """
@@ -105,12 +106,12 @@ df_predios_combis = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 unique_manzanas = sort(unique(df_predios_combis.manzent))
 num_manzanas = length(unique_manzanas)
 
-df_resultados = DataFrame(codigo_predial=Int[], bypassability=Float64[], strategic_power=Float64[])
+df_resultados = DataFrame(codigo_predial=Int[], manzent=Int[], bypassability=Float64[], strategic_power=Float64[])
 
 # Loop over each manzana
 for i_m in eachindex(unique_manzanas)
     
-    println("Manazan: $(unique_manzanas[i_m]), Index: $(i_m) / $(num_manzanas)")
+    println("Manzana: $(unique_manzanas[i_m]), Index: $(i_m) / $(num_manzanas)")
 
     df_predios_m = df_predios_combis[df_predios_combis.manzent .== unique_manzanas[i_m], :]
     unique_combis_m = unique(df_predios_m.id_combi)
@@ -125,7 +126,8 @@ for i_m in eachindex(unique_manzanas)
         A_m[i_p, i_c] = 1
     end
 
-    v = vec(sum(A_m, dims=1))
+    sup_predios = [df_predios_m[findfirst(==(cod), df_predios_m.codigo_predial), :sup_terreno_sii] for cod in unique_predios_m]
+    v = vec(sup_predios' * A_m)
     data_m = StrategicPowerData(num_predios_m, num_combis_m, A_m, v)
 
     bypassability = [compute_value_weighted_bypassability(p, data_m) for p in 1:data_m.num_predios]
@@ -133,7 +135,7 @@ for i_m in eachindex(unique_manzanas)
 
     for (i_p, cod) in enumerate(unique_predios_m)
         println("Predio: $(cod); bypassability: $(bypassability[i_p]); strategic_power: $(strategic_power[i_p])")
-        push!(df_resultados, (cod, bypassability[i_p], strategic_power[i_p]))
+        push!(df_resultados, (cod, unique_manzanas[i_m], bypassability[i_p], strategic_power[i_p]))
     end
 
 end
