@@ -843,3 +843,6 @@ CSV.write("empresas_sii.csv", df_sii; delim='|')
 # aws_julia.upload_csv_file_to_s3(conn_aws, "landengines-data", "kg/rel_prop_tgr_id_to_rut.csv", "rel_prop_tgr_id_to_rut.csv")
 aws_julia.upload_csv_file_to_s3(conn_aws, "landengines-data", "kg/empresas_tgr.csv", "empresas_tgr.csv")
 aws_julia.upload_csv_file_to_s3(conn_aws, "landengines-data", "kg/empresas_sii.csv", "empresas_sii.csv")
+
+isfile("empresas_tgr.csv") && rm("empresas_tgr.csv")
+isfile("empresas_sii.csv") && rm("empresas_sii.csv")

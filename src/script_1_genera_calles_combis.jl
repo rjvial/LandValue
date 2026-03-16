@@ -1,15 +1,11 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 # DATABASE CONNECTION & AWS INFRASTRUCTURE SETUP
 # ═══════════════════════════════════════════════════════════════════════════════
-# Establishes secure connections to AWS services and Neo4j graph database
-# running on EC2 instance for street and building data extraction
 using LandValue, DotEnv, DataFrames, CSV
 
 my_env = DotEnv.config("secrets.env")
 conn_aws = aws_julia.connection(my_env["AWS_ACCESS_KEY"], my_env["AWS_SECRET_KEY"], my_env["AWS_REGION"])
 
-
-# ── SSH + Remote cypher-shell (no local cypher-shell needed) ─────────────────
 key_pair   = "neo4j-key-pair.pem"
 ec2_user   = "ec2-user"
 
@@ -24,17 +20,61 @@ neo4j_password = my_env["NEO4J_PASSWORD"]
 
 conn_neo4j = neo4j_julia.connection(neo4j_host, neo4j_user, neo4j_password, folder, key_pair, ec2_user, public_dns)
 
-# ───────────────────────────────────────────────────────────────────────────────
-# STREET SEGMENTS EXTRACTION FROM GRAPH DATABASE
-# ───────────────────────────────────────────────────────────────────────────────
-# Queries Neo4j for all street segments in target commune, transforms coordinates
-# from WGS84 (4326) to UTM Zone 19S (32719) and adjusts for local processing
-comuna = "vitacura" 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# HELPER FUNCTIONS: COORDINATE TRANSFORMS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+function wkt4326_to_local(wkt, dx, dy)
+    geom = polyGdal.astext2shape(wkt)
+    geom = polyShape.shape_4326to32719(geom)
+    geom = polyShape.ajustaCoordenadas(geom, dx, dy)
+    return geom
+end
+
+function local_to_4326(geom, dx, dy)
+    geom_32719 = polyShape.ajustaCoordenadasInversa(geom, dx, dy)
+    geom_4326 = polyShape.shape_32719to4326(geom_32719)
+    return geom_4326, geom_32719
+end
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# HELPER: BOUNDING BOX SPATIAL INDEX
+# ═══════════════════════════════════════════════════════════════════════════════
+
+function compute_bbox(geom)
+    xmin, ymin = Inf, Inf
+    xmax, ymax = -Inf, -Inf
+    verts = isa(geom, PolyShape) ? geom.Vertices : geom.Vertices
+    for V in verts
+        xmin = min(xmin, minimum(V[:, 1]))
+        xmax = max(xmax, maximum(V[:, 1]))
+        ymin = min(ymin, minimum(V[:, 2]))
+        ymax = max(ymax, maximum(V[:, 2]))
+    end
+    return (xmin=xmin, ymin=ymin, xmax=xmax, ymax=ymax)
+end
+
+function bbox_overlaps(a, b)
+    return a.xmin <= b.xmax && a.xmax >= b.xmin && a.ymin <= b.ymax && a.ymax >= b.ymin
+end
+
+function find_candidate_segments(box_bbox, segment_bboxes)
+    return findall(sb -> bbox_overlaps(box_bbox, sb), segment_bboxes)
+end
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# QUERY PHASE: EXTRACT ALL DATA FROM NEO4J
+# ═══════════════════════════════════════════════════════════════════════════════
+comuna = "vitacura"
+const BOX_HEIGHT = 30
 
 # AND n.id_segmento_calle IN ["305811", "309105"]
 query = """
-MATCH (n:Segmento_Calle) 
-WHERE n.comuna = '$(comuna)' 
+MATCH (n:Segmento_Calle)
+WHERE n.comuna = '$(comuna)'
 RETURN n.codigo_calle AS codigo_calle,
 n.codigo_comuna AS codigo_comuna,
 n.comuna AS comuna,
@@ -44,17 +84,7 @@ n.nombre_calle AS nombre_calle,
 n.tipo_calle AS tipo_calle
 """
 df_semento_calle = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-ls_segmentos = polyGdal.astext2shape(df_semento_calle[:, "geom_wkt"])
-ls_segmentos = polyShape.shape_4326to32719(ls_segmentos)
-ls_segmentos, dx, dy = polyShape.ajustaCoordenadas(ls_segmentos)
-ps_segmentos = polyShape.lines2Polygons(ls_segmentos, 45)
 
-
-# ───────────────────────────────────────────────────────────────────────────────
-# GEOMETRIC FILTERING CRITERIA FOR COMBI 
-# ───────────────────────────────────────────────────────────────────────────────
-# Defines dimensional and shape quality thresholds for valid building combinations
-# based on urban planning standards and development feasibility constraints
 sup_combi_sii_min = 800;    sup_combi_sii_max = 4000
 length_min_combi = 38;      length_max_combi = 120
 width_min_combi = 20;       width_max_combi = 65
@@ -63,11 +93,10 @@ rectangularity_min = 0.95;  rectangularity_max = 1
 convexity_min = 0.95;       convexity_max = 1
 num_predios_min = 1;        num_predios_max = 12
 
-
 #c.id_combi = '13132011001012_31' AND
 query = """
-MATCH (c:Combi) 
-WHERE 
+MATCH (c:Combi)
+WHERE
 c.length >= $length_min_combi             AND c.length <= $length_max_combi
 AND c.width >= $width_min_combi                 AND c.width <= $width_max_combi
 AND c.length_to_width >= $length_to_width_min   AND c.length_to_width <= $length_to_width_max
@@ -75,76 +104,105 @@ AND c.rectangularity >= $rectangularity_min     AND c.rectangularity <= $rectang
 AND c.convexity >= $convexity_min               AND c.convexity <= $convexity_max
 // AND c.sup_combi_sii >= $sup_combi_sii_min       AND c.sup_combi_sii <= $sup_combi_sii_max
 // AND c.num_predios >= $num_predios_min           AND c.num_predios <= $num_predios_max
-RETURN DISTINCT  c.manzent AS manzent, c.id_combi AS id_combi, c.predios AS list_predios, 
+RETURN DISTINCT  c.manzent AS manzent, c.id_combi AS id_combi, c.predios AS list_predios,
 c.rectangularity AS rectangularity, c.convexity AS convexity, c.length AS length, c.width AS width,
 c.geom_combi AS geom_wkt
 ORDER BY manzent, id_combi
 """
 df_combis = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# GENERA BOXES PARA CADA SEGMENTO DE CALLE 
-# ═══════════════════════════════════════════════════════════════════════════════
-# For each building combination edge, creates rectangular buffers using polyBoxFromEdge
-# to detect which street segments are adjacent. Only processes edges not blocked by
-# private properties, generating precise frontage boxes that touch street infrastructure.
-
-const BOX_HEIGHT = 30  # Height of street frontage boxes in meters
-
 query = """
     MATCH (m:Manzana)<-[:SE_UBICA_EN_MANZANA]-(p:Predio)-[:TIENE_GEOM]->(gp:Geom_Predio)
-    WHERE p.comuna = 'vitacura'
+    WHERE p.comuna = '$(comuna)'
     RETURN p.codigo_predial AS codigo_predial, m.manzent AS manzent, gp.geom_wkt AS geom_wkt
 """
 df_predios = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-# lista_manzanas = unique(df_predios[:,"manzent"])
+
+display("Obtiene predios y ajusta coordenadas")
+query = """
+MATCH (gp:Geom_Predio)<-[:TIENE_GEOM]-(p:Predio)
+WHERE p.comuna = '$(comuna)'
+RETURN DISTINCT gp.geom_wkt AS geom_wkt
+"""
+df_predios_comuna = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
+
+display("Obtiene areas verdes contenidos en el buffer del predio y ajusta coordenadas")
+query = """
+MATCH (cat:Poi_Category)<-[:ES_POI_TIPO]-(poi:Poi)
+WHERE cat.poi_category in ['park', 'garden'] AND poi.comuna = '$(comuna)'
+RETURN poi.geom_wkt AS geom_wkt
+"""
+df_areas_verdes = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
 
 
-# Create results array to store vec_box_calle_combi
+# ═══════════════════════════════════════════════════════════════════════════════
+# TRANSFORM PHASE: CONVERT ALL GEOMETRIES TO LOCAL COORDS (ONCE)
+# ═══════════════════════════════════════════════════════════════════════════════
+display("Transformando coordenadas...")
+
+ls_segmentos = polyGdal.astext2shape(df_semento_calle[:, "geom_wkt"])
+ls_segmentos = polyShape.shape_4326to32719(ls_segmentos)
+ls_segmentos, dx, dy = polyShape.ajustaCoordenadas(ls_segmentos)
+ps_segmentos = polyShape.lines2Polygons(ls_segmentos, 45)
+
+segment_bboxes = [compute_bbox(polyShape.subShape(ls_segmentos, j)) for j in 1:ls_segmentos.NumLines]
+
+dict_combis_local = Dict{String, PolyShape}()
+for row in eachrow(df_combis)
+    ps = wkt4326_to_local(row.geom_wkt, dx, dy)
+    dict_combis_local[row.id_combi] = polyShape.setPolyOrientation(ps, 1)
+end
+
+dict_predios_manzana_local = Dict()
+for manzent in unique(df_predios[:, "manzent"])
+    wkts = df_predios[df_predios[!, "manzent"] .== manzent, "geom_wkt"]
+    ps = wkt4326_to_local(wkts, dx, dy)
+    dict_predios_manzana_local[manzent] = polyShape.polyUnion(polyShape.setPolyOrientation(ps, 1))
+end
+
+ps_predios_comuna = wkt4326_to_local(df_predios_comuna[:, "geom_wkt"], dx, dy)
+ps_predios_comuna = polyShape.setPolyOrientation(ps_predios_comuna, 1)
+
+ps_areas_verdes = wkt4326_to_local(df_areas_verdes[:, "geom_wkt"], dx, dy)
+ps_areas_verdes = polyShape.setPolyOrientation(ps_areas_verdes, 1)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# GENERA BOXES PARA CADA SEGMENTO DE CALLE
+# ═══════════════════════════════════════════════════════════════════════════════
+
 vec_box_calle_combi = []
-# 13132011002005_19
-# i=1; row = eachrow(df_combis)[i]
 
 for (i, row) in enumerate(eachrow(df_combis))
     println("Processing combi $(i)/$(nrow(df_combis)): $(row.id_combi)")
-    
-    combi_wkt = row.geom_wkt
-    id_combi = row.id_combi
 
-    # Convert combi to polyshape
-    ps_combi_i = polyGdal.astext2shape(combi_wkt)
-    ps_combi_i = polyShape.shape_4326to32719(ps_combi_i)
-    ps_combi_i = polyShape.ajustaCoordenadas(ps_combi_i, dx, dy)
-    ps_combi_i = polyShape.setPolyOrientation(ps_combi_i, 1)
+    id_combi = row.id_combi
+    ps_combi_i = dict_combis_local[id_combi]
     ps_hull_i = polyShape.setPolyOrientation(polyShape.polySimplify(ps_combi_i, 1), 1)
     num_sides_hull_i = size(ps_hull_i.Vertices[1], 1)
 
-    manzent_i = df_combis[df_combis[!,"id_combi"] .== id_combi, "manzent"][1]
-    df_predios_manzana_i = df_predios[df_predios[!,"manzent"] .== manzent_i, "geom_wkt"]
-    ps_predios_manzana_i = polyGdal.astext2shape(df_predios_manzana_i)
-    ps_predios_manzana_i = polyShape.shape_4326to32719(ps_predios_manzana_i)
-    ps_predios_manzana_i = polyShape.ajustaCoordenadas(ps_predios_manzana_i, dx, dy)
-    ps_predios_manzana_i = polyShape.polyUnion(polyShape.setPolyOrientation(ps_predios_manzana_i, 1))
+    manzent_i = row.manzent
+    ps_predios_manzana_i = dict_predios_manzana_local[manzent_i]
 
     for edge = 1:num_sides_hull_i
 
-        if polyShape.polyArea(polyShape.polyIntersection(polyShape.polyBoxFromEdge(ps_hull_i, edge, 5), ps_predios_manzana_i)) <= 3
+        box_check = polyShape.polyBoxFromEdge(ps_hull_i, edge, 5)
+        if polyShape.polyArea(polyShape.polyIntersection(box_check, ps_predios_manzana_i)) <= 3
             box_i_edge = polyShape.polyBoxFromEdge(ps_hull_i, edge, BOX_HEIGHT)
             box_i_edge = polyShape.rotate_to_first_ccw(box_i_edge, box_i_edge.Vertices[1][1,:])
-            # Check intersection with each street segment
-            # j=1; seg_row = eachrow(df_semento_calle)[j]
-            for (j, seg_row) in enumerate(eachrow(df_semento_calle))
+
+            box_offset = polyShape.partialPolyOffset(box_i_edge, [1], 5)
+            box_bbox = compute_bbox(box_offset)
+            candidates = find_candidate_segments(box_bbox, segment_bboxes)
+
+            for j in candidates
+                seg_row = eachrow(df_semento_calle)[j]
                 seg_id = seg_row.id_segmento_calle
-                
-                # Check if buffer intersects with street segment
                 ls_segmento_j = polyShape.subShape(ls_segmentos, j)
 
-                flag_touches = polyGdal.shapeTouches(polyShape.partialPolyOffset(box_i_edge,[1],5), ls_segmento_j)
-                # If intersection exists and has vertices
-                if flag_touches 
-                    box_i_edge = polyShape.ajustaCoordenadasInversa(box_i_edge, dx, dy)
-                    box_i_edge = polyShape.shape_32719to4326(box_i_edge)
+                flag_touches = polyGdal.shapeTouches(box_offset, ls_segmento_j)
+                if flag_touches
+                    box_i_edge_4326, _ = local_to_4326(box_i_edge, dx, dy)
 
                     push!(vec_box_calle_combi, (
                         id_combi = id_combi,
@@ -154,15 +212,14 @@ for (i, row) in enumerate(eachrow(df_combis))
                         tipo_calle = seg_row.tipo_calle,
                         id_edge = edge,
                         num_edges = num_sides_hull_i,
-                        edge = "[$(box_i_edge.Vertices[1][1,1]), $(box_i_edge.Vertices[1][1,2])]",
-                        geom_wkt = polyShape.polyshape2wkt(box_i_edge)
+                        edge = "[$(box_i_edge_4326.Vertices[1][1,1]), $(box_i_edge_4326.Vertices[1][1,2])]",
+                        geom_wkt = polyShape.polyshape2wkt(box_i_edge_4326)
                     ))
                 end
             end
         end
     end
-    
-    # Save checkpoint every 50 iterations
+
     if i % 50 == 0 && !isempty(vec_box_calle_combi)
         println("Saving checkpoint at iteration $(i)...")
         df_checkpoint = DataFrame(vec_box_calle_combi)
@@ -171,69 +228,25 @@ for (i, row) in enumerate(eachrow(df_combis))
     end
 end
 
-# Convert results to DataFrame
 df_box_calle_combi = DataFrame(vec_box_calle_combi)
 df_box_calle_combi = unique(df_box_calle_combi)
 CSV.write("box_calle_combi.csv", df_box_calle_combi)
-
-
-# ───────────────────────────────────────────────────────────────────────────────
-# OBTIENE GEOM DE PREDIOS EN LA COMUNA 
-# ───────────────────────────────────────────────────────────────────────────────
-# Retrieves all property boundaries within commune to identify private land that
-# should be excluded from street frontage calculations and public space analysis
-display("Obtiene predios y ajusta coordenadas")
-query = """
-MATCH (gp:Geom_Predio)<-[:TIENE_GEOM]-(p:Predio)
-WHERE p.comuna = 'vitacura'
-RETURN DISTINCT gp.geom_wkt AS geom_wkt
-"""
-df_predios_comuna = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-ps_predios_comuna = polyGdal.astext2shape(df_predios_comuna[:, "geom_wkt"])
-ps_predios_comuna = polyShape.setPolyOrientation(ps_predios_comuna,1)
-ps_predios_comuna = polyShape.shape_4326to32719(ps_predios_comuna)
-ps_predios_comuna = polyShape.ajustaCoordenadas(ps_predios_comuna, dx, dy)
-
-
-# ───────────────────────────────────────────────────────────────────────────────
-# OBTIENE GEOM AREAS VERDES
-# ───────────────────────────────────────────────────────────────────────────────
-# Extracts parks, gardens, and green spaces from POI database to distinguish
-# between street areas and landscaped public spaces in frontage calculations
-display("Obtiene areas verdes contenidos en el buffer del predio y ajusta coordenadas")
-query = """
-MATCH (cat:Poi_Category)<-[:ES_POI_TIPO]-(poi:Poi)
-WHERE cat.poi_category in ['park', 'garden'] AND poi.comuna = 'vitacura'
-RETURN poi.geom_wkt AS geom_wkt
-"""
-df_areas_verdes = neo4j_julia.cypher_to_dataframe(query, conn_neo4j)
-ps_areas_verdes = polyGdal.astext2shape(df_areas_verdes[:, "geom_wkt"])
-ps_areas_verdes = polyShape.setPolyOrientation(ps_areas_verdes, 1)
-ps_areas_verdes = polyShape.shape_4326to32719(ps_areas_verdes)
-ps_areas_verdes = polyShape.ajustaCoordenadas(ps_areas_verdes, dx, dy)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # GENERA df_calles_combis
 # ═══════════════════════════════════════════════════════════════════════════════
 
-function stitch_street_segments_together(id_combi, df_calles, df_combis)
+function stitch_street_segments_together(id_combi, df_calles, dict_combis_local, dx, dy)
     vec_segmento_calle = unique(df_calles[df_calles[!, "id_combi"] .== id_combi, "id_segmento_calle"])
 
     df_calles_combi = df_calles[df_calles[!, "id_combi"] .== id_combi, :]
-    ps_calles_combi = df_calles[df_calles[!, "id_combi"] .== id_combi, "geom_wkt"]
-    ps_calles_combi = polyGdal.astext2shape(ps_calles_combi)
+    ps_calles_combi = wkt4326_to_local(df_calles_combi[:, "geom_wkt"], dx, dy)
     ps_calles_combi = polyShape.setPolyOrientation(ps_calles_combi, 1)
-    ps_calles_combi = polyShape.shape_4326to32719(ps_calles_combi)
-    ps_calles_combi = polyShape.ajustaCoordenadas(ps_calles_combi, dx, dy)
 
     num_segmentos = ps_calles_combi.NumRegions
 
-    ps_combi = polyGdal.astext2shape(df_combis[df_combis[!, "id_combi"] .== id_combi, "geom_wkt"])
-    ps_combi = polyShape.setPolyOrientation(ps_combi, 1)
-    ps_combi = polyShape.shape_4326to32719(ps_combi)
-    ps_combi = polyShape.setPolyOrientation(ps_combi, 1)
-    ps_combi = polyShape.ajustaCoordenadas(ps_combi, dx, dy)
+    ps_combi = dict_combis_local[id_combi]
 
     ps_calles = PolyShape([], 0)
     for i = 1:num_segmentos
@@ -287,13 +300,16 @@ function stitch_street_segments_together(id_combi, df_calles, df_combis)
             end
         end
     end
-    
-    list_segmento_calle = "[" * join(vec_segmento_calle, ", ") * "]"
 
-    return ps_calles, ps_combi, list_segmento_calle
+    return ps_calles, ps_combi, vec_segmento_calle
 end
 
 df_calles = CSV.read("box_calle_combi.csv", DataFrame)
+
+dict_segmentos_local = Dict{Int, LineShape}()
+for j in 1:ls_segmentos.NumLines
+    dict_segmentos_local[j] = polyShape.subShape(ls_segmentos, j)
+end
 
 data_calles_combis = []
 for (i, row) in enumerate(eachrow(df_combis))
@@ -301,7 +317,7 @@ for (i, row) in enumerate(eachrow(df_combis))
 
     try
         id_combi = row.id_combi
-        ps_calles_i, ps_combi_i, list_segmento_calle = stitch_street_segments_together(id_combi, df_calles, df_combis)
+        ps_calles_i, ps_combi_i, vec_segmento_calle = stitch_street_segments_together(id_combi, df_calles, dict_combis_local, dx, dy)
 
         flag_calle_x_vecinos, mat_flag_calle_x_vecinos = polyShape.polyIntersects(ps_calles_i, ps_predios_comuna, true)
         ps_predios_comuna_i = polyShape.subShape(ps_predios_comuna, findall(any(mat_flag_calle_x_vecinos, dims=1)[:]))
@@ -311,18 +327,15 @@ for (i, row) in enumerate(eachrow(df_combis))
         ps_areas_verdes_i = polyShape.subShape(ps_areas_verdes, findall(any(mat_flag_verde_x_vecinos, dims=1)[:]))
         ps_calles_i = polyShape.polyDifference(ps_calles_i, ps_areas_verdes_i)
 
-        vec_segmento_calle = parse.(Int, strip.(split(replace(replace(list_segmento_calle, "[" => ""), "]" => ""), ",")))
-        df_segmentos_combi = filter(row -> row.id_segmento_calle in vec_segmento_calle, df_semento_calle)
-        ls_segmentos_combi = polyGdal.astext2shape(df_segmentos_combi[:, "geom_wkt"])
-        ls_segmentos_combi = polyShape.shape_4326to32719(ls_segmentos_combi)
-        ls_segmentos_combi = polyShape.ajustaCoordenadas(ls_segmentos_combi, dx, dy)
+        df_segmentos_combi = filter(r -> r.id_segmento_calle in vec_segmento_calle, df_semento_calle)
+        ls_segmentos_combi = wkt4326_to_local(df_segmentos_combi[:, "geom_wkt"], dx, dy)
 
         for j = 1:ps_calles_i.NumRegions
             ps_calles_j = polyShape.subShape(ps_calles_i, j)
-            
+
             flag_intersects, mat_intersects = polyShape.polyIntersects(ps_calles_j, ls_segmentos_combi, true)
             intersecting_indices = findall(any(mat_intersects, dims=1)[:])
-            
+
             if !isempty(intersecting_indices)
                 intersecting_segments = df_segmentos_combi[intersecting_indices, "id_segmento_calle"]
                 intersecting_segment_names = df_segmentos_combi[intersecting_indices, "nombre_calle"]
@@ -332,9 +345,8 @@ for (i, row) in enumerate(eachrow(df_combis))
                 segmento_calle_intersecting = "[]"
                 nombre_calle_intersecting = "[]"
             end
-            
-            ps_calles_32719_j = polyShape.ajustaCoordenadasInversa(ps_calles_j, dx, dy)
-            ps_calles_4326_j = polyShape.shape_32719to4326(ps_calles_32719_j)
+
+            ps_calles_4326_j, ps_calles_32719_j = local_to_4326(ps_calles_j, dx, dy)
 
             push!(data_calles_combis, (
                 id_calle_combi = id_combi * "_" * string(j),
@@ -345,8 +357,8 @@ for (i, row) in enumerate(eachrow(df_combis))
                 calles_32719_wkt = polyShape.polyshape2wkt(ps_calles_32719_j)
             ))
         end
-    catch
-        println("Error processing combi $(i)/$(nrow(df_combis)): $(row.id_combi)")
+    catch e
+        println("Error processing combi $(i)/$(nrow(df_combis)): $(row.id_combi) - $e")
     end
 end
 df_calles_combis = DataFrame(data_calles_combis)
@@ -379,9 +391,7 @@ num_combis = length(lista_combis)
 data_calles_contexto_combis = []
 for (i, row) in enumerate(eachrow(df_combis))
     println("Procesando Calles Contexto Combi $(i)/$(num_combis)")
-    ps_combi_i = polyGdal.astext2shape(row.geom_wkt)
-    ps_combi_i = polyShape.shape_4326to32719(ps_combi_i)
-    ps_combi_i = polyShape.ajustaCoordenadas(ps_combi_i, dx, dy)
+    ps_combi_i = dict_combis_local[row.id_combi]
     ps_combi_buffer_i = polyGdal.shapeBuffer(ps_combi_i, 70.0, 30)
     ps_segmentos_buffer_i = polyShape.polyIntersection(ps_combi_buffer_i, ps_segmentos)
     ps_verdes_buffer_i = polyShape.polyIntersection(ps_combi_buffer_i, ps_areas_verdes)
@@ -391,8 +401,7 @@ for (i, row) in enumerate(eachrow(df_combis))
     ps_calles_contexto_i = polyShape.polyDifference(ps_calles_contexto_i, ps_predios_buffer_i)
     ps_calles_contexto_i = polyShape.polySimplify(ps_calles_contexto_i, 2)
 
-    ps_calles_contexto_32719_i = polyShape.ajustaCoordenadasInversa(ps_calles_contexto_i, dx, dy)
-    ps_calles_contexto_4326_i = polyShape.shape_32719to4326(ps_calles_contexto_32719_i)
+    ps_calles_contexto_4326_i, _ = local_to_4326(ps_calles_contexto_i, dx, dy)
 
     push!(data_calles_contexto_combis, (
         id_combi = row.id_combi,
@@ -404,47 +413,22 @@ df_calles_contexto_combis = DataFrame(data_calles_contexto_combis)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# EXPORTA DAToS A LA NUBE
+# EXPORTA DATOS A LA NUBE
 # ═══════════════════════════════════════════════════════════════════════════════
 aws_bucket = "landengines-data"
 
-local_file_name = "calles_combis.csv"
-CSV.write(local_file_name, df_calles_combis)
-println("Processing complete. Final data saved to ", local_file_name)
-aws_file_name = "kg/$(local_file_name)"
-aws_julia.upload_csv_file_to_s3(conn_aws, aws_bucket, aws_file_name, local_file_name)
-if isfile(local_file_name)
-    rm(local_file_name)
-    println("$(local_file_name) Checkpoint file erased.")
+function upload_and_cleanup(df, local_file_name, conn_aws, aws_bucket)
+    CSV.write(local_file_name, df)
+    println("Processing complete. Final data saved to ", local_file_name)
+    aws_file_name = "kg/$(local_file_name)"
+    aws_julia.upload_csv_file_to_s3(conn_aws, aws_bucket, aws_file_name, local_file_name)
+    if isfile(local_file_name)
+        rm(local_file_name)
+        println("$(local_file_name) Checkpoint file erased.")
+    end
 end
 
-local_file_name = "calles_contexto_combis.csv"
-CSV.write(local_file_name, df_calles_contexto_combis)
-println("Processing complete. Final data saved to ", local_file_name)
-aws_file_name = "kg/$(local_file_name)"
-aws_julia.upload_csv_file_to_s3(conn_aws, aws_bucket, aws_file_name, local_file_name)
-if isfile(local_file_name)
-    rm(local_file_name)
-    println("$(local_file_name) Checkpoint file erased.")
-end
-
-local_file_name = "rel_combi_to_calles_combi.csv"
-CSV.write(local_file_name, df_combi_to_calles_combi)
-println("Processing complete. Final data saved to ", local_file_name)
-aws_file_name = "kg/$(local_file_name)"
-aws_julia.upload_csv_file_to_s3(conn_aws, aws_bucket, aws_file_name, local_file_name)
-if isfile(local_file_name)
-    rm(local_file_name)
-    println("$(local_file_name) Checkpoint file erased.")
-end
-
-local_file_name = "rel_segmento_calle_to_calles_combi.csv"
-CSV.write(local_file_name, df_segmento_calle_to_calles_combi)
-println("Processing complete. Final data saved to ", local_file_name)
-aws_file_name = "kg/$(local_file_name)"
-aws_julia.upload_csv_file_to_s3(conn_aws, aws_bucket, aws_file_name, local_file_name)
-if isfile(local_file_name)
-    rm(local_file_name)
-    println("$(local_file_name) Checkpoint file erased.")
-end
-
+upload_and_cleanup(df_calles_combis, "calles_combis.csv", conn_aws, aws_bucket)
+upload_and_cleanup(df_calles_contexto_combis, "calles_contexto_combis.csv", conn_aws, aws_bucket)
+upload_and_cleanup(df_combi_to_calles_combi, "rel_combi_to_calles_combi.csv", conn_aws, aws_bucket)
+upload_and_cleanup(df_segmento_calle_to_calles_combi, "rel_segmento_calle_to_calles_combi.csv", conn_aws, aws_bucket)
